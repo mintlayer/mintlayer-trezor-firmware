@@ -262,6 +262,10 @@ if TYPE_CHECKING:
         SolanaAddress = 903
         SolanaSignTx = 904
         SolanaTxSignature = 905
+        MintlayerGetAddress = 1000
+        MintlayerAddress = 1001
+        MintlayerGetPublicKey = 1002
+        MintlayerPublicKey = 1003
 
     class FailureType(IntEnum):
         UnexpectedMessage = 1
