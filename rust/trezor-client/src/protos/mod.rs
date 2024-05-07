@@ -38,6 +38,7 @@ mod generated {
         "stellar" => messages_stellar
         "tezos" => messages_tezos
         "webauthn" => messages_webauthn
+        "mintlayer" => messages_mintlayer
     }
 }
 

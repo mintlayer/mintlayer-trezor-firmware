@@ -29,6 +29,7 @@ FEATURES = {
     "Stellar": "stellar",
     "Tezos": "tezos",
     "WebAuthn": "webauthn",
+    "Mintlayer": "mintlayer",
 }
 MACRO = "trezor_message_impl"
 INDENT = "    "

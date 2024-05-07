@@ -648,6 +648,10 @@ class MessageType(IntEnum):
     BenchmarkNames = 9101
     BenchmarkRun = 9102
     BenchmarkResult = 9103
+    MintlayerGetAddress = 10000
+    MintlayerAddress = 10001
+    MintlayerGetPublicKey = 10002
+    MintlayerPublicKey = 10003
 
 
 class BenchmarkListNames(protobuf.MessageType):
@@ -5432,6 +5436,71 @@ class EthereumAccessList(protobuf.MessageType):
     ) -> None:
         self.storage_keys: Sequence["bytes"] = storage_keys if storage_keys is not None else []
         self.address = address
+
+
+class MintlayerGetAddress(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10000
+    FIELDS = {
+        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        2: protobuf.Field("show_display", "bool", repeated=False, required=False, default=None),
+        3: protobuf.Field("chunkify", "bool", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        address_n: Optional[Sequence["int"]] = None,
+        show_display: Optional["bool"] = None,
+        chunkify: Optional["bool"] = None,
+    ) -> None:
+        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.show_display = show_display
+        self.chunkify = chunkify
+
+
+class MintlayerAddress(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10001
+    FIELDS = {
+        1: protobuf.Field("address", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        address: "str",
+    ) -> None:
+        self.address = address
+
+
+class MintlayerGetPublicKey(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10002
+    FIELDS = {
+        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        2: protobuf.Field("show_display", "bool", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        address_n: Optional[Sequence["int"]] = None,
+        show_display: Optional["bool"] = None,
+    ) -> None:
+        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.show_display = show_display
+
+
+class MintlayerPublicKey(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10003
+    FIELDS = {
+        1: protobuf.Field("public_key", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        public_key: "bytes",
+    ) -> None:
+        self.public_key = public_key
 
 
 class MoneroTransactionSourceEntry(protobuf.MessageType):
