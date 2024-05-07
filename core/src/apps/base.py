@@ -124,6 +124,7 @@ def get_features() -> Features:
             Capability.PassphraseEntry,
             Capability.Solana,
             Capability.Translations,
+            Capability.Mintlayer,
         ]
 
         # We do not support some currencies on T2B1

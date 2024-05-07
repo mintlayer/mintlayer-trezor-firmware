@@ -537,6 +537,12 @@ if not utils.BITCOIN_ONLY:
     import apps.ethereum.tokens
     apps.ethereum.verify_message
     import apps.ethereum.verify_message
+    apps.mintlayer
+    import apps.mintlayer
+    apps.mintlayer.get_address
+    import apps.mintlayer.get_address
+    apps.mintlayer.get_public_key
+    import apps.mintlayer.get_public_key
     apps.monero
     import apps.monero
     apps.monero.diag
