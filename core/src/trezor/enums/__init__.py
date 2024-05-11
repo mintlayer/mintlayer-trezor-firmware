@@ -245,6 +245,7 @@ if TYPE_CHECKING:
         Translations = 19
         Brightness = 20
         Haptic = 21
+        Mintlayer = 22
 
     class SdProtectOperationType(IntEnum):
         DISABLE = 0
@@ -298,6 +299,12 @@ if TYPE_CHECKING:
         ADDRESS = 6
         ARRAY = 7
         STRUCT = 8
+
+    class MintlayerRequestType(IntEnum):
+        TXINPUT = 0
+        TXOUTPUT = 1
+        TXMETA = 2
+        TXFINISHED = 3
 
     class MoneroNetworkType(IntEnum):
         MAINNET = 0
@@ -599,3 +606,7 @@ if TYPE_CHECKING:
         MintlayerAddress = 10001
         MintlayerGetPublicKey = 10002
         MintlayerPublicKey = 10003
+        MintlayerVerifySig = 10004
+        MintlayerSignTx = 10005
+        MintlayerTxRequest = 10006
+        MintlayerTxAckUtxoInput = 10007

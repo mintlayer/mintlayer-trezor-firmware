@@ -14,7 +14,7 @@
 # You should have received a copy of the License along with this library.
 # If not, see <https://www.gnu.org/licenses/lgpl-3.0.html>.
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from . import messages
 from .protobuf import dict_to_proto
@@ -48,42 +48,40 @@ def get_public_key(
         messages.MintlayerGetPublicKey(address_n=address_n, show_display=show_display)
     )
 
+def verify_sig(
+    client: "TrezorClient",
+    address_n: "Address",
+    signature: bytes,
+    message: bytes,
+) -> bool:
+    try:
+        resp = client.call(
+            messages.MintlayerVerifySig(
+                address_n=address_n,
+                signature=signature,
+                message=message
+            )
+        )
+    # TODO: add exceptions like btc
+    # except exceptions.TrezorFailure:
+    except:
+        print("got exception in verify sig Mintlayer")
+        return False
+    return isinstance(resp, messages.Success)
 
-# @session
-# def sign_tx(
-#     client: "TrezorClient", address_n: "Address", tx_json: dict, chunkify: bool = False
-# ) -> messages.BinanceSignedTx:
-#     msg = tx_json["msgs"][0]
-#     tx_msg = tx_json.copy()
-#     tx_msg["msg_count"] = 1
-#     tx_msg["address_n"] = address_n
-#     tx_msg["chunkify"] = chunkify
-#     envelope = dict_to_proto(messages.BinanceSignTx, tx_msg)
-
-#     response = client.call(envelope)
-
-#     if not isinstance(response, messages.BinanceTxRequest):
-#         raise RuntimeError(
-#             "Invalid response, expected BinanceTxRequest, received "
-#             + type(response).__name__
-#         )
-
-#     if "refid" in msg:
-#         msg = dict_to_proto(messages.BinanceCancelMsg, msg)
-#     elif "inputs" in msg:
-#         msg = dict_to_proto(messages.BinanceTransferMsg, msg)
-#     elif "ordertype" in msg:
-#         msg = dict_to_proto(messages.BinanceOrderMsg, msg)
-#     else:
-#         raise ValueError("can not determine msg type")
-
-#     response = client.call(msg)
-
-#     if not isinstance(response, messages.BinanceSignedTx):
-#         raise RuntimeError(
-#             "Invalid response, expected BinanceSignedTx, received "
-#             + type(response).__name__
-#         )
-
-#     return response
-
+@session
+def sign_tx(
+        client: "TrezorClient", outputs_count: int, inputs_count: int,
+        version: Optional["int"] = 1,
+        serialize: Optional["bool"] = True,
+        chunkify: Optional["bool"] = None,
+):
+    return client.call(
+        messages.MintlayerSignTx(
+            outputs_count=outputs_count,
+            inputs_count=inputs_count,
+            version=version,
+            serialize=serialize,
+            chunkify=chunkify,
+        )
+    )
