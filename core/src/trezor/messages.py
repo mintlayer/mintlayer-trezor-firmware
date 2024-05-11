@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from trezor.enums import HomescreenFormat  # noqa: F401
     from trezor.enums import InputScriptType  # noqa: F401
     from trezor.enums import MessageType  # noqa: F401
+    from trezor.enums import MintlayerRequestType  # noqa: F401
     from trezor.enums import MoneroNetworkType  # noqa: F401
     from trezor.enums import NEMImportanceTransferMode  # noqa: F401
     from trezor.enums import NEMModificationType  # noqa: F401
@@ -4055,6 +4056,214 @@ if TYPE_CHECKING:
 
         @classmethod
         def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerPublicKey"]:
+            return isinstance(msg, cls)
+
+    class MintlayerVerifySig(protobuf.MessageType):
+        address_n: "list[int]"
+        signature: "bytes"
+        message: "bytes"
+
+        def __init__(
+            self,
+            *,
+            signature: "bytes",
+            message: "bytes",
+            address_n: "list[int] | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerVerifySig"]:
+            return isinstance(msg, cls)
+
+    class MintlayerSignTx(protobuf.MessageType):
+        outputs_count: "int"
+        inputs_count: "int"
+        version: "int"
+        serialize: "bool"
+        chunkify: "bool | None"
+
+        def __init__(
+            self,
+            *,
+            outputs_count: "int",
+            inputs_count: "int",
+            version: "int | None" = None,
+            serialize: "bool | None" = None,
+            chunkify: "bool | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerSignTx"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxRequest(protobuf.MessageType):
+        request_type: "MintlayerRequestType | None"
+        details: "MintlayerTxRequestDetailsType | None"
+        serialized: "MintlayerTxRequestSerializedType | None"
+
+        def __init__(
+            self,
+            *,
+            request_type: "MintlayerRequestType | None" = None,
+            details: "MintlayerTxRequestDetailsType | None" = None,
+            serialized: "MintlayerTxRequestSerializedType | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxRequest"]:
+            return isinstance(msg, cls)
+
+    class MintlayerUtxoTxInput(protobuf.MessageType):
+        address_n: "list[int]"
+        prev_hash: "bytes"
+        prev_index: "int"
+        sequence: "int"
+        amount: "int"
+
+        def __init__(
+            self,
+            *,
+            prev_hash: "bytes",
+            prev_index: "int",
+            amount: "int",
+            address_n: "list[int] | None" = None,
+            sequence: "int | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerUtxoTxInput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTransferTxOutput(protobuf.MessageType):
+        address: "str | None"
+        address_n: "list[int]"
+        amount: "int"
+
+        def __init__(
+            self,
+            *,
+            amount: "int",
+            address_n: "list[int] | None" = None,
+            address: "str | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTransferTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerPrevTx(protobuf.MessageType):
+        version: "int"
+        inputs_count: "int"
+        outputs_count: "int"
+
+        def __init__(
+            self,
+            *,
+            version: "int",
+            inputs_count: "int",
+            outputs_count: "int",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerPrevTx"]:
+            return isinstance(msg, cls)
+
+    class MintlayerPrevInput(protobuf.MessageType):
+        prev_hash: "bytes"
+        prev_index: "int"
+
+        def __init__(
+            self,
+            *,
+            prev_hash: "bytes",
+            prev_index: "int",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerPrevInput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerPrevTransferOutput(protobuf.MessageType):
+        amount: "int"
+
+        def __init__(
+            self,
+            *,
+            amount: "int",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerPrevTransferOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxAckUtxoInput(protobuf.MessageType):
+        tx: "MintlayerTxAckInputWrapper"
+
+        def __init__(
+            self,
+            *,
+            tx: "MintlayerTxAckInputWrapper",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxAckUtxoInput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxRequestDetailsType(protobuf.MessageType):
+        request_index: "int | None"
+        tx_hash: "bytes | None"
+
+        def __init__(
+            self,
+            *,
+            request_index: "int | None" = None,
+            tx_hash: "bytes | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxRequestDetailsType"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxRequestSerializedType(protobuf.MessageType):
+        signature_index: "int | None"
+        signature: "bytes | None"
+        serialized_tx: "bytes | None"
+
+        def __init__(
+            self,
+            *,
+            signature_index: "int | None" = None,
+            signature: "bytes | None" = None,
+            serialized_tx: "bytes | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxRequestSerializedType"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxAckInputWrapper(protobuf.MessageType):
+        input: "MintlayerUtxoTxInput"
+
+        def __init__(
+            self,
+            *,
+            input: "MintlayerUtxoTxInput",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxAckInputWrapper"]:
             return isinstance(msg, cls)
 
     class MoneroTransactionSourceEntry(protobuf.MessageType):

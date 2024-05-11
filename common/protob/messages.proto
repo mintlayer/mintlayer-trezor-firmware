@@ -381,4 +381,8 @@ enum MessageType {
     MessageType_MintlayerAddress = 1001 [(wire_out) = true];
     MessageType_MintlayerGetPublicKey = 1002 [(wire_in) = true];
     MessageType_MintlayerPublicKey = 1003 [(wire_out) = true];
+    MessageType_MintlayerVerifySig = 1004 [(wire_in) = true];
+    MessageType_MintlayerSignTx = 1005 [(wire_in) = true];
+    MessageType_MintlayerTxRequest = 1006 [(wire_out) = true];
+    MessageType_MintlayerTxAckUtxoInput = 1007 [(wire_in) = true];
 }
