@@ -212,6 +212,10 @@ def _find_message_handler_module(msg_type: int) -> str:
         if msg_type == MessageType.MintlayerGetPublicKey:
             print("returning app mintlayer get public key")
             return "apps.mintlayer.get_public_key"
+        if msg_type == MessageType.MintlayerVerifySig:
+            return "apps.mintlayer.verify_sig"
+        if msg_type == MessageType.MintlayerSignTx:
+            return "apps.mintlayer.sign_tx"
 
     print(f"msg type not found {msg_type}, {MessageType.MintlayerGetPublicKey}")
     raise ValueError

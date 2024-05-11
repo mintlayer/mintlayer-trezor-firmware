@@ -139,10 +139,14 @@ default-features = false
 features = ["libm"]
 
 
+# [dependencies.mintlayer-core]
+# git = "https://github.com/mintlayer/mintlayer-core.git"
+# branch = "experiment/trezorlib"
+
 # Build dependencies
 
 [build-dependencies.bindgen]
-version = "0.62.0"
+version = "0.69.4"
 default_features = false
 features = ["runtime"]
 
