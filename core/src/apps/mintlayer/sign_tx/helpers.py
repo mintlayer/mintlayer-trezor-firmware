@@ -16,6 +16,7 @@ if TYPE_CHECKING:
         SignTx,
         TxAckPaymentRequest,
         MintlayerUtxoTxInput,
+        MintlayerTransferTxOutput,
         TxOutput,
         MintlayerTxRequest,
     )
@@ -337,7 +338,7 @@ def request_tx_input(tx_req: MintlayerTxRequest, i: int) -> Awaitable[MintlayerU
     return _sanitize_tx_input(ack.tx.input)
 
 
-def request_tx_prev_input(tx_req: MintlayerTxRequest, i: int, coin: CoinInfo, tx_hash: bytes | None = None) -> Awaitable[PrevInput]:  # type: ignore [awaitable-is-generator]
+def request_tx_prev_input(tx_req: MintlayerTxRequest, i: int, tx_hash: bytes | None = None) -> Awaitable[PrevInput]:  # type: ignore [awaitable-is-generator]
     from trezor.messages import TxAckPrevInput
 
     assert tx_req.details is not None
@@ -349,19 +350,19 @@ def request_tx_prev_input(tx_req: MintlayerTxRequest, i: int, coin: CoinInfo, tx
     return _sanitize_tx_prev_input(ack.tx.input, coin)
 
 
-def request_tx_output(tx_req: TxRequest, i: int, coin: CoinInfo, tx_hash: bytes | None = None) -> Awaitable[TxOutput]:  # type: ignore [awaitable-is-generator]
-    from trezor.messages import TxAckOutput
+def request_tx_output(tx_req: TxRequest, i: int, tx_hash: bytes | None = None) -> Awaitable[TxOutput]:  # type: ignore [awaitable-is-generator]
+    from trezor.messages import MintlayerTxAckOutput
 
     assert tx_req.details is not None
     if tx_hash:
-        tx_req.request_type = MintlayerRequestType.TXORIGOUTPUT
+        tx_req.request_type = MintlayerRequestType.TXOUTPUT
         tx_req.details.tx_hash = tx_hash
     else:
         tx_req.request_type = MintlayerRequestType.TXOUTPUT
     tx_req.details.request_index = i
-    ack = yield TxAckOutput, tx_req
+    ack = yield MintlayerTxAckOutput, tx_req
     _clear_tx_request(tx_req)
-    return _sanitize_tx_output(ack.tx.output, coin)
+    return _sanitize_tx_output(ack.tx.output)
 
 
 def request_tx_prev_output(tx_req: TxRequest, i: int, coin: CoinInfo, tx_hash: bytes | None = None) -> Awaitable[PrevOutput]:  # type: ignore [awaitable-is-generator]
@@ -488,50 +489,18 @@ def _sanitize_tx_prev_input(txi: PrevInput, coin: CoinInfo) -> PrevInput:
     return txi
 
 
-def _sanitize_tx_output(txo: TxOutput, coin: CoinInfo) -> TxOutput:
-    from trezor.enums import OutputScriptType
+def _sanitize_tx_output(txo: MintlayerTransferTxOutput) -> TxOutput:
     from trezor.wire import DataError  # local_cache_global
 
-    script_type = txo.script_type  # local_cache_attribute
     address_n = txo.address_n  # local_cache_attribute
-
-    if txo.multisig and script_type not in common.MULTISIG_OUTPUT_SCRIPT_TYPES:
-        raise DataError("Multisig field provided but not expected.")
-
-    if not txo.multisig and script_type == OutputScriptType.PAYTOMULTISIG:
-        raise DataError("Multisig details required.")
-
-    if address_n and script_type not in common.CHANGE_OUTPUT_SCRIPT_TYPES:
-        raise DataError("Output's address_n provided but not expected.")
 
     if txo.amount is None:
         raise DataError("Missing amount field.")
 
-    if script_type in common.SEGWIT_OUTPUT_SCRIPT_TYPES:
-        if not coin.segwit:
-            raise DataError("Segwit not enabled on this coin.")
-
-    if script_type == OutputScriptType.PAYTOTAPROOT and not coin.taproot:
-        raise DataError("Taproot not enabled on this coin")
-
-    if script_type == OutputScriptType.PAYTOOPRETURN:
-        # op_return output
-        if txo.op_return_data is None:
-            raise DataError("OP_RETURN output without op_return_data")
-        if txo.amount != 0:
-            raise DataError("OP_RETURN output with non-zero amount")
-        if txo.address or address_n or txo.multisig:
-            raise DataError("OP_RETURN output with address or multisig")
-    else:
-        if txo.op_return_data:
-            raise DataError("OP RETURN data provided but not OP RETURN script type.")
-        if address_n and txo.address:
-            raise DataError("Both address and address_n provided.")
-        if not address_n and not txo.address:
-            raise DataError("Missing address")
-
-    if txo.orig_hash and txo.orig_index is None:
-        raise DataError("Missing orig_index field.")
+    if address_n and txo.address:
+        raise DataError("Both address and address_n provided.")
+    if not address_n and not txo.address:
+        raise DataError("Missing address")
 
     return txo
 

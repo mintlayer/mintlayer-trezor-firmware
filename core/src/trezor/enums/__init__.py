@@ -270,6 +270,7 @@ if TYPE_CHECKING:
         MintlayerSignTx = 1005
         MintlayerTxRequest = 1006
         MintlayerTxAckUtxoInput = 1007
+        MintlayerTxAckOutput = 1008
 
     class FailureType(IntEnum):
         UnexpectedMessage = 1

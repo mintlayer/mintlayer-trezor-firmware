@@ -100,6 +100,9 @@ trezor-tjpgdec = { version = "0.1.0", path = "../../../rust/trezor-tjpgdec" }
 ufmt = "0.2.0"
 zeroize = { version = "1.7.0", default-features = false, optional = true }
 
+# minlayer
+parity-scale-codec = { version = "3.1", default-features = false, features = ["derive", "chain-error"] }
+
 # Runtime dependencies
 
 [dependencies.cty]

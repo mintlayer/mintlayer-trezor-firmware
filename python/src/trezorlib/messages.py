@@ -278,6 +278,7 @@ class MessageType(IntEnum):
     MintlayerSignTx = 1005
     MintlayerTxRequest = 1006
     MintlayerTxAckUtxoInput = 1007
+    MintlayerTxAckOutput = 1008
 
 
 class FailureType(IntEnum):
@@ -5582,6 +5583,20 @@ class MintlayerTxAckUtxoInput(protobuf.MessageType):
         self.tx = tx
 
 
+class MintlayerTxAckOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1008
+    FIELDS = {
+        1: protobuf.Field("tx", "MintlayerTxAckOutputWrapper", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        tx: "MintlayerTxAckOutputWrapper",
+    ) -> None:
+        self.tx = tx
+
+
 class MintlayerTxRequestDetailsType(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
@@ -5631,6 +5646,20 @@ class MintlayerTxAckInputWrapper(protobuf.MessageType):
         input: "MintlayerUtxoTxInput",
     ) -> None:
         self.input = input
+
+
+class MintlayerTxAckOutputWrapper(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        5: protobuf.Field("output", "MintlayerTransferTxOutput", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        output: "MintlayerTransferTxOutput",
+    ) -> None:
+        self.output = output
 
 
 class MoneroTransactionSourceEntry(protobuf.MessageType):

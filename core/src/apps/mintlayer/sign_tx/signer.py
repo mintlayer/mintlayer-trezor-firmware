@@ -1,4 +1,4 @@
-from trezor.messages import MintlayerSignTx
+from trezor.messages import MintlayerSignTx, MintlayerUtxoTxInput, MintlayerTransferTxOutput
 from micropython import const
 from typing import TYPE_CHECKING
 
@@ -14,7 +14,7 @@ from .progress import progress
 from . import helpers
 
 if TYPE_CHECKING:
-    from typing import Sequence
+    from typing import Sequence, List
 
     from trezor.crypto import bip32
     from trezor.messages import PrevInput, PrevOutput, PrevTx, TxInput, TxOutput
@@ -31,18 +31,37 @@ if TYPE_CHECKING:
 _MAX_SERIALIZED_CHUNK_SIZE = const(2048)
 _SERIALIZED_TX_BUFFER = empty_bytearray(_MAX_SERIALIZED_CHUNK_SIZE)
 
+class TxUtxoInput:
+    def __init__(self, input: MintlayerUtxoTxInput, utxo: MintlayerTransferTxOutput, node: bip32.HDNode):
+        self.input = input
+        self.utxo = utxo
+        self.node = node
+
+
+class TxInfo:
+    def __init__(self, tx: MintlayerSignTx, inputs: List[TxUtxoInput], outputs: List[MintlayerTransferTxOutput]):
+        self.tx = tx
+        self.inputs = inputs
+        self.outputs = outputs
+
+
+    def add_input(self, txi: MintlayerUtxoTxInput, txo: MintlayerTransferTxOutput, node: bip32.HDNode):
+        self.inputs.append(TxUtxoInput(input= txi, utxo= txo, node= node))
+
+    def add_output(self, txo: MintlayerTransferTxOutput):
+        self.outputs.append(txo)
 
 class Mintlayer:
     def init_signing(self) -> None:
         # Next shown progress bar is already signing progress, but it isn't shown until approval from next dialog
         progress.init_signing(
             self.serialize,
-            self.tx_info,
+            self.tx_info.tx,
         )
         self.signing = True
 
     async def signer(self) -> None:
-        progress.init(self.tx_info)
+        progress.init(self.tx_info.tx)
 
         # Add inputs to sig_hasher and h_tx_check and compute the sum of input amounts.
         await self.step1_process_inputs()
@@ -99,7 +118,7 @@ class Mintlayer:
 
         global _SERIALIZED_TX_BUFFER
 
-        self.tx_info = tx
+        self.tx_info = TxInfo(tx=tx, inputs=[], outputs=[])
         self.keychain = keychain
 
         # self.approver = approvers.BasicApprover(tx, coin)
@@ -130,6 +149,9 @@ class Mintlayer:
         # The index of the payment request being processed.
         self.payment_req_index: int | None = None
 
+        self.inputs: List[TxUtxoInput] = []
+        self.outputs = []
+
     def create_hash_writer(self) -> HashWriter:
         return HashWriter(sha256())
 
@@ -140,57 +162,40 @@ class Mintlayer:
 
     async def step1_process_inputs(self) -> None:
         tx_info = self.tx_info  # local_cache_attribute
-        h_presigned_inputs_check = HashWriter(sha256())
+        # h_presigned_inputs_check = HashWriter(sha256())
 
-        for i in range(tx_info.inputs_count):
+        for i in range(tx_info.tx.inputs_count):
             # STAGE_REQUEST_1_INPUT in legacy
             progress.advance()
+            print('requesting input')
             txi = await helpers.request_tx_input(self.tx_req, i)
 
-            node = self.keychain.derive(txi.address_n)
-            await self.process_internal_input(txi, node)
+            print('requesting output')
+            txo = await helpers.request_tx_output(self.tx_req, txi.prev_index, txi.prev_hash)
+            print('derviing node')
+            node = self.keychain.derive(txo.address_n)
+            # await self.process_internal_input(txi, txo, node)
 
-            script_pubkey = self.input_derive_script(txi, node)
-            self.tx_info.add_input(txi, script_pubkey)
+            self.tx_info.add_input(txi, txo, node)
 
-            if txi.orig_hash:
-                await self.process_original_input(txi, script_pubkey)
-
-        tx_info.h_inputs_check = tx_info.get_tx_check_digest()
-        self.h_presigned_inputs = h_presigned_inputs_check.get_digest()
-
-        # Finalize original inputs.
-        for orig in self.orig_txs:
-            orig.h_inputs_check = orig.get_tx_check_digest()
-            if orig.index != orig.tx.inputs_count:
-                raise ProcessError("Removal of original inputs is not supported.")
-
-            orig.index = 0  # Reset counter for outputs.
+        # tx_info.h_inputs_check = tx_info.get_tx_check_digest()
+        # self.h_presigned_inputs = h_presigned_inputs_check.get_digest()
 
     async def step2_approve_outputs(self) -> None:
         for i in range(self.tx_info.tx.outputs_count):
             # STAGE_REQUEST_2_OUTPUT in legacy
             progress.advance()
-            txo = await request_tx_output(self.tx_req, i, self.coin)
-            script_pubkey = self.output_derive_script(txo)
-            orig_txo: TxOutput | None = None
-            if txo.orig_hash:
-                orig_txo = await self.get_original_output(txo, script_pubkey)
-            await self.approve_output(txo, script_pubkey, orig_txo)
-
-        # Finalize original outputs.
-        for orig in self.orig_txs:
-            # Fetch remaining removed original outputs.
-            await self.fetch_removed_original_outputs(
-                orig, orig.orig_hash, orig.tx.outputs_count
-            )
-            await orig.finalize_tx_hash()
+            txo = await helpers.request_tx_output(self.tx_req, i)
+            # script_pubkey = self.output_derive_script(txo)
+            # await self.approve_output(txo, script_pubkey, orig_txo)
+            self.tx_info.add_output(txo)
 
     async def step3_verify_inputs(self) -> None:
+        return
         # should come out the same as h_inputs_check, checked before continuing
         h_check = HashWriter(sha256())
 
-        if False: #self.taproot_only:
+        if True: #self.taproot_only:
             # All internal inputs are Taproot. We only need to verify presigned external inputs.
             # We can trust the amounts and scriptPubKeys, because if an invalid value is provided
             # then all issued signatures will be invalid.
@@ -295,11 +300,9 @@ class Mintlayer:
             progress.assert_finished()
         await helpers.request_tx_finish(self.tx_req)
 
-    async def process_internal_input(self, txi: TxInput, node: bip32.HDNode) -> None:
-        if txi.script_type not in common.INTERNAL_INPUT_SCRIPT_TYPES:
-            raise DataError("Wrong input script type")
-
-        await self.approver.add_internal_input(txi, node)
+    async def process_internal_input(self, txi: MintlayerUtxoTxInput, txo: MintlayerTransferTxOutput, node: bip32.HDNode) -> None:
+        self.inputs.append(TxUtxoInput(input= txi, utxo= txo, node= node))
+        # await self.approver.add_internal_input(txi, node)
 
     async def process_external_input(self, txi: TxInput) -> None:
         assert txi.script_pubkey is not None  # checked in sanitize_tx_input
