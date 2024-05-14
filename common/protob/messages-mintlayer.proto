@@ -185,3 +185,20 @@ message MintlayerTxAckUtxoInput {
         required MintlayerUtxoTxInput input = 2;
     }
 }
+
+/**
+ * Request: Data about output to be signed.
+ * Wire-alias of TxAck.
+ *
+ * Do not edit this type without considering compatibility with TxAck.
+ * Prefer to modify the inner TxOutput type.
+ *
+ * @next TxRequest
+ */
+message MintlayerTxAckOutput {
+    required MintlayerTxAckOutputWrapper tx = 1;
+
+    message MintlayerTxAckOutputWrapper {
+        required MintlayerTransferTxOutput output = 5;
+    }
+}

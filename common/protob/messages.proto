@@ -339,4 +339,5 @@ enum MessageType {
     MessageType_MintlayerSignTx = 10005 [(wire_in) = true];
     MessageType_MintlayerTxRequest = 10006 [(wire_out) = true];
     MessageType_MintlayerTxAckUtxoInput = 10007 [(wire_in) = true];
+    MessageType_MintlayerTxAckOutput = 10008 [(wire_in) = true];
 }

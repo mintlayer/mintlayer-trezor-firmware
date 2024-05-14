@@ -610,3 +610,4 @@ if TYPE_CHECKING:
         MintlayerSignTx = 10005
         MintlayerTxRequest = 10006
         MintlayerTxAckUtxoInput = 10007
+        MintlayerTxAckOutput = 10008

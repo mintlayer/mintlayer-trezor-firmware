@@ -56,6 +56,7 @@ async def sign_tx(
     from .signer import Mintlayer
     from ...bitcoin.sign_tx import helpers
 
+
     # approver: approvers.Approver | None = None
     approver = None
 
@@ -71,7 +72,9 @@ async def sign_tx(
             assert MintlayerTxRequest.is_type_of(req)
             if req.request_type == MintlayerRequestType.TXFINISHED:
                 return req
+            print('sending and waiting for response')
             res = await call(req, request_class)
+            print('got response', res)
         elif isinstance(req, helpers.UiConfirm):
             res = await req.confirm_dialog()
             progress.progress.report_init()

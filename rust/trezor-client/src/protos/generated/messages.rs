@@ -538,6 +538,8 @@ pub enum MessageType {
     MessageType_MintlayerTxRequest = 10006,
     // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerTxAckUtxoInput)
     MessageType_MintlayerTxAckUtxoInput = 10007,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerTxAckOutput)
+    MessageType_MintlayerTxAckOutput = 10008,
 }
 
 impl ::protobuf::Enum for MessageType {
@@ -804,6 +806,7 @@ impl ::protobuf::Enum for MessageType {
             10005 => ::std::option::Option::Some(MessageType::MessageType_MintlayerSignTx),
             10006 => ::std::option::Option::Some(MessageType::MessageType_MintlayerTxRequest),
             10007 => ::std::option::Option::Some(MessageType::MessageType_MintlayerTxAckUtxoInput),
+            10008 => ::std::option::Option::Some(MessageType::MessageType_MintlayerTxAckOutput),
             _ => ::std::option::Option::None
         }
     }
@@ -1065,6 +1068,7 @@ impl ::protobuf::Enum for MessageType {
             "MessageType_MintlayerSignTx" => ::std::option::Option::Some(MessageType::MessageType_MintlayerSignTx),
             "MessageType_MintlayerTxRequest" => ::std::option::Option::Some(MessageType::MessageType_MintlayerTxRequest),
             "MessageType_MintlayerTxAckUtxoInput" => ::std::option::Option::Some(MessageType::MessageType_MintlayerTxAckUtxoInput),
+            "MessageType_MintlayerTxAckOutput" => ::std::option::Option::Some(MessageType::MessageType_MintlayerTxAckOutput),
             _ => ::std::option::Option::None
         }
     }
@@ -1325,6 +1329,7 @@ impl ::protobuf::Enum for MessageType {
         MessageType::MessageType_MintlayerSignTx,
         MessageType::MessageType_MintlayerTxRequest,
         MessageType::MessageType_MintlayerTxAckUtxoInput,
+        MessageType::MessageType_MintlayerTxAckOutput,
     ];
 }
 
@@ -1591,6 +1596,7 @@ impl ::protobuf::EnumFull for MessageType {
             MessageType::MessageType_MintlayerSignTx => 252,
             MessageType::MessageType_MintlayerTxRequest => 253,
             MessageType::MessageType_MintlayerTxAckUtxoInput => 254,
+            MessageType::MessageType_MintlayerTxAckOutput => 255,
         };
         Self::enum_descriptor().value_by_index(index)
     }
@@ -1609,7 +1615,7 @@ impl MessageType {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x0emessages.proto\x12\x12hw.trezor.messages\x1a\roptions.proto*\xc4X\
+    \n\x0emessages.proto\x12\x12hw.trezor.messages\x1a\roptions.proto*\xf1X\
     \n\x0bMessageType\x12(\n\x16MessageType_Initialize\x10\0\x1a\x0c\x80\xa6\
     \x1d\x01\xb0\xb5\x18\x01\x90\xb5\x18\x01\x12\x1e\n\x10MessageType_Ping\
     \x10\x01\x1a\x08\x80\xa6\x1d\x01\x90\xb5\x18\x01\x12%\n\x13MessageType_S\
@@ -1898,11 +1904,12 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x94N\x1a\x04\x90\xb5\x18\x01\x12&\n\x1bMessageType_MintlayerSignTx\x10\
     \x95N\x1a\x04\x90\xb5\x18\x01\x12)\n\x1eMessageType_MintlayerTxRequest\
     \x10\x96N\x1a\x04\x98\xb5\x18\x01\x12.\n#MessageType_MintlayerTxAckUtxoI\
-    nput\x10\x97N\x1a\x04\x90\xb5\x18\x01\x1a\x04\xc8\xf3\x18\x01\"\x04\x08Z\
-    \x10\\\"\x04\x08G\x10J\"\x04\x08r\x10z\"\x06\x08\xdb\x01\x10\xdb\x01\"\
-    \x06\x08\xe0\x01\x10\xe0\x01\"\x06\x08\xac\x02\x10\xb0\x02\"\x06\x08\xb5\
-    \x02\x10\xb8\x02\"\x06\x08\xe8\x07\x10\xcb\x08B8\n#com.satoshilabs.trezo\
-    r.lib.protobufB\rTrezorMessage\x80\xa6\x1d\x01\
+    nput\x10\x97N\x1a\x04\x90\xb5\x18\x01\x12+\n\x20MessageType_MintlayerTxA\
+    ckOutput\x10\x98N\x1a\x04\x90\xb5\x18\x01\x1a\x04\xc8\xf3\x18\x01\"\x04\
+    \x08Z\x10\\\"\x04\x08G\x10J\"\x04\x08r\x10z\"\x06\x08\xdb\x01\x10\xdb\
+    \x01\"\x06\x08\xe0\x01\x10\xe0\x01\"\x06\x08\xac\x02\x10\xb0\x02\"\x06\
+    \x08\xb5\x02\x10\xb8\x02\"\x06\x08\xe8\x07\x10\xcb\x08B8\n#com.satoshila\
+    bs.trezor.lib.protobufB\rTrezorMessage\x80\xa6\x1d\x01\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

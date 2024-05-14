@@ -197,6 +197,7 @@ trezor_message_impl! {
     MintlayerSignTx => MessageType_MintlayerSignTx,
     MintlayerTxRequest => MessageType_MintlayerTxRequest,
     MintlayerTxAckUtxoInput => MessageType_MintlayerTxAckUtxoInput,
+    MintlayerTxAckOutput => MessageType_MintlayerTxAckOutput,
 }
 
 #[cfg(feature = "monero")]
