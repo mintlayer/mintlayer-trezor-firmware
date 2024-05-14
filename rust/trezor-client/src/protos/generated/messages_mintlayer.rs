@@ -3295,6 +3295,271 @@ pub mod mintlayer_tx_ack_utxo_input {
     }
 }
 
+// @@protoc_insertion_point(message:hw.trezor.messages.mintlayer.MintlayerTxAckOutput)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct MintlayerTxAckOutput {
+    // message fields
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerTxAckOutput.tx)
+    pub tx: ::protobuf::MessageField<mintlayer_tx_ack_output::MintlayerTxAckOutputWrapper>,
+    // special fields
+    // @@protoc_insertion_point(special_field:hw.trezor.messages.mintlayer.MintlayerTxAckOutput.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a MintlayerTxAckOutput {
+    fn default() -> &'a MintlayerTxAckOutput {
+        <MintlayerTxAckOutput as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl MintlayerTxAckOutput {
+    pub fn new() -> MintlayerTxAckOutput {
+        ::std::default::Default::default()
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(1);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, mintlayer_tx_ack_output::MintlayerTxAckOutputWrapper>(
+            "tx",
+            |m: &MintlayerTxAckOutput| { &m.tx },
+            |m: &mut MintlayerTxAckOutput| { &mut m.tx },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<MintlayerTxAckOutput>(
+            "MintlayerTxAckOutput",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for MintlayerTxAckOutput {
+    const NAME: &'static str = "MintlayerTxAckOutput";
+
+    fn is_initialized(&self) -> bool {
+        if self.tx.is_none() {
+            return false;
+        }
+        for v in &self.tx {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.tx)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if let Some(v) = self.tx.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if let Some(v) = self.tx.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> MintlayerTxAckOutput {
+        MintlayerTxAckOutput::new()
+    }
+
+    fn clear(&mut self) {
+        self.tx.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static MintlayerTxAckOutput {
+        static instance: MintlayerTxAckOutput = MintlayerTxAckOutput {
+            tx: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for MintlayerTxAckOutput {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("MintlayerTxAckOutput").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for MintlayerTxAckOutput {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for MintlayerTxAckOutput {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+/// Nested message and enums of message `MintlayerTxAckOutput`
+pub mod mintlayer_tx_ack_output {
+    // @@protoc_insertion_point(message:hw.trezor.messages.mintlayer.MintlayerTxAckOutput.MintlayerTxAckOutputWrapper)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct MintlayerTxAckOutputWrapper {
+        // message fields
+        // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerTxAckOutput.MintlayerTxAckOutputWrapper.output)
+        pub output: ::protobuf::MessageField<super::MintlayerTransferTxOutput>,
+        // special fields
+        // @@protoc_insertion_point(special_field:hw.trezor.messages.mintlayer.MintlayerTxAckOutput.MintlayerTxAckOutputWrapper.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a MintlayerTxAckOutputWrapper {
+        fn default() -> &'a MintlayerTxAckOutputWrapper {
+            <MintlayerTxAckOutputWrapper as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl MintlayerTxAckOutputWrapper {
+        pub fn new() -> MintlayerTxAckOutputWrapper {
+            ::std::default::Default::default()
+        }
+
+        pub(in super) fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+            let mut fields = ::std::vec::Vec::with_capacity(1);
+            let mut oneofs = ::std::vec::Vec::with_capacity(0);
+            fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, super::MintlayerTransferTxOutput>(
+                "output",
+                |m: &MintlayerTxAckOutputWrapper| { &m.output },
+                |m: &mut MintlayerTxAckOutputWrapper| { &mut m.output },
+            ));
+            ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<MintlayerTxAckOutputWrapper>(
+                "MintlayerTxAckOutput.MintlayerTxAckOutputWrapper",
+                fields,
+                oneofs,
+            )
+        }
+    }
+
+    impl ::protobuf::Message for MintlayerTxAckOutputWrapper {
+        const NAME: &'static str = "MintlayerTxAckOutputWrapper";
+
+        fn is_initialized(&self) -> bool {
+            if self.output.is_none() {
+                return false;
+            }
+            for v in &self.output {
+                if !v.is_initialized() {
+                    return false;
+                }
+            };
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    42 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.output)?;
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if let Some(v) = self.output.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if let Some(v) = self.output.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(5, v, os)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> MintlayerTxAckOutputWrapper {
+            MintlayerTxAckOutputWrapper::new()
+        }
+
+        fn clear(&mut self) {
+            self.output.clear();
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static MintlayerTxAckOutputWrapper {
+            static instance: MintlayerTxAckOutputWrapper = MintlayerTxAckOutputWrapper {
+                output: ::protobuf::MessageField::none(),
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    impl ::protobuf::MessageFull for MintlayerTxAckOutputWrapper {
+        fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+            static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+            descriptor.get(|| super::file_descriptor().message_by_package_relative_name("MintlayerTxAckOutput.MintlayerTxAckOutputWrapper").unwrap()).clone()
+        }
+    }
+
+    impl ::std::fmt::Display for MintlayerTxAckOutputWrapper {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            ::protobuf::text_format::fmt(self, f)
+        }
+    }
+
+    impl ::protobuf::reflect::ProtobufValue for MintlayerTxAckOutputWrapper {
+        type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+    }
+}
+
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n\x18messages-mintlayer.proto\x12\x1chw.trezor.messages.mintlayer\"q\n\
     \x13MintlayerGetAddress\x12\x1b\n\taddress_n\x18\x01\x20\x03(\rR\x08addr\
@@ -3342,8 +3607,12 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x02(\x0b2P.hw.trezor.messages.mintlayer.MintlayerTxAckUtxoInput.Mintlay\
     erTxAckInputWrapperR\x02tx\x1af\n\x1aMintlayerTxAckInputWrapper\x12H\n\
     \x05input\x18\x02\x20\x02(\x0b22.hw.trezor.messages.mintlayer.MintlayerU\
-    txoTxInputR\x05inputB=\n#com.satoshilabs.trezor.lib.protobufB\x16TrezorM\
-    essageMintlayer\
+    txoTxInputR\x05input\"\xe6\x01\n\x14MintlayerTxAckOutput\x12^\n\x02tx\
+    \x18\x01\x20\x02(\x0b2N.hw.trezor.messages.mintlayer.MintlayerTxAckOutpu\
+    t.MintlayerTxAckOutputWrapperR\x02tx\x1an\n\x1bMintlayerTxAckOutputWrapp\
+    er\x12O\n\x06output\x18\x05\x20\x02(\x0b27.hw.trezor.messages.mintlayer.\
+    MintlayerTransferTxOutputR\x06outputB=\n#com.satoshilabs.trezor.lib.prot\
+    obufB\x16TrezorMessageMintlayer\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -3361,7 +3630,7 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
     file_descriptor.get(|| {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
             let mut deps = ::std::vec::Vec::with_capacity(0);
-            let mut messages = ::std::vec::Vec::with_capacity(16);
+            let mut messages = ::std::vec::Vec::with_capacity(18);
             messages.push(MintlayerGetAddress::generated_message_descriptor_data());
             messages.push(MintlayerAddress::generated_message_descriptor_data());
             messages.push(MintlayerGetPublicKey::generated_message_descriptor_data());
@@ -3375,9 +3644,11 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             messages.push(MintlayerPrevInput::generated_message_descriptor_data());
             messages.push(MintlayerPrevTransferOutput::generated_message_descriptor_data());
             messages.push(MintlayerTxAckUtxoInput::generated_message_descriptor_data());
+            messages.push(MintlayerTxAckOutput::generated_message_descriptor_data());
             messages.push(mintlayer_tx_request::MintlayerTxRequestDetailsType::generated_message_descriptor_data());
             messages.push(mintlayer_tx_request::MintlayerTxRequestSerializedType::generated_message_descriptor_data());
             messages.push(mintlayer_tx_ack_utxo_input::MintlayerTxAckInputWrapper::generated_message_descriptor_data());
+            messages.push(mintlayer_tx_ack_output::MintlayerTxAckOutputWrapper::generated_message_descriptor_data());
             let mut enums = ::std::vec::Vec::with_capacity(1);
             enums.push(mintlayer_tx_request::MintlayerRequestType::generated_enum_descriptor_data());
             ::protobuf::reflect::GeneratedFileDescriptor::new_generated(

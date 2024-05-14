@@ -4218,6 +4218,20 @@ if TYPE_CHECKING:
         def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxAckUtxoInput"]:
             return isinstance(msg, cls)
 
+    class MintlayerTxAckOutput(protobuf.MessageType):
+        tx: "MintlayerTxAckOutputWrapper"
+
+        def __init__(
+            self,
+            *,
+            tx: "MintlayerTxAckOutputWrapper",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxAckOutput"]:
+            return isinstance(msg, cls)
+
     class MintlayerTxRequestDetailsType(protobuf.MessageType):
         request_index: "int | None"
         tx_hash: "bytes | None"
@@ -4264,6 +4278,20 @@ if TYPE_CHECKING:
 
         @classmethod
         def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxAckInputWrapper"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxAckOutputWrapper(protobuf.MessageType):
+        output: "MintlayerTransferTxOutput"
+
+        def __init__(
+            self,
+            *,
+            output: "MintlayerTransferTxOutput",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxAckOutputWrapper"]:
             return isinstance(msg, cls)
 
     class MoneroTransactionSourceEntry(protobuf.MessageType):

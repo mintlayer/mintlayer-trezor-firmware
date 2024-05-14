@@ -555,6 +555,8 @@ if not utils.BITCOIN_ONLY:
     import apps.mintlayer.sign_tx.signer
     apps.mintlayer.verify_sig
     import apps.mintlayer.verify_sig
+    apps.mintlayer.writers
+    import apps.mintlayer.writers
     apps.monero
     import apps.monero
     apps.monero.diag

@@ -39,6 +39,8 @@ pub mod translations;
 pub mod ui;
 pub mod strutil;
 
+pub mod mintlayer;
+
 #[cfg(feature = "debug")]
 #[cfg(not(test))]
 #[panic_handler]

@@ -254,3 +254,4 @@ if not utils.BITCOIN_ONLY:
     MintlayerSignTx = 1005
     MintlayerTxRequest = 1006
     MintlayerTxAckUtxoInput = 1007
+    MintlayerTxAckOutput = 1008

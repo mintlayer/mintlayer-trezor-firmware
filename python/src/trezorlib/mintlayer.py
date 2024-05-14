@@ -14,7 +14,8 @@
 # You should have received a copy of the License along with this library.
 # If not, see <https://www.gnu.org/licenses/lgpl-3.0.html>.
 
-from typing import TYPE_CHECKING, Optional
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from . import messages
 from .protobuf import dict_to_proto
@@ -69,19 +70,52 @@ def verify_sig(
         return False
     return isinstance(resp, messages.Success)
 
+Input = messages.MintlayerUtxoTxInput
+Output = messages.MintlayerTransferTxOutput
+TxHash = bytes
+
+@dataclass
+class Tx:
+    inputs: List[Input]
+    outputs: List[Output]
+
 @session
 def sign_tx(
-        client: "TrezorClient", outputs_count: int, inputs_count: int,
+        client: "TrezorClient",
+        inputs: List[Input],
+        outputs: List[Output],
+        prev_txs: Dict[TxHash, Tx],
         version: Optional["int"] = 1,
         serialize: Optional["bool"] = True,
         chunkify: Optional["bool"] = None,
 ):
-    return client.call(
+    res = client.call(
         messages.MintlayerSignTx(
-            outputs_count=outputs_count,
-            inputs_count=inputs_count,
+            outputs_count=len(outputs),
+            inputs_count=len(inputs),
             version=version,
             serialize=serialize,
             chunkify=chunkify,
         )
     )
+
+    R = messages.MintlayerRequestType
+    while isinstance(res, messages.MintlayerTxRequest):
+        if res.request_type == R.TXFINISHED:
+            return res
+
+        if res.request_type == R.TXINPUT:
+            msg = messages.MintlayerTxAckInputWrapper(input=inputs[res.details.request_index])
+            msg = messages.MintlayerTxAckUtxoInput(tx=msg)
+            res = client.call(msg)
+        elif res.request_type == R.TXOUTPUT:
+            assert res.details is not None
+            if res.details.tx_hash:
+                outs = prev_txs[res.details.tx_hash].outputs
+            else:
+                outs = outputs
+            msg = messages.MintlayerTxAckOutputWrapper(output=outs[res.details.request_index])
+            msg = messages.MintlayerTxAckOutput(tx=msg)
+            res = client.call(msg)
+
+    raise Exception("Invalid response from trezor")
