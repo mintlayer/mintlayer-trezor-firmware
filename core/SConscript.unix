@@ -83,6 +83,7 @@ CPPDEFINES_MOD += [
 ]
 SOURCE_MOD += [
     'embed/extmod/trezorobj.c',
+    'embed/extmod/modtrezormintlayer/modtrezormintlayer.c',
     'embed/extmod/modtrezorcrypto/crc.c',
     'embed/extmod/modtrezorcrypto/modtrezorcrypto.c',
     'vendor/trezor-crypto/address.c',
