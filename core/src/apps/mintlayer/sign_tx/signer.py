@@ -1,12 +1,16 @@
+from apps.common.coininfo import by_name
+from trezor.crypto.bech32 import bech32_encode, bech32_decode, convertbits, reverse_convertbits, Encoding
 from trezor.messages import MintlayerSignTx, MintlayerUtxoTxInput, MintlayerTransferTxOutput
 from micropython import const
 from typing import TYPE_CHECKING
 
 from trezor import workflow
-from trezor.crypto.hashlib import sha256
-from trezor.enums import InputScriptType
+from trezor.crypto.hashlib import sha256, blake2b
+from trezor.crypto import mintlayer_utils
+from trezor.enums import AmountUnit, InputScriptType
 from trezor.utils import HashWriter, empty_bytearray
 from trezor.wire import DataError, ProcessError
+from trezor.crypto.curve import bip340
 
 from apps.common.writers import write_compact_size
 
@@ -14,7 +18,7 @@ from .progress import progress
 from . import helpers
 
 if TYPE_CHECKING:
-    from typing import Sequence, List
+    from typing import Sequence, List, Tuple
 
     from trezor.crypto import bip32
     from trezor.messages import PrevInput, PrevOutput, PrevTx, TxInput, TxOutput
@@ -70,6 +74,20 @@ class Mintlayer:
         # sum of output amounts.
         await self.step2_approve_outputs()
 
+        total = 10
+        fee = 1
+        fee_rate = 0.1
+        coin = by_name('Bitcoin')
+        amount_unit = AmountUnit.BITCOIN
+        await helpers.confirm_total(
+            total,
+            fee,
+            fee_rate,
+            coin,
+            amount_unit,
+            None,
+        )
+
         # Check fee, approve lock_time and total.
         # FIXME
         # await self.approver.approve_tx(self.tx_info, self.orig_txs, self)
@@ -90,16 +108,19 @@ class Mintlayer:
         await self.step3_verify_inputs()
 
         # Check that inputs are unchanged. Serialize inputs and sign the non-segwit ones.
-        await self.step4_serialize_inputs()
+        encoded_inputs, encoded_input_utxos = await self.step4_serialize_inputs()
+        print("encoded inputs", encoded_inputs)
+        print("encoded utxos", encoded_input_utxos)
 
         # Serialize outputs.
-        await self.step5_serialize_outputs()
+        encoded_outputs = await self.step5_serialize_outputs()
+        print("encoded outputs", encoded_outputs)
 
         # Sign segwit inputs and serialize witness data.
-        await self.step6_sign_segwit_inputs()
+        signatures = await self.step6_sign_inputs(encoded_inputs, encoded_input_utxos, encoded_outputs)
 
         # Write footer and send remaining data.
-        await self.step7_finish()
+        await self.step7_finish(signatures)
 
     def __init__(
         self,
@@ -182,10 +203,15 @@ class Mintlayer:
         # self.h_presigned_inputs = h_presigned_inputs_check.get_digest()
 
     async def step2_approve_outputs(self) -> None:
+        from trezor.messages import TxOutput
         for i in range(self.tx_info.tx.outputs_count):
             # STAGE_REQUEST_2_OUTPUT in legacy
             progress.advance()
             txo = await helpers.request_tx_output(self.tx_req, i)
+            coin = by_name('Bitcoin')
+            amount_unit = AmountUnit.BITCOIN
+            t = TxOutput(amount=txo.amount, address=txo.address)
+            await helpers.confirm_output(t, coin, amount_unit, i, False)
             # script_pubkey = self.output_derive_script(txo)
             # await self.approve_output(txo, script_pubkey, orig_txo)
             self.tx_info.add_output(txo)
@@ -244,60 +270,95 @@ class Mintlayer:
         # verify the signature of one SIGHASH_ALL input in each original transaction
         await self.verify_original_txs()
 
-    async def step4_serialize_inputs(self) -> None:
-        if self.serialize:
-            self.write_tx_header(self.serialized_tx, self.tx_info.tx, bool(self.segwit))
-            write_compact_size(self.serialized_tx, self.tx_info.tx.inputs_count)
-
-        for i in range(self.tx_info.tx.inputs_count):
-            if i in self.external:
-                if self.serialize:
-                    progress.advance()
-                    await self.serialize_external_input(i)
-            elif i in self.segwit:
-                if self.serialize:
-                    progress.advance()
-                    await self.serialize_segwit_input(i)
-            else:
-                progress.advance()
-                await self.sign_nonsegwit_input(i)
-
-    async def step5_serialize_outputs(self) -> None:
-        if not self.serialize:
-            return
-
-        write_compact_size(self.serialized_tx, self.tx_info.tx.outputs_count)
-        for i in range(self.tx_info.tx.outputs_count):
+    async def step4_serialize_inputs(self) -> Tuple[List[bytes], List[bytes]]:
+        encoded_inputs = []
+        encoded_input_utxos = []
+        for inp in self.tx_info.inputs:
             progress.advance()
-            await self.serialize_output(i)
+            encoded_inp = mintlayer_utils.encode_utxo_input(inp.input.prev_hash, inp.input.prev_index)
+            encoded_inputs.append(encoded_inp)
 
-    async def step6_sign_segwit_inputs(self) -> None:
-        if not self.segwit:
-            return
+            pk = bytes([0]) + inp.node.public_key()
+            hrp = 'mptc'
+            hrp = 'mtc'
+            print(f'pk {pk}')
 
+            pkh = blake2b(pk).digest()[:20]
+            print('pkh', list(pkh))
+
+            data = convertbits(bytes([1])+pkh, 8, 5)
+            print(f'data {data}')
+            address = bech32_encode(hrp, data, Encoding.BECH32M)
+            print(f'address: {address}')
+            hpr, data = bech32_decode(address)
+            print('decoded', hpr, data)
+            data = reverse_convertbits(data, 8, 5)
+            print('decoded pk', hpr, data)
+
+            encoded_inp_utxo = mintlayer_utils.encode_transfer_output(str(inp.utxo.amount).encode(), bytes(data))
+            encoded_input_utxos.append(b'\x01' + encoded_inp_utxo)
+
+        return encoded_inputs, encoded_input_utxos
+
+    async def step5_serialize_outputs(self) -> List[bytes]:
+        encoded_outputs = []
+        for out in self.tx_info.outputs:
+            progress.advance()
+            hpr, data = bech32_decode(out.address)
+            data = reverse_convertbits(data, 8, 5)
+            print('decoded out', hpr, data)
+
+            encoded_out = mintlayer_utils.encode_transfer_output(str(out.amount).encode(), bytes(data))
+            encoded_outputs.append(encoded_out)
+
+        return encoded_outputs
+
+    async def step6_sign_inputs(self, encoded_inputs: List[bytes], encoded_input_utxos: Lisst[bytes], encoded_outputs: Lisst[bytes]) -> List[butes]:
+        from trezor.utils import HashWriter
+
+        signatures = []
         for i in range(self.tx_info.tx.inputs_count):
-            if i in self.segwit:
-                if i in self.external:
-                    if self.serialize:
-                        if i in self.presigned:
-                            progress.advance()
-                            txi = await request_tx_input(self.tx_req, i, self.coin)
-                            self.serialized_tx.extend(txi.witness or b"\0")
-                        else:
-                            self.serialized_tx.append(0)
-                else:
-                    progress.advance()
-                    await self.sign_segwit_input(i)
-            else:
-                # add empty witness for non-segwit inputs
-                if self.serialize:
-                    self.serialized_tx.append(0)
+            writer = HashWriter(blake2b())
+            # mode
+            writer.extend(b'\x01')
 
-    async def step7_finish(self) -> None:
-        if self.serialize:
-            self.write_tx_footer(self.serialized_tx, self.tx_info.tx)
-        if __debug__:
-            progress.assert_finished()
+            # version
+            writer.extend(b'\x01')
+            # flags
+            writer.extend(bytes([0]*16))
+
+
+            writer.extend(len(encoded_inputs).to_bytes(4, 'little'))
+            for inp in encoded_inputs:
+                writer.extend(inp)
+
+            writer.extend(len(encoded_input_utxos).to_bytes(4, 'little'))
+            print(encoded_input_utxos)
+            for utxo in encoded_input_utxos:
+                writer.extend(utxo)
+
+            encoded_len = mintlayer_utils.encode_compact_length(len(encoded_outputs))
+            print(f'compact len {encoded_len}')
+            writer.extend(encoded_len)
+            for out in encoded_outputs:
+                writer.extend(out)
+
+            hash = writer.get_digest()[:32]
+            private_key = self.tx_info.inputs[i].node.private_key()
+            digest = blake2b(hash).digest()[:32]
+            print(f"hash {list(hash)}, digest {list(digest)}")
+
+            sig = bip340.sign(private_key, digest)
+            print("got a signature", sig)
+            signatures.append(sig)
+
+        return signatures
+
+    async def step7_finish(self, signatures: List[bytes]) -> None:
+        # if self.serialize:
+        #     self.write_tx_footer(self.serialized_tx, self.tx_info.tx)
+        # if __debug__:
+        #     progress.assert_finished()
         await helpers.request_tx_finish(self.tx_req)
 
     async def process_internal_input(self, txi: MintlayerUtxoTxInput, txo: MintlayerTransferTxOutput, node: bip32.HDNode) -> None:

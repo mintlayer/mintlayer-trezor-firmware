@@ -570,6 +570,7 @@ STATIC mp_obj_t mod_trezorcrypto_bip32_mintlayer_from_seed(mp_obj_t seed,
 
   return mp_obj_new_str_from_vstr(&mp_type_bytes, &pkh);
 }
+// TODO: add separate new file with mintlayer functions
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(mod_trezorcrypto_bip32_mintlayer_from_seed_obj,
                                  mod_trezorcrypto_bip32_mintlayer_from_seed);
 

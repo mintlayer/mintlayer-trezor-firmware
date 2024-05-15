@@ -9,6 +9,9 @@ from trezorcrypto import (  # noqa: F401
     random,
 )
 
+# FIXME
+from trezormintlayer import utils as mintlayer_utils
+
 try:
     from trezorcrypto import aesgcm  # noqa: F401
 except Exception:
