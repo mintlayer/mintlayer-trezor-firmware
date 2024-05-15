@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from apps.common.keychain import auto_keychain
 
-from trezor.crypto import bip32
+from trezor.crypto import bip32, mintlayer_utils
 
 if TYPE_CHECKING:
     from trezor.messages import MintlayerGetPublicKey, MintlayerPublicKey
@@ -24,6 +24,9 @@ async def get_public_key(
 
     res = bip32.mintlayer_from_seed(b'', b'')
     print('mintlayer from seed: ', res)
+
+    res = mintlayer_utils.encode_utxo_input(b'0'*32, 0)
+    print('mintlayer encode input: ', res)
 
     await paths.validate_path(keychain, msg.address_n)
     node = keychain.derive(msg.address_n)

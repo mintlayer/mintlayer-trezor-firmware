@@ -15,6 +15,12 @@ typedef struct {
 ByteArray mintlayer_encode_utxo_input(const unsigned char* hex,
                                       uint32_t hex_len, uint32_t index);
 
+ByteArray mintlayer_encode_transfer_output(
+    const unsigned char* coin_amount_data, uint32_t coin_amount_data_len,
+    const unsigned char* address_data, uint32_t address_data_len);
+
+ByteArray mintlayer_encode_compact_length(uint32_t length);
+
 void screen_boot_stage_2(void);
 
 void display_image(int16_t x, int16_t y, const uint8_t* data, uint32_t datalen);

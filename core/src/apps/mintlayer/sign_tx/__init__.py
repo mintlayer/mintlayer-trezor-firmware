@@ -54,7 +54,7 @@ async def sign_tx(
 
     from . import progress
     from .signer import Mintlayer
-    from ...bitcoin.sign_tx import helpers
+    from . import helpers
 
 
     # approver: approvers.Approver | None = None
@@ -79,5 +79,7 @@ async def sign_tx(
             res = await req.confirm_dialog()
             progress.progress.report_init()
         else:
+
+            print("invalid instruction", req, isinstance(req, helpers.UiConfirmTotal), isinstance(req, helpers.UiConfirm))
             raise TypeError("Invalid signing instruction")
 

@@ -4,6 +4,7 @@ from trezor.enums import MintlayerRequestType
 from trezor.wire import DataError
 
 from ..writers import TX_HASH_SIZE
+from ...bitcoin.sign_tx import layout
 
 if TYPE_CHECKING:
     from typing import Any, Awaitable
@@ -350,7 +351,7 @@ def request_tx_prev_input(tx_req: MintlayerTxRequest, i: int, tx_hash: bytes | N
     return _sanitize_tx_prev_input(ack.tx.input, coin)
 
 
-def request_tx_output(tx_req: TxRequest, i: int, tx_hash: bytes | None = None) -> Awaitable[TxOutput]:  # type: ignore [awaitable-is-generator]
+def request_tx_output(tx_req: TxRequest, i: int, tx_hash: bytes | None = None) -> Awaitable[MintlayerTransferTxOutput]:  # type: ignore [awaitable-is-generator]
     from trezor.messages import MintlayerTxAckOutput
 
     assert tx_req.details is not None
