@@ -189,8 +189,9 @@ Miscellaneous debug features.
     --help  Show this message and exit.
 
   Commands:
-    record      Record screen changes into a specified directory.
-    send-bytes  Send raw bytes to Trezor.
+    prodtest-t1  Perform a prodtest on Model One.
+    record       Record screen changes into a specified directory.
+    send-bytes   Send raw bytes to Trezor.
 
 Device management commands - setup, recover seed, wipe, etc.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -212,7 +213,6 @@ Device management commands - setup, recover seed, wipe, etc.
     authenticate          Get information to verify the authenticity of the device.
     backup                Perform device seed backup.
     load                  Upload seed and custom configuration to the device.
-    prodtest-t1           Perform a prodtest on Model One.
     reboot-to-bootloader  Reboot device into bootloader mode.
     recover               Start safe recovery workflow.
     sd-protect            Secure the device with SD card protection.

@@ -236,7 +236,9 @@ def cargo_build():
         '--no-default-features',
         '--features ' + ','.join(features),
         '-Z build-std=core',
-        '-Z build-std-features=panic_immediate_abort',
+        '-Z build-std=alloc',
+        '-Z build-std=panic_abort,std',
+        # '-Z build-std-features=panic_immediate_abort',
     ]
 
     bindgen_macros = tools.get_bindgen_defines(env.get("CPPDEFINES"), ALLPATHS)

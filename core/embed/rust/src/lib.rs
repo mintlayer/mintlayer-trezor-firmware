@@ -39,6 +39,7 @@ pub mod translations;
 pub mod ui;
 pub mod strutil;
 
+#[cfg(feature = "micropython")]
 pub mod mintlayer;
 
 #[cfg(feature = "debug")]

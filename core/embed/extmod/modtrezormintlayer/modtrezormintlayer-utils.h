@@ -20,7 +20,7 @@ STATIC mp_obj_t mod_trezormintlayer_utils_mintlayer_encode_utxo_input(
   mp_buffer_info_t hash = {0};
   mp_get_buffer_raise(tx_hash, &hash, MP_BUFFER_READ);
   if (hash.len != 32) {
-    printf("invalid hash len: %ld", hash.len);
+    printf("invalid hash len: %ld", (long int)hash.len);
     mp_raise_ValueError("Invalid hash");
   }
   uint32_t idx = trezor_obj_get_uint(index);
