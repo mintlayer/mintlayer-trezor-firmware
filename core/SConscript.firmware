@@ -750,6 +750,8 @@ if FROZEN:
         SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'apps/zcash/*.py'))
 
         SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'apps/mintlayer/*.py'))
+        SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'apps/mintlayer/sign_tx/*.py'))
+        SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'trezor/enums/Mintlayer*.py'))
 
         SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'apps/webauthn/*.py'))
 
@@ -860,7 +862,9 @@ def cargo_build():
         '--no-default-features',
         '--features ' + ','.join(features),
         '-Z build-std=core',
-        '-Z build-std-features=panic_immediate_abort',
+        '-Z build-std=alloc',
+        '-Z build-std=panic_abort,std',
+        # '-Z build-std-features=panic_immediate_abort',
     ]
 
     env.get('ENV')['TREZOR_MODEL'] = TREZOR_MODEL
