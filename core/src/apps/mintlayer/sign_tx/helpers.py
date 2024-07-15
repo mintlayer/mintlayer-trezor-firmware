@@ -4,7 +4,7 @@ from trezor.enums import MintlayerRequestType
 from trezor.wire import DataError
 
 from ..writers import TX_HASH_SIZE
-from ...bitcoin.sign_tx import layout
+from . import layout
 
 if TYPE_CHECKING:
     from typing import Any, Awaitable
@@ -16,7 +16,8 @@ if TYPE_CHECKING:
         PrevTx,
         SignTx,
         TxAckPaymentRequest,
-        MintlayerUtxoTxInput,
+        MintlayerTxInput,
+        MintlayerTxOutput,
         MintlayerTransferTxOutput,
         TxOutput,
         MintlayerTxRequest,
@@ -328,7 +329,7 @@ def request_tx_extra_data(
     return ack.tx.extra_data_chunk
 
 
-def request_tx_input(tx_req: MintlayerTxRequest, i: int) -> Awaitable[MintlayerUtxoTxInput]:  # type: ignore [awaitable-is-generator]
+def request_tx_input(tx_req: MintlayerTxRequest, i: int) -> Awaitable[MintlayerTxInput]:  # type: ignore [awaitable-is-generator]
     from trezor.messages import MintlayerTxAckUtxoInput
 
     assert tx_req.details is not None
@@ -351,7 +352,7 @@ def request_tx_prev_input(tx_req: MintlayerTxRequest, i: int, tx_hash: bytes | N
     return _sanitize_tx_prev_input(ack.tx.input, coin)
 
 
-def request_tx_output(tx_req: TxRequest, i: int, tx_hash: bytes | None = None) -> Awaitable[MintlayerTransferTxOutput]:  # type: ignore [awaitable-is-generator]
+def request_tx_output(tx_req: TxRequest, i: int, tx_hash: bytes | None = None) -> Awaitable[MintlayerTxOutput]:  # type: ignore [awaitable-is-generator]
     from trezor.messages import MintlayerTxAckOutput
 
     assert tx_req.details is not None
@@ -402,15 +403,16 @@ def _clear_tx_request(tx_req: MintlayerTxRequest) -> None:
 
     assert details is not None
     assert serialized is not None
-    assert serialized.serialized_tx is not None
+    # assert serialized.serialized_tx is not None
     tx_req.request_type = None
     details.request_index = None
     details.tx_hash = None
-    serialized.signature = None
-    serialized.signature_index = None
+    serialized = []
+    # serialized.signature = None
+    # serialized.signature_index = None
     # typechecker thinks serialized_tx is `bytes`, which is immutable
     # we know that it is `bytearray` in reality
-    serialized.serialized_tx[:] = bytes()  # type: ignore ["__setitem__" method not defined on type "bytes"]
+    # serialized.serialized_tx[:] = bytes()  # type: ignore ["__setitem__" method not defined on type "bytes"]
 
 
 # Data sanitizers
@@ -464,18 +466,19 @@ def _sanitize_tx_meta(tx: PrevTx, coin: CoinInfo) -> PrevTx:
     return tx
 
 
-def _sanitize_tx_input(txi: MintlayerUtxoTxInput) -> MintlayerUtxoTxInput:
+def _sanitize_tx_input(txi: MintlayerTxInput) -> MintlayerTxInput:
     from trezor.wire import DataError  # local_cache_global
 
-    if len(txi.prev_hash) != TX_HASH_SIZE:
-        raise DataError("Provided prev_hash is invalid.")
+    if txi.utxo:
+        if len(txi.utxo.prev_hash) != TX_HASH_SIZE:
+            raise DataError("Provided prev_hash is invalid.")
 
-    # FIXME
-    # if not txi.multisig and script_type == InputScriptType.SPENDMULTISIG:
-    #     raise DataError("Multisig details required.")
+        # FIXME
+        # if not txi.multisig and script_type == InputScriptType.SPENDMULTISIG:
+        #     raise DataError("Multisig details required.")
 
-    if txi.address_n:
-        raise DataError("Input's address_n provided but not expected.")
+        # if txi.utxo.address_n:
+        #     raise DataError("Input's address_n provided but not expected.")
 
     return txi
 
@@ -490,18 +493,22 @@ def _sanitize_tx_prev_input(txi: PrevInput, coin: CoinInfo) -> PrevInput:
     return txi
 
 
-def _sanitize_tx_output(txo: MintlayerTransferTxOutput) -> TxOutput:
+def _sanitize_tx_output(txo: MintlayerTxOutput) -> MintlayerTxOutput:
     from trezor.wire import DataError  # local_cache_global
 
-    address_n = txo.address_n  # local_cache_attribute
+    if txo.transfer:
+        address_n = txo.transfer.address_n  # local_cache_attribute
 
-    if txo.amount is None:
-        raise DataError("Missing amount field.")
+        if txo.transfer.value is None:
+            raise DataError("Missing amount field.")
 
-    if address_n and txo.address:
-        raise DataError("Both address and address_n provided.")
-    if not address_n and not txo.address:
-        raise DataError("Missing address")
+        if address_n and txo.transfer.address:
+            raise DataError("Both address and address_n provided.")
+        if not address_n and not txo.transfer.address:
+            raise DataError("Missing address")
+    else:
+        # TODO: senitize other tx outputs
+        pass
 
     return txo
 

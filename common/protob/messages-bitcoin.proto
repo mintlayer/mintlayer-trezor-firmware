@@ -51,6 +51,7 @@ enum AmountUnit {
     MILLIBITCOIN = 1;   // mBTC
     MICROBITCOIN = 2;   // uBTC
     SATOSHI = 3;        // sat
+    ML = 4;             // Mintlayer
 }
 
 /**

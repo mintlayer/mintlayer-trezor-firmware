@@ -1,6 +1,5 @@
 from micropython import const
 from typing import TYPE_CHECKING
-import binascii
 
 from trezor import TR
 from trezor.enums import ButtonRequestType
@@ -10,13 +9,15 @@ from trezor.ui.layouts import confirm_metadata
 
 from apps.common.paths import address_n_to_str
 
-from .. import addresses
-from ..common import (
+from trezor.crypto.bech32 import bech32_encode, bech32_decode, convertbits, reverse_convertbits, decode_address_to_bytes, Encoding
+
+from ...bitcoin import addresses
+from ...bitcoin.common import (
     BIP32_WALLET_DEPTH,
     CHANGE_OUTPUT_TO_INPUT_SCRIPT_TYPES,
     format_fee_rate,
 )
-from ..keychain import address_n_to_name
+# from ..keychain import address_n_to_name
 
 if TYPE_CHECKING:
     from trezor.enums import AmountUnit
@@ -26,43 +27,33 @@ if TYPE_CHECKING:
     from apps.common.coininfo import CoinInfo
     from apps.common.paths import Bip32Path
 
+    from trezor.messages import (
+        MintlayerTxOutput,
+    )
+
 _LOCKTIME_TIMESTAMP_MIN_VALUE = const(500_000_000)
 
 
-def format_coin_amount(amount: int, coin: CoinInfo, amount_unit: AmountUnit) -> str:
-    from trezor.enums import AmountUnit
-
-    decimals, shortcut = coin.decimals, coin.coin_shortcut
-    if amount_unit == AmountUnit.SATOSHI:
-        decimals = 0
-        shortcut = "sat"
-        if coin.coin_shortcut != "BTC":
-            shortcut += " " + coin.coin_shortcut
-    elif amount_unit == AmountUnit.MICROBITCOIN and decimals >= 6:
-        decimals -= 6
-        shortcut = "u" + shortcut
-    elif amount_unit == AmountUnit.MILLIBITCOIN and decimals >= 3:
-        decimals -= 3
-        shortcut = "m" + shortcut
-    elif amount_unit == AmountUnit.ML:
+def format_coin_amount(amount: bytes, token_id: bytes | None) -> str:
+    if token_id is None:
         decimals = 11
-        shortcut = "m" + shortcut
-        print("amount to display bytes", amount)
-        amount_int = 0
-        for b in amount:
-            amount_int = (amount_int << 8) | b
-        decimal_str = str(amount_int)
+        name = "ML"
+    else:
+        decimals = 0
+        name = "Token"
 
-        if len(decimal_str) <= decimals:
-            decimal_str = '0' * (decimals + 1 - len(decimal_str)) + decimal_str  # Add an extra zero to handle leading zero case
+    print("amount to display bytes", amount)
+    amount_int = 0
+    for b in amount:
+        amount_int = (amount_int << 8) | b
+    decimal_str = str(amount_int)
 
-        integer_part = decimal_str[:-decimals] or '0'
-        decimal_part = decimal_str[-decimals:]
-        return f"{integer_part}.{decimal_part} ML"
+    if len(decimal_str) <= decimals:
+        decimal_str = '0' * (decimals + 1 - len(decimal_str)) + decimal_str  # Add an extra zero to handle leading zero case
 
-
-    # we don't need to do anything for AmountUnit.BITCOIN
-    return f"{format_amount(amount, decimals)} {shortcut}"
+    integer_part = decimal_str[:-decimals] or '0'
+    decimal_part = decimal_str[-decimals:]
+    return f"{integer_part}.{decimal_part} {name}"
 
 
 def account_label(coin: CoinInfo, address_n: Bip32Path | None) -> str:
@@ -75,69 +66,83 @@ def account_label(coin: CoinInfo, address_n: Bip32Path | None) -> str:
 
 
 async def confirm_output(
-    output: TxOutput,
+    output: MintlayerTxOutput,
     coin: CoinInfo,
     amount_unit: AmountUnit,
     output_index: int,
     chunkify: bool,
 ) -> None:
-    from trezor.enums import OutputScriptType
-
-    from . import omni
-
-    if output.script_type == OutputScriptType.PAYTOOPRETURN:
-        data = output.op_return_data
-        assert data is not None
-        if omni.is_valid(data):
-            # OMNI transaction
-            layout: LayoutType = confirm_metadata(
-                "omni_transaction",
-                "OMNI transaction",
-                omni.parse(data),
-                verb=TR.buttons__confirm,
-                br_code=ButtonRequestType.ConfirmOutput,
-            )
+    title = TR.bitcoin__title_confirm_details
+    if output.transfer:
+        x = output.transfer
+        assert x.address is not None
+        address_short = x.address
+        amount = format_coin_amount(x.value.amount, x.value.token_id)
+        address_label = "Transfer"
+    elif output.lock_then_transfer:
+        x = output.lock_then_transfer
+        assert x.address is not None
+        address_label = "Lock then Transfer"
+        address_short = f"Destination: {x.address}\n"
+        if x.lock.until_time:
+            address_label = f"Lock until {x.lock.until_time} time"
+        elif x.lock.until_height:
+            address_label = f"Lock until {x.lock.until_height} height"
+        elif x.lock.for_seconds:
+            address_label = f"Lock for {x.lock.for_seconds} seconds"
+        elif x.lock.for_block_count:
+            address_label = f"Lock for {x.lock.for_block_count} blocks"
         else:
-            # generic OP_RETURN
-            layout = layouts.confirm_blob(
-                "op_return",
-                "OP_RETURN",
-                data,
-                br_code=ButtonRequestType.ConfirmOutput,
-            )
-    else:
-        assert output.address is not None
-        address_short = addresses.address_short(coin, output.address)
-        if output.payment_req_index is not None:
-            title = TR.bitcoin__title_confirm_details
-        else:
-            title = None
-
+            raise Exception("unhandled lock type")
+        amount = format_coin_amount(x.value.amount, x.value.token_id)
+    elif output.burn:
+        x = output.burn
+        address_short = "BURN"
+        amount = format_coin_amount(x.value.amount, x.value.token_id)
         address_label = None
-        if output.address_n and not output.multisig:
-            from trezor import utils
+    elif output.create_stake_pool:
+        x = output.create_stake_pool
+        assert x.staker is not None and x.decommission_key is not None
+        address_short = f"staker: {x.staker}, decommission_key: {x.decommission_key}"
+        amount = format_coin_amount(x.pledge, None)
+        address_label = "Create stake pool"
+    elif output.create_delegation_id:
+        x = output.create_delegation_id
+        assert x.destination is not None
+        amount = ""
+        data = convertbits(x.pool_id, 8, 5)
+        address = bech32_encode("mpool", data, Encoding.BECH32M)
+        address_short = f"{x.destination} {address}"
+        address_label = f"Create delegation ID"
+    elif output.delegate_staking:
+        x = output.delegate_staking
+        assert x.delegation_id is not None
+        data = convertbits(x.delegation_id, 8, 5)
+        address = bech32_encode("mdeleg", data, Encoding.BECH32M)
+        address_short = address
+        amount = format_coin_amount(x.amount, None)
+        address_label = "Delegation staking"
+    elif output.issue_fungible_token:
+        x = output.issue_fungible_token
+        address_short = "Issue Fungible Token"
+        amount = "amount"
+        address_label = "Issue fungible token"
+    elif output.issue_nft:
+        x = output.issue_nft
+        address_short = x.destination
+        amount = ""
+        address_label = "Issue NFT token"
+    else:
+        raise Exception("unhandled output type")
 
-            # Showing the account string only for T2B1 model
-            show_account_str = utils.INTERNAL_MODEL == "T2B1"
-            script_type = CHANGE_OUTPUT_TO_INPUT_SCRIPT_TYPES[output.script_type]
-            address_label = (
-                address_n_to_name(
-                    coin,
-                    output.address_n,
-                    script_type,
-                    show_account_str=show_account_str,
-                )
-                or f"{TR.send__address_path} {address_n_to_str(output.address_n)}"
-            )
-
-        layout = layouts.confirm_output(
-            address_short,
-            format_coin_amount(output.amount, coin, amount_unit),
-            title=title,
-            address_label=address_label,
-            output_index=output_index,
-            chunkify=chunkify,
-        )
+    layout = layouts.confirm_output(
+        address_short,
+        amount,
+        title=title,
+        address_label=address_label,
+        output_index=output_index,
+        chunkify=chunkify,
+    )
 
     await layout
 
@@ -260,8 +265,8 @@ async def confirm_total(
 ) -> None:
 
     await layouts.confirm_total(
-        format_coin_amount(spending, coin, amount_unit),
-        format_coin_amount(fee, coin, amount_unit),
+        format_coin_amount(spending.to_bytes(16, 'big'), None),
+        format_coin_amount(fee.to_bytes(16, 'big'), None),
         fee_rate_amount=format_fee_rate(fee_rate, coin) if fee_rate >= 0 else None,
         account_label=account_label(coin, address_n),
     )
@@ -334,3 +339,4 @@ async def confirm_nondefault_locktime(lock_time: int, lock_time_disabled: bool) 
             br_code=ButtonRequestType.SignTx,
             verb=TR.buttons__confirm,
         )
+

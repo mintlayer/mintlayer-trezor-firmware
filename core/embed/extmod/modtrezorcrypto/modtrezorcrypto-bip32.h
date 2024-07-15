@@ -24,7 +24,6 @@
 
 #include "embed/rust/rust_ui_common.h"
 
-
 #include "bip32.h"
 #include "bip39.h"
 #include "curves.h"
@@ -545,40 +544,11 @@ STATIC mp_obj_t mod_trezorcrypto_bip32_from_seed(mp_obj_t seed,
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(mod_trezorcrypto_bip32_from_seed_obj,
                                  mod_trezorcrypto_bip32_from_seed);
 
-/// def mintlayer_from_seed(seed: bytes, curve_name: str) -> bytes:
-///     """
-///     Construct a BIP0032 HD node from a BIP0039 seed value.
-///     """
-STATIC mp_obj_t mod_trezorcrypto_bip32_mintlayer_from_seed(mp_obj_t seed,
-                                                 mp_obj_t curve_name) {
-  vstr_t pkh = {0};
-  // uint32_t x = mintlayer_screen_fatal_error_rust(NULL, NULL, NULL);
-  // ((uint8_t *)pkh.buf)[0] = (uint8_t)x;
-  // ((uint8_t *)pkh.buf)[1] = (uint8_t)(x+1);
-
-  unsigned char hex[32] = {0};
-  hex[0] = 1;
-  hex[1] = 2;
-  ByteArray arr = mintlayer_encode_utxo_input(hex, 32, 10);
-  vstr_init_len(&pkh, arr.len);
-  int i = 0;
-  for (; i < arr.len; i++) {
-    ((uint8_t *)pkh.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &pkh);
-}
-// TODO: add separate new file with mintlayer functions
-STATIC MP_DEFINE_CONST_FUN_OBJ_2(mod_trezorcrypto_bip32_mintlayer_from_seed_obj,
-                                 mod_trezorcrypto_bip32_mintlayer_from_seed);
-
 STATIC const mp_rom_map_elem_t mod_trezorcrypto_bip32_globals_table[] = {
     {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_bip32)},
     {MP_ROM_QSTR(MP_QSTR_HDNode), MP_ROM_PTR(&mod_trezorcrypto_HDNode_type)},
     {MP_ROM_QSTR(MP_QSTR_from_seed),
      MP_ROM_PTR(&mod_trezorcrypto_bip32_from_seed_obj)},
-    {MP_ROM_QSTR(MP_QSTR_mintlayer_from_seed),
-     MP_ROM_PTR(&mod_trezorcrypto_bip32_mintlayer_from_seed_obj)},
 };
 STATIC MP_DEFINE_CONST_DICT(mod_trezorcrypto_bip32_globals,
                             mod_trezorcrypto_bip32_globals_table);

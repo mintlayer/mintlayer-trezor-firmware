@@ -346,6 +346,7 @@ if TYPE_CHECKING:
         MILLIBITCOIN = 1
         MICROBITCOIN = 2
         SATOSHI = 3
+        ML = 4
 
     class RequestType(IntEnum):
         TXINPUT = 0
@@ -505,6 +506,15 @@ if TYPE_CHECKING:
         ADDRESS = 6
         ARRAY = 7
         STRUCT = 8
+
+    class MintlayerUtxoType(IntEnum):
+        TRANSACTION = 0
+        BLOCK = 1
+
+    class MintlayerTokenTotalSupplyType(IntEnum):
+        FIXED = 0
+        LOCKABLE = 1
+        UNLIMITED = 2
 
     class MintlayerRequestType(IntEnum):
         TXINPUT = 0
