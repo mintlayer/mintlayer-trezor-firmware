@@ -4085,11 +4085,13 @@ if TYPE_CHECKING:
 
     class MintlayerPublicKey(protobuf.MessageType):
         public_key: "bytes"
+        chain_code: "bytes"
 
         def __init__(
             self,
             *,
             public_key: "bytes",
+            chain_code: "bytes",
         ) -> None:
             pass
 

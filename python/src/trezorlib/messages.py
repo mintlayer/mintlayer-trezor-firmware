@@ -5506,14 +5506,17 @@ class MintlayerPublicKey(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 10003
     FIELDS = {
         1: protobuf.Field("public_key", "bytes", repeated=False, required=True),
+        2: protobuf.Field("chain_code", "bytes", repeated=False, required=True),
     }
 
     def __init__(
         self,
         *,
         public_key: "bytes",
+        chain_code: "bytes",
     ) -> None:
         self.public_key = public_key
+        self.chain_code = chain_code
 
 
 class MintlayerVerifySig(protobuf.MessageType):
