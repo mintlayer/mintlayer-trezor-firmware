@@ -3,21 +3,12 @@ use core::{
     alloc::{GlobalAlloc, Layout},
     num::ParseIntError,
     ptr::null_mut,
-    str::{from_utf8, FromStr},
+    str::FromStr,
 };
 
 use parity_scale_codec::{Decode, DecodeAll, Encode};
 
 const TEN: UnsignedIntType = 10;
-
-#[no_mangle]
-extern "C" fn mintlayer_screen_fatal_error_rust(
-    title: *const cty::c_char,
-    msg: *const cty::c_char,
-    footer: *const cty::c_char,
-) -> u32 {
-    42
-}
 
 #[repr(C)]
 pub struct ByteArray {
@@ -26,13 +17,105 @@ pub struct ByteArray {
 }
 
 #[no_mangle]
-extern "C" fn mintlayer_encode_utxo_input(data: *const u8, data_len: u32, index: u32) -> ByteArray {
-    let tx_hash = unsafe { core::slice::from_raw_parts(data, data_len as usize) };
-    let utxo_outpoint = UtxoOutPoint::new(
-        OutPointSourceId::Transaction(H256(tx_hash.try_into().expect("foo"))),
-        index,
-    );
+extern "C" fn mintlayer_encode_utxo_input(
+    data: *const u8,
+    data_len: u32,
+    index: u32,
+    utxo_type: u32,
+) -> ByteArray {
+    let hash = unsafe { core::slice::from_raw_parts(data, data_len as usize) };
+    let hash = H256(hash.try_into().expect("ok"));
+    let outpoint = match utxo_type {
+        0 => OutPointSourceId::Transaction(hash),
+        1 => OutPointSourceId::BlockReward(hash),
+        _ => panic!("invalid utxo type"),
+    };
+    let utxo_outpoint = UtxoOutPoint::new(outpoint, index);
     let tx_input = TxInput::Utxo(utxo_outpoint);
+    let vec_data = tx_input.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len,
+    }
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_account_spending_input(
+    nonce: u64,
+    delegation_id_data: *const u8,
+    delegation_id_data_len: u32,
+    amount_data: *const u8,
+    amount_data_len: u32,
+) -> ByteArray {
+    let delegation_id =
+        unsafe { core::slice::from_raw_parts(delegation_id_data, delegation_id_data_len as usize) };
+    let delegation_id = H256(delegation_id.try_into().expect("ok"));
+
+    let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
+    let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+
+    let tx_input = TxInput::Account(AccountOutPoint {
+        nonce,
+        account: AccountSpending::DelegationBalance(delegation_id, amount),
+    });
+    let vec_data = tx_input.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len,
+    }
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_account_command_input(
+    nonce: u64,
+    command: u32,
+    token_id_data: *const u8,
+    token_id_data_len: u32,
+    data: *const u8,
+    data_len: u32,
+) -> ByteArray {
+    let token_id =
+        unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
+    let token_id = H256(token_id.try_into().expect("ok"));
+
+    let data = unsafe { core::slice::from_raw_parts(data, data_len as usize) };
+    let account_command = match command {
+        0 => {
+            let amount = Amount::from_bytes_be(data.as_ref()).expect("fixme");
+            AccountCommand::MintTokens(token_id, amount)
+        }
+        1 => AccountCommand::UnmintTokens(token_id),
+        2 => AccountCommand::LockTokenSupply(token_id),
+        3 => {
+            let is_token_unfreezabe =
+                IsTokenUnfreezable::decode_all(&mut data.as_ref()).expect("ok");
+            AccountCommand::FreezeToken(token_id, is_token_unfreezabe)
+        }
+        4 => AccountCommand::UnfreezeToken(token_id),
+        5 => {
+            let destination = Destination::decode_all(&mut data.as_ref()).expect("ok");
+            AccountCommand::ChangeTokenAuthority(token_id, destination)
+        }
+        _ => panic!("invalid account command"),
+    };
+
+    let tx_input = TxInput::AccountCommand(nonce, account_command);
     let vec_data = tx_input.encode();
     // Extracting the raw pointer and length from the Vec<u8>
     let ptr_data = vec_data.as_ptr();
@@ -52,18 +135,28 @@ extern "C" fn mintlayer_encode_utxo_input(data: *const u8, data_len: u32, index:
 extern "C" fn mintlayer_encode_transfer_output(
     amount_data: *const u8,
     amount_data_len: u32,
+    token_id_data: *const u8,
+    token_id_data_len: u32,
     destination_data: *const u8,
     destination_data_len: u32,
 ) -> ByteArray {
     let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
-    let coin_amount = from_utf8(coin_amount);
     let bytes = [
         2, 0, 3, 191, 111, 141, 82, 218, 222, 119, 249, 94, 156, 108, 148, 136, 253, 132, 146, 169,
         156, 9, 255, 35, 9, 92, 175, 251, 46, 100, 9, 209, 116, 106, 222,
     ];
     Destination::decode_all(&mut bytes.as_ref()).expect("ok");
 
-    let mut destination_bytes =
+    let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+    let value = if token_id_data_len == 32 {
+        let token_id =
+            unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
+        OutputValue::TokenV1(H256(token_id.try_into().expect("already checked")), amount)
+    } else {
+        OutputValue::Coin(amount)
+    };
+
+    let destination_bytes =
         unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
     let destination = Destination::decode_all(&mut destination_bytes.as_ref()).expect("ok");
 
@@ -73,13 +166,459 @@ extern "C" fn mintlayer_encode_transfer_output(
     //     Destination::PublicKeyHash(_) => println!("pkh dest"),
     // };
 
-    let txo = TxOutput::Transfer(
-        // OutputValue::Coin(
-        //     Amount::from_fixedpoint_str(coin_amount.expect("fixme"), 11).expect("fixme"),
-        // ),
-        OutputValue::Coin(Amount::from_atoms(1)),
-        destination,
+    let txo = TxOutput::Transfer(value, destination);
+
+    let vec_data = txo.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len,
+    }
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_lock_then_transfer_output(
+    amount_data: *const u8,
+    amount_data_len: u32,
+    token_id_data: *const u8,
+    token_id_data_len: u32,
+    lock_type: u8,
+    lock_amount: u64,
+    destination_data: *const u8,
+    destination_data_len: u32,
+) -> ByteArray {
+    let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
+
+    let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+    let value = if token_id_data_len == 32 {
+        let token_id =
+            unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
+        OutputValue::TokenV1(H256(token_id.try_into().expect("already checked")), amount)
+    } else {
+        OutputValue::Coin(amount)
+    };
+
+    let destination_bytes =
+        unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
+    let destination = Destination::decode_all(&mut destination_bytes.as_ref()).expect("ok");
+
+    let lock = match lock_type {
+        0 => OutputTimeLock::UntilHeight(lock_amount),
+        1 => OutputTimeLock::UntilTime(lock_amount),
+        2 => OutputTimeLock::ForBlockCount(lock_amount),
+        3 => OutputTimeLock::ForSeconds(lock_amount),
+        _ => panic!("unsuported lock type"),
+    };
+
+    let txo = TxOutput::LockThenTransfer(value, destination, lock);
+
+    let vec_data = txo.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len,
+    }
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_burn_output(
+    amount_data: *const u8,
+    amount_data_len: u32,
+    token_id_data: *const u8,
+    token_id_data_len: u32,
+) -> ByteArray {
+    let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
+
+    let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+    let value = if token_id_data_len == 32 {
+        let token_id =
+            unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
+        OutputValue::TokenV1(H256(token_id.try_into().expect("already checked")), amount)
+    } else {
+        OutputValue::Coin(amount)
+    };
+
+    let txo = TxOutput::Burn(value);
+
+    let vec_data = txo.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len,
+    }
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_create_stake_pool_output(
+    pool_id_data: *const u8,
+    pool_id_data_len: u32,
+    pledge_amount_data: *const u8,
+    pledge_amount_data_len: u32,
+    staker_destination_data: *const u8,
+    staker_destination_data_len: u32,
+    vrf_public_key_data: *const u8,
+    vrf_public_key_data_len: u32,
+    decommission_destination_data: *const u8,
+    decommission_destination_data_len: u32,
+    margin_ratio_per_thousand: u16,
+    cost_per_block_amount_data: *const u8,
+    cost_per_block_amount_data_len: u32,
+) -> ByteArray {
+    let pool_id = unsafe { core::slice::from_raw_parts(pool_id_data, pool_id_data_len as usize) };
+    let pool_id = H256(pool_id.try_into().expect("already checked"));
+    let coin_amount =
+        unsafe { core::slice::from_raw_parts(pledge_amount_data, pledge_amount_data_len as usize) };
+    let pledge = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+
+    let destination_bytes = unsafe {
+        core::slice::from_raw_parts(
+            staker_destination_data,
+            staker_destination_data_len as usize,
+        )
+    };
+    let staker = Destination::decode_all(&mut destination_bytes.as_ref()).expect("ok");
+
+    let vrf_public_key = unsafe {
+        core::slice::from_raw_parts(vrf_public_key_data, vrf_public_key_data_len as usize)
+    };
+    let vrf_public_key = VRFPublicKeyHolder::Schnorrkel(VRFPublicKey(
+        vrf_public_key.try_into().expect("already checked"),
+    ));
+
+    let destination_bytes = unsafe {
+        core::slice::from_raw_parts(
+            decommission_destination_data,
+            decommission_destination_data_len as usize,
+        )
+    };
+    let decommission_key = Destination::decode_all(&mut destination_bytes.as_ref()).expect("ok");
+    let coin_amount = unsafe {
+        core::slice::from_raw_parts(
+            cost_per_block_amount_data,
+            cost_per_block_amount_data_len as usize,
+        )
+    };
+    let cost_per_block = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+
+    let txo = TxOutput::CreateStakePool(
+        pool_id,
+        StakePoolData {
+            pledge,
+            staker,
+            decommission_key,
+            vrf_public_key,
+            margin_ratio_per_thousand,
+            cost_per_block,
+        },
     );
+
+    let vec_data = txo.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len,
+    }
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_produce_from_stake_output(
+    destination_data: *const u8,
+    destination_data_len: u32,
+    pool_id_data: *const u8,
+    pool_id_data_len: u32,
+) -> ByteArray {
+    let pool_id = unsafe { core::slice::from_raw_parts(pool_id_data, pool_id_data_len as usize) };
+    let pool_id = H256(pool_id.try_into().expect("already checked"));
+
+    let destination_bytes =
+        unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
+    let destination = Destination::decode_all(&mut destination_bytes.as_ref()).expect("ok");
+
+    let txo = TxOutput::ProduceBlockFromStake(destination, pool_id);
+
+    let vec_data = txo.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len,
+    }
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_create_delegation_id_output(
+    destination_data: *const u8,
+    destination_data_len: u32,
+    pool_id_data: *const u8,
+    pool_id_data_len: u32,
+) -> ByteArray {
+    let pool_id = unsafe { core::slice::from_raw_parts(pool_id_data, pool_id_data_len as usize) };
+    let pool_id = H256(pool_id.try_into().expect("already checked"));
+
+    let destination_bytes =
+        unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
+    let destination = Destination::decode_all(&mut destination_bytes.as_ref()).expect("ok");
+
+    let txo = TxOutput::CreateDelegationId(destination, pool_id);
+
+    let vec_data = txo.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len,
+    }
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_delegate_staking_output(
+    amount_data: *const u8,
+    amount_data_len: u32,
+    delegation_id_data: *const u8,
+    delegation_id_data_len: u32,
+) -> ByteArray {
+    let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
+    let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+
+    let delegation_id = unsafe { core::slice::from_raw_parts(delegation_id_data, delegation_id_data_len as usize) };
+    let delegation_id = H256(delegation_id.try_into().expect("already checked"));
+
+    let txo = TxOutput::DelegateStaking(amount, delegation_id);
+
+    let vec_data = txo.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len,
+    }
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_issue_fungible_token_output(
+    token_ticker_data: *const u8,
+    token_ticker_data_len: u32,
+    number_of_decimals: u8,
+    metadata_uri_data: *const u8,
+    metadata_uri_data_len: u32,
+    total_supply_type: u32,
+    fixed_amount_data: *const u8,
+    fixed_amount_data_len: u32,
+    authority_data: *const u8,
+    authority_data_len: u32,
+    is_freezable: u8,
+) -> ByteArray {
+    let token_ticker =
+        unsafe { core::slice::from_raw_parts(token_ticker_data, token_ticker_data_len as usize) };
+    let token_ticker = token_ticker.to_vec();
+
+    let metadata_uri =
+        unsafe { core::slice::from_raw_parts(metadata_uri_data, metadata_uri_data_len as usize) };
+    let metadata_uri = metadata_uri.to_vec();
+
+    let authority_bytes =
+        unsafe { core::slice::from_raw_parts(authority_data, authority_data_len as usize) };
+    let authority = Destination::decode_all(&mut authority_bytes.as_ref()).expect("ok");
+
+    let is_freezable = match is_freezable {
+        0 => IsTokenFreezable::No,
+        1 => IsTokenFreezable::Yes,
+        _ => panic!("invalid is token freezable type"),
+    };
+
+    let total_supply = match total_supply_type {
+        0 => {
+            let coin_amount = unsafe {
+                core::slice::from_raw_parts(fixed_amount_data, fixed_amount_data_len as usize)
+            };
+            let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+            TokenTotalSupply::Fixed(amount)
+        }
+        1 => TokenTotalSupply::Lockable,
+        2 => TokenTotalSupply::Unlimited,
+        _ => panic!("invalid total supply type"),
+    };
+
+    let issuance = TokenIssuance::V1(TokenIssuanceV1 {
+        token_ticker,
+        number_of_decimals,
+        metadata_uri,
+        total_supply,
+        authority,
+        is_freezable,
+    });
+
+    let txo = TxOutput::IssueFungibleToken(issuance);
+
+    let vec_data = txo.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len,
+    }
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_issue_nft_output(
+    token_id_data: *const u8,
+    token_id_data_len: u32,
+    creator_data: *const u8,
+    creator_data_len: u32,
+    name_data: *const u8,
+    name_data_len: u32,
+    description_data: *const u8,
+    description_data_len: u32,
+    ticker_data: *const u8,
+    ticker_data_len: u32,
+    icon_uri_data: *const u8,
+    icon_uri_data_len: u32,
+    additional_metadata_uri_data: *const u8,
+    additional_metadata_uri_data_len: u32,
+    media_uri_data: *const u8,
+    media_uri_data_len: u32,
+    media_hash_data: *const u8,
+    media_hash_data_len: u32,
+    destination_data: *const u8,
+    destination_data_len: u32,
+) -> ByteArray {
+    let token_id =
+        unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
+    let token_id = H256(token_id.try_into().expect("already checked"));
+
+    let creator = unsafe { core::slice::from_raw_parts(creator_data, creator_data_len as usize) };
+
+    let creator = if creator_data_len == 0 {
+        None
+    } else {
+        Some(PublicKeyHolder::Secp256k1Schnorr(PublicKey(
+            creator.try_into().expect("already checked"),
+        )))
+    };
+
+    let name = unsafe { core::slice::from_raw_parts(name_data, name_data_len as usize) };
+    let name = name.to_vec();
+
+    let description =
+        unsafe { core::slice::from_raw_parts(description_data, description_data_len as usize) };
+    let description = description.to_vec();
+
+    let ticker = unsafe { core::slice::from_raw_parts(ticker_data, ticker_data_len as usize) };
+    let ticker = ticker.to_vec();
+
+    let icon_uri =
+        unsafe { core::slice::from_raw_parts(icon_uri_data, icon_uri_data_len as usize) };
+    let icon_uri = icon_uri.to_vec();
+
+    let additional_metadata_uri = unsafe {
+        core::slice::from_raw_parts(
+            additional_metadata_uri_data,
+            additional_metadata_uri_data_len as usize,
+        )
+    };
+    let additional_metadata_uri = additional_metadata_uri.to_vec();
+
+    let media_uri =
+        unsafe { core::slice::from_raw_parts(media_uri_data, media_uri_data_len as usize) };
+    let media_uri = media_uri.to_vec();
+
+    let media_hash =
+        unsafe { core::slice::from_raw_parts(media_hash_data, media_hash_data_len as usize) };
+    let media_hash = media_hash.to_vec();
+
+    let destination_bytes =
+        unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
+    let destination = Destination::decode_all(&mut destination_bytes.as_ref()).expect("ok");
+
+    let issuance = NftIssuance::V0(NftIssuanceV0 {
+        creator,
+        name,
+        description,
+        ticker,
+        icon_uri,
+        additional_metadata_uri,
+        media_uri,
+        media_hash,
+    });
+
+    let txo = TxOutput::IssueNft(token_id, issuance, destination);
+
+    let vec_data = txo.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len,
+    }
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_data_deposit_output(
+    deposit_data: *const u8,
+    deposit_data_len: u32,
+) -> ByteArray {
+    let deposit = unsafe { core::slice::from_raw_parts(deposit_data, deposit_data_len as usize) };
+    let deposit = deposit.to_vec();
+
+    let txo = TxOutput::DataDeposit(deposit);
 
     let vec_data = txo.encode();
     // Extracting the raw pointer and length from the Vec<u8>
@@ -144,7 +683,7 @@ static GLOBAL_ALLOCATOR: CustomAllocator = CustomAllocator;
 ///
 /// The values of the flags are the same as in Bitcoin.
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Ord, PartialOrd, Encode, Decode)]
-pub struct SigHashType(u8);
+struct SigHashType(u8);
 
 impl SigHashType {
     pub const ALL: u8 = 0x01;
@@ -178,7 +717,7 @@ impl SigHashType {
 type UnsignedIntType = u128;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
-pub struct Amount {
+struct Amount {
     #[codec(compact)]
     atoms: UnsignedIntType,
 }
@@ -195,6 +734,13 @@ impl Amount {
         self.atoms
     }
 
+    pub fn from_bytes_be(bytes: &[u8]) -> Option<Self> {
+        bytes
+            .try_into()
+            .ok()
+            .map(|b| Self::from_atoms(UnsignedIntType::from_be_bytes(b)))
+    }
+
     pub fn from_fixedpoint_str(amount_str: &str, decimals: u8) -> Option<Self> {
         amount_str
             .parse::<DecimalAmount>()
@@ -204,7 +750,7 @@ impl Amount {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct DecimalAmount {
+struct DecimalAmount {
     mantissa: UnsignedIntType,
     decimals: u8,
 }
@@ -272,7 +818,7 @@ fn empty_to_zero(s: &str) -> &str {
 }
 
 #[derive(/* thiserror::Error, */ Debug, PartialEq, Eq)]
-pub enum ParseError {
+enum ParseError {
     // #[error("Resulting number is too big")]
     OutOfRange,
 
@@ -303,7 +849,7 @@ impl FromStr for DecimalAmount {
 
         let (int_str, frac_str) = s.split_once('.').unwrap_or((&s, ""));
 
-        let mut chars = int_str.chars().chain(frac_str.chars());
+        // let mut chars = int_str.chars().chain(frac_str.chars());
         // ensure!(chars.all(|c| c.is_ascii_digit()), ParseError::IllegalChar);
         // ensure!(int_str.len() + frac_str.len() > 0, ParseError::NoDigits);
 
@@ -330,29 +876,61 @@ impl FromStr for DecimalAmount {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
-pub enum OutputValue {
+enum OutputValue {
     Coin(Amount),
-    // TokenV0(Box<TokenData>),
-    // TokenV1(TokenId, Amount),
+    TokenV0,
+    TokenV1(H256, Amount),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
+enum OutputTimeLock {
+    #[codec(index = 0)]
+    UntilHeight(#[codec(compact)] u64),
+    #[codec(index = 1)]
+    UntilTime(#[codec(compact)] u64),
+    #[codec(index = 2)]
+    ForBlockCount(#[codec(compact)] u64),
+    #[codec(index = 3)]
+    ForSeconds(#[codec(compact)] u64),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
+struct StakePoolData {
+    pledge: Amount,
+    staker: Destination,
+    vrf_public_key: VRFPublicKeyHolder,
+    decommission_key: Destination,
+    margin_ratio_per_thousand: u16,
+    cost_per_block: Amount,
 }
 
 const HASH_SIZE: usize = 20;
 const PK_SIZE: usize = 33;
+const VRF_PK_SIZE: usize = 32;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
-pub struct PublicKeyHash(pub [u8; HASH_SIZE]);
+struct PublicKeyHash(pub [u8; HASH_SIZE]);
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
-pub struct PublicKey(pub [u8; PK_SIZE]);
+struct PublicKey(pub [u8; PK_SIZE]);
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
+struct VRFPublicKey(pub [u8; VRF_PK_SIZE]);
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Decode, Encode)]
-pub enum PublicKeyHolder {
+enum VRFPublicKeyHolder {
+    #[codec(index = 0)]
+    Schnorrkel(VRFPublicKey),
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Decode, Encode)]
+enum PublicKeyHolder {
     #[codec(index = 0)]
     Secp256k1Schnorr(PublicKey),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
-pub enum Destination {
+enum Destination {
     #[codec(index = 0)]
     AnyoneCanSpend, /* zero verification; used primarily for testing. Never use this for real
                      * money */
@@ -366,47 +944,99 @@ pub enum Destination {
     // ClassicMultisig(PublicKeyHash),
 }
 
+#[derive(Encode)]
+enum TokenIssuance {
+    #[codec(index = 1)]
+    V1(TokenIssuanceV1),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
-pub enum TxOutput {
+enum IsTokenFreezable {
+    #[codec(index = 0)]
+    No,
+    #[codec(index = 1)]
+    Yes,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
+enum TokenTotalSupply {
+    #[codec(index = 0)]
+    Fixed(Amount), // fixed to a certain amount
+    #[codec(index = 1)]
+    Lockable, // not known in advance but can be locked once at some point in time
+    #[codec(index = 2)]
+    Unlimited, // limited only by the Amount data type
+}
+
+#[derive(Encode)]
+struct TokenIssuanceV1 {
+    pub token_ticker: parity_scale_codec::alloc::vec::Vec<u8>,
+    pub number_of_decimals: u8,
+    pub metadata_uri: parity_scale_codec::alloc::vec::Vec<u8>,
+    pub total_supply: TokenTotalSupply,
+    pub authority: Destination,
+    pub is_freezable: IsTokenFreezable,
+}
+
+#[derive(Encode)]
+enum NftIssuance {
+    #[codec(index = 0)]
+    V0(NftIssuanceV0),
+}
+
+#[derive(Encode)]
+struct NftIssuanceV0 {
+    pub creator: Option<PublicKeyHolder>,
+    pub name: parity_scale_codec::alloc::vec::Vec<u8>,
+    pub description: parity_scale_codec::alloc::vec::Vec<u8>,
+    pub ticker: parity_scale_codec::alloc::vec::Vec<u8>,
+    pub icon_uri: parity_scale_codec::alloc::vec::Vec<u8>,
+    pub additional_metadata_uri: parity_scale_codec::alloc::vec::Vec<u8>,
+    pub media_uri: parity_scale_codec::alloc::vec::Vec<u8>,
+    pub media_hash: parity_scale_codec::alloc::vec::Vec<u8>,
+}
+
+#[derive(Encode)]
+enum TxOutput {
     /// Transfer an output, giving the provided Destination the authority to
     /// spend it (no conditions)
     #[codec(index = 0)]
     Transfer(OutputValue, Destination),
-    // /// Same as Transfer, but with the condition that an output can only be
-    // /// specified after some point in time.
-    //     #[codec(index = 1)]
-    //     LockThenTransfer(OutputValue, Destination, OutputTimeLock),
-    //     /// Burn an amount (whether coin or token)
-    //     #[codec(index = 2)]
-    //     Burn(OutputValue),
-    //     /// Output type that is used to create a stake pool
-    //     #[codec(index = 3)]
-    //     CreateStakePool(PoolId, Box<StakePoolData>),
-    //     /// Output type that represents spending of a stake pool output in a
-    // block     /// reward in order to produce a block
-    //     #[codec(index = 4)]
-    //     ProduceBlockFromStake(Destination, PoolId),
-    //     /// Create a delegation; takes the owner destination (address authorized
-    // to     /// withdraw from the delegation) and a pool id
-    //     #[codec(index = 5)]
-    //     CreateDelegationId(Destination, PoolId),
-    //     /// Transfer an amount to a delegation that was previously created for
-    //     /// staking
-    //     #[codec(index = 6)]
-    //     DelegateStaking(Amount, DelegationId),
-    //     #[codec(index = 7)]
-    //     IssueFungibleToken(Box<TokenIssuance>),
-    //     #[codec(index = 8)]
-    //     IssueNft(TokenId, Box<NftIssuance>, Destination),
-    //     #[codec(index = 9)]
-    //     DataDeposit(Vec<u8>),
+    /// Same as Transfer, but with the condition that an output can only be
+    /// specified after some point in time.
+    #[codec(index = 1)]
+    LockThenTransfer(OutputValue, Destination, OutputTimeLock),
+    /// Burn an amount (whether coin or token)
+    #[codec(index = 2)]
+    Burn(OutputValue),
+    /// Output type that is used to create a stake pool
+    #[codec(index = 3)]
+    CreateStakePool(H256, StakePoolData),
+    /// Output type that represents spending of a stake pool output in a block
+    /// reward in order to produce a block
+    #[codec(index = 4)]
+    ProduceBlockFromStake(Destination, H256),
+    /// Create a delegation; takes the owner destination (address authorized to
+    /// withdraw from the delegation) and a pool id
+    #[codec(index = 5)]
+    CreateDelegationId(Destination, H256),
+    /// Transfer an amount to a delegation that was previously created for
+    /// staking
+    #[codec(index = 6)]
+    DelegateStaking(Amount, H256),
+    #[codec(index = 7)]
+    IssueFungibleToken(TokenIssuance),
+    #[codec(index = 8)]
+    IssueNft(H256, NftIssuance, Destination),
+    #[codec(index = 9)]
+    DataDeposit(parity_scale_codec::alloc::vec::Vec<u8>),
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Encode, Decode)]
-pub struct H256(pub [u8; 32]);
+struct H256(pub [u8; 32]);
 
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, Ord, PartialOrd)]
-pub enum OutPointSourceId {
+enum OutPointSourceId {
     #[codec(index = 0)]
     Transaction(H256),
     #[codec(index = 1)]
@@ -423,7 +1053,7 @@ impl OutPointSourceId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, Ord, PartialOrd)]
-pub struct UtxoOutPoint {
+struct UtxoOutPoint {
     id: OutPointSourceId,
     index: u32,
 }
@@ -445,15 +1075,60 @@ impl UtxoOutPoint {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Encode, Decode)]
-pub enum TxInput {
+#[derive(Encode)]
+enum AccountSpending {
+    #[codec(index = 0)]
+    DelegationBalance(H256, Amount),
+}
+
+#[derive(Encode)]
+struct AccountOutPoint {
+    #[codec(compact)]
+    nonce: u64,
+    account: AccountSpending,
+}
+
+#[derive(Encode, Decode)]
+enum IsTokenUnfreezable {
+    #[codec(index = 0)]
+    No,
+    #[codec(index = 1)]
+    Yes,
+}
+
+#[derive(Encode)]
+enum AccountCommand {
+    // Create certain amount of tokens and add them to circulating supply
+    #[codec(index = 0)]
+    MintTokens(H256, Amount),
+    // Take tokens out of circulation. Not the same as Burn because unminting means that certain
+    // amount of tokens is no longer supported by underlying fiat currency, which can only be
+    // done by the authority.
+    #[codec(index = 1)]
+    UnmintTokens(H256),
+    // After supply is locked tokens cannot be minted or unminted ever again.
+    // Works only for Lockable tokens supply.
+    #[codec(index = 2)]
+    LockTokenSupply(H256),
+    // Freezing token forbids any operation with all the tokens (except for optional unfreeze)
+    #[codec(index = 3)]
+    FreezeToken(H256, IsTokenUnfreezable),
+    // By unfreezing token all operations are available for the tokens again
+    #[codec(index = 4)]
+    UnfreezeToken(H256),
+    // Change the authority who can authorize operations for a token
+    #[codec(index = 5)]
+    ChangeTokenAuthority(H256, Destination),
+}
+
+#[derive(Encode)]
+enum TxInput {
     #[codec(index = 0)]
     Utxo(UtxoOutPoint),
-    // // TODO: after the fork AccountOutPoint can be replaced with (AccountNonce,
-    // AccountSpending) #[codec(index = 1)]
-    // Account(AccountOutPoint),
-    // #[codec(index = 2)]
-    // AccountCommand(AccountNonce, AccountCommand),
+    #[codec(index = 1)]
+    Account(AccountOutPoint),
+    #[codec(index = 2)]
+    AccountCommand(#[codec(compact)] u64, AccountCommand),
 }
 
 // fn signature_hash(

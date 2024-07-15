@@ -2,8 +2,5 @@
 # fmt: off
 # isort:skip_file
 
-BITCOIN = 0
-MILLIBITCOIN = 1
-MICROBITCOIN = 2
-SATOSHI = 3
-ML = 4
+TRANSACTION = 0
+BLOCK = 1

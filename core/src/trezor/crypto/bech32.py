@@ -180,6 +180,13 @@ def reverse_convertbits(
             ret.append((acc >> bits) & maxv)
     return ret
 
+def decode_address_to_bytes(address: str | None) -> bytes:
+    if address is None:
+        return bytes()
+
+    _, data = bech32_decode(address)
+    data = reverse_convertbits(data, 8, 5)
+    return bytes(data)
 
 
 def decode(hrp: str, addr: str) -> OptionalTuple2[int, bytes]:

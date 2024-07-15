@@ -70,8 +70,8 @@ def verify_sig(
         return False
     return isinstance(resp, messages.Success)
 
-Input = messages.MintlayerUtxoTxInput
-Output = messages.MintlayerTransferTxOutput
+Input = messages.MintlayerTxInput
+Output = messages.MintlayerTxOutput
 TxHash = bytes
 
 @dataclass

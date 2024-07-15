@@ -16,6 +16,9 @@ pub use solana::*;
 pub mod common;
 pub use common::*;
 
+pub mod mintlayer;
+pub use mintlayer::*;
+
 use crate::{
     error::{Error, Result},
     messages::TrezorMessage,
