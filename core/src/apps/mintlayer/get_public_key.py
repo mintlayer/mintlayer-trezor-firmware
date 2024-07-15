@@ -22,15 +22,10 @@ async def get_public_key(
     from apps.common import paths
     print("inside get pk of mintlayer")
 
-    res = bip32.mintlayer_from_seed(b'', b'')
-    print('mintlayer from seed: ', res)
-
-    res = mintlayer_utils.encode_utxo_input(b'0'*32, 0)
-    print('mintlayer encode input: ', res)
-
-    await paths.validate_path(keychain, msg.address_n)
+    # await paths.validate_path(keychain, msg.address_n)
     node = keychain.derive(msg.address_n)
     pubkey = node.public_key()
+    chain_code = node.chain_code()
 
     if msg.show_display:
         from . import PATTERN, SLIP44_ID
@@ -42,5 +37,5 @@ async def get_public_key(
             path=path,
         )
 
-    return MintlayerPublicKey(public_key=pubkey)
+    return MintlayerPublicKey(public_key=pubkey, chain_code=chain_code)
 
