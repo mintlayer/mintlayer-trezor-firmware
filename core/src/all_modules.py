@@ -567,6 +567,8 @@ if not utils.BITCOIN_ONLY:
     import apps.mintlayer.get_address
     apps.mintlayer.get_public_key
     import apps.mintlayer.get_public_key
+    apps.mintlayer.sign_message
+    import apps.mintlayer.sign_message
     apps.mintlayer.sign_tx
     import apps.mintlayer.sign_tx
     apps.mintlayer.sign_tx.helpers
@@ -577,8 +579,6 @@ if not utils.BITCOIN_ONLY:
     import apps.mintlayer.sign_tx.progress
     apps.mintlayer.sign_tx.signer
     import apps.mintlayer.sign_tx.signer
-    apps.mintlayer.verify_sig
-    import apps.mintlayer.verify_sig
     apps.mintlayer.writers
     import apps.mintlayer.writers
     apps.monero

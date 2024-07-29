@@ -49,26 +49,29 @@ def get_public_key(
         messages.MintlayerGetPublicKey(address_n=address_n, show_display=show_display)
     )
 
-def verify_sig(
+def sign_message(
     client: "TrezorClient",
     address_n: "Address",
-    signature: bytes,
     message: bytes,
-) -> bool:
+) -> bytes:
     try:
         resp = client.call(
-            messages.MintlayerVerifySig(
+            messages.MintlayerSignMessage(
                 address_n=address_n,
-                signature=signature,
                 message=message
             )
         )
+
+        if isinstance(resp, messages.MessageSignature):
+            return resp.signature
+
+        return b''
     # TODO: add exceptions like btc
     # except exceptions.TrezorFailure:
     except:
         print("got exception in verify sig Mintlayer")
-        return False
-    return isinstance(resp, messages.Success)
+        return b''
+
 
 Input = messages.MintlayerTxInput
 Output = messages.MintlayerTxOutput

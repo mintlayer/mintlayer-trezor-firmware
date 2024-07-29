@@ -1,6 +1,6 @@
 from apps.common.coininfo import by_name
 from trezor.crypto.bech32 import bech32_encode, bech32_decode, convertbits, reverse_convertbits, decode_address_to_bytes, Encoding
-from trezor.messages import MintlayerSignTx, MintlayerTxRequestSerializedType, MintlayerTxInput, MintlayerTxOutput
+from trezor.messages import MintlayerSignTx, MintlayerTxRequestSerializedType, MintlayerSignature, MintlayerTxInput, MintlayerTxOutput
 from micropython import const
 from typing import TYPE_CHECKING
 
@@ -36,7 +36,7 @@ _MAX_SERIALIZED_CHUNK_SIZE = const(2048)
 _SERIALIZED_TX_BUFFER = empty_bytearray(_MAX_SERIALIZED_CHUNK_SIZE)
 
 class TxUtxoInput:
-    def __init__(self, input: MintlayerTxInput, utxo: MintlayerTxOutput | None, node: bip32.HDNode | None):
+    def __init__(self, input: MintlayerTxInput, utxo: MintlayerTxOutput | None, node: List[Tuple[bip32.HDNode, int | None]]):
         self.input = input
         self.utxo = utxo
         self.node = node
@@ -49,7 +49,7 @@ class TxInfo:
         self.outputs = outputs
 
 
-    def add_input(self, txi: MintlayerTxInput, txo: MintlayerTxOutput | None, node: bip32.HDNode | None):
+    def add_input(self, txi: MintlayerTxInput, txo: MintlayerTxOutput | None, node: List[Tuple[bip32.HDNode, int | None]]):
         self.inputs.append(TxUtxoInput(input= txi, utxo= txo, node= node))
 
     def add_output(self, txo: MintlayerTxOutput):
@@ -183,25 +183,22 @@ class Mintlayer:
             if txi.utxo:
                 # get the utxo
                 txo = await helpers.request_tx_output(self.tx_req, txi.utxo.prev_index, txi.utxo.prev_hash)
-                if txi.utxo.address_n:
-                    node = self.keychain.derive(txi.utxo.address_n)
-                else:
-                    node = None
+                node = []
+                for address in txi.utxo.address_n:
+                    node.append((self.keychain.derive(address.address_n), address.multisig_idx))
 
                 self.tx_info.add_input(txi, txo, node)
             elif txi.account:
                 # get the utxo
-                if txi.account.address_n:
-                    node = self.keychain.derive(txi.account.address_n)
-                else:
-                    node = None
+                node = []
+                for address in txi.account.address_n:
+                    node.append((self.keychain.derive(address.address_n), address.multisig_idx))
                 self.tx_info.add_input(txi, None, node)
             elif txi.account_command:
                 # get the utxo
-                if txi.account_command.address_n:
-                    node = self.keychain.derive(txi.account_command.address_n)
-                else:
-                    node = None
+                node = []
+                for address in txi.account_command.address_n:
+                    node.append((self.keychain.derive(address.address_n), address.multisig_idx))
                 self.tx_info.add_input(txi, None, node)
             else:
                 # TODO: handle other input types
@@ -236,27 +233,10 @@ class Mintlayer:
                 x = inp.input.utxo
                 encoded_inp = mintlayer_utils.encode_utxo_input(x.prev_hash, x.prev_index, int(x.type))
                 encoded_inputs.append(encoded_inp)
-                if inp.node:
-                    pk = bytes([0]) + inp.node.public_key()
-                    print("pk", pk)
-                    hrp = 'mptc'
-                    hrp = 'mtc'
+                data = decode_address_to_bytes(x.address)
 
-                    pkh = blake2b(pk).digest()[:20]
-
-                    data = convertbits(bytes([1])+pkh, 8, 5)
-                    address = bech32_encode(hrp, data, Encoding.BECH32M)
-
-                    data = decode_address_to_bytes(address)
-
-                    print(f'addr: {address} bytes: {data}')
-                    encoded_inp_utxo = self.serialize_output(inp.utxo)
-                    encoded_input_utxos.append(b'\x01' + encoded_inp_utxo)
-                else:
-                    data = decode_address_to_bytes(x.address)
-
-                    encoded_inp_utxo = self.serialize_output(inp.utxo)
-                    encoded_input_utxos.append(b'\x01' + encoded_inp_utxo)
+                encoded_inp_utxo = self.serialize_output(inp.utxo)
+                encoded_input_utxos.append(b'\x01' + encoded_inp_utxo)
             elif inp.input.account:
                 x = inp.input.account
                 encoded_inp = mintlayer_utils.encode_account_spending_input(x.nonce, x.delegation_id, x.value.amount)
@@ -366,55 +346,54 @@ class Mintlayer:
 
         return encoded_outputs
 
-    async def step6_sign_inputs(self, encoded_inputs: List[bytes], encoded_input_utxos: List[bytes], encoded_outputs: List[bytes]) -> List[bytes | None]:
+    async def step6_sign_inputs(self, encoded_inputs: List[bytes], encoded_input_utxos: List[bytes], encoded_outputs: List[bytes]) -> List[List[Tuple[bytes, int | None]]]:
         from trezor.utils import HashWriter
 
         signatures = []
         for i in range(self.tx_info.tx.inputs_count):
-            node = self.tx_info.inputs[i].node
-            if node is None:
-                signatures.append(None)
-                continue
-            writer = HashWriter(blake2b())
-            # mode
-            writer.extend(b'\x01')
+            sigs = []
+            for node, multisig_idx in self.tx_info.inputs[i].node:
+                writer = HashWriter(blake2b())
+                # mode
+                writer.extend(b'\x01')
 
-            # version
-            writer.extend(b'\x01')
-            # flags
-            writer.extend(bytes([0]*16))
+                # version
+                writer.extend(b'\x01')
+                # flags
+                writer.extend(bytes([0]*16))
 
 
-            writer.extend(len(encoded_inputs).to_bytes(4, 'little'))
-            print(f'encoded inputs {encoded_inputs}')
-            for inp in encoded_inputs:
-                writer.extend(inp)
+                writer.extend(len(encoded_inputs).to_bytes(4, 'little'))
+                print(f'encoded inputs {encoded_inputs}')
+                for inp in encoded_inputs:
+                    writer.extend(inp)
 
-            writer.extend(len(encoded_input_utxos).to_bytes(4, 'little'))
-            print(encoded_input_utxos)
-            for utxo in encoded_input_utxos:
-                writer.extend(utxo)
+                writer.extend(len(encoded_input_utxos).to_bytes(4, 'little'))
+                print(encoded_input_utxos)
+                for utxo in encoded_input_utxos:
+                    writer.extend(utxo)
 
-            encoded_len = mintlayer_utils.encode_compact_length(len(encoded_outputs))
-            print(f'compact len {encoded_len}')
-            print(f'encoded outputs {encoded_outputs}')
-            writer.extend(encoded_len)
-            for out in encoded_outputs:
-                writer.extend(out)
+                encoded_len = mintlayer_utils.encode_compact_length(len(encoded_outputs))
+                print(f'compact len {encoded_len}')
+                print(f'encoded outputs {encoded_outputs}')
+                writer.extend(encoded_len)
+                for out in encoded_outputs:
+                    writer.extend(out)
 
-            hash = writer.get_digest()[:32]
-            private_key = node.private_key()
-            digest = blake2b(hash).digest()[:32]
-            print(f"hash {list(hash)}, digest {list(digest)}")
+                hash = writer.get_digest()[:32]
+                private_key = node.private_key()
+                digest = blake2b(hash).digest()[:32]
+                print(f"hash {list(hash)}, digest {list(digest)}")
 
-            sig = bip340.sign(private_key, digest)
-            print("got a signature", sig)
-            signatures.append(sig)
+                sig = bip340.sign(private_key, digest)
+                print("got a signature", sig)
+                sigs.append((sig, multisig_idx))
+            signatures.append(sigs)
 
         return signatures
 
-    async def step7_finish(self, signatures: List[bytes | None]) -> None:
-        sigs = [MintlayerTxRequestSerializedType(signature_index=i, signature=sig) for i, sig in enumerate(signatures)]
+    async def step7_finish(self, signatures: List[List[Tuple[bytes, int | None]]]) -> None:
+        sigs = [MintlayerTxRequestSerializedType(signature_index=i, signatures=[MintlayerSignature(signature=s[0], multisig_idx=s[1]) for s in sigs]) for i, sigs in enumerate(signatures)]
         self.tx_req.serialized = sigs
         # if self.serialize:
         #     self.write_tx_footer(self.serialized_tx, self.tx_info.tx)

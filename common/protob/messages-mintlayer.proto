@@ -53,15 +53,15 @@ message MintlayerPublicKey {
 }
 
 /**
- * Request: Ask device to verify message
+ * Request: Ask device to sign a message
  * @start
  * @next Success
  * @next Failure
  */
-message MintlayerVerifySig {
+message MintlayerSignMessage {
     repeated uint32 address_n = 1;  // BIP-32 path to derive the key from master node
-    required bytes signature = 2;                       // signature to verify
-    required bytes message = 3;                         // message to verify
+    required string address = 2;    // destination address in Base58 encoding; script_type must be PAYTOADDRESS
+    required bytes message = 3;     // message to verify
 }
 
 /**
@@ -112,12 +112,19 @@ message MintlayerTxRequest {
         optional bytes tx_hash = 2;             // tx_hash of requested transaction
     }
     /**
+    * Structure representing request details
+    */
+    message MintlayerSignature {
+        required bytes signature = 1;             // a single signature
+        optional uint32 multisig_idx = 2;         // in case of multisig the index of the key
+    }
+    /**
     * Structure representing serialized data
     */
     message MintlayerTxRequestSerializedType {
-        optional uint32 signature_index = 1;    // 'signature' field contains signed input of this index
-        optional bytes signature = 2;           // signature of the signature_index input
-        optional bytes serialized_tx = 3;       // part of serialized and signed transaction
+        optional uint32 signature_index = 1;                  // 'signature' field contains signed input of this index
+        repeated MintlayerSignature signatures = 2;           // signature of the signature_index input
+        optional bytes serialized_tx = 3;                     // part of serialized and signed transaction
     }
 }
 
@@ -139,16 +146,24 @@ enum MintlayerUtxoType {
     BLOCK = 1;
 }
 
+/** Data type for output value coins or token
+ * @embed
+ */
+message MintlayerAddressPath {
+    repeated uint32 address_n = 1;                                      // BIP-32 path to derive the key from master node
+    optional uint32 multisig_idx = 2;                                   // in case of a multisig the key index
+}
+
 /** Data type for transaction input to be signed.
  *
  * @embed
  */
 message MintlayerUtxoTxInput {
-    repeated uint32 address_n = 1;                                      // BIP-32 path to derive the key from master node
+    repeated MintlayerAddressPath address_n = 1;                        // BIP-32 path to derive the key from master node
     required string address = 2;                                        // destination address in Base58 encoding; script_type must be PAYTOADDRESS
     required bytes prev_hash = 3;                                       // hash of previous transaction output to spend by this input
     required uint32 prev_index = 4;                                     // index of previous output to spend
-    required MintlayerUtxoType type = 5;                                     // index of previous output to spend
+    required MintlayerUtxoType type = 5;                                // source type of the utxo (Transaction or BlockReward)
     optional uint32 sequence = 6 [default=0xffffffff];                  // sequence
     required MintlayerOutputValue value = 7;                            // amount of previous transaction output
 }
@@ -158,7 +173,7 @@ message MintlayerUtxoTxInput {
  * @embed
  */
 message MintlayerAccountTxInput {
-    repeated uint32 address_n = 1;                                      // BIP-32 path to derive the key from master node
+    repeated MintlayerAddressPath address_n = 1;                        // BIP-32 path to derive the key from master node
     required string address = 2;                                        // destination address in Base58 encoding; script_type must be PAYTOADDRESS
     optional uint32 sequence = 3 [default=0xffffffff];                  // sequence
     required MintlayerOutputValue value = 4;                            // amount of previous transaction output
@@ -171,7 +186,7 @@ message MintlayerAccountTxInput {
  * @embed
  */
 message MintlayerAccountCommandTxInput {
-    repeated uint32 address_n = 1;                                      // BIP-32 path to derive the key from master node
+    repeated MintlayerAddressPath address_n = 1;                        // BIP-32 path to derive the key from master node
     required string address = 2;                                        // destination address in Base58 encoding; script_type must be PAYTOADDRESS
     optional uint32 sequence = 3 [default=0xffffffff];                  // sequence
     required uint64 nonce = 4;                                          // incrementing account nonce
@@ -257,8 +272,7 @@ message MintlayerOutputValue {
  */
 message MintlayerTransferTxOutput {
     optional string address = 1;                    // destination address in Base58 encoding; script_type must be PAYTOADDRESS
-    repeated uint32 address_n = 2;                  // BIP-32 path to derive the destination (used for change addresses)
-    required MintlayerOutputValue value = 3;        // amount to spend in atoms for coin or token
+    required MintlayerOutputValue value = 2;        // amount to spend in atoms for coin or token
 }
 
 /** Data type for time lock of an output
@@ -276,9 +290,8 @@ message MintlayerOutputTimeLock {
  */
 message MintlayerLockThenTransferTxOutput {
     optional string address = 1;                    // destination address in Base58 encoding; script_type must be PAYTOADDRESS
-    repeated uint32 address_n = 2;                  // BIP-32 path to derive the destination (used for change addresses)
-    required MintlayerOutputValue value = 3;        // amount to spend in atoms
-    required MintlayerOutputTimeLock lock = 4;      // output lock
+    required MintlayerOutputValue value = 2;        // amount to spend in atoms
+    required MintlayerOutputTimeLock lock = 3;      // output lock
 }
 
 /** Data type for transaction output to be signed.

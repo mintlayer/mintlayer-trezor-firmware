@@ -274,7 +274,7 @@ class MessageType(IntEnum):
     MintlayerAddress = 1001
     MintlayerGetPublicKey = 1002
     MintlayerPublicKey = 1003
-    MintlayerVerifySig = 1004
+    MintlayerSignMessage = 1004
     MintlayerSignTx = 1005
     MintlayerTxRequest = 1006
     MintlayerTxAckUtxoInput = 1007
@@ -359,7 +359,6 @@ class AmountUnit(IntEnum):
     MILLIBITCOIN = 1
     MICROBITCOIN = 2
     SATOSHI = 3
-    ML = 4
 
 
 class RequestType(IntEnum):
@@ -5421,23 +5420,23 @@ class MintlayerPublicKey(protobuf.MessageType):
         self.chain_code = chain_code
 
 
-class MintlayerVerifySig(protobuf.MessageType):
+class MintlayerSignMessage(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 1004
     FIELDS = {
         1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
-        2: protobuf.Field("signature", "bytes", repeated=False, required=True),
+        2: protobuf.Field("address", "string", repeated=False, required=True),
         3: protobuf.Field("message", "bytes", repeated=False, required=True),
     }
 
     def __init__(
         self,
         *,
-        signature: "bytes",
+        address: "str",
         message: "bytes",
         address_n: Optional[Sequence["int"]] = None,
     ) -> None:
         self.address_n: Sequence["int"] = address_n if address_n is not None else []
-        self.signature = signature
+        self.address = address
         self.message = message
 
 
@@ -5507,10 +5506,27 @@ class MintlayerTxInput(protobuf.MessageType):
         self.account_command = account_command
 
 
-class MintlayerUtxoTxInput(protobuf.MessageType):
+class MintlayerAddressPath(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
         1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        2: protobuf.Field("multisig_idx", "uint32", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        address_n: Optional[Sequence["int"]] = None,
+        multisig_idx: Optional["int"] = None,
+    ) -> None:
+        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.multisig_idx = multisig_idx
+
+
+class MintlayerUtxoTxInput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("address_n", "MintlayerAddressPath", repeated=True, required=False, default=None),
         2: protobuf.Field("address", "string", repeated=False, required=True),
         3: protobuf.Field("prev_hash", "bytes", repeated=False, required=True),
         4: protobuf.Field("prev_index", "uint32", repeated=False, required=True),
@@ -5527,10 +5543,10 @@ class MintlayerUtxoTxInput(protobuf.MessageType):
         prev_index: "int",
         type: "MintlayerUtxoType",
         value: "MintlayerOutputValue",
-        address_n: Optional[Sequence["int"]] = None,
+        address_n: Optional[Sequence["MintlayerAddressPath"]] = None,
         sequence: Optional["int"] = 4294967295,
     ) -> None:
-        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.address_n: Sequence["MintlayerAddressPath"] = address_n if address_n is not None else []
         self.address = address
         self.prev_hash = prev_hash
         self.prev_index = prev_index
@@ -5542,7 +5558,7 @@ class MintlayerUtxoTxInput(protobuf.MessageType):
 class MintlayerAccountTxInput(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
-        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        1: protobuf.Field("address_n", "MintlayerAddressPath", repeated=True, required=False, default=None),
         2: protobuf.Field("address", "string", repeated=False, required=True),
         3: protobuf.Field("sequence", "uint32", repeated=False, required=False, default=4294967295),
         4: protobuf.Field("value", "MintlayerOutputValue", repeated=False, required=True),
@@ -5557,10 +5573,10 @@ class MintlayerAccountTxInput(protobuf.MessageType):
         value: "MintlayerOutputValue",
         nonce: "int",
         delegation_id: "bytes",
-        address_n: Optional[Sequence["int"]] = None,
+        address_n: Optional[Sequence["MintlayerAddressPath"]] = None,
         sequence: Optional["int"] = 4294967295,
     ) -> None:
-        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.address_n: Sequence["MintlayerAddressPath"] = address_n if address_n is not None else []
         self.address = address
         self.value = value
         self.nonce = nonce
@@ -5571,7 +5587,7 @@ class MintlayerAccountTxInput(protobuf.MessageType):
 class MintlayerAccountCommandTxInput(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
-        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        1: protobuf.Field("address_n", "MintlayerAddressPath", repeated=True, required=False, default=None),
         2: protobuf.Field("address", "string", repeated=False, required=True),
         3: protobuf.Field("sequence", "uint32", repeated=False, required=False, default=4294967295),
         4: protobuf.Field("nonce", "uint64", repeated=False, required=True),
@@ -5588,7 +5604,7 @@ class MintlayerAccountCommandTxInput(protobuf.MessageType):
         *,
         address: "str",
         nonce: "int",
-        address_n: Optional[Sequence["int"]] = None,
+        address_n: Optional[Sequence["MintlayerAddressPath"]] = None,
         sequence: Optional["int"] = 4294967295,
         mint: Optional["MintlayerMintTokens"] = None,
         unmint: Optional["MintlayerUnmintTokens"] = None,
@@ -5597,7 +5613,7 @@ class MintlayerAccountCommandTxInput(protobuf.MessageType):
         unfreeze_token: Optional["MintlayerUnfreezeToken"] = None,
         change_token_authority: Optional["MintlayerChangeTokenAuhtority"] = None,
     ) -> None:
-        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.address_n: Sequence["MintlayerAddressPath"] = address_n if address_n is not None else []
         self.address = address
         self.nonce = nonce
         self.sequence = sequence
@@ -5764,18 +5780,15 @@ class MintlayerTransferTxOutput(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
         1: protobuf.Field("address", "string", repeated=False, required=False, default=None),
-        2: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
-        3: protobuf.Field("value", "MintlayerOutputValue", repeated=False, required=True),
+        2: protobuf.Field("value", "MintlayerOutputValue", repeated=False, required=True),
     }
 
     def __init__(
         self,
         *,
         value: "MintlayerOutputValue",
-        address_n: Optional[Sequence["int"]] = None,
         address: Optional["str"] = None,
     ) -> None:
-        self.address_n: Sequence["int"] = address_n if address_n is not None else []
         self.value = value
         self.address = address
 
@@ -5807,9 +5820,8 @@ class MintlayerLockThenTransferTxOutput(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
         1: protobuf.Field("address", "string", repeated=False, required=False, default=None),
-        2: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
-        3: protobuf.Field("value", "MintlayerOutputValue", repeated=False, required=True),
-        4: protobuf.Field("lock", "MintlayerOutputTimeLock", repeated=False, required=True),
+        2: protobuf.Field("value", "MintlayerOutputValue", repeated=False, required=True),
+        3: protobuf.Field("lock", "MintlayerOutputTimeLock", repeated=False, required=True),
     }
 
     def __init__(
@@ -5817,10 +5829,8 @@ class MintlayerLockThenTransferTxOutput(protobuf.MessageType):
         *,
         value: "MintlayerOutputValue",
         lock: "MintlayerOutputTimeLock",
-        address_n: Optional[Sequence["int"]] = None,
         address: Optional["str"] = None,
     ) -> None:
-        self.address_n: Sequence["int"] = address_n if address_n is not None else []
         self.value = value
         self.lock = lock
         self.address = address
@@ -6120,23 +6130,40 @@ class MintlayerTxRequestDetailsType(protobuf.MessageType):
         self.tx_hash = tx_hash
 
 
+class MintlayerSignature(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("signature", "bytes", repeated=False, required=True),
+        2: protobuf.Field("multisig_idx", "uint32", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        signature: "bytes",
+        multisig_idx: Optional["int"] = None,
+    ) -> None:
+        self.signature = signature
+        self.multisig_idx = multisig_idx
+
+
 class MintlayerTxRequestSerializedType(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
         1: protobuf.Field("signature_index", "uint32", repeated=False, required=False, default=None),
-        2: protobuf.Field("signature", "bytes", repeated=False, required=False, default=None),
+        2: protobuf.Field("signatures", "MintlayerSignature", repeated=True, required=False, default=None),
         3: protobuf.Field("serialized_tx", "bytes", repeated=False, required=False, default=None),
     }
 
     def __init__(
         self,
         *,
+        signatures: Optional[Sequence["MintlayerSignature"]] = None,
         signature_index: Optional["int"] = None,
-        signature: Optional["bytes"] = None,
         serialized_tx: Optional["bytes"] = None,
     ) -> None:
+        self.signatures: Sequence["MintlayerSignature"] = signatures if signatures is not None else []
         self.signature_index = signature_index
-        self.signature = signature
         self.serialized_tx = serialized_tx
 
 
