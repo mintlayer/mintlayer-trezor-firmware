@@ -497,14 +497,10 @@ def _sanitize_tx_output(txo: MintlayerTxOutput) -> MintlayerTxOutput:
     from trezor.wire import DataError  # local_cache_global
 
     if txo.transfer:
-        address_n = txo.transfer.address_n  # local_cache_attribute
-
         if txo.transfer.value is None:
             raise DataError("Missing amount field.")
 
-        if address_n and txo.transfer.address:
-            raise DataError("Both address and address_n provided.")
-        if not address_n and not txo.transfer.address:
+        if not txo.transfer.address:
             raise DataError("Missing address")
     else:
         # TODO: senitize other tx outputs

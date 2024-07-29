@@ -96,7 +96,6 @@ if TYPE_CHECKING:
         MILLIBITCOIN = 1
         MICROBITCOIN = 2
         SATOSHI = 3
-        ML = 4
 
     class MultisigPubkeysOrder(IntEnum):
         PRESERVED = 0
@@ -616,7 +615,7 @@ if TYPE_CHECKING:
         MintlayerAddress = 10001
         MintlayerGetPublicKey = 10002
         MintlayerPublicKey = 10003
-        MintlayerVerifySig = 10004
+        MintlayerSignMessage = 10004
         MintlayerSignTx = 10005
         MintlayerTxRequest = 10006
         MintlayerTxAckUtxoInput = 10007

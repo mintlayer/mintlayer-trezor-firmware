@@ -13323,8 +13323,6 @@ pub enum AmountUnit {
     MICROBITCOIN = 2,
     // @@protoc_insertion_point(enum_value:hw.trezor.messages.bitcoin.AmountUnit.SATOSHI)
     SATOSHI = 3,
-    // @@protoc_insertion_point(enum_value:hw.trezor.messages.bitcoin.AmountUnit.ML)
-    ML = 4,
 }
 
 impl ::protobuf::Enum for AmountUnit {
@@ -13340,7 +13338,6 @@ impl ::protobuf::Enum for AmountUnit {
             1 => ::std::option::Option::Some(AmountUnit::MILLIBITCOIN),
             2 => ::std::option::Option::Some(AmountUnit::MICROBITCOIN),
             3 => ::std::option::Option::Some(AmountUnit::SATOSHI),
-            4 => ::std::option::Option::Some(AmountUnit::ML),
             _ => ::std::option::Option::None
         }
     }
@@ -13351,7 +13348,6 @@ impl ::protobuf::Enum for AmountUnit {
             "MILLIBITCOIN" => ::std::option::Option::Some(AmountUnit::MILLIBITCOIN),
             "MICROBITCOIN" => ::std::option::Option::Some(AmountUnit::MICROBITCOIN),
             "SATOSHI" => ::std::option::Option::Some(AmountUnit::SATOSHI),
-            "ML" => ::std::option::Option::Some(AmountUnit::ML),
             _ => ::std::option::Option::None
         }
     }
@@ -13361,7 +13357,6 @@ impl ::protobuf::Enum for AmountUnit {
         AmountUnit::MILLIBITCOIN,
         AmountUnit::MICROBITCOIN,
         AmountUnit::SATOSHI,
-        AmountUnit::ML,
     ];
 }
 
@@ -13692,12 +13687,12 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     PAYTOSCRIPTHASH\x10\x01\x12\x11\n\rPAYTOMULTISIG\x10\x02\x12\x11\n\rPAYT\
     OOPRETURN\x10\x03\x12\x10\n\x0cPAYTOWITNESS\x10\x04\x12\x14\n\x10PAYTOP2\
     SHWITNESS\x10\x05\x12\x10\n\x0cPAYTOTAPROOT\x10\x06*.\n\x16DecredStaking\
-    SpendType\x12\t\n\x05SSGen\x10\0\x12\t\n\x05SSRTX\x10\x01*R\n\nAmountUni\
+    SpendType\x12\t\n\x05SSGen\x10\0\x12\t\n\x05SSRTX\x10\x01*J\n\nAmountUni\
     t\x12\x0b\n\x07BITCOIN\x10\0\x12\x10\n\x0cMILLIBITCOIN\x10\x01\x12\x10\n\
-    \x0cMICROBITCOIN\x10\x02\x12\x0b\n\x07SATOSHI\x10\x03\x12\x06\n\x02ML\
-    \x10\x04*8\n\x14MultisigPubkeysOrder\x12\r\n\tPRESERVED\x10\0\x12\x11\n\
-    \rLEXICOGRAPHIC\x10\x01B?\n#com.satoshilabs.trezor.lib.protobufB\x14Trez\
-    orMessageBitcoin\x80\xa6\x1d\x01\
+    \x0cMICROBITCOIN\x10\x02\x12\x0b\n\x07SATOSHI\x10\x03*8\n\x14MultisigPub\
+    keysOrder\x12\r\n\tPRESERVED\x10\0\x12\x11\n\rLEXICOGRAPHIC\x10\x01B?\n#\
+    com.satoshilabs.trezor.lib.protobufB\x14TrezorMessageBitcoin\x80\xa6\x1d\
+    \x01\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

@@ -254,7 +254,7 @@ if not utils.BITCOIN_ONLY:
     MintlayerAddress = 10001
     MintlayerGetPublicKey = 10002
     MintlayerPublicKey = 10003
-    MintlayerVerifySig = 10004
+    MintlayerSignMessage = 10004
     MintlayerSignTx = 10005
     MintlayerTxRequest = 10006
     MintlayerTxAckUtxoInput = 10007
