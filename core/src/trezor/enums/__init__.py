@@ -268,7 +268,7 @@ if TYPE_CHECKING:
         MintlayerAddress = 1001
         MintlayerGetPublicKey = 1002
         MintlayerPublicKey = 1003
-        MintlayerVerifySig = 1004
+        MintlayerSignMessage = 1004
         MintlayerSignTx = 1005
         MintlayerTxRequest = 1006
         MintlayerTxAckUtxoInput = 1007
@@ -346,7 +346,6 @@ if TYPE_CHECKING:
         MILLIBITCOIN = 1
         MICROBITCOIN = 2
         SATOSHI = 3
-        ML = 4
 
     class RequestType(IntEnum):
         TXINPUT = 0

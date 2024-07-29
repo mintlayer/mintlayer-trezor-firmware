@@ -4062,22 +4062,22 @@ if TYPE_CHECKING:
         def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerPublicKey"]:
             return isinstance(msg, cls)
 
-    class MintlayerVerifySig(protobuf.MessageType):
+    class MintlayerSignMessage(protobuf.MessageType):
         address_n: "list[int]"
-        signature: "bytes"
+        address: "str"
         message: "bytes"
 
         def __init__(
             self,
             *,
-            signature: "bytes",
+            address: "str",
             message: "bytes",
             address_n: "list[int] | None" = None,
         ) -> None:
             pass
 
         @classmethod
-        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerVerifySig"]:
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerSignMessage"]:
             return isinstance(msg, cls)
 
     class MintlayerSignTx(protobuf.MessageType):
@@ -4138,8 +4138,24 @@ if TYPE_CHECKING:
         def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxInput"]:
             return isinstance(msg, cls)
 
-    class MintlayerUtxoTxInput(protobuf.MessageType):
+    class MintlayerAddressPath(protobuf.MessageType):
         address_n: "list[int]"
+        multisig_idx: "int | None"
+
+        def __init__(
+            self,
+            *,
+            address_n: "list[int] | None" = None,
+            multisig_idx: "int | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerAddressPath"]:
+            return isinstance(msg, cls)
+
+    class MintlayerUtxoTxInput(protobuf.MessageType):
+        address_n: "list[MintlayerAddressPath]"
         address: "str"
         prev_hash: "bytes"
         prev_index: "int"
@@ -4155,7 +4171,7 @@ if TYPE_CHECKING:
             prev_index: "int",
             type: "MintlayerUtxoType",
             value: "MintlayerOutputValue",
-            address_n: "list[int] | None" = None,
+            address_n: "list[MintlayerAddressPath] | None" = None,
             sequence: "int | None" = None,
         ) -> None:
             pass
@@ -4165,7 +4181,7 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerAccountTxInput(protobuf.MessageType):
-        address_n: "list[int]"
+        address_n: "list[MintlayerAddressPath]"
         address: "str"
         sequence: "int"
         value: "MintlayerOutputValue"
@@ -4179,7 +4195,7 @@ if TYPE_CHECKING:
             value: "MintlayerOutputValue",
             nonce: "int",
             delegation_id: "bytes",
-            address_n: "list[int] | None" = None,
+            address_n: "list[MintlayerAddressPath] | None" = None,
             sequence: "int | None" = None,
         ) -> None:
             pass
@@ -4189,7 +4205,7 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerAccountCommandTxInput(protobuf.MessageType):
-        address_n: "list[int]"
+        address_n: "list[MintlayerAddressPath]"
         address: "str"
         sequence: "int"
         nonce: "int"
@@ -4205,7 +4221,7 @@ if TYPE_CHECKING:
             *,
             address: "str",
             nonce: "int",
-            address_n: "list[int] | None" = None,
+            address_n: "list[MintlayerAddressPath] | None" = None,
             sequence: "int | None" = None,
             mint: "MintlayerMintTokens | None" = None,
             unmint: "MintlayerUnmintTokens | None" = None,
@@ -4360,14 +4376,12 @@ if TYPE_CHECKING:
 
     class MintlayerTransferTxOutput(protobuf.MessageType):
         address: "str | None"
-        address_n: "list[int]"
         value: "MintlayerOutputValue"
 
         def __init__(
             self,
             *,
             value: "MintlayerOutputValue",
-            address_n: "list[int] | None" = None,
             address: "str | None" = None,
         ) -> None:
             pass
@@ -4398,7 +4412,6 @@ if TYPE_CHECKING:
 
     class MintlayerLockThenTransferTxOutput(protobuf.MessageType):
         address: "str | None"
-        address_n: "list[int]"
         value: "MintlayerOutputValue"
         lock: "MintlayerOutputTimeLock"
 
@@ -4407,7 +4420,6 @@ if TYPE_CHECKING:
             *,
             value: "MintlayerOutputValue",
             lock: "MintlayerOutputTimeLock",
-            address_n: "list[int] | None" = None,
             address: "str | None" = None,
         ) -> None:
             pass
@@ -4682,16 +4694,32 @@ if TYPE_CHECKING:
         def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxRequestDetailsType"]:
             return isinstance(msg, cls)
 
+    class MintlayerSignature(protobuf.MessageType):
+        signature: "bytes"
+        multisig_idx: "int | None"
+
+        def __init__(
+            self,
+            *,
+            signature: "bytes",
+            multisig_idx: "int | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerSignature"]:
+            return isinstance(msg, cls)
+
     class MintlayerTxRequestSerializedType(protobuf.MessageType):
         signature_index: "int | None"
-        signature: "bytes | None"
+        signatures: "list[MintlayerSignature]"
         serialized_tx: "bytes | None"
 
         def __init__(
             self,
             *,
+            signatures: "list[MintlayerSignature] | None" = None,
             signature_index: "int | None" = None,
-            signature: "bytes | None" = None,
             serialized_tx: "bytes | None" = None,
         ) -> None:
             pass
