@@ -12,7 +12,7 @@ use crate::{
         mintlayer_tx_request::MintlayerRequestType, MintlayerTxAckOutput, MintlayerTxAckUtxoInput,
         MintlayerTxInput, MintlayerTxOutput,
     },
-    Error, TrezorResponse,
+    Error,
 };
 
 /// A chain code
