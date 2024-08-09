@@ -42,13 +42,11 @@ class UiConfirmOutput(UiConfirm):
         self,
         output: TxOutput,
         coin: CoinInfo,
-        amount_unit: AmountUnit,
         output_index: int,
         chunkify: bool,
     ):
         self.output = output
         self.coin = coin
-        self.amount_unit = amount_unit
         self.output_index = output_index
         self.chunkify = chunkify
 
@@ -241,8 +239,8 @@ class UiConfirmMultipleAccounts(UiConfirm):
         return layout.confirm_multiple_accounts()
 
 
-def confirm_output(output: TxOutput, coin: CoinInfo, amount_unit: AmountUnit, output_index: int, chunkify: bool) -> Awaitable[None]:  # type: ignore [awaitable-is-generator]
-    return (yield UiConfirmOutput(output, coin, amount_unit, output_index, chunkify))
+def confirm_output(output: TxOutput, coin: CoinInfo, output_index: int, chunkify: bool) -> Awaitable[None]:  # type: ignore [awaitable-is-generator]
+    return (yield UiConfirmOutput(output, coin, output_index, chunkify))
 
 
 def confirm_decred_sstx_submission(output: TxOutput, coin: CoinInfo, amount_unit: AmountUnit) -> Awaitable[None]:  # type: ignore [awaitable-is-generator]

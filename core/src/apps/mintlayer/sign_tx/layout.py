@@ -68,7 +68,6 @@ def account_label(coin: CoinInfo, address_n: Bip32Path | None) -> str:
 async def confirm_output(
     output: MintlayerTxOutput,
     coin: CoinInfo,
-    amount_unit: AmountUnit,
     output_index: int,
     chunkify: bool,
 ) -> None:
