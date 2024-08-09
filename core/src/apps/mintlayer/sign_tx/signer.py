@@ -214,8 +214,7 @@ class Mintlayer:
             progress.advance()
             txo = await helpers.request_tx_output(self.tx_req, i)
             coin = by_name('Bitcoin')
-            amount_unit = AmountUnit.ML
-            await helpers.confirm_output(txo, coin, amount_unit, i, False)
+            await helpers.confirm_output(txo, coin, i, False)
             if txo.transfer:
                 total += int.from_bytes(txo.transfer.value.amount, 'big')
             self.tx_info.add_output(txo)
