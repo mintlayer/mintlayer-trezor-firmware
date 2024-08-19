@@ -54,7 +54,6 @@ class UiConfirmOutput(UiConfirm):
         return layout.confirm_output(
             self.output,
             self.coin,
-            self.amount_unit,
             self.output_index,
             self.chunkify,
         )

@@ -5740,21 +5740,41 @@ class MintlayerTxOutput(protobuf.MessageType):
         self.data_deposit = data_deposit
 
 
+class MintlayerTokenOutputValue(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("token_id", "bytes", repeated=False, required=True),
+        2: protobuf.Field("token_ticker", "bytes", repeated=False, required=True),
+        3: protobuf.Field("number_of_decimals", "uint32", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        token_id: "bytes",
+        token_ticker: "bytes",
+        number_of_decimals: "int",
+    ) -> None:
+        self.token_id = token_id
+        self.token_ticker = token_ticker
+        self.number_of_decimals = number_of_decimals
+
+
 class MintlayerOutputValue(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
         1: protobuf.Field("amount", "bytes", repeated=False, required=True),
-        2: protobuf.Field("token_id", "bytes", repeated=False, required=False, default=None),
+        2: protobuf.Field("token", "MintlayerTokenOutputValue", repeated=False, required=False, default=None),
     }
 
     def __init__(
         self,
         *,
         amount: "bytes",
-        token_id: Optional["bytes"] = None,
+        token: Optional["MintlayerTokenOutputValue"] = None,
     ) -> None:
         self.amount = amount
-        self.token_id = token_id
+        self.token = token
 
 
 class MintlayerTransferTxOutput(protobuf.MessageType):

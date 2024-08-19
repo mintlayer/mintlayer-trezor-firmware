@@ -259,12 +259,21 @@ message MintlayerTxOutput {
     optional MintlayerDataDepositTxOutput data_deposit = 10;                         // data deposit output
 }
 
+/** Data type for output value information for the token
+ * @embed
+ */
+message MintlayerTokenOutputValue {
+    required bytes token_id = 1;                   // token id
+    required bytes token_ticker = 2;               // the token ticker
+    required uint32 number_of_decimals = 3;        // the number of decimals for the token
+}
+
 /** Data type for output value coins or token
  * @embed
  */
 message MintlayerOutputValue {
     required bytes amount = 1;                     // lock until block height
-    optional bytes token_id = 2;                   // optional token id
+    optional MintlayerTokenOutputValue token = 2;  // optional token info
 }
 
 /** Data type for transaction output to be signed.
