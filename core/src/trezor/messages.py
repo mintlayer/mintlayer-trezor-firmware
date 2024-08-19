@@ -4350,15 +4350,33 @@ if TYPE_CHECKING:
         def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxOutput"]:
             return isinstance(msg, cls)
 
+    class MintlayerTokenOutputValue(protobuf.MessageType):
+        token_id: "bytes"
+        token_ticker: "bytes"
+        number_of_decimals: "int"
+
+        def __init__(
+            self,
+            *,
+            token_id: "bytes",
+            token_ticker: "bytes",
+            number_of_decimals: "int",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTokenOutputValue"]:
+            return isinstance(msg, cls)
+
     class MintlayerOutputValue(protobuf.MessageType):
         amount: "bytes"
-        token_id: "bytes | None"
+        token: "MintlayerTokenOutputValue | None"
 
         def __init__(
             self,
             *,
             amount: "bytes",
-            token_id: "bytes | None" = None,
+            token: "MintlayerTokenOutputValue | None" = None,
         ) -> None:
             pass
 

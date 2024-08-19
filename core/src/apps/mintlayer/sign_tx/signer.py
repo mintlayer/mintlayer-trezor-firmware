@@ -282,7 +282,8 @@ class Mintlayer:
             x = out.transfer
             data = decode_address_to_bytes(x.address)
             print(f'addr: {x.address} bytes: {data}')
-            encoded_out = mintlayer_utils.encode_transfer_output(x.value.amount, x.value.token_id or b'', data)
+            token_id = b'' if not x.value.token else x.value.token.token_id
+            encoded_out = mintlayer_utils.encode_transfer_output(x.value.amount, token_id, data)
         elif out.lock_then_transfer:
             x = out.lock_then_transfer
             data = decode_address_to_bytes(x.address)
@@ -301,10 +302,12 @@ class Mintlayer:
             else:
                 raise Exception("no lock type was specified for lock then transfer output")
             print(dir(mintlayer_utils))
-            encoded_out = mintlayer_utils.encode_lock_then_transfer_output(x.value.amount, x.value.token_id or b'', lock_type, lock_amount, data)
+            token_id = b'' if not x.value.token else x.value.token.token_id
+            encoded_out = mintlayer_utils.encode_lock_then_transfer_output(x.value.amount, token_id, lock_type, lock_amount, data)
         elif out.burn:
             x = out.burn
-            encoded_out = mintlayer_utils.encode_burn_output(x.value.amount, x.value.token_id or b'')
+            token_id = b'' if not x.value.token else x.value.token.token_id
+            encoded_out = mintlayer_utils.encode_burn_output(x.value.amount, token_id)
         elif out.create_stake_pool:
             x = out.create_stake_pool
             staker = decode_address_to_bytes(x.staker)
