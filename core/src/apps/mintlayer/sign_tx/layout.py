@@ -17,11 +17,11 @@ from ...bitcoin.common import (
     CHANGE_OUTPUT_TO_INPUT_SCRIPT_TYPES,
     format_fee_rate,
 )
-# from ..keychain import address_n_to_name
+from ...bitcoin.keychain import address_n_to_name
 
 if TYPE_CHECKING:
     from trezor.enums import AmountUnit
-    from trezor.messages import TxAckPaymentRequest, TxOutput
+    from trezor.messages import TxAckPaymentRequest, TxOutput, MintlayerTokenOutputValue
     from trezor.ui.layouts import LayoutType
 
     from apps.common.coininfo import CoinInfo
@@ -34,13 +34,13 @@ if TYPE_CHECKING:
 _LOCKTIME_TIMESTAMP_MIN_VALUE = const(500_000_000)
 
 
-def format_coin_amount(amount: bytes, token_id: bytes | None) -> str:
-    if token_id is None:
+def format_coin_amount(amount: bytes, token: MintlayerTokenOutputValue | None) -> str:
+    if token is None:
         decimals = 11
         name = "ML"
     else:
-        decimals = 0
-        name = "Token"
+        decimals = token.number_of_decimals
+        name = "ML Token: " + token.token_ticker.decode()
 
     print("amount to display bytes", amount)
     amount_int = 0
@@ -76,7 +76,7 @@ async def confirm_output(
         x = output.transfer
         assert x.address is not None
         address_short = x.address
-        amount = format_coin_amount(x.value.amount, x.value.token_id)
+        amount = format_coin_amount(x.value.amount, x.value.token)
         address_label = "Transfer"
     elif output.lock_then_transfer:
         x = output.lock_then_transfer
@@ -93,11 +93,11 @@ async def confirm_output(
             address_label = f"Lock for {x.lock.for_block_count} blocks"
         else:
             raise Exception("unhandled lock type")
-        amount = format_coin_amount(x.value.amount, x.value.token_id)
+        amount = format_coin_amount(x.value.amount, x.value.token)
     elif output.burn:
         x = output.burn
         address_short = "BURN"
-        amount = format_coin_amount(x.value.amount, x.value.token_id)
+        amount = format_coin_amount(x.value.amount, x.value.token)
         address_label = None
     elif output.create_stake_pool:
         x = output.create_stake_pool
