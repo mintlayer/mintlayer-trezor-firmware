@@ -257,6 +257,7 @@ message MintlayerTxOutput {
     optional MintlayerIssueFungibleTokenTxOutput issue_fungible_token = 8;           // issue fungible token output
     optional MintlayerIssueNftTxOutput issue_nft = 9;                                // issue NFT output
     optional MintlayerDataDepositTxOutput data_deposit = 10;                         // data deposit output
+    optional MintlayerHtlcTxOutput htlc = 11;                                        // HTLC output
 }
 
 /** Data type for output value information for the token
@@ -397,6 +398,17 @@ message MintlayerIssueNftTxOutput {
  */
 message MintlayerDataDepositTxOutput {
     required bytes data = 1;    // the data to be deposited
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerHtlcTxOutput {
+    required MintlayerOutputValue value = 1;                   // amount to transfer
+    required bytes secret_hash = 2;                            // the hash of the exchanged secret
+    required string spend_key = 3;                             // the key that can spend the HTLC given the secret
+    required MintlayerOutputTimeLock refund_timelock = 4;      // time lock
+    required string refund_key = 5;                            // the key for a refund after the time lock has expired
 }
 
 /** Data type for metadata about previous transaction which contains the UTXO being spent.

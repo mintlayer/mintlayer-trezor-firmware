@@ -287,21 +287,7 @@ class Mintlayer:
         elif out.lock_then_transfer:
             x = out.lock_then_transfer
             data = decode_address_to_bytes(x.address)
-            if x.lock.until_height:
-                lock_type = 0
-                lock_amount = x.lock.until_time
-            elif x.lock.until_time:
-                lock_type = 1
-                lock_amount = x.lock.until_time
-            elif x.lock.for_block_count:
-                lock_type = 2
-                lock_amount = x.lock.for_block_count
-            elif x.lock.for_seconds:
-                lock_type = 3
-                lock_amount = x.lock.for_seconds
-            else:
-                raise Exception("no lock type was specified for lock then transfer output")
-            print(dir(mintlayer_utils))
+            lock_type, lock_amount = helpers.get_lock(x.lock)
             token_id = b'' if not x.value.token else x.value.token.token_id
             encoded_out = mintlayer_utils.encode_lock_then_transfer_output(x.value.amount, token_id, lock_type, lock_amount, data)
         elif out.burn:
@@ -334,6 +320,13 @@ class Mintlayer:
             creator = decode_address_to_bytes(x.creator)
             destination = decode_address_to_bytes(x.destination)
             encoded_out = mintlayer_utils.encode_issue_nft_output(x.token_id, creator, x.name, x.destination, x.ticker, x.icon_uri, x.additional_metadata_uri, x.media_uri, x.media_hash, destination)
+        elif out.htlc:
+            x = out.htlc
+            token_id = b'' if not x.value.token else x.value.token.token_id
+            spend_key = decode_address_to_bytes(x.spend_key)
+            refund_key = decode_address_to_bytes(x.refund_key)
+            lock_type, lock_amount = helpers.get_lock(x.refund_timelock)
+            encoded_out = mintlayer_utils.encode_htlc_output(x.value.amount, token_id, lock_type, lock_amount, refund_key, spend_key, x.secret_hash)
         else:
             raise Exception("unhandled tx output type")
         return encoded_out

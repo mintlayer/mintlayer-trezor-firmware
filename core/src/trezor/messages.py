@@ -4376,6 +4376,7 @@ if TYPE_CHECKING:
         issue_fungible_token: "MintlayerIssueFungibleTokenTxOutput | None"
         issue_nft: "MintlayerIssueNftTxOutput | None"
         data_deposit: "MintlayerDataDepositTxOutput | None"
+        htlc: "MintlayerHtlcTxOutput | None"
 
         def __init__(
             self,
@@ -4390,6 +4391,7 @@ if TYPE_CHECKING:
             issue_fungible_token: "MintlayerIssueFungibleTokenTxOutput | None" = None,
             issue_nft: "MintlayerIssueNftTxOutput | None" = None,
             data_deposit: "MintlayerDataDepositTxOutput | None" = None,
+            htlc: "MintlayerHtlcTxOutput | None" = None,
         ) -> None:
             pass
 
@@ -4657,6 +4659,28 @@ if TYPE_CHECKING:
 
         @classmethod
         def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerDataDepositTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerHtlcTxOutput(protobuf.MessageType):
+        value: "MintlayerOutputValue"
+        secret_hash: "bytes"
+        spend_key: "str"
+        refund_timelock: "MintlayerOutputTimeLock"
+        refund_key: "str"
+
+        def __init__(
+            self,
+            *,
+            value: "MintlayerOutputValue",
+            secret_hash: "bytes",
+            spend_key: "str",
+            refund_timelock: "MintlayerOutputTimeLock",
+            refund_key: "str",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerHtlcTxOutput"]:
             return isinstance(msg, cls)
 
     class MintlayerPrevTx(protobuf.MessageType):
