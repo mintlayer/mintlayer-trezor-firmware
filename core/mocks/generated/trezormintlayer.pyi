@@ -109,6 +109,15 @@ bytes:
 
 
 # extmod/modtrezormintlayer/modtrezormintlayer-utils.h
+def encode_htlc_output(amount: str, token_id: str, lock_type:
+int, lock_amount:int, refund_key: str, spend_key: str, secret_has: bytes) ->
+bytes:
+    """
+    encodes an htlc output with given amount and lock
+    """
+
+
+# extmod/modtrezormintlayer/modtrezormintlayer-utils.h
 def encode_compact_length(length: int) -> bytes:
     """
     encodes a comapct length to bytes

@@ -458,6 +458,45 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(
     mod_trezormintlayer_utils_mintlayer_encode_data_deposit_output_obj,
     mod_trezormintlayer_utils_mintlayer_encode_data_deposit_output);
 
+/// def encode_htlc_output(amount: str, token_id: str, lock_type:
+/// int, lock_amount:int, refund_key: str, spend_key: str, secret_has: bytes) ->
+/// bytes:
+///     """
+///     encodes an htlc output with given amount and lock
+///     """
+STATIC mp_obj_t mod_trezormintlayer_utils_mintlayer_encode_htlc_output(
+    size_t n_args, const mp_obj_t *args) {
+  mp_buffer_info_t amount = {0};
+  mp_get_buffer_raise(args[0], &amount, MP_BUFFER_READ);
+  mp_buffer_info_t token_id = {0};
+  mp_get_buffer_raise(args[1], &token_id, MP_BUFFER_READ);
+  uint8_t lock_type = trezor_obj_get_uint8(args[2]);
+  uint64_t lock_amount = trezor_obj_get_uint64(args[3]);
+  mp_buffer_info_t refund_key = {0};
+  mp_get_buffer_raise(args[4], &refund_key, MP_BUFFER_READ);
+  mp_buffer_info_t spend_key = {0};
+  mp_get_buffer_raise(args[5], &spend_key, MP_BUFFER_READ);
+  mp_buffer_info_t secret_hash = {0};
+  mp_get_buffer_raise(args[6], &secret_hash, MP_BUFFER_READ);
+  ByteArray arr = mintlayer_encode_htlc_output(
+      amount.buf, amount.len, token_id.buf, token_id.len, lock_type,
+      lock_amount, refund_key.buf, refund_key.len, spend_key.buf, spend_key.len,
+      secret_hash.buf, secret_hash.len);
+
+  vstr_t encoding = {0};
+  vstr_init_len(&encoding, arr.len);
+  int i = 0;
+  for (; i < arr.len; i++) {
+    ((uint8_t *)encoding.buf)[i] = (uint8_t)arr.data[i];
+  }
+
+  return mp_obj_new_str_from_vstr(&mp_type_bytes, &encoding);
+}
+
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
+    mod_trezormintlayer_utils_mintlayer_encode_htlc_output_obj, 5, 5,
+    mod_trezormintlayer_utils_mintlayer_encode_htlc_output);
+
 /// def encode_compact_length(length: int) -> bytes:
 ///     """
 ///     encodes a comapct length to bytes
@@ -486,9 +525,11 @@ STATIC const mp_rom_map_elem_t mod_trezormintlayer_utils_globals_table[] = {
     {MP_ROM_QSTR(MP_QSTR_encode_utxo_input),
      MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_utxo_input_obj)},
     {MP_ROM_QSTR(MP_QSTR_encode_account_spending_input),
-     MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_account_spending_input_obj)},
+     MP_ROM_PTR(
+         &mod_trezormintlayer_utils_mintlayer_encode_account_spending_input_obj)},
     {MP_ROM_QSTR(MP_QSTR_encode_account_command_input),
-     MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_account_command_input_obj)},
+     MP_ROM_PTR(
+         &mod_trezormintlayer_utils_mintlayer_encode_account_command_input_obj)},
     {MP_ROM_QSTR(MP_QSTR_encode_transfer_output),
      MP_ROM_PTR(
          &mod_trezormintlayer_utils_mintlayer_encode_transfer_output_obj)},
@@ -496,8 +537,7 @@ STATIC const mp_rom_map_elem_t mod_trezormintlayer_utils_globals_table[] = {
      MP_ROM_PTR(
          &mod_trezormintlayer_utils_mintlayer_encode_lock_then_transfer_output_obj)},
     {MP_ROM_QSTR(MP_QSTR_encode_burn_output),
-     MP_ROM_PTR(
-         &mod_trezormintlayer_utils_mintlayer_encode_burn_output_obj)},
+     MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_burn_output_obj)},
     {MP_ROM_QSTR(MP_QSTR_encode_create_stake_pool_output),
      MP_ROM_PTR(
          &mod_trezormintlayer_utils_mintlayer_encode_create_stake_pool_output_obj)},
@@ -519,6 +559,8 @@ STATIC const mp_rom_map_elem_t mod_trezormintlayer_utils_globals_table[] = {
     {MP_ROM_QSTR(MP_QSTR_encode_data_deposit_output),
      MP_ROM_PTR(
          &mod_trezormintlayer_utils_mintlayer_encode_data_deposit_output_obj)},
+    {MP_ROM_QSTR(MP_QSTR_encode_htlc_output),
+     MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_htlc_output_obj)},
     {MP_ROM_QSTR(MP_QSTR_encode_compact_length),
      MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_comact_length_obj)},
 };

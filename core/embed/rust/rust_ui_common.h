@@ -89,6 +89,14 @@ ByteArray mintlayer_encode_issue_nft_output(
 ByteArray mintlayer_encode_data_deposit_output(
     const unsigned char* deposit_data, uint32_t deposit_data_len);
 
+ByteArray mintlayer_encode_htlc_output(
+    const unsigned char* coin_amount_data, uint32_t coin_amount_data_len,
+    const unsigned char* token_id_data, uint32_t token_id_data_len,
+    uint8_t lock_type, uint64_t lock_amount,
+    const unsigned char* refund_key_data, uint32_t refund_key_data_len,
+    const unsigned char* spend_key_data, uint32_t spend_key_data_len,
+    const unsigned char* secret_hash_data, uint32_t secret_hash_data_len);
+
 ByteArray mintlayer_encode_compact_length(uint32_t length);
 
 void screen_boot_stage_2(void);

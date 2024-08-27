@@ -5731,6 +5731,7 @@ class MintlayerTxOutput(protobuf.MessageType):
         8: protobuf.Field("issue_fungible_token", "MintlayerIssueFungibleTokenTxOutput", repeated=False, required=False, default=None),
         9: protobuf.Field("issue_nft", "MintlayerIssueNftTxOutput", repeated=False, required=False, default=None),
         10: protobuf.Field("data_deposit", "MintlayerDataDepositTxOutput", repeated=False, required=False, default=None),
+        11: protobuf.Field("htlc", "MintlayerHtlcTxOutput", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -5746,6 +5747,7 @@ class MintlayerTxOutput(protobuf.MessageType):
         issue_fungible_token: Optional["MintlayerIssueFungibleTokenTxOutput"] = None,
         issue_nft: Optional["MintlayerIssueNftTxOutput"] = None,
         data_deposit: Optional["MintlayerDataDepositTxOutput"] = None,
+        htlc: Optional["MintlayerHtlcTxOutput"] = None,
     ) -> None:
         self.transfer = transfer
         self.lock_then_transfer = lock_then_transfer
@@ -5757,6 +5759,7 @@ class MintlayerTxOutput(protobuf.MessageType):
         self.issue_fungible_token = issue_fungible_token
         self.issue_nft = issue_nft
         self.data_deposit = data_deposit
+        self.htlc = htlc
 
 
 class MintlayerTokenOutputValue(protobuf.MessageType):
@@ -6052,6 +6055,35 @@ class MintlayerDataDepositTxOutput(protobuf.MessageType):
         data: "bytes",
     ) -> None:
         self.data = data
+
+
+class MintlayerHtlcTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("value", "MintlayerOutputValue", repeated=False, required=True),
+        2: protobuf.Field("secret_hash", "bytes", repeated=False, required=True),
+        3: protobuf.Field("spend_key", "string", repeated=False, required=True),
+        4: protobuf.Field("refund_timelock", "MintlayerOutputTimeLock", repeated=False, required=True),
+        5: protobuf.Field("refund_key", "string", repeated=False, required=True),
+        6: protobuf.Field("secret", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        value: "MintlayerOutputValue",
+        secret_hash: "bytes",
+        spend_key: "str",
+        refund_timelock: "MintlayerOutputTimeLock",
+        refund_key: "str",
+        secret: Optional["bytes"] = None,
+    ) -> None:
+        self.value = value
+        self.secret_hash = secret_hash
+        self.spend_key = spend_key
+        self.refund_timelock = refund_timelock
+        self.refund_key = refund_key
+        self.secret = secret
 
 
 class MintlayerPrevTx(protobuf.MessageType):

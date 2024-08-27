@@ -420,7 +420,8 @@ extern "C" fn mintlayer_encode_delegate_staking_output(
     let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
     let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
 
-    let delegation_id = unsafe { core::slice::from_raw_parts(delegation_id_data, delegation_id_data_len as usize) };
+    let delegation_id =
+        unsafe { core::slice::from_raw_parts(delegation_id_data, delegation_id_data_len as usize) };
     let delegation_id = H256(delegation_id.try_into().expect("already checked"));
 
     let txo = TxOutput::DelegateStaking(amount, delegation_id);
@@ -619,6 +620,81 @@ extern "C" fn mintlayer_encode_data_deposit_output(
     let deposit = deposit.to_vec();
 
     let txo = TxOutput::DataDeposit(deposit);
+
+    let vec_data = txo.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len,
+    }
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_htlc_output(
+    amount_data: *const u8,
+    amount_data_len: u32,
+    token_id_data: *const u8,
+    token_id_data_len: u32,
+    lock_type: u8,
+    lock_amount: u64,
+    refund_destination_data: *const u8,
+    refund_destination_data_len: u32,
+    spend_destination_data: *const u8,
+    spend_destination_data_len: u32,
+    secret_hash_data: *const u8,
+    secret_hash_data_len: u32,
+) -> ByteArray {
+    let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
+
+    let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+    let value = if token_id_data_len == 32 {
+        let token_id =
+            unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
+        OutputValue::TokenV1(H256(token_id.try_into().expect("already checked")), amount)
+    } else {
+        OutputValue::Coin(amount)
+    };
+
+    let refund_destination_bytes = unsafe {
+        core::slice::from_raw_parts(
+            refund_destination_data,
+            refund_destination_data_len as usize,
+        )
+    };
+    let refund_key = Destination::decode_all(&mut refund_destination_bytes.as_ref()).expect("ok");
+    let spend_destination_bytes = unsafe {
+        core::slice::from_raw_parts(spend_destination_data, spend_destination_data_len as usize)
+    };
+    let spend_key = Destination::decode_all(&mut spend_destination_bytes.as_ref()).expect("ok");
+
+    let hash =
+        unsafe { core::slice::from_raw_parts(secret_hash_data, secret_hash_data_len as usize) };
+    let secret_hash = H256(hash.try_into().expect("ok"));
+
+    let refund_timelock = match lock_type {
+        0 => OutputTimeLock::UntilHeight(lock_amount),
+        1 => OutputTimeLock::UntilTime(lock_amount),
+        2 => OutputTimeLock::ForBlockCount(lock_amount),
+        3 => OutputTimeLock::ForSeconds(lock_amount),
+        _ => panic!("unsuported lock type"),
+    };
+
+    let txo = TxOutput::Htlc(
+        value,
+        HashedTimelockContract {
+            secret_hash,
+            spend_key,
+            refund_timelock,
+            refund_key,
+        },
+    );
 
     let vec_data = txo.encode();
     // Extracting the raw pointer and length from the Vec<u8>
@@ -1030,6 +1106,19 @@ enum TxOutput {
     IssueNft(H256, NftIssuance, Destination),
     #[codec(index = 9)]
     DataDeposit(parity_scale_codec::alloc::vec::Vec<u8>),
+    #[codec(index = 10)]
+    Htlc(OutputValue, HashedTimelockContract),
+}
+
+#[derive(Encode)]
+pub struct HashedTimelockContract {
+    // can be spent either by a specific address that knows the secret
+    secret_hash: H256,
+    spend_key: Destination,
+
+    // or by a multisig after timelock expires making it possible to refund
+    refund_timelock: OutputTimeLock,
+    refund_key: Destination,
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Encode, Decode)]

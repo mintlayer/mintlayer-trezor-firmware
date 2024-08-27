@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 from trezor import utils
 from trezor.enums import MintlayerRequestType
 from trezor.wire import DataError
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
         TxAckPaymentRequest,
         MintlayerTxInput,
         MintlayerTxOutput,
-        MintlayerTransferTxOutput,
+        MintlayerOutputTimeLock,
         TxOutput,
         MintlayerTxRequest,
     )
@@ -515,3 +515,19 @@ def _sanitize_payment_req(payment_req: TxAckPaymentRequest) -> TxAckPaymentReque
 
     return payment_req
 
+def get_lock(x: MintlayerOutputTimeLock) -> Tuple[int, int]:
+    if x.until_height:
+        lock_type = 0
+        lock_amount = x.until_height
+    elif x.until_time:
+        lock_type = 1
+        lock_amount = x.until_time
+    elif x.for_block_count:
+        lock_type = 2
+        lock_amount = x.for_block_count
+    elif x.for_seconds:
+        lock_type = 3
+        lock_amount = x.for_seconds
+    else:
+        raise Exception("unhandled mintlayer lock type")
+    return (lock_type, lock_amount)
