@@ -11,9 +11,40 @@ use parity_scale_codec::{Decode, DecodeAll, Encode};
 const TEN: UnsignedIntType = 10;
 
 #[repr(C)]
+#[derive(Eq, PartialEq, Clone, Copy)]
+pub enum MintlayerErrorCode {
+    WrongHashSize = 1,
+    InvalidUtxoType = 2,
+    InvalidAmount = 3,
+    InvalidAccountCommand = 4,
+    InvalidDestination = 5,
+    InvalidIsTokenUnfreezable = 6,
+    InvalidIsTokenFreezable = 7,
+    InvalidVrfPublicKey = 8,
+    InvalidPublicKey = 9,
+    InvalidOutputTimeLock = 10,
+    InvalidTokenTotalSupply = 11,
+}
+
+#[repr(C)]
+pub union LenOrError {
+    len: cty::c_uint,
+    err: MintlayerErrorCode,
+}
+
+#[repr(C)]
 pub struct ByteArray {
     data: *const cty::c_uchar,
-    len: cty::c_uint,
+    len_or_err: LenOrError,
+}
+
+impl From<MintlayerErrorCode> for ByteArray {
+    fn from(err: MintlayerErrorCode) -> Self {
+        Self {
+            data: core::ptr::null(),
+            len_or_err: LenOrError { err },
+        }
+    }
 }
 
 #[no_mangle]
@@ -24,11 +55,15 @@ extern "C" fn mintlayer_encode_utxo_input(
     utxo_type: u32,
 ) -> ByteArray {
     let hash = unsafe { core::slice::from_raw_parts(data, data_len as usize) };
-    let hash = H256(hash.try_into().expect("ok"));
+    let hash = H256(match hash.try_into() {
+        Ok(hash) => hash,
+        Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+    });
+
     let outpoint = match utxo_type {
         0 => OutPointSourceId::Transaction(hash),
         1 => OutPointSourceId::BlockReward(hash),
-        _ => panic!("invalid utxo type"),
+        _ => return MintlayerErrorCode::InvalidUtxoType.into(),
     };
     let utxo_outpoint = UtxoOutPoint::new(outpoint, index);
     let tx_input = TxInput::Utxo(utxo_outpoint);
@@ -43,7 +78,7 @@ extern "C" fn mintlayer_encode_utxo_input(
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -57,10 +92,16 @@ extern "C" fn mintlayer_encode_account_spending_input(
 ) -> ByteArray {
     let delegation_id =
         unsafe { core::slice::from_raw_parts(delegation_id_data, delegation_id_data_len as usize) };
-    let delegation_id = H256(delegation_id.try_into().expect("ok"));
+    let delegation_id = H256(match delegation_id.try_into() {
+        Ok(hash) => hash,
+        Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+    });
 
     let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
-    let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+    let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
+        Some(amount) => amount,
+        None => return MintlayerErrorCode::InvalidAmount.into(),
+    };
 
     let tx_input = TxInput::Account(AccountOutPoint {
         nonce,
@@ -77,7 +118,7 @@ extern "C" fn mintlayer_encode_account_spending_input(
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -92,27 +133,38 @@ extern "C" fn mintlayer_encode_account_command_input(
 ) -> ByteArray {
     let token_id =
         unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
-    let token_id = H256(token_id.try_into().expect("ok"));
+    let token_id = H256(match token_id.try_into() {
+        Ok(hash) => hash,
+        Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+    });
 
     let data = unsafe { core::slice::from_raw_parts(data, data_len as usize) };
     let account_command = match command {
         0 => {
-            let amount = Amount::from_bytes_be(data.as_ref()).expect("fixme");
+            let amount = match Amount::from_bytes_be(data.as_ref()) {
+                Some(amount) => amount,
+                None => return MintlayerErrorCode::InvalidAmount.into(),
+            };
             AccountCommand::MintTokens(token_id, amount)
         }
         1 => AccountCommand::UnmintTokens(token_id),
         2 => AccountCommand::LockTokenSupply(token_id),
         3 => {
-            let is_token_unfreezabe =
-                IsTokenUnfreezable::decode_all(&mut data.as_ref()).expect("ok");
+            let is_token_unfreezabe = match IsTokenUnfreezable::decode_all(&mut data.as_ref()) {
+                Ok(res) => res,
+                Err(_) => return MintlayerErrorCode::InvalidIsTokenUnfreezable.into(),
+            };
             AccountCommand::FreezeToken(token_id, is_token_unfreezabe)
         }
         4 => AccountCommand::UnfreezeToken(token_id),
         5 => {
-            let destination = Destination::decode_all(&mut data.as_ref()).expect("ok");
+            let destination = match Destination::decode_all(&mut data.as_ref()) {
+                Ok(destination) => destination,
+                Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
+            };
             AccountCommand::ChangeTokenAuthority(token_id, destination)
         }
-        _ => panic!("invalid account command"),
+        _ => return MintlayerErrorCode::InvalidAccountCommand.into(),
     };
 
     let tx_input = TxInput::AccountCommand(nonce, account_command);
@@ -127,7 +179,7 @@ extern "C" fn mintlayer_encode_account_command_input(
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -141,24 +193,28 @@ extern "C" fn mintlayer_encode_transfer_output(
     destination_data_len: u32,
 ) -> ByteArray {
     let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
-    let bytes = [
-        2, 0, 3, 191, 111, 141, 82, 218, 222, 119, 249, 94, 156, 108, 148, 136, 253, 132, 146, 169,
-        156, 9, 255, 35, 9, 92, 175, 251, 46, 100, 9, 209, 116, 106, 222,
-    ];
-    Destination::decode_all(&mut bytes.as_ref()).expect("ok");
-
-    let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+    let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
+        Some(amount) => amount,
+        None => return MintlayerErrorCode::InvalidAmount.into(),
+    };
     let value = if token_id_data_len == 32 {
         let token_id =
             unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
-        OutputValue::TokenV1(H256(token_id.try_into().expect("already checked")), amount)
+        let token_id = H256(match token_id.try_into() {
+            Ok(hash) => hash,
+            Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+        });
+        OutputValue::TokenV1(token_id, amount)
     } else {
         OutputValue::Coin(amount)
     };
 
     let destination_bytes =
         unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
-    let destination = Destination::decode_all(&mut destination_bytes.as_ref()).expect("ok");
+    let destination = match Destination::decode_all(&mut destination_bytes.as_ref()) {
+        Ok(destination) => destination,
+        Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
+    };
 
     // match &destination {
     //     Destination::AnyoneCanSpend => println!("anyone can spend dest"),
@@ -179,7 +235,7 @@ extern "C" fn mintlayer_encode_transfer_output(
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -196,25 +252,35 @@ extern "C" fn mintlayer_encode_lock_then_transfer_output(
 ) -> ByteArray {
     let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
 
-    let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+    let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
+        Some(amount) => amount,
+        None => return MintlayerErrorCode::InvalidAmount.into(),
+    };
     let value = if token_id_data_len == 32 {
         let token_id =
             unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
-        OutputValue::TokenV1(H256(token_id.try_into().expect("already checked")), amount)
+        let token_id = H256(match token_id.try_into() {
+            Ok(hash) => hash,
+            Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+        });
+        OutputValue::TokenV1(token_id, amount)
     } else {
         OutputValue::Coin(amount)
     };
 
     let destination_bytes =
         unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
-    let destination = Destination::decode_all(&mut destination_bytes.as_ref()).expect("ok");
+    let destination = match Destination::decode_all(&mut destination_bytes.as_ref()) {
+        Ok(destination) => destination,
+        Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
+    };
 
     let lock = match lock_type {
         0 => OutputTimeLock::UntilHeight(lock_amount),
         1 => OutputTimeLock::UntilTime(lock_amount),
         2 => OutputTimeLock::ForBlockCount(lock_amount),
         3 => OutputTimeLock::ForSeconds(lock_amount),
-        _ => panic!("unsuported lock type"),
+        _ => return MintlayerErrorCode::InvalidOutputTimeLock.into(),
     };
 
     let txo = TxOutput::LockThenTransfer(value, destination, lock);
@@ -230,7 +296,7 @@ extern "C" fn mintlayer_encode_lock_then_transfer_output(
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -243,11 +309,18 @@ extern "C" fn mintlayer_encode_burn_output(
 ) -> ByteArray {
     let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
 
-    let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+    let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
+        Some(amount) => amount,
+        None => return MintlayerErrorCode::InvalidAmount.into(),
+    };
     let value = if token_id_data_len == 32 {
         let token_id =
             unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
-        OutputValue::TokenV1(H256(token_id.try_into().expect("already checked")), amount)
+        let token_id = H256(match token_id.try_into() {
+            Ok(hash) => hash,
+            Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+        });
+        OutputValue::TokenV1(token_id, amount)
     } else {
         OutputValue::Coin(amount)
     };
@@ -265,7 +338,7 @@ extern "C" fn mintlayer_encode_burn_output(
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -286,10 +359,16 @@ extern "C" fn mintlayer_encode_create_stake_pool_output(
     cost_per_block_amount_data_len: u32,
 ) -> ByteArray {
     let pool_id = unsafe { core::slice::from_raw_parts(pool_id_data, pool_id_data_len as usize) };
-    let pool_id = H256(pool_id.try_into().expect("already checked"));
+    let pool_id = H256(match pool_id.try_into() {
+        Ok(hash) => hash,
+        Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+    });
     let coin_amount =
         unsafe { core::slice::from_raw_parts(pledge_amount_data, pledge_amount_data_len as usize) };
-    let pledge = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+    let pledge = match Amount::from_bytes_be(coin_amount.as_ref()) {
+        Some(amount) => amount,
+        None => return MintlayerErrorCode::InvalidAmount.into(),
+    };
 
     let destination_bytes = unsafe {
         core::slice::from_raw_parts(
@@ -297,14 +376,19 @@ extern "C" fn mintlayer_encode_create_stake_pool_output(
             staker_destination_data_len as usize,
         )
     };
-    let staker = Destination::decode_all(&mut destination_bytes.as_ref()).expect("ok");
+    let staker = match Destination::decode_all(&mut destination_bytes.as_ref()) {
+        Ok(destination) => destination,
+        Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
+    };
 
     let vrf_public_key = unsafe {
         core::slice::from_raw_parts(vrf_public_key_data, vrf_public_key_data_len as usize)
     };
-    let vrf_public_key = VRFPublicKeyHolder::Schnorrkel(VRFPublicKey(
-        vrf_public_key.try_into().expect("already checked"),
-    ));
+    let vrf_public_key =
+        VRFPublicKeyHolder::Schnorrkel(VRFPublicKey(match vrf_public_key.try_into() {
+            Ok(res) => res,
+            Err(_) => return MintlayerErrorCode::InvalidVrfPublicKey.into(),
+        }));
 
     let destination_bytes = unsafe {
         core::slice::from_raw_parts(
@@ -312,14 +396,20 @@ extern "C" fn mintlayer_encode_create_stake_pool_output(
             decommission_destination_data_len as usize,
         )
     };
-    let decommission_key = Destination::decode_all(&mut destination_bytes.as_ref()).expect("ok");
+    let decommission_key = match Destination::decode_all(&mut destination_bytes.as_ref()) {
+        Ok(destination) => destination,
+        Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
+    };
     let coin_amount = unsafe {
         core::slice::from_raw_parts(
             cost_per_block_amount_data,
             cost_per_block_amount_data_len as usize,
         )
     };
-    let cost_per_block = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+    let cost_per_block = match Amount::from_bytes_be(coin_amount.as_ref()) {
+        Some(amount) => amount,
+        None => return MintlayerErrorCode::InvalidAmount.into(),
+    };
 
     let txo = TxOutput::CreateStakePool(
         pool_id,
@@ -344,7 +434,7 @@ extern "C" fn mintlayer_encode_create_stake_pool_output(
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -356,11 +446,17 @@ extern "C" fn mintlayer_encode_produce_from_stake_output(
     pool_id_data_len: u32,
 ) -> ByteArray {
     let pool_id = unsafe { core::slice::from_raw_parts(pool_id_data, pool_id_data_len as usize) };
-    let pool_id = H256(pool_id.try_into().expect("already checked"));
+    let pool_id = H256(match pool_id.try_into() {
+        Ok(hash) => hash,
+        Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+    });
 
     let destination_bytes =
         unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
-    let destination = Destination::decode_all(&mut destination_bytes.as_ref()).expect("ok");
+    let destination = match Destination::decode_all(&mut destination_bytes.as_ref()) {
+        Ok(destination) => destination,
+        Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
+    };
 
     let txo = TxOutput::ProduceBlockFromStake(destination, pool_id);
 
@@ -375,7 +471,7 @@ extern "C" fn mintlayer_encode_produce_from_stake_output(
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -387,11 +483,17 @@ extern "C" fn mintlayer_encode_create_delegation_id_output(
     pool_id_data_len: u32,
 ) -> ByteArray {
     let pool_id = unsafe { core::slice::from_raw_parts(pool_id_data, pool_id_data_len as usize) };
-    let pool_id = H256(pool_id.try_into().expect("already checked"));
+    let pool_id = H256(match pool_id.try_into() {
+        Ok(hash) => hash,
+        Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+    });
 
     let destination_bytes =
         unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
-    let destination = Destination::decode_all(&mut destination_bytes.as_ref()).expect("ok");
+    let destination = match Destination::decode_all(&mut destination_bytes.as_ref()) {
+        Ok(destination) => destination,
+        Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
+    };
 
     let txo = TxOutput::CreateDelegationId(destination, pool_id);
 
@@ -406,7 +508,7 @@ extern "C" fn mintlayer_encode_create_delegation_id_output(
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -418,11 +520,17 @@ extern "C" fn mintlayer_encode_delegate_staking_output(
     delegation_id_data_len: u32,
 ) -> ByteArray {
     let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
-    let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+    let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
+        Some(amount) => amount,
+        None => return MintlayerErrorCode::InvalidAmount.into(),
+    };
 
     let delegation_id =
         unsafe { core::slice::from_raw_parts(delegation_id_data, delegation_id_data_len as usize) };
-    let delegation_id = H256(delegation_id.try_into().expect("already checked"));
+    let delegation_id = H256(match delegation_id.try_into() {
+        Ok(hash) => hash,
+        Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+    });
 
     let txo = TxOutput::DelegateStaking(amount, delegation_id);
 
@@ -437,7 +545,7 @@ extern "C" fn mintlayer_encode_delegate_staking_output(
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -465,12 +573,15 @@ extern "C" fn mintlayer_encode_issue_fungible_token_output(
 
     let authority_bytes =
         unsafe { core::slice::from_raw_parts(authority_data, authority_data_len as usize) };
-    let authority = Destination::decode_all(&mut authority_bytes.as_ref()).expect("ok");
+    let authority = match Destination::decode_all(&mut authority_bytes.as_ref()) {
+        Ok(destination) => destination,
+        Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
+    };
 
     let is_freezable = match is_freezable {
         0 => IsTokenFreezable::No,
         1 => IsTokenFreezable::Yes,
-        _ => panic!("invalid is token freezable type"),
+        _ => return MintlayerErrorCode::InvalidIsTokenFreezable.into(),
     };
 
     let total_supply = match total_supply_type {
@@ -478,12 +589,15 @@ extern "C" fn mintlayer_encode_issue_fungible_token_output(
             let coin_amount = unsafe {
                 core::slice::from_raw_parts(fixed_amount_data, fixed_amount_data_len as usize)
             };
-            let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+            let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
+                Some(amount) => amount,
+                None => return MintlayerErrorCode::InvalidAmount.into(),
+            };
             TokenTotalSupply::Fixed(amount)
         }
         1 => TokenTotalSupply::Lockable,
         2 => TokenTotalSupply::Unlimited,
-        _ => panic!("invalid total supply type"),
+        _ => return MintlayerErrorCode::InvalidTokenTotalSupply.into(),
     };
 
     let issuance = TokenIssuance::V1(TokenIssuanceV1 {
@@ -508,7 +622,7 @@ extern "C" fn mintlayer_encode_issue_fungible_token_output(
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -537,7 +651,10 @@ extern "C" fn mintlayer_encode_issue_nft_output(
 ) -> ByteArray {
     let token_id =
         unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
-    let token_id = H256(token_id.try_into().expect("already checked"));
+    let token_id = H256(match token_id.try_into() {
+        Ok(hash) => hash,
+        Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+    });
 
     let creator = unsafe { core::slice::from_raw_parts(creator_data, creator_data_len as usize) };
 
@@ -545,7 +662,10 @@ extern "C" fn mintlayer_encode_issue_nft_output(
         None
     } else {
         Some(PublicKeyHolder::Secp256k1Schnorr(PublicKey(
-            creator.try_into().expect("already checked"),
+            match creator.try_into() {
+                Ok(res) => res,
+                Err(_) => return MintlayerErrorCode::InvalidPublicKey.into(),
+            },
         )))
     };
 
@@ -581,7 +701,10 @@ extern "C" fn mintlayer_encode_issue_nft_output(
 
     let destination_bytes =
         unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
-    let destination = Destination::decode_all(&mut destination_bytes.as_ref()).expect("ok");
+    let destination = match Destination::decode_all(&mut destination_bytes.as_ref()) {
+        Ok(destination) => destination,
+        Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
+    };
 
     let issuance = NftIssuance::V0(NftIssuanceV0 {
         creator,
@@ -607,7 +730,7 @@ extern "C" fn mintlayer_encode_issue_nft_output(
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -632,7 +755,7 @@ extern "C" fn mintlayer_encode_data_deposit_output(
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -653,11 +776,18 @@ extern "C" fn mintlayer_encode_htlc_output(
 ) -> ByteArray {
     let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
 
-    let amount = Amount::from_bytes_be(coin_amount.as_ref()).expect("fixme");
+    let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
+        Some(amount) => amount,
+        None => return MintlayerErrorCode::InvalidAmount.into(),
+    };
     let value = if token_id_data_len == 32 {
         let token_id =
             unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
-        OutputValue::TokenV1(H256(token_id.try_into().expect("already checked")), amount)
+        let token_id = H256(match token_id.try_into() {
+            Ok(hash) => hash,
+            Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+        });
+        OutputValue::TokenV1(token_id, amount)
     } else {
         OutputValue::Coin(amount)
     };
@@ -668,22 +798,31 @@ extern "C" fn mintlayer_encode_htlc_output(
             refund_destination_data_len as usize,
         )
     };
-    let refund_key = Destination::decode_all(&mut refund_destination_bytes.as_ref()).expect("ok");
+    let refund_key = match Destination::decode_all(&mut refund_destination_bytes.as_ref()) {
+        Ok(destination) => destination,
+        Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
+    };
     let spend_destination_bytes = unsafe {
         core::slice::from_raw_parts(spend_destination_data, spend_destination_data_len as usize)
     };
-    let spend_key = Destination::decode_all(&mut spend_destination_bytes.as_ref()).expect("ok");
+    let spend_key = match Destination::decode_all(&mut spend_destination_bytes.as_ref()) {
+        Ok(destination) => destination,
+        Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
+    };
 
     let hash =
         unsafe { core::slice::from_raw_parts(secret_hash_data, secret_hash_data_len as usize) };
-    let secret_hash = H256(hash.try_into().expect("ok"));
+    let secret_hash = H256(match hash.try_into() {
+        Ok(hash) => hash,
+        Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+    });
 
     let refund_timelock = match lock_type {
         0 => OutputTimeLock::UntilHeight(lock_amount),
         1 => OutputTimeLock::UntilTime(lock_amount),
         2 => OutputTimeLock::ForBlockCount(lock_amount),
         3 => OutputTimeLock::ForSeconds(lock_amount),
-        _ => panic!("unsuported lock type"),
+        _ => return MintlayerErrorCode::InvalidOutputTimeLock.into(),
     };
 
     let txo = TxOutput::Htlc(
@@ -707,7 +846,7 @@ extern "C" fn mintlayer_encode_htlc_output(
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -730,7 +869,7 @@ extern "C" fn mintlayer_encode_compact_length(length: u32) -> ByteArray {
     // Construct and return the ByteArray struct
     ByteArray {
         data: ptr_data,
-        len,
+        len_or_err: LenOrError { len },
     }
 }
 
@@ -1014,10 +1153,10 @@ enum Destination {
     PublicKeyHash(PublicKeyHash),
     #[codec(index = 2)]
     PublicKey(PublicKeyHolder),
-    // #[codec(index = 3)]
-    // ScriptHash(Id<Script>),
-    // #[codec(index = 4)]
-    // ClassicMultisig(PublicKeyHash),
+    #[codec(index = 3)]
+    ScriptHash(H256),
+    #[codec(index = 4)]
+    ClassicMultisig(PublicKeyHash),
 }
 
 #[derive(Encode)]

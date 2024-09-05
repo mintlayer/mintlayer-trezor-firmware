@@ -120,8 +120,24 @@ impl Trezor {
                         req.output = MessageField::from_option(
                             outputs.get(response.details.request_index() as usize).cloned(),
                         );
-                        should_ack_button += 2;
-                        if response.details.request_index() as usize == outputs.len() - 1 {
+                        should_ack_button += 1;
+
+                        let confirm_amount = req.output.htlc.is_some() ||
+                            req.output.transfer.is_some() ||
+                            req.output.lock_then_transfer.is_some() ||
+                            req.output.burn.is_some() ||
+                            req.output.delegate_staking.is_some() ||
+                            req.output.create_stake_pool.is_some();
+
+                        if confirm_amount {
+                            should_ack_button += 1;
+                        }
+
+                        let is_last_output =
+                            response.details.request_index() as usize == outputs.len() - 1;
+
+                        // confirm total
+                        if is_last_output {
                             should_ack_button += 1;
                         }
                     }
