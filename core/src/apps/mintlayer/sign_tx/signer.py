@@ -320,6 +320,9 @@ class Mintlayer:
             creator = decode_address_to_bytes(x.creator)
             destination = decode_address_to_bytes(x.destination)
             encoded_out = mintlayer_utils.encode_issue_nft_output(x.token_id, creator, x.name, x.destination, x.ticker, x.icon_uri, x.additional_metadata_uri, x.media_uri, x.media_hash, destination)
+        elif out.data_deposit:
+            x = out.data_deposit
+            encoded_out = mintlayer_utils.encode_data_deposit_output(x.data)
         elif out.htlc:
             x = out.htlc
             token_id = b'' if not x.value.token else x.value.token.token_id

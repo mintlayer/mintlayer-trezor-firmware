@@ -6065,7 +6065,6 @@ class MintlayerHtlcTxOutput(protobuf.MessageType):
         3: protobuf.Field("spend_key", "string", repeated=False, required=True),
         4: protobuf.Field("refund_timelock", "MintlayerOutputTimeLock", repeated=False, required=True),
         5: protobuf.Field("refund_key", "string", repeated=False, required=True),
-        6: protobuf.Field("secret", "bytes", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -6076,14 +6075,12 @@ class MintlayerHtlcTxOutput(protobuf.MessageType):
         spend_key: "str",
         refund_timelock: "MintlayerOutputTimeLock",
         refund_key: "str",
-        secret: Optional["bytes"] = None,
     ) -> None:
         self.value = value
         self.secret_hash = secret_hash
         self.spend_key = spend_key
         self.refund_timelock = refund_timelock
         self.refund_key = refund_key
-        self.secret = secret
 
 
 class MintlayerPrevTx(protobuf.MessageType):

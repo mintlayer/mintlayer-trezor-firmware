@@ -7,9 +7,28 @@ __attribute__((noreturn)) void error_shutdown_rust(const char* title,
 uint32_t mintlayer_screen_fatal_error_rust(const char* title, const char* msg,
                                            const char* footer);
 
+typedef enum {
+  WrongHashSize = 1,
+  InvalidUtxoType = 2,
+  InvalidAmount = 3,
+  InvalidAccountCommand = 4,
+  InvalidDestination = 5,
+  InvalidIsTokenUnfreezable = 6,
+  InvalidIsTokenFreezable = 7,
+  InvalidVrfPublicKey = 8,
+  InvalidPublicKey = 9,
+  InvalidOutputTimeLock = 10,
+  InvalidTokenTotalSupply = 11,
+} MintlayerErrorCode;
+
+typedef union {
+  uint32_t len;
+  MintlayerErrorCode err;
+} LenOrError;
+
 typedef struct {
   const uint8_t* data;
-  uint32_t len;
+  LenOrError len_or_err;
 } ByteArray;
 
 ByteArray mintlayer_encode_utxo_input(const unsigned char* hex,

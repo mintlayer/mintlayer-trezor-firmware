@@ -4620,7 +4620,6 @@ if TYPE_CHECKING:
         spend_key: "str"
         refund_timelock: "MintlayerOutputTimeLock"
         refund_key: "str"
-        secret: "bytes | None"
 
         def __init__(
             self,
@@ -4630,7 +4629,6 @@ if TYPE_CHECKING:
             spend_key: "str",
             refund_timelock: "MintlayerOutputTimeLock",
             refund_key: "str",
-            secret: "bytes | None" = None,
         ) -> None:
             pass
 

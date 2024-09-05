@@ -21,7 +21,7 @@ from ...bitcoin.keychain import address_n_to_name
 
 if TYPE_CHECKING:
     from trezor.enums import AmountUnit
-    from trezor.messages import TxAckPaymentRequest, TxOutput, MintlayerTokenOutputValue
+    from trezor.messages import TxAckPaymentRequest, TxOutput, MintlayerTokenOutputValue, MintlayerOutputTimeLock
     from trezor.ui.layouts import LayoutType
 
     from apps.common.coininfo import CoinInfo
@@ -64,6 +64,17 @@ def account_label(coin: CoinInfo, address_n: Bip32Path | None) -> str:
         or f"Path {address_n_to_str(address_n)}"
     )
 
+def lock_to_string(lock: MintlayerOutputTimeLock) -> str:
+    if lock.until_time:
+        return f"Lock until {lock.until_time} time"
+    elif lock.until_height:
+        return f"Lock until {lock.until_height} height"
+    elif lock.for_seconds:
+        return f"Lock for {lock.for_seconds} seconds"
+    elif lock.for_block_count:
+        return f"Lock for {lock.for_block_count} blocks"
+    else:
+        raise Exception("unhandled lock type")
 
 async def confirm_output(
     output: MintlayerTxOutput,
@@ -71,6 +82,7 @@ async def confirm_output(
     output_index: int,
     chunkify: bool,
 ) -> None:
+    from ubinascii import hexlify
     title = TR.bitcoin__title_confirm_details
     if output.transfer:
         x = output.transfer
@@ -83,28 +95,24 @@ async def confirm_output(
         assert x.address is not None
         address_label = "Lock then Transfer"
         address_short = f"Destination: {x.address}\n"
-        if x.lock.until_time:
-            address_label = f"Lock until {x.lock.until_time} time"
-        elif x.lock.until_height:
-            address_label = f"Lock until {x.lock.until_height} height"
-        elif x.lock.for_seconds:
-            address_label = f"Lock for {x.lock.for_seconds} seconds"
-        elif x.lock.for_block_count:
-            address_label = f"Lock for {x.lock.for_block_count} blocks"
-        else:
-            raise Exception("unhandled lock type")
+        address_short += lock_to_string(x.lock)
         amount = format_coin_amount(x.value.amount, x.value.token)
     elif output.burn:
         x = output.burn
         address_short = "BURN"
         amount = format_coin_amount(x.value.amount, x.value.token)
-        address_label = None
+        address_label = ""
     elif output.create_stake_pool:
         x = output.create_stake_pool
         assert x.staker is not None and x.decommission_key is not None
         address_short = f"staker: {x.staker}, decommission_key: {x.decommission_key}"
         amount = format_coin_amount(x.pledge, None)
         address_label = "Create stake pool"
+    elif output.produce_block_from_stake:
+        x = output.produce_block_from_stake
+        address_short = f"new decommission_key: {x.destination}"
+        amount = ""
+        address_label = "Produce block from stake"
     elif output.create_delegation_id:
         x = output.create_delegation_id
         assert x.destination is not None
@@ -131,17 +139,36 @@ async def confirm_output(
         address_short = x.destination
         amount = ""
         address_label = "Issue NFT token"
+    elif output.data_deposit:
+        x = output.data_deposit
+        address_short = hexlify(x.data).decode()
+        amount = ""
+        address_label = "Data Deposit"
+    elif output.htlc:
+        x = output.htlc
+        lock = lock_to_string(x.refund_timelock)
+        address_short = f"Secret Hash: {x.secret_hash.hex()}, Spend Key: {x.spend_key}, Refund Key: {x.refund_key}, Refund Time Lock: {lock}"
+        amount = format_coin_amount(x.value.amount, x.value.token)
+        address_label = "HTLC"
     else:
         raise Exception("unhandled output type")
 
-    layout = layouts.confirm_output(
-        address_short,
-        amount,
-        title=title,
-        address_label=address_label,
-        output_index=output_index,
-        chunkify=chunkify,
-    )
+    if amount:
+        layout = layouts.confirm_output(
+            address_short,
+            amount,
+            title=title,
+            address_label=address_label,
+            output_index=output_index,
+            chunkify=chunkify,
+        )
+    else:
+        layout = layouts.confirm_text("confirm_address",
+            title=title,
+            data= address_short,
+            description= address_label,
+            br_code= ButtonRequestType.ConfirmOutput,
+        )
 
     await layout
 
