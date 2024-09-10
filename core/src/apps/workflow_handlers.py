@@ -24,7 +24,7 @@ def _find_message_handler_module(msg_type: int) -> str:
     - collecting everything as strings instead of importing directly means that we don't
       need to load any of the modules into memory until we actually need them
     """
-    from trezor import utils
+    from trezor import utils, log
     from trezor.enums import MessageType
 
     # debug
@@ -210,29 +210,26 @@ def _find_message_handler_module(msg_type: int) -> str:
         if msg_type == MessageType.MintlayerGetAddress:
             return "apps.mintlayer.get_address"
         if msg_type == MessageType.MintlayerGetPublicKey:
-            print("returning app mintlayer get public key")
             return "apps.mintlayer.get_public_key"
         if msg_type == MessageType.MintlayerSignMessage:
             return "apps.mintlayer.sign_message"
         if msg_type == MessageType.MintlayerSignTx:
             return "apps.mintlayer.sign_tx"
 
-    print(f"msg type not found {msg_type}, {MessageType.MintlayerGetPublicKey}")
+    if __debug__:
+        log.debug(__name__, f"msg type not found {msg_type}, {MessageType.MintlayerGetPublicKey}")
     raise ValueError
 
 
 def find_registered_handler(iface: WireInterface, msg_type: int) -> Handler | None:
     if msg_type in workflow_handlers:
-        print("in workflow handlers")
         # Message has a handler available, return it directly.
         return workflow_handlers[msg_type]
 
     try:
-        print("not in workflow handlers")
         modname = _find_message_handler_module(msg_type)
         handler_name = modname[modname.rfind(".") + 1 :]
         module = __import__(modname, None, None, (handler_name,), 0)
         return getattr(module, handler_name)
     except ValueError:
-        print("error??")
         return None

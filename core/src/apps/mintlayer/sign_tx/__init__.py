@@ -78,6 +78,5 @@ async def sign_tx(
             progress.progress.report_init()
         else:
 
-            print("invalid instruction", req, isinstance(req, helpers.UiConfirmTotal), isinstance(req, helpers.UiConfirm))
             raise TypeError("Invalid signing instruction")
 

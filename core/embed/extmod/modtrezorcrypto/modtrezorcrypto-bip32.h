@@ -22,8 +22,6 @@
 #include "embed/extmod/trezorobj.h"
 #include "hdnode.h"
 
-#include "embed/rust/rust_ui_common.h"
-
 #include "bip32.h"
 #include "bip39.h"
 #include "curves.h"
