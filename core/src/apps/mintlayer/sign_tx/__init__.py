@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING
 
-from apps.common.keychain import auto_keychain
+from apps.common.keychain import with_slip44_keychain
+from .. import CURVE, SLIP44_ID, PATTERNS
 
 if TYPE_CHECKING:
     from typing import Protocol
 
     from trezor.messages import (
-        SignTx,
+        MintlayerSignTx,
         TxAckInput,
         TxAckOutput,
         TxAckPrevExtraData,
@@ -34,7 +35,7 @@ if TYPE_CHECKING:
     class SignerClass(Protocol):
         def __init__(  # pylint: disable=super-init-not-called
             self,
-            tx: SignTx,
+            tx: MintlayerSignTx,
             keychain: Keychain,
             coin: CoinInfo,
             # approver: approvers.Approver | None,
@@ -43,11 +44,12 @@ if TYPE_CHECKING:
         async def signer(self) -> None: ...
 
 
-@auto_keychain(__name__)
+@with_slip44_keychain(*PATTERNS, curve=CURVE, slip44_id=SLIP44_ID)
 async def sign_tx(
-    msg: SignTx,
+    msg: MintlayerSignTx,
     keychain: Keychain,
 ) -> MintlayerTxRequest:
+    from trezor.wire import DataError
     from trezor.enums import MintlayerRequestType
     from trezor.messages import MintlayerTxRequest
     from trezor.wire.context import call
@@ -57,10 +59,8 @@ async def sign_tx(
     from . import helpers
 
 
-    # approver: approvers.Approver | None = None
-    approver = None
-
-    # FIXME  handle 0 input & output tx
+    if msg.inputs_count == 0:
+        raise DataError("Cannot sign a transaction with 0 inputs")
 
     signer = Mintlayer(msg, keychain).signer()
 
@@ -72,9 +72,7 @@ async def sign_tx(
             assert MintlayerTxRequest.is_type_of(req)
             if req.request_type == MintlayerRequestType.TXFINISHED:
                 return req
-            print('sending and waiting for response')
             res = await call(req, request_class)
-            print('got response', res)
         elif isinstance(req, helpers.UiConfirm):
             res = await req.confirm_dialog()
             progress.progress.report_init()

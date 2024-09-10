@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
-from apps.common.keychain import auto_keychain
+from apps.common.keychain import with_slip44_keychain
+from . import CURVE, SLIP44_ID, PATTERNS
 
 from trezor.crypto import hashlib
 
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
     from apps.common.keychain import Keychain
 
 
-@auto_keychain(__name__)
+@with_slip44_keychain(*PATTERNS, curve=CURVE, slip44_id=SLIP44_ID)
 async def sign_message(msg: MintlayerSignMessage, keychain: Keychain) -> MessageSignature:
     from trezor import TR, utils
     from trezor.crypto.curve import bip340

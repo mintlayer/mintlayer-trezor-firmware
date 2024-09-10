@@ -309,23 +309,6 @@ def request_tx_meta(tx_req: TxRequest, coin: CoinInfo, tx_hash: bytes | None = N
     return _sanitize_tx_meta(ack.tx, coin)
 
 
-def request_tx_extra_data(
-    tx_req: TxRequest, offset: int, size: int, tx_hash: bytes | None = None
-) -> Awaitable[bytearray]:  # type: ignore [awaitable-is-generator]
-    from trezor.messages import TxAckPrevExtraData
-
-    details = tx_req.details  # local_cache_attribute
-
-    assert details is not None
-    tx_req.request_type = MintlayerRequestType.TXEXTRADATA
-    details.extra_data_offset = offset
-    details.extra_data_len = size
-    details.tx_hash = tx_hash
-    ack = yield TxAckPrevExtraData, tx_req
-    _clear_tx_request(tx_req)
-    return ack.tx.extra_data_chunk
-
-
 def request_tx_input(tx_req: MintlayerTxRequest, i: int) -> Awaitable[MintlayerTxInput]:  # type: ignore [awaitable-is-generator]
     from trezor.messages import MintlayerTxAckUtxoInput
 
@@ -375,17 +358,6 @@ def request_tx_prev_output(tx_req: TxRequest, i: int, coin: CoinInfo, tx_hash: b
     _clear_tx_request(tx_req)
     # return sanitize_tx_prev_output(ack.tx, coin)  # no sanitize is required
     return ack.tx.output
-
-
-def request_payment_req(tx_req: TxRequest, i: int) -> Awaitable[TxAckPaymentRequest]:  # type: ignore [awaitable-is-generator]
-    from trezor.messages import TxAckPaymentRequest
-
-    assert tx_req.details is not None
-    tx_req.request_type = MintlayerRequestType.TXPAYMENTREQ
-    tx_req.details.request_index = i
-    ack = yield TxAckPaymentRequest, tx_req
-    _clear_tx_request(tx_req)
-    return _sanitize_payment_req(ack)
 
 
 def request_tx_finish(tx_req: TxRequest) -> Awaitable[None]:  # type: ignore [awaitable-is-generator]
@@ -470,12 +442,29 @@ def _sanitize_tx_input(txi: MintlayerTxInput) -> MintlayerTxInput:
         if len(txi.utxo.prev_hash) != TX_HASH_SIZE:
             raise DataError("Provided prev_hash is invalid.")
 
-        # FIXME
-        # if not txi.multisig and script_type == InputScriptType.SPENDMULTISIG:
-        #     raise DataError("Multisig details required.")
+        if txi.utxo.prev_index < 0:
+            raise DataError("Invalid UTXO previous index.")
 
-        # if txi.utxo.address_n:
-        #     raise DataError("Input's address_n provided but not expected.")
+        if not txi.utxo.address_n:
+            raise DataError("Input's address_n must be present for signing.")
+    elif txi.account_command:
+        cmd = txi.account_command
+        no_cmd = (cmd.mint is None
+                  and cmd.unmint is None
+                  and cmd.freeze_token is None
+                  and cmd.unfreeze_token is None
+                  and cmd.lock_token_supply is None
+                  and cmd.change_token_authority is None)
+        if no_cmd:
+            raise DataError("No account command present")
+
+        if not txi.account_command.address_n:
+            raise DataError("Input's address_n must be present for signing.")
+    elif txi.account:
+        if not txi.account.address_n:
+            raise DataError("Input's address_n must be present for signing.")
+    else:
+        raise DataError("No input type present either utxo, account_command or account must be present")
 
     return txi
 
@@ -494,10 +483,18 @@ def _sanitize_tx_output(txo: MintlayerTxOutput) -> MintlayerTxOutput:
     from trezor.wire import DataError  # local_cache_global
 
     if txo.transfer:
-        if txo.transfer.value is None:
+        x = txo.transfer
+        if x.value is None:
             raise DataError("Missing amount field.")
 
-        if not txo.transfer.address:
+        if not x.address:
+            raise DataError("Missing address")
+    elif txo.lock_then_transfer:
+        x = txo.lock_then_transfer
+        if x.value is None:
+            raise DataError("Missing amount field.")
+
+        if not x.address:
             raise DataError("Missing address")
     else:
         # TODO: senitize other tx outputs
@@ -505,15 +502,6 @@ def _sanitize_tx_output(txo: MintlayerTxOutput) -> MintlayerTxOutput:
 
     return txo
 
-
-def _sanitize_payment_req(payment_req: TxAckPaymentRequest) -> TxAckPaymentRequest:
-    for memo in payment_req.memos:
-        if (memo.text_memo, memo.refund_memo, memo.coin_purchase_memo).count(None) != 2:
-            raise DataError(
-                "Exactly one memo type must be specified in each PaymentRequestMemo."
-            )
-
-    return payment_req
 
 def get_lock(x: MintlayerOutputTimeLock) -> Tuple[int, int]:
     if x.until_height:

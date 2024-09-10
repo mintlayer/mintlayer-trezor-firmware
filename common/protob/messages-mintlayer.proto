@@ -281,7 +281,7 @@ message MintlayerOutputValue {
  * @embed
  */
 message MintlayerTransferTxOutput {
-    optional string address = 1;                    // destination address in Base58 encoding; script_type must be PAYTOADDRESS
+    required string address = 1;                    // destination address in Base58 encoding; script_type must be PAYTOADDRESS
     required MintlayerOutputValue value = 2;        // amount to spend in atoms for coin or token
 }
 

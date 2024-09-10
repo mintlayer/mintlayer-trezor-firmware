@@ -2,19 +2,17 @@ from micropython import const
 from typing import TYPE_CHECKING
 
 from trezor import TR
-from trezor.enums import ButtonRequestType
+from trezor.enums import ButtonRequestType, MintlayerTokenTotalSupplyType
 from trezor.strings import format_amount
 from trezor.ui import layouts
-from trezor.ui.layouts import confirm_metadata
 
 from apps.common.paths import address_n_to_str
 
-from trezor.crypto.bech32 import bech32_encode, bech32_decode, convertbits, reverse_convertbits, decode_address_to_bytes, Encoding
+from trezor.crypto.bech32 import bech32_encode, convertbits, Encoding
 
 from ...bitcoin import addresses
 from ...bitcoin.common import (
     BIP32_WALLET_DEPTH,
-    CHANGE_OUTPUT_TO_INPUT_SCRIPT_TYPES,
     format_fee_rate,
 )
 from ...bitcoin.keychain import address_n_to_name
@@ -22,7 +20,6 @@ from ...bitcoin.keychain import address_n_to_name
 if TYPE_CHECKING:
     from trezor.enums import AmountUnit
     from trezor.messages import TxAckPaymentRequest, TxOutput, MintlayerTokenOutputValue, MintlayerOutputTimeLock
-    from trezor.ui.layouts import LayoutType
 
     from apps.common.coininfo import CoinInfo
     from apps.common.paths import Bip32Path
@@ -33,27 +30,23 @@ if TYPE_CHECKING:
 
 _LOCKTIME_TIMESTAMP_MIN_VALUE = const(500_000_000)
 
+ML_COIN = "ML"
+POOL_HRP = "mpool"
+DELEGATION_HRP = "mdeleg"
+
 
 def format_coin_amount(amount: bytes, token: MintlayerTokenOutputValue | None) -> str:
     if token is None:
         decimals = 11
-        name = "ML"
+        name = ML_COIN
     else:
         decimals = token.number_of_decimals
-        name = "ML Token: " + token.token_ticker.decode()
+        name = "ML Token: " + token.token_ticker.decode('utf-8')
 
-    print("amount to display bytes", amount)
-    amount_int = 0
-    for b in amount:
-        amount_int = (amount_int << 8) | b
-    decimal_str = str(amount_int)
+    amount_int = int.from_bytes(amount, 'big')
+    amount_str = format_amount(amount_int, decimals)
 
-    if len(decimal_str) <= decimals:
-        decimal_str = '0' * (decimals + 1 - len(decimal_str)) + decimal_str  # Add an extra zero to handle leading zero case
-
-    integer_part = decimal_str[:-decimals] or '0'
-    decimal_part = decimal_str[-decimals:]
-    return f"{integer_part}.{decimal_part} {name}"
+    return f"{amount_str} {name}"
 
 
 def account_label(coin: CoinInfo, address_n: Bip32Path | None) -> str:
@@ -118,25 +111,60 @@ async def confirm_output(
         assert x.destination is not None
         amount = ""
         data = convertbits(x.pool_id, 8, 5)
-        address = bech32_encode("mpool", data, Encoding.BECH32M)
-        address_short = f"{x.destination} {address}"
+        pool_id_address = bech32_encode(POOL_HRP, data, Encoding.BECH32M)
+        address_short = f"Address: {x.destination}\nPoolId: {pool_id_address}"
         address_label = f"Create delegation ID"
     elif output.delegate_staking:
         x = output.delegate_staking
         assert x.delegation_id is not None
         data = convertbits(x.delegation_id, 8, 5)
-        address = bech32_encode("mdeleg", data, Encoding.BECH32M)
+        address = bech32_encode(DELEGATION_HRP, data, Encoding.BECH32M)
         address_short = address
         amount = format_coin_amount(x.amount, None)
         address_label = "Delegation staking"
     elif output.issue_fungible_token:
         x = output.issue_fungible_token
-        address_short = "Issue Fungible Token"
+        ticker = x.token_ticker.decode('utf-8')
+        name = x.name.decode('utf-8')
+        additional_metadata_uri = x.additional_metadata_uri.decode('utf-8') if x.additional_metadata_uri else None
+        metadata_uri = x.metadata_uri.decode('utf-8') if x.metadata_uri else None
+        if x.total_supply.type == MintlayerTokenTotalSupplyType.UNLIMITED:
+            total_supply = "UNLIMITED"
+        elif x.total_supply.type == MintlayerTokenTotalSupplyType.LOCKABLE:
+            total_supply = "LOCKABLE"
+        elif x.total_supply.type == MintlayerTokenTotalSupplyType.FIXED:
+            if not x.total_supply.fixed_amount:
+                raise ValueError("Token Fixed supply without amount")
+            amount = int.from_bytes(x.total_supply.fixed_amount, 'big')
+            formated_amount = format_amount(amount, x.number_of_decimals)
+            total_supply = f"FIXED {formated_amount}"
+        else:
+            raise ValueError("Unhandled Token total supply type")
+        is_freezable = "Yes" if x.is_freezable else "No"
+        address_short = f"""Ticker: {ticker}
+        Authority: {x.authority}
+        Metadata URI: {metadata_uri}
+        Total token supply: {total_supply}
+        Number of Decimals: {x.number_of_decimals}
+        Is Freezable: {is_freezable}
+        """
         amount = "amount"
         address_label = "Issue fungible token"
     elif output.issue_nft:
         x = output.issue_nft
-        address_short = x.destination
+        ticker = x.ticker.decode('utf-8')
+        name = x.name.decode('utf-8')
+        icon_uri = x.icon_uri.decode('utf-8') if x.icon_uri else None
+        additional_metadata_uri = x.additional_metadata_uri.decode('utf-8') if x.additional_metadata_uri else None
+        media_uri = x.media_uri.decode('utf-8') if x.media_uri else None
+        address_short = f"""Name: {name}
+        Creator: {x.creator}
+        ticker: {ticker}
+        Address: {x.destination}
+        Icon URI: {icon_uri}
+        Additional medatada URI: {additional_metadata_uri}
+        Media URI: {media_uri}
+        """
         amount = ""
         address_label = "Issue NFT token"
     elif output.data_deposit:
@@ -226,61 +254,6 @@ async def should_show_payment_request_details(
     )
 
 
-async def confirm_replacement(title: str, txid: bytes) -> None:
-    from ubinascii import hexlify
-
-    await layouts.confirm_replacement(
-        title,
-        hexlify(txid).decode(),
-    )
-
-
-async def confirm_modify_output(
-    txo: TxOutput,
-    orig_txo: TxOutput,
-    coin: CoinInfo,
-    amount_unit: AmountUnit,
-) -> None:
-    assert txo.address is not None
-    address_short = addresses.address_short(coin, txo.address)
-    amount_change = txo.amount - orig_txo.amount
-    await layouts.confirm_modify_output(
-        address_short,
-        amount_change,
-        format_coin_amount(abs(amount_change), coin, amount_unit),
-        format_coin_amount(txo.amount, coin, amount_unit),
-    )
-
-
-async def confirm_modify_fee(
-    title: str,
-    user_fee_change: int,
-    total_fee_new: int,
-    fee_rate: float,
-    coin: CoinInfo,
-    amount_unit: AmountUnit,
-) -> None:
-    await layouts.confirm_modify_fee(
-        title,
-        user_fee_change,
-        format_coin_amount(abs(user_fee_change), coin, amount_unit),
-        format_coin_amount(total_fee_new, coin, amount_unit),
-        fee_rate_amount=format_fee_rate(fee_rate, coin) if fee_rate >= 0 else None,
-    )
-
-
-async def confirm_joint_total(
-    spending: int,
-    total: int,
-    coin: CoinInfo,
-    amount_unit: AmountUnit,
-) -> None:
-    await layouts.confirm_joint_total(
-        spending_amount=format_coin_amount(spending, coin, amount_unit),
-        total_amount=format_coin_amount(total, coin, amount_unit),
-    )
-
-
 async def confirm_total(
     spending: int,
     fee: int,
@@ -295,18 +268,6 @@ async def confirm_total(
         format_coin_amount(fee.to_bytes(16, 'big'), None),
         fee_rate_amount=format_fee_rate(fee_rate, coin) if fee_rate >= 0 else None,
         account_label=account_label(coin, address_n),
-    )
-
-
-async def confirm_feeoverthreshold(
-    fee: int, coin: CoinInfo, amount_unit: AmountUnit
-) -> None:
-    fee_amount = format_coin_amount(fee, coin, amount_unit)
-    await layouts.show_warning(
-        "fee_over_threshold",
-        TR.bitcoin__unusually_high_fee,
-        fee_amount,
-        br_code=ButtonRequestType.FeeOverThreshold,
     )
 
 

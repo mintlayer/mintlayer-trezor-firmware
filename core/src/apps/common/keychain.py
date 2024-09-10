@@ -137,8 +137,7 @@ class Keychain:
         return self._root_fingerprint
 
     def derive(self, path: paths.Bip32Path) -> bip32.HDNode:
-        # FIXME: enable
-        # self.verify_path(path)
+        self.verify_path(path)
         return self._derive_with_cache(
             3,
             path,

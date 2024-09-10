@@ -3,8 +3,7 @@
 
 #include "embed/extmod/trezorobj.h"
 
-// FIXME
-#include "embed/rust/rust_ui_common.h"
+#include "embed/rust/mintlayer.h"
 
 #include "bip32.h"
 #include "bip39.h"
@@ -91,7 +90,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(
 /// def encode_account_spending_input(nonce: int, delegation_id: str, amount:
 /// bytes) -> bytes:
 ///     """
-///     encodes an utxo input from tx_hash and index
+///     encodes an utxo account spendinf from nonce and delegation id
 ///     """
 STATIC mp_obj_t
 mod_trezormintlayer_utils_mintlayer_encode_account_spending_input(
@@ -129,7 +128,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(
 /// def encode_account_command_input(nonce: int, command: int token_id: str,
 /// data: bytes) -> bytes:
 ///     """
-///     encodes an utxo input from tx_hash and index
+///     encodes an account command from the nonce, command, token id and additional command data
 ///     """
 STATIC mp_obj_t
 mod_trezormintlayer_utils_mintlayer_encode_account_command_input(
@@ -200,7 +199,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(
 /// def encode_lock_then_transfer_output(amount: str, token_id: str, lock_type:
 /// int, lock_amount:int, address: str) -> bytes:
 ///     """
-///     encodes a transfer output with given amount and destination address
+///     encodes a transfer output with given amount, lock type and amount, and destination address
 ///     """
 STATIC mp_obj_t
 mod_trezormintlayer_utils_mintlayer_encode_lock_then_transfer_output(
@@ -235,7 +234,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
 /// def encode_burn_output(amount: str, token_id: str) ->
 /// bytes:
 ///     """
-///     encodes a transfer output with given amount and destination address
+///     encodes a burn output with given amount
 ///     """
 STATIC mp_obj_t mod_trezormintlayer_utils_mintlayer_encode_burn_output(
     mp_obj_t amount_obj, mp_obj_t token_id_obj) {
@@ -265,7 +264,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
 /// staker: str, vrf_public_key: str, decommission_key: str,
 /// margin_ratio_per_thousand: int, cost_per_block: str) -> bytes:
 ///     """
-///     encodes a transfer output with given amount and destination address
+///     encodes a create stake pool output
 ///     """
 STATIC mp_obj_t
 mod_trezormintlayer_utils_mintlayer_encode_create_stake_pool_output(
@@ -308,7 +307,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
 /// def encode_produce_from_stake_output(destination: str, pool_id: str) ->
 /// bytes:
 ///     """
-///     encodes a transfer output with given amount and destination address
+///     encodes a produce from stake output
 ///     """
 STATIC mp_obj_t
 mod_trezormintlayer_utils_mintlayer_encode_produce_from_stake_output(
@@ -338,7 +337,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
 /// def encode_create_delegation_id_output(destination: str, pool_id: str) ->
 /// bytes:
 ///     """
-///     encodes a transfer output with given amount and destination address
+///     encodes a create delegation id output
 ///     """
 STATIC mp_obj_t
 mod_trezormintlayer_utils_mintlayer_encode_create_delegation_id_output(
@@ -368,7 +367,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
 /// def encode_delegate_staking_output(amount: str, delegation_id: str) ->
 /// bytes:
 ///     """
-///     encodes a transfer output with given amount and destination address
+///     encodes a delegation staking output, given the amount and delegation id
 ///     """
 STATIC mp_obj_t
 mod_trezormintlayer_utils_mintlayer_encode_delegate_staking_output(
@@ -399,7 +398,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
 /// number_of_decimals: int, metadata_uri: str, total_supply_type: int,
 /// fixed_amount: str, authority: str, is_freezable: int) -> bytes:
 ///     """
-///     encodes a transfer output with given amount and destination address
+///     encodes a issue fungible token output
 ///     """
 STATIC mp_obj_t
 mod_trezormintlayer_utils_mintlayer_encode_issue_fungible_token_output(
@@ -442,7 +441,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
 /// ticker: str, icon_uri: str, additional_metadata_uri: str, media_uri: str,
 /// media_hash: str, destination: str) -> bytes:
 ///     """
-///     encodes a transfer output with given amount and destination address
+///     encodes a issue NFT output
 ///     """
 STATIC mp_obj_t mod_trezormintlayer_utils_mintlayer_encode_issue_nft_output(
     size_t n_args, const mp_obj_t *args) {
@@ -492,7 +491,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
 /// def encode_data_deposit_output(deposit: str) ->
 /// bytes:
 ///     """
-///     encodes a transfer output with given amount and destination address
+///     encodes a data deposit output
 ///     """
 STATIC mp_obj_t mod_trezormintlayer_utils_mintlayer_encode_data_deposit_output(
     mp_obj_t deposit_obj) {

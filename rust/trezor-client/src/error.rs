@@ -93,7 +93,7 @@ pub enum Error {
     #[error(transparent)]
     Address(#[from] bitcoin::address::ParseError),
 
-    // bintlayer
+    // mintlayer
     /// Chaincode error.
     #[cfg(feature = "mintlayer")]
     #[error("Invalid chaincode length returned from device")]
