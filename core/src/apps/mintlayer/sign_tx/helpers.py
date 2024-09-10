@@ -454,6 +454,7 @@ def _sanitize_tx_input(txi: MintlayerTxInput) -> MintlayerTxInput:
                   and cmd.freeze_token is None
                   and cmd.unfreeze_token is None
                   and cmd.lock_token_supply is None
+                  and cmd.change_token_metadata_uri is None
                   and cmd.change_token_authority is None)
         if no_cmd:
             raise DataError("No account command present")

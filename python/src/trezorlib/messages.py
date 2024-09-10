@@ -5597,6 +5597,7 @@ class MintlayerAccountCommandTxInput(protobuf.MessageType):
         8: protobuf.Field("freeze_token", "MintlayerFreezeToken", repeated=False, required=False, default=None),
         9: protobuf.Field("unfreeze_token", "MintlayerUnfreezeToken", repeated=False, required=False, default=None),
         10: protobuf.Field("change_token_authority", "MintlayerChangeTokenAuhtority", repeated=False, required=False, default=None),
+        11: protobuf.Field("change_token_metadata_uri", "MintlayerChangeTokenMetadataUri", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -5612,6 +5613,7 @@ class MintlayerAccountCommandTxInput(protobuf.MessageType):
         freeze_token: Optional["MintlayerFreezeToken"] = None,
         unfreeze_token: Optional["MintlayerUnfreezeToken"] = None,
         change_token_authority: Optional["MintlayerChangeTokenAuhtority"] = None,
+        change_token_metadata_uri: Optional["MintlayerChangeTokenMetadataUri"] = None,
     ) -> None:
         self.address_n: Sequence["MintlayerAddressPath"] = address_n if address_n is not None else []
         self.address = address
@@ -5623,6 +5625,7 @@ class MintlayerAccountCommandTxInput(protobuf.MessageType):
         self.freeze_token = freeze_token
         self.unfreeze_token = unfreeze_token
         self.change_token_authority = change_token_authority
+        self.change_token_metadata_uri = change_token_metadata_uri
 
 
 class MintlayerMintTokens(protobuf.MessageType):
@@ -5716,6 +5719,23 @@ class MintlayerChangeTokenAuhtority(protobuf.MessageType):
     ) -> None:
         self.token_id = token_id
         self.destination = destination
+
+
+class MintlayerChangeTokenMetadataUri(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("token_id", "bytes", repeated=False, required=True),
+        2: protobuf.Field("metadata_uri", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        token_id: "bytes",
+        metadata_uri: "bytes",
+    ) -> None:
+        self.token_id = token_id
+        self.metadata_uri = metadata_uri
 
 
 class MintlayerTxOutput(protobuf.MessageType):

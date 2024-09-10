@@ -259,6 +259,10 @@ class Mintlayer:
                     command = 5
                     token_id = x.change_token_authority.token_id
                     data = mintlayer_decode_address_to_bytes(x.change_token_authority.destination)
+                elif x.change_token_metadata_uri:
+                    command = 5
+                    token_id = x.change_token_metadata_uri.token_id
+                    data = x.change_token_metadata_uri.metadata_uri
                 else:
                     raise Exception("unknown account command")
 

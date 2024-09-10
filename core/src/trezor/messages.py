@@ -4207,6 +4207,7 @@ if TYPE_CHECKING:
         freeze_token: "MintlayerFreezeToken | None"
         unfreeze_token: "MintlayerUnfreezeToken | None"
         change_token_authority: "MintlayerChangeTokenAuhtority | None"
+        change_token_metadata_uri: "MintlayerChangeTokenMetadataUri | None"
 
         def __init__(
             self,
@@ -4221,6 +4222,7 @@ if TYPE_CHECKING:
             freeze_token: "MintlayerFreezeToken | None" = None,
             unfreeze_token: "MintlayerUnfreezeToken | None" = None,
             change_token_authority: "MintlayerChangeTokenAuhtority | None" = None,
+            change_token_metadata_uri: "MintlayerChangeTokenMetadataUri | None" = None,
         ) -> None:
             pass
 
@@ -4316,6 +4318,22 @@ if TYPE_CHECKING:
 
         @classmethod
         def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerChangeTokenAuhtority"]:
+            return isinstance(msg, cls)
+
+    class MintlayerChangeTokenMetadataUri(protobuf.MessageType):
+        token_id: "bytes"
+        metadata_uri: "bytes"
+
+        def __init__(
+            self,
+            *,
+            token_id: "bytes",
+            metadata_uri: "bytes",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerChangeTokenMetadataUri"]:
             return isinstance(msg, cls)
 
     class MintlayerTxOutput(protobuf.MessageType):
