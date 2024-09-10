@@ -126,43 +126,6 @@ def convertbits(
 
     return ret
 
-def bech32_decode(bech32_str):
-    # if not (1 <= len(bech32_str) <= 90):
-    #     raise ValueError("Invalid length of Bech32 string")
-
-    # if not all(char.lower() in CHARSET for char in bech32_str):
-    #     raise ValueError("Invalid characters in Bech32 string")
-
-    # if not (bech32_str.lower() == bech32_str or bech32_str.upper() == bech32_str):
-    #     raise ValueError("Mixed case in Bech32 string")
-
-    # if "1" not in bech32_str:
-    #     raise ValueError("Missing separator in Bech32 string")
-
-    # if bech32_str.index("1") == 0 or bech32_str.index("1") == len(bech32_str) - 1:
-    #     raise ValueError("Invalid position of separator in Bech32 string")
-
-    hrp, data = bech32_str.rsplit("1", 1)
-    hrp = hrp.lower()
-    data = data.lower()
-
-    # for char in hrp:
-    #     if char not in CHARSET:
-    #         raise ValueError("Invalid character in HRP")
-
-    for char in data:
-        if char not in CHARSET:
-            raise ValueError("Invalid character in data part")
-
-    decoded = []
-    for char in data:
-        decoded.append(CHARSET_REV[char])
-
-    # if not bech32_verify_checksum(hrp, decoded):
-    #     raise ValueError("Invalid checksum")
-
-    return hrp, decoded[:-6]
-
 def reverse_convertbits(
     data: Sequence[int], frombits: int, tobits: int
 ) -> list[int]:
@@ -180,11 +143,42 @@ def reverse_convertbits(
             ret.append((acc >> bits) & maxv)
     return ret
 
-def decode_address_to_bytes(address: str | None) -> bytes:
+
+def mintlayer_bech32_decode(bech32_str):
+    if not (1 <= len(bech32_str) <= 90):
+        raise ValueError("Invalid length of Bech32 string")
+
+    if not (bech32_str.lower() == bech32_str or bech32_str.upper() == bech32_str):
+        raise ValueError("Mixed case in Bech32 string")
+
+    if "1" not in bech32_str:
+        raise ValueError("Missing separator in Bech32 string")
+
+    if bech32_str.index("1") == 0 or bech32_str.index("1") == len(bech32_str) - 1:
+        raise ValueError("Invalid position of separator in Bech32 string")
+
+    hrp, data = bech32_str.rsplit("1", 1)
+    hrp = hrp.lower()
+    data = data.lower()
+
+    for char in data:
+        if char not in CHARSET:
+            raise ValueError("Invalid character in data part")
+
+    decoded = []
+    for char in data:
+        decoded.append(CHARSET_REV[char])
+
+    # if not bech32_verify_checksum(hrp, decoded):
+    #     raise ValueError("Invalid checksum")
+
+    return hrp, decoded[:-6]
+
+def mintlayer_decode_address_to_bytes(address: str | None) -> bytes:
     if address is None:
         return bytes()
 
-    _, data = bech32_decode(address)
+    _, data = mintlayer_bech32_decode(address)
     data = reverse_convertbits(data, 8, 5)
     return bytes(data)
 

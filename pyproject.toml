@@ -74,9 +74,6 @@ toiftool = {path = "./python/tools/toiftool", develop = true, python = ">=3.8"}
 trezor-pylint-plugin = {path = "./tools/trezor-pylint-plugin", develop = true}
 trezor-core-tools = {path = "./core/tools", develop = true}
 
-# mintlayer
-scalecodec = "^1.2.0"
-
 [tool.poetry.dev-dependencies]
 scan-build = "*"
 towncrier = "^23.6.0"

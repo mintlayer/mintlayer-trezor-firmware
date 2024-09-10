@@ -9,9 +9,6 @@ from trezorcrypto import (  # noqa: F401
     random,
 )
 
-# FIXME
-from trezormintlayer import utils as mintlayer_utils
-
 try:
     from trezorcrypto import aesgcm  # noqa: F401
 except Exception:
@@ -21,6 +18,7 @@ from trezor import utils
 
 if not utils.BITCOIN_ONLY:
     from trezorcrypto import cardano, monero, nem  # noqa: F401
+    from trezormintlayer import utils as mintlayer_utils
 
 if utils.USE_OPTIGA:
     from trezorcrypto import optiga  # noqa: F401

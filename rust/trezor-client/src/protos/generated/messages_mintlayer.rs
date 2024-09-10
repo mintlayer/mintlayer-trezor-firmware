@@ -5612,7 +5612,7 @@ impl MintlayerTransferTxOutput {
         ::std::default::Default::default()
     }
 
-    // optional string address = 1;
+    // required string address = 1;
 
     pub fn address(&self) -> &str {
         match self.address.as_ref() {
@@ -5673,6 +5673,9 @@ impl ::protobuf::Message for MintlayerTransferTxOutput {
     const NAME: &'static str = "MintlayerTransferTxOutput";
 
     fn is_initialized(&self) -> bool {
+        if self.address.is_none() {
+            return false;
+        }
         if self.value.is_none() {
             return false;
         }
@@ -10562,7 +10565,7 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x10numberOfDecimals\"}\n\x14MintlayerOutputValue\x12\x16\n\x06amount\
     \x18\x01\x20\x02(\x0cR\x06amount\x12M\n\x05token\x18\x02\x20\x01(\x0b27.\
     hw.trezor.messages.mintlayer.MintlayerTokenOutputValueR\x05token\"\x7f\n\
-    \x19MintlayerTransferTxOutput\x12\x18\n\x07address\x18\x01\x20\x01(\tR\
+    \x19MintlayerTransferTxOutput\x12\x18\n\x07address\x18\x01\x20\x02(\tR\
     \x07address\x12H\n\x05value\x18\x02\x20\x02(\x0b22.hw.trezor.messages.mi\
     ntlayer.MintlayerOutputValueR\x05value\"\xa4\x01\n\x17MintlayerOutputTim\
     eLock\x12!\n\x0cuntil_height\x18\x01\x20\x01(\x04R\x0buntilHeight\x12\

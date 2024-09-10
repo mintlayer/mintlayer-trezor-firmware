@@ -1,6 +1,5 @@
 from micropython import const
 from typing import TYPE_CHECKING
-import binascii
 
 from trezor import TR
 from trezor.enums import ButtonRequestType
@@ -44,21 +43,6 @@ def format_coin_amount(amount: int, coin: CoinInfo, amount_unit: AmountUnit) -> 
     elif amount_unit == AmountUnit.MILLIBITCOIN and decimals >= 3:
         decimals -= 3
         shortcut = "m" + shortcut
-    elif amount_unit == AmountUnit.ML:
-        decimals = 11
-        shortcut = "m" + shortcut
-        print("amount to display bytes", amount)
-        amount_int = 0
-        for b in amount:
-            amount_int = (amount_int << 8) | b
-        decimal_str = str(amount_int)
-
-        if len(decimal_str) <= decimals:
-            decimal_str = '0' * (decimals + 1 - len(decimal_str)) + decimal_str  # Add an extra zero to handle leading zero case
-
-        integer_part = decimal_str[:-decimals] or '0'
-        decimal_part = decimal_str[-decimals:]
-        return f"{integer_part}.{decimal_part} ML"
 
 
     # we don't need to do anything for AmountUnit.BITCOIN

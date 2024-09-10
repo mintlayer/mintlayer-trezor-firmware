@@ -4387,14 +4387,14 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerTransferTxOutput(protobuf.MessageType):
-        address: "str | None"
+        address: "str"
         value: "MintlayerOutputValue"
 
         def __init__(
             self,
             *,
+            address: "str",
             value: "MintlayerOutputValue",
-            address: "str | None" = None,
         ) -> None:
             pass
 

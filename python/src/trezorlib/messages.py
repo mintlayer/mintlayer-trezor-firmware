@@ -5802,18 +5802,18 @@ class MintlayerOutputValue(protobuf.MessageType):
 class MintlayerTransferTxOutput(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
-        1: protobuf.Field("address", "string", repeated=False, required=False, default=None),
+        1: protobuf.Field("address", "string", repeated=False, required=True),
         2: protobuf.Field("value", "MintlayerOutputValue", repeated=False, required=True),
     }
 
     def __init__(
         self,
         *,
+        address: "str",
         value: "MintlayerOutputValue",
-        address: Optional["str"] = None,
     ) -> None:
-        self.value = value
         self.address = address
+        self.value = value
 
 
 class MintlayerOutputTimeLock(protobuf.MessageType):
