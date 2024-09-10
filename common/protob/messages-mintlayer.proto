@@ -186,16 +186,17 @@ message MintlayerAccountTxInput {
  * @embed
  */
 message MintlayerAccountCommandTxInput {
-    repeated MintlayerAddressPath address_n = 1;                        // BIP-32 path to derive the key from master node
-    required string address = 2;                                        // destination address in Base58 encoding; script_type must be PAYTOADDRESS
-    optional uint32 sequence = 3 [default=0xffffffff];                  // sequence
-    required uint64 nonce = 4;                                          // incrementing account nonce
-    optional MintlayerMintTokens mint = 5;                              // mint tokens
-    optional MintlayerUnmintTokens unmint = 6;                          // unmint tokens
-    optional MintlayerLockTokenSupply lock_token_supply = 7;            // lock token supply
-    optional MintlayerFreezeToken freeze_token = 8;                     // freeze supply
-    optional MintlayerUnfreezeToken unfreeze_token = 9;                 // unfreeze supply
-    optional MintlayerChangeTokenAuhtority change_token_authority = 10; // change token authority
+    repeated MintlayerAddressPath address_n = 1;                             // BIP-32 path to derive the key from master node
+    required string address = 2;                                             // destination address in Base58 encoding; script_type must be PAYTOADDRESS
+    optional uint32 sequence = 3 [default=0xffffffff];                       // sequence
+    required uint64 nonce = 4;                                               // incrementing account nonce
+    optional MintlayerMintTokens mint = 5;                                   // mint tokens
+    optional MintlayerUnmintTokens unmint = 6;                               // unmint tokens
+    optional MintlayerLockTokenSupply lock_token_supply = 7;                 // lock token supply
+    optional MintlayerFreezeToken freeze_token = 8;                          // freeze supply
+    optional MintlayerUnfreezeToken unfreeze_token = 9;                      // unfreeze supply
+    optional MintlayerChangeTokenAuhtority change_token_authority = 10;      // change token authority
+    optional MintlayerChangeTokenMetadataUri change_token_metadata_uri = 11; // change token metadata uri
 }
 
 /** Data type for output value coins or token
@@ -241,6 +242,14 @@ message MintlayerUnfreezeToken {
 message MintlayerChangeTokenAuhtority {
     required bytes token_id = 1;                   // token id
     required string destination = 2;               // destination for the new authority
+}
+
+/** Data type for output value coins or token
+ * @embed
+ */
+message MintlayerChangeTokenMetadataUri {
+    required bytes token_id = 1;                   // token id
+    required bytes metadata_uri = 2;               // new metadata uri
 }
 
 /** Data type for transaction output to be signed.

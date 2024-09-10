@@ -16,21 +16,21 @@ async def get_address(msg: MintlayerGetAddress, keychain: Keychain) -> Mintlayer
 
     from apps.common import paths
 
-    from .helpers import address_from_public_key
+    from trezor.crypto.bech32 import bech32_encode, Encoding
 
-    HRP = "bnb"
+    HRP = "mtc"
     address_n = msg.address_n  # local_cache_attribute
 
     await paths.validate_path(keychain, address_n)
 
     node = keychain.derive(address_n)
     pubkey = node.public_key()
-    address = address_from_public_key(pubkey, HRP)
+    address = bech32_encode(HRP, pubkey, Encoding.BECH32M)
     if msg.show_display:
         await show_address(
             address,
             path=paths.address_n_to_str(address_n),
-            account=paths.get_account_name("BNB", address_n, PATTERNS[0], SLIP44_ID),
+            account=None,
             chunkify=bool(msg.chunkify),
         )
 

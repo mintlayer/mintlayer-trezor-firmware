@@ -164,6 +164,9 @@ extern "C" fn mintlayer_encode_account_command_input(
             };
             AccountCommand::ChangeTokenAuthority(token_id, destination)
         }
+        7 => {
+            AccountCommand::ChangeTokenMetadataUri(token_id, data.to_vec())
+        }
         _ => return MintlayerErrorCode::InvalidAccountCommand.into(),
     };
 
@@ -1324,29 +1327,39 @@ enum IsTokenUnfreezable {
     Yes,
 }
 
+type OrderId = H256;
+type TokenId = H256;
+
 #[derive(Encode)]
 enum AccountCommand {
     // Create certain amount of tokens and add them to circulating supply
     #[codec(index = 0)]
-    MintTokens(H256, Amount),
+    MintTokens(TokenId, Amount),
     // Take tokens out of circulation. Not the same as Burn because unminting means that certain
     // amount of tokens is no longer supported by underlying fiat currency, which can only be
     // done by the authority.
     #[codec(index = 1)]
-    UnmintTokens(H256),
+    UnmintTokens(TokenId),
     // After supply is locked tokens cannot be minted or unminted ever again.
     // Works only for Lockable tokens supply.
     #[codec(index = 2)]
-    LockTokenSupply(H256),
+    LockTokenSupply(TokenId),
     // Freezing token forbids any operation with all the tokens (except for optional unfreeze)
     #[codec(index = 3)]
-    FreezeToken(H256, IsTokenUnfreezable),
+    FreezeToken(TokenId, IsTokenUnfreezable),
     // By unfreezing token all operations are available for the tokens again
     #[codec(index = 4)]
-    UnfreezeToken(H256),
+    UnfreezeToken(TokenId),
     // Change the authority who can authorize operations for a token
     #[codec(index = 5)]
-    ChangeTokenAuthority(H256, Destination),
+    ChangeTokenAuthority(TokenId, Destination),
+    #[codec(index = 6)]
+    ConcludeOrder(OrderId),
+    #[codec(index = 7)]
+    FillOrder(OrderId, OutputValue, Destination),
+    // Change token metadata uri
+    #[codec(index = 8)]
+    ChangeTokenMetadataUri(TokenId, parity_scale_codec::alloc::vec::Vec<u8>),
 }
 
 #[derive(Encode)]
