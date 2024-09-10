@@ -19,7 +19,6 @@ async def get_public_key(
     from trezor.ui.layouts import show_pubkey
 
     from apps.common import paths
-    print("inside get pk of mintlayer")
 
     await paths.validate_path(keychain, msg.address_n)
     node = keychain.derive(msg.address_n)

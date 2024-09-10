@@ -4,7 +4,7 @@ from trezor.messages import MintlayerSignTx, MintlayerTxRequestSerializedType, M
 from micropython import const
 from typing import TYPE_CHECKING
 
-from trezor import workflow
+from trezor import workflow, log
 from trezor.crypto.hashlib import blake2b
 from trezor.crypto import mintlayer_utils
 from trezor.enums import AmountUnit
@@ -97,12 +97,14 @@ class Mintlayer:
 
         # Check that inputs are unchanged. Serialize inputs and sign the non-segwit ones.
         encoded_inputs, encoded_input_utxos = await self.step4_serialize_inputs()
-        print("encoded inputs", encoded_inputs)
-        print("encoded utxos", encoded_input_utxos)
+        if __debug__:
+            log.debug(__name__, f"encoded inputs: {encoded_inputs}")
+            log.debug(__name__, f"encoded utxos: {encoded_input_utxos}")
 
         # Serialize outputs.
         encoded_outputs = await self.step5_serialize_outputs()
-        print("encoded outputs", encoded_outputs)
+        if __debug__:
+            log.debug(__name__, f"encoded outputs: {encoded_outputs}")
 
         # Sign segwit inputs and serialize witness data.
         signatures = await self.step6_sign_inputs(encoded_inputs, encoded_input_utxos, encoded_outputs)
@@ -271,7 +273,6 @@ class Mintlayer:
         if out.transfer:
             x = out.transfer
             data = mintlayer_decode_address_to_bytes(x.address)
-            print(f'addr: {x.address} bytes: {data}')
             token_id = b'' if not x.value.token else x.value.token.token_id
             encoded_out = mintlayer_utils.encode_transfer_output(x.value.amount, token_id, data)
         elif out.lock_then_transfer:
@@ -352,18 +353,14 @@ class Mintlayer:
 
 
                 writer.extend(len(encoded_inputs).to_bytes(4, 'little'))
-                print(f'encoded inputs {encoded_inputs}')
                 for inp in encoded_inputs:
                     writer.extend(inp)
 
                 writer.extend(len(encoded_input_utxos).to_bytes(4, 'little'))
-                print(encoded_input_utxos)
                 for utxo in encoded_input_utxos:
                     writer.extend(utxo)
 
                 encoded_len = mintlayer_utils.encode_compact_length(len(encoded_outputs))
-                print(f'compact len {encoded_len}')
-                print(f'encoded outputs {encoded_outputs}')
                 writer.extend(encoded_len)
                 for out in encoded_outputs:
                     writer.extend(out)
@@ -371,10 +368,8 @@ class Mintlayer:
                 hash = writer.get_digest()[:32]
                 private_key = node.private_key()
                 digest = blake2b(hash).digest()[:32]
-                print(f"hash {list(hash)}, digest {list(digest)}")
 
                 sig = bip340.sign(private_key, digest)
-                print("got a signature", sig)
                 sigs.append((sig, multisig_idx))
             signatures.append(sigs)
 
