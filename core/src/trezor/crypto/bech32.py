@@ -126,9 +126,8 @@ def convertbits(
 
     return ret
 
-def reverse_convertbits(
-    data: Sequence[int], frombits: int, tobits: int
-) -> list[int]:
+
+def reverse_convertbits(data: Sequence[int], frombits: int, tobits: int) -> list[int]:
     acc = 0
     bits = 0
     ret = []
@@ -145,7 +144,7 @@ def reverse_convertbits(
 
 
 def mintlayer_bech32_decode(bech32_str):
-    if not (1 <= len(bech32_str) <= 90):
+    if not 1 <= len(bech32_str) <= 90:
         raise ValueError("Invalid length of Bech32 string")
 
     if not (bech32_str.lower() == bech32_str or bech32_str.upper() == bech32_str):
@@ -173,6 +172,7 @@ def mintlayer_bech32_decode(bech32_str):
     #     raise ValueError("Invalid checksum")
 
     return hrp, decoded[:-6]
+
 
 def mintlayer_decode_address_to_bytes(address: str | None) -> bytes:
     if address is None:

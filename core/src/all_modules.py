@@ -579,8 +579,6 @@ if not utils.BITCOIN_ONLY:
     import apps.mintlayer.sign_tx.progress
     apps.mintlayer.sign_tx.signer
     import apps.mintlayer.sign_tx.signer
-    apps.mintlayer.writers
-    import apps.mintlayer.writers
     apps.monero
     import apps.monero
     apps.monero.diag

@@ -1,20 +1,21 @@
 from typing import TYPE_CHECKING
 
 from apps.common.keychain import with_slip44_keychain
-from .. import CURVE, SLIP44_ID, PATTERNS
+
+from .. import CURVE, PATTERNS, SLIP44_ID
 
 if TYPE_CHECKING:
     from typing import Protocol
 
     from trezor.messages import (
         MintlayerSignTx,
+        MintlayerTxRequest,
         TxAckInput,
         TxAckOutput,
         TxAckPrevExtraData,
         TxAckPrevInput,
         TxAckPrevMeta,
         TxAckPrevOutput,
-        MintlayerTxRequest,
     )
 
     from apps.common.coininfo import CoinInfo
@@ -49,15 +50,13 @@ async def sign_tx(
     msg: MintlayerSignTx,
     keychain: Keychain,
 ) -> MintlayerTxRequest:
-    from trezor.wire import DataError
     from trezor.enums import MintlayerRequestType
     from trezor.messages import MintlayerTxRequest
+    from trezor.wire import DataError
     from trezor.wire.context import call
 
-    from . import progress
+    from . import helpers, progress
     from .signer import Mintlayer
-    from . import helpers
-
 
     if msg.inputs_count == 0:
         raise DataError("Cannot sign a transaction with 0 inputs")
@@ -77,6 +76,4 @@ async def sign_tx(
             res = await req.confirm_dialog()
             progress.progress.report_init()
         else:
-
             raise TypeError("Invalid signing instruction")
-

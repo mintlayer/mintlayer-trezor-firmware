@@ -87,7 +87,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(
     mod_trezormintlayer_utils_mintlayer_encode_utxo_input_obj,
     mod_trezormintlayer_utils_mintlayer_encode_utxo_input);
 
-/// def encode_account_spending_input(nonce: int, delegation_id: str, amount:
+/// def encode_account_spending_input(nonce: int, delegation_id: bytes, amount:
 /// bytes) -> bytes:
 ///     """
 ///     encodes an utxo account spendinf from nonce and delegation id
@@ -125,10 +125,11 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(
     mod_trezormintlayer_utils_mintlayer_encode_account_spending_input_obj,
     mod_trezormintlayer_utils_mintlayer_encode_account_spending_input);
 
-/// def encode_account_command_input(nonce: int, command: int token_id: str,
+/// def encode_account_command_input(nonce: int, command: int, token_id: bytes,
 /// data: bytes) -> bytes:
 ///     """
-///     encodes an account command from the nonce, command, token id and additional command data
+///     encodes an account command from the nonce, command, token id and
+///     additional command data
 ///     """
 STATIC mp_obj_t
 mod_trezormintlayer_utils_mintlayer_encode_account_command_input(
@@ -164,8 +165,8 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_trezormintlayer_utils_mintlayer_encode_account_command_input_obj, 4, 4,
     mod_trezormintlayer_utils_mintlayer_encode_account_command_input);
 
-/// def encode_transfer_output(amount: str, token_id: str, address: str) ->
-/// bytes:
+/// def encode_transfer_output(amount: bytes, token_id: bytes, address: bytes)
+/// -> bytes:
 ///     """
 ///     encodes a transfer output with given amount and destination address
 ///     """
@@ -196,10 +197,11 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(
     mod_trezormintlayer_utils_mintlayer_encode_transfer_output_obj,
     mod_trezormintlayer_utils_mintlayer_encode_transfer_output);
 
-/// def encode_lock_then_transfer_output(amount: str, token_id: str, lock_type:
-/// int, lock_amount:int, address: str) -> bytes:
+/// def encode_lock_then_transfer_output(amount: bytes, token_id: bytes,
+/// lock_type: int, lock_amount:int, address: bytes) -> bytes:
 ///     """
-///     encodes a transfer output with given amount, lock type and amount, and destination address
+///     encodes a transfer output with given amount, lock type and amount, and
+///     destination address
 ///     """
 STATIC mp_obj_t
 mod_trezormintlayer_utils_mintlayer_encode_lock_then_transfer_output(
@@ -231,7 +233,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_trezormintlayer_utils_mintlayer_encode_lock_then_transfer_output_obj, 5,
     5, mod_trezormintlayer_utils_mintlayer_encode_lock_then_transfer_output);
 
-/// def encode_burn_output(amount: str, token_id: str) ->
+/// def encode_burn_output(amount: bytes, token_id: bytes) ->
 /// bytes:
 ///     """
 ///     encodes a burn output with given amount
@@ -260,9 +262,9 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
     mod_trezormintlayer_utils_mintlayer_encode_burn_output_obj,
     mod_trezormintlayer_utils_mintlayer_encode_burn_output);
 
-/// def encode_create_stake_pool_output(pool_id: str, pledge_amount: str,
-/// staker: str, vrf_public_key: str, decommission_key: str,
-/// margin_ratio_per_thousand: int, cost_per_block: str) -> bytes:
+/// def encode_create_stake_pool_output(pool_id: bytes, pledge_amount: bytes,
+/// staker: bytes, vrf_public_key: bytes, decommission_key: bytes,
+/// margin_ratio_per_thousand: int, cost_per_block: bytes) -> bytes:
 ///     """
 ///     encodes a create stake pool output
 ///     """
@@ -304,7 +306,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_trezormintlayer_utils_mintlayer_encode_create_stake_pool_output_obj, 7,
     7, mod_trezormintlayer_utils_mintlayer_encode_create_stake_pool_output);
 
-/// def encode_produce_from_stake_output(destination: str, pool_id: str) ->
+/// def encode_produce_from_stake_output(destination: bytes, pool_id: bytes) ->
 /// bytes:
 ///     """
 ///     encodes a produce from stake output
@@ -334,8 +336,8 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
     mod_trezormintlayer_utils_mintlayer_encode_produce_from_stake_output_obj,
     mod_trezormintlayer_utils_mintlayer_encode_produce_from_stake_output);
 
-/// def encode_create_delegation_id_output(destination: str, pool_id: str) ->
-/// bytes:
+/// def encode_create_delegation_id_output(destination: bytes, pool_id: bytes)
+/// -> bytes:
 ///     """
 ///     encodes a create delegation id output
 ///     """
@@ -364,7 +366,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
     mod_trezormintlayer_utils_mintlayer_encode_create_delegation_id_output_obj,
     mod_trezormintlayer_utils_mintlayer_encode_create_delegation_id_output);
 
-/// def encode_delegate_staking_output(amount: str, delegation_id: str) ->
+/// def encode_delegate_staking_output(amount: bytes, delegation_id: bytes) ->
 /// bytes:
 ///     """
 ///     encodes a delegation staking output, given the amount and delegation id
@@ -394,9 +396,9 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
     mod_trezormintlayer_utils_mintlayer_encode_delegate_staking_output_obj,
     mod_trezormintlayer_utils_mintlayer_encode_delegate_staking_output);
 
-/// def encode_issue_fungible_token_output(token_ticker: str,
-/// number_of_decimals: int, metadata_uri: str, total_supply_type: int,
-/// fixed_amount: str, authority: str, is_freezable: int) -> bytes:
+/// def encode_issue_fungible_token_output(token_ticker: bytes,
+/// number_of_decimals: int, metadata_uri: bytes, total_supply_type: int,
+/// fixed_amount: bytes, authority: bytes, is_freezable: int) -> bytes:
 ///     """
 ///     encodes a issue fungible token output
 ///     """
@@ -436,10 +438,10 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     7, 7,
     mod_trezormintlayer_utils_mintlayer_encode_issue_fungible_token_output);
 
-/// def encode_issue_nft_output(token_id: str,
-/// creator: str, name: str, destination: str,
-/// ticker: str, icon_uri: str, additional_metadata_uri: str, media_uri: str,
-/// media_hash: str, destination: str) -> bytes:
+/// def encode_issue_nft_output(token_id: bytes,
+/// creator: bytes, name: bytes, destination: bytes,
+/// ticker: bytes, icon_uri: bytes, additional_metadata_uri: bytes, media_uri:
+/// bytes, media_hash: bytes, destination: bytes) -> bytes:
 ///     """
 ///     encodes a issue NFT output
 ///     """
@@ -488,7 +490,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_trezormintlayer_utils_mintlayer_encode_issue_nft_output_obj, 10, 10,
     mod_trezormintlayer_utils_mintlayer_encode_issue_nft_output);
 
-/// def encode_data_deposit_output(deposit: str) ->
+/// def encode_data_deposit_output(deposit: bytes) ->
 /// bytes:
 ///     """
 ///     encodes a data deposit output
@@ -515,9 +517,9 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(
     mod_trezormintlayer_utils_mintlayer_encode_data_deposit_output_obj,
     mod_trezormintlayer_utils_mintlayer_encode_data_deposit_output);
 
-/// def encode_htlc_output(amount: str, token_id: str, lock_type:
-/// int, lock_amount:int, refund_key: str, spend_key: str, secret_has: bytes) ->
-/// bytes:
+/// def encode_htlc_output(amount: bytes, token_id: bytes, lock_type:
+/// int, lock_amount:int, refund_key: bytes, spend_key: bytes, secret_has:
+/// bytes) -> bytes:
 ///     """
 ///     encodes an htlc output with given amount and lock
 ///     """
@@ -578,55 +580,3 @@ mod_trezormintlayer_utils_mintlayer_encode_comact_length(mp_obj_t length) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(
     mod_trezormintlayer_utils_mintlayer_encode_comact_length_obj,
     mod_trezormintlayer_utils_mintlayer_encode_comact_length);
-
-STATIC const mp_rom_map_elem_t mod_trezormintlayer_utils_globals_table[] = {
-    {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_bip32)},
-    {MP_ROM_QSTR(MP_QSTR_encode_utxo_input),
-     MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_utxo_input_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_account_spending_input),
-     MP_ROM_PTR(
-         &mod_trezormintlayer_utils_mintlayer_encode_account_spending_input_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_account_command_input),
-     MP_ROM_PTR(
-         &mod_trezormintlayer_utils_mintlayer_encode_account_command_input_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_transfer_output),
-     MP_ROM_PTR(
-         &mod_trezormintlayer_utils_mintlayer_encode_transfer_output_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_lock_then_transfer_output),
-     MP_ROM_PTR(
-         &mod_trezormintlayer_utils_mintlayer_encode_lock_then_transfer_output_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_burn_output),
-     MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_burn_output_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_create_stake_pool_output),
-     MP_ROM_PTR(
-         &mod_trezormintlayer_utils_mintlayer_encode_create_stake_pool_output_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_produce_from_stake_output),
-     MP_ROM_PTR(
-         &mod_trezormintlayer_utils_mintlayer_encode_produce_from_stake_output_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_create_delegation_id_output),
-     MP_ROM_PTR(
-         &mod_trezormintlayer_utils_mintlayer_encode_create_delegation_id_output_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_delegate_staking_output),
-     MP_ROM_PTR(
-         &mod_trezormintlayer_utils_mintlayer_encode_delegate_staking_output_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_issue_fungible_token_output),
-     MP_ROM_PTR(
-         &mod_trezormintlayer_utils_mintlayer_encode_issue_fungible_token_output_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_issue_nft_output),
-     MP_ROM_PTR(
-         &mod_trezormintlayer_utils_mintlayer_encode_issue_nft_output_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_data_deposit_output),
-     MP_ROM_PTR(
-         &mod_trezormintlayer_utils_mintlayer_encode_data_deposit_output_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_htlc_output),
-     MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_htlc_output_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_compact_length),
-     MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_comact_length_obj)},
-};
-STATIC MP_DEFINE_CONST_DICT(mod_trezormintlayer_utils_globals,
-                            mod_trezormintlayer_utils_globals_table);
-
-STATIC const mp_obj_module_t mod_trezormintlayer_utils_module = {
-    .base = {&mp_type_module},
-    .globals = (mp_obj_dict_t *)&mod_trezormintlayer_utils_globals,
-};
