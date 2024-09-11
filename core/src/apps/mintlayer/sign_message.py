@@ -1,8 +1,10 @@
 from typing import TYPE_CHECKING
-from apps.common.keychain import with_slip44_keychain
-from . import CURVE, SLIP44_ID, PATTERNS
 
 from trezor.crypto import hashlib
+
+from apps.common.keychain import with_slip44_keychain
+
+from . import CURVE, PATTERNS, SLIP44_ID
 
 if TYPE_CHECKING:
     from trezor.messages import MessageSignature, MintlayerSignMessage
@@ -11,10 +13,12 @@ if TYPE_CHECKING:
 
 
 @with_slip44_keychain(*PATTERNS, curve=CURVE, slip44_id=SLIP44_ID)
-async def sign_message(msg: MintlayerSignMessage, keychain: Keychain) -> MessageSignature:
+async def sign_message(
+    msg: MintlayerSignMessage, keychain: Keychain
+) -> MessageSignature:
     from trezor.crypto.curve import bip340
-    from trezor.ui.layouts import confirm_signverify
     from trezor.messages import MessageSignature
+    from trezor.ui.layouts import confirm_signverify
 
     from apps.common.signverify import decode_message
 
@@ -40,4 +44,3 @@ async def sign_message(msg: MintlayerSignMessage, keychain: Keychain) -> Message
     other_sig = bip340.sign(node.private_key(), digest)
 
     return MessageSignature(signature=other_sig, address=msg.address)
-

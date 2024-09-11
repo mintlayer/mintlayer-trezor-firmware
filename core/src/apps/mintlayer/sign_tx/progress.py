@@ -1,11 +1,7 @@
 from typing import TYPE_CHECKING
 
-from trezor.messages import MintlayerSignTx
-
 if TYPE_CHECKING:
-    from trezor.messages import SignTx
-
-    from apps.common.coininfo import CoinInfo
+    from trezor.messages import MintlayerSignTx
 
 # Checking previous transactions typically requires the following pieces of
 # information to be fetched for each input:
@@ -105,4 +101,3 @@ class Progress:
 
 
 progress = Progress()
-

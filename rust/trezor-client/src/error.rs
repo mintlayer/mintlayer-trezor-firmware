@@ -103,11 +103,3 @@ pub enum Error {
     #[error("malformed MintlayerTxRequest: {0:?}")]
     MalformedMintlayerTxRequest(protos::MintlayerTxRequest),
 }
-
-impl PartialEq for Error {
-    fn eq(&self, _other: &Self) -> bool {
-        false
-    }
-}
-
-impl Eq for Error {}
