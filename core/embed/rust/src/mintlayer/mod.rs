@@ -164,9 +164,7 @@ extern "C" fn mintlayer_encode_account_command_input(
             };
             AccountCommand::ChangeTokenAuthority(token_id, destination)
         }
-        7 => {
-            AccountCommand::ChangeTokenMetadataUri(token_id, data.to_vec())
-        }
+        7 => AccountCommand::ChangeTokenMetadataUri(token_id, data.to_vec()),
         _ => return MintlayerErrorCode::InvalidAccountCommand.into(),
     };
 

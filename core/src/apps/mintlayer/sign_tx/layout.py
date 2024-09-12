@@ -204,14 +204,12 @@ async def confirm_total(
     fee: int,
     fee_rate: float,
     coin: CoinInfo,
-    address_n: Bip32Path | None,
 ) -> None:
 
     await layouts.confirm_total(
         format_coin_amount(spending.to_bytes(16, "big"), None),
         format_coin_amount(fee.to_bytes(16, "big"), None),
         fee_rate_amount=format_fee_rate(fee_rate, coin) if fee_rate >= 0 else None,
-        account_label=account_label(coin, address_n),
     )
 
 
