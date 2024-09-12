@@ -20,7 +20,6 @@ if TYPE_CHECKING:
     )
 
     from apps.common.coininfo import CoinInfo
-    from apps.common.paths import Bip32Path
 
 TX_HASH_SIZE = const(32)
 
@@ -64,13 +63,11 @@ class UiConfirmTotal(UiConfirm):
         fee: int,
         fee_rate: float,
         coin: CoinInfo,
-        address_n: Bip32Path | None,
     ):
         self.spending = spending
         self.fee = fee
         self.fee_rate = fee_rate
         self.coin = coin
-        self.address_n = address_n
 
     def confirm_dialog(self) -> Awaitable[Any]:
         return layout.confirm_total(
@@ -78,7 +75,6 @@ class UiConfirmTotal(UiConfirm):
             self.fee,
             self.fee_rate,
             self.coin,
-            self.address_n,
         )
 
 
@@ -110,42 +106,46 @@ class UiConfirmMultipleAccounts(UiConfirm):
         return layout.confirm_multiple_accounts()
 
 
-def confirm_output(output: MintlayerTxOutput, coin: CoinInfo, output_index: int, chunkify: bool) -> Awaitable[None]:  # type: ignore [awaitable-is-generator]
-    return (yield UiConfirmOutput(output, coin, output_index, chunkify))
+def confirm_output(output: MintlayerTxOutput, coin: CoinInfo, output_index: int, chunkify: bool) -> Awaitable[None]:  # type: ignore [awaitable-return-type]
+    return (
+        yield UiConfirmOutput(  # type: ignore [awaitable-return-type]
+            output, coin, output_index, chunkify
+        )
+    )
 
 
-def confirm_total(spending: int, fee: int, fee_rate: float, coin: CoinInfo, address_n: Bip32Path | None) -> Awaitable[None]:  # type: ignore [awaitable-is-generator]
-    return (yield UiConfirmTotal(spending, fee, fee_rate, coin, address_n))
+def confirm_total(spending: int, fee: int, fee_rate: float, coin: CoinInfo) -> Awaitable[None]:  # type: ignore [awaitable-return-type]
+    return (yield UiConfirmTotal(spending, fee, fee_rate, coin))  # type: ignore [awaitable-return-type]
 
 
-def confirm_change_count_over_threshold(change_count: int) -> Awaitable[Any]:  # type: ignore [awaitable-is-generator]
-    return (yield UiConfirmChangeCountOverThreshold(change_count))
+def confirm_change_count_over_threshold(change_count: int) -> Awaitable[Any]:  # type: ignore [awaitable-return-type]
+    return (yield UiConfirmChangeCountOverThreshold(change_count))  # type: ignore [awaitable-return-type]
 
 
-def confirm_unverified_external_input() -> Awaitable[Any]:  # type: ignore [awaitable-is-generator]
-    return (yield UiConfirmUnverifiedExternalInput())
+def confirm_unverified_external_input() -> Awaitable[Any]:  # type: ignore [awaitable-return-type]
+    return (yield UiConfirmUnverifiedExternalInput())  # type: ignore [awaitable-return-type]
 
 
-def confirm_foreign_address(address_n: list) -> Awaitable[Any]:  # type: ignore [awaitable-is-generator]
-    return (yield UiConfirmForeignAddress(address_n))
+def confirm_foreign_address(address_n: list) -> Awaitable[Any]:  # type: ignore [awaitable-return-type]
+    return (yield UiConfirmForeignAddress(address_n))  # type: ignore [awaitable-return-type]
 
 
-def confirm_multiple_accounts() -> Awaitable[Any]:  # type: ignore [awaitable-is-generator]
-    return (yield UiConfirmMultipleAccounts())
+def confirm_multiple_accounts() -> Awaitable[Any]:  # type: ignore [awaitable-return-type]
+    return (yield UiConfirmMultipleAccounts())  # type: ignore [awaitable-return-type]
 
 
-def request_tx_input(tx_req: MintlayerTxRequest, i: int) -> Awaitable[MintlayerTxInput]:  # type: ignore [awaitable-is-generator]
+def request_tx_input(tx_req: MintlayerTxRequest, i: int) -> Awaitable[MintlayerTxInput]:  # type: ignore [awaitable-return-type]
     from trezor.messages import MintlayerTxAckUtxoInput
 
     assert tx_req.details is not None
     tx_req.request_type = MintlayerRequestType.TXINPUT
     tx_req.details.request_index = i
-    ack = yield MintlayerTxAckUtxoInput, tx_req
+    ack = yield MintlayerTxAckUtxoInput, tx_req  # type: ignore [awaitable-return-type]
     _clear_tx_request(tx_req)
     return _sanitize_tx_input(ack.tx.input)
 
 
-def request_tx_output(tx_req: MintlayerTxRequest, i: int, tx_hash: bytes | None = None) -> Awaitable[MintlayerTxOutput]:  # type: ignore [awaitable-is-generator]
+def request_tx_output(tx_req: MintlayerTxRequest, i: int, tx_hash: bytes | None = None) -> Awaitable[MintlayerTxOutput]:  # type: ignore [awaitable-return-type]
     from trezor.messages import MintlayerTxAckOutput
 
     assert tx_req.details is not None
@@ -155,14 +155,14 @@ def request_tx_output(tx_req: MintlayerTxRequest, i: int, tx_hash: bytes | None 
     else:
         tx_req.request_type = MintlayerRequestType.TXOUTPUT
     tx_req.details.request_index = i
-    ack = yield MintlayerTxAckOutput, tx_req
+    ack = yield MintlayerTxAckOutput, tx_req  # type: ignore [awaitable-return-type]
     _clear_tx_request(tx_req)
     return _sanitize_tx_output(ack.tx.output)
 
 
-def request_tx_finish(tx_req: MintlayerTxRequest) -> Awaitable[None]:  # type: ignore [awaitable-is-generator]
+def request_tx_finish(tx_req: MintlayerTxRequest) -> Awaitable[None]:  # type: ignore [awaitable-return-type]
     tx_req.request_type = MintlayerRequestType.TXFINISHED
-    yield None, tx_req
+    yield None, tx_req  # type: ignore [awaitable-return-type]q
     _clear_tx_request(tx_req)
 
 

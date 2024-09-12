@@ -97,7 +97,6 @@ class Mintlayer:
             fee,
             fee_rate,
             coin,
-            None,
         )
 
         # Make sure proper progress is shown, in case dialog was not required
