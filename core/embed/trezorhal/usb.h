@@ -23,86 +23,41 @@
 #include <stdint.h>
 #include "secbool.h"
 
-#define USB_EP_DIR_MASK 0x80
-#define USB_EP_DIR_OUT 0x00
-#define USB_EP_DIR_IN 0x80
+#include "usb_hid.h"
+#include "usb_vcp.h"
+#include "usb_webusb.h"
 
-typedef struct __attribute__((packed)) {
-  uint8_t bLength;
-  uint8_t bDescriptorType;
-  uint16_t bcdUSB;
-  uint8_t bDeviceClass;
-  uint8_t bDeviceSubClass;
-  uint8_t bDeviceProtocol;
-  uint8_t bMaxPacketSize0;
-  uint16_t idVendor;
-  uint16_t idProduct;
-  uint16_t bcdDevice;
-  uint8_t iManufacturer;
-  uint8_t iProduct;
-  uint8_t iSerialNumber;
-  uint8_t bNumConfigurations;
-} usb_device_descriptor_t;
-
-typedef struct __attribute__((packed)) {
-  uint8_t bLength;
-  uint8_t bDescriptorType;
-  uint16_t wData;
-} usb_langid_descriptor_t;
-
-typedef struct __attribute__((packed)) {
-  uint8_t bLength;
-  uint8_t bDescriptorType;
-  uint16_t wTotalLength;
-  uint8_t bNumInterfaces;
-  uint8_t bConfigurationValue;
-  uint8_t iConfiguration;
-  uint8_t bmAttributes;
-  uint8_t bMaxPower;
-} usb_config_descriptor_t;
-
-typedef struct __attribute__((packed)) {
-  uint8_t bLength;
-  uint8_t bDescriptorType;
-  uint8_t bInterfaceNumber;
-  uint8_t bAlternateSetting;
-  uint8_t bNumEndpoints;
-  uint8_t bInterfaceClass;
-  uint8_t bInterfaceSubClass;
-  uint8_t bInterfaceProtocol;
-  uint8_t iInterface;
-} usb_interface_descriptor_t;
-
-typedef struct __attribute__((packed)) {
-  uint8_t bLength;
-  uint8_t bDescriptorType;
-  uint8_t bFirstInterface;
-  uint8_t bInterfaceCount;
-  uint8_t bFunctionClass;
-  uint8_t bFunctionSubClass;
-  uint8_t bFunctionProtocol;
-  uint8_t iFunction;
-} usb_interface_assoc_descriptor_t;
-
-typedef struct __attribute__((packed)) {
-  uint8_t bLength;
-  uint8_t bDescriptorType;
-  uint8_t bEndpointAddress;
-  uint8_t bmAttributes;
-  uint16_t wMaxPacketSize;
-  uint8_t bInterval;
-} usb_endpoint_descriptor_t;
-
-typedef enum {
-  USB_LANGID_ENGLISH_US = 0x409,
-} usb_language_id_t;
-
-typedef struct {
-  const char *manufacturer;
-  const char *product;
-  const char *serial_number;
-  const char *interface;
-} usb_dev_string_table_t;
+// clang-format off
+//
+// USB stack high-level state machine
+// ------------------------------------
+//
+//              +---------------+
+//        ----> | Uninitialized |   - Stack is completely uninitialized
+//        |     +---------------+
+//        |            |
+//        |         usb_init()
+//   usb_deinit()      |
+//        |            v
+//        |     +---------------+   - Stack is partially initialized
+//        |-----|  Initialized  |   - Ready for class registration
+//        |     +---------------+
+//        |            |
+//        |       N x usb_xxx_add() - Multiple class drivers can be registered
+//        |            |
+//        |            v
+//        |     +---------------+   - Stack is completely initialized
+//        |-----|    Stopped    |   - USB hardware left uninitialized
+//        |     +---------------+   - Can go low power at this mode
+//        |        |        ^
+//        |    usb_start()  |
+//        |        |     usb_stop()
+//        |        v        |
+//        |     +---------------+   - USB hardware initialized
+//        ------|    Running    |   - Stack is running if the USB host is connected
+//              +---------------+
+//
+// clang-format on
 
 typedef struct {
   uint8_t device_class;
@@ -119,30 +74,44 @@ typedef struct {
   secbool usb21_landing;
 } usb_dev_info_t;
 
-typedef enum {
-  USB_IFACE_TYPE_DISABLED = 0,
-  USB_IFACE_TYPE_VCP = 1,
-  USB_IFACE_TYPE_HID = 2,
-  USB_IFACE_TYPE_WEBUSB = 3,
-} usb_iface_type_t;
+// Initializes USB stack
+//
+// When the USB driver is initialized, class drivers can be registered.
+// After all class drivers are registered, `usb_start()` can  be called.
+//
+// Returns `sectrue` if the initialization is successful.
+secbool usb_init(const usb_dev_info_t *dev_info);
 
-#include "usb_hid-defs.h"
-#include "usb_vcp-defs.h"
-#include "usb_webusb-defs.h"
-
-typedef struct {
-  union {
-    usb_hid_state_t hid;
-    usb_vcp_state_t vcp;
-    usb_webusb_state_t webusb;
-  };
-  usb_iface_type_t type;
-} usb_iface_t;
-
-void usb_init(const usb_dev_info_t *dev_info);
+// Deinitialize USB stack
+//
+// This function completely deinitializes the USB driver and all class drivers.
+// After this function is called, `usb_init()` can be called again.
 void usb_deinit(void);
-void usb_start(void);
+
+// Starts USB driver and its class drivers
+//
+// Initializes the USB stack (and hardware) and starts all registered class
+// drivers.
+//
+// This function can called after all class drivers are registered or after
+// `usb_stop()` is called.
+//
+// Returns `sectrue` if the USB stack is started successfully.
+secbool usb_start(void);
+
+// Stops USB driver and its class drivers
+//
+// Unitializes the USB stack (and hardware) but leaves all configuration intact,
+// so it can be started again with `usb_start()`.
+//
+// When the USB stack is stopped, it does not respond to any USB events and
+// the CPU can go to stop/standby mode.
 void usb_stop(void);
+
+// Returns `sectrue` if the device is connected to the host (or is expected to
+// be)
+//
+// TODO: Review and clarify the logic of this function in the future
 secbool usb_configured(void);
 
 #endif

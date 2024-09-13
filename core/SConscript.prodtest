@@ -1,12 +1,14 @@
 # pylint: disable=E0602
 
 import os
-import tools
+import tools, models
 
 TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T')
 CMAKELISTS = int(ARGUMENTS.get('CMAKELISTS', 0))
 PRODUCTION = ARGUMENTS.get('PRODUCTION', '0') == '1'
 BOOTLOADER_DEVEL = ARGUMENTS.get('BOOTLOADER_DEVEL', '0') == '1'
+HW_REVISION = ARGUMENTS.get('HW_REVISION', None)
+NEW_RENDERING = ARGUMENTS.get('NEW_RENDERING', '1') == '1'
 
 if TREZOR_MODEL in ('DISC1', 'DISC2'):
     # skip prodtest build
@@ -21,6 +23,9 @@ if TREZOR_MODEL in ('DISC1', 'DISC2'):
 
 FEATURES_WANTED = ["input", "sbu", "sd_card", "rdb_led", "usb", "consumption_mask", "optiga", "haptic"]
 
+if NEW_RENDERING:
+    FEATURES_WANTED.append("new_rendering")
+
 CCFLAGS_MOD = ''
 CPPPATH_MOD = []
 CPPDEFINES_MOD = [
@@ -28,22 +33,38 @@ CPPDEFINES_MOD = [
     'USE_INSECURE_PRNG',
 ]
 SOURCE_MOD = []
+SOURCE_MOD_CRYPTO = []
 CPPDEFINES_HAL = []
 SOURCE_HAL = []
 PATH_HAL = []
 
-if TREZOR_MODEL in ('1', 'R'):
+if TREZOR_MODEL in ('1', 'R', 'T3B1'):
     FONT_NORMAL=None
     FONT_DEMIBOLD=None
     FONT_BOLD='Font_PixelOperator_Bold_8'
     FONT_MONO=None
     FONT_BIG=None
-elif TREZOR_MODEL in ('T', 'T3T1'):
+    FONT_NORMAL_UPPER=None
+    FONT_BOLD_UPPER=None
+    FONT_SUB=None
+elif TREZOR_MODEL in ('T',):
     FONT_NORMAL=None
     FONT_DEMIBOLD=None
     FONT_BOLD='Font_Roboto_Bold_20'
     FONT_MONO=None
     FONT_BIG=None
+    FONT_NORMAL_UPPER=None
+    FONT_BOLD_UPPER=None
+    FONT_SUB=None
+elif TREZOR_MODEL in ('T3T1',):
+    FONT_NORMAL='Font_TTSatoshi_DemiBold_21'
+    FONT_DEMIBOLD=None
+    FONT_BOLD='Font_TTSatoshi_DemiBold_21'
+    FONT_MONO='Font_RobotoMono_Medium_21'
+    FONT_BIG=None
+    FONT_NORMAL_UPPER=None
+    FONT_BOLD_UPPER=None
+    FONT_SUB=None
 
 # modtrezorcrypto
 CPPPATH_MOD += [
@@ -51,6 +72,9 @@ CPPPATH_MOD += [
     'vendor/trezor-storage',
 ]
 SOURCE_MOD += [
+    'vendor/trezor-storage/flash_area.c',
+]
+SOURCE_MOD_CRYPTO += [
     'vendor/trezor-crypto/aes/aes_modes.c',
     'vendor/trezor-crypto/aes/aesccm.c',
     'vendor/trezor-crypto/aes/aescrypt.c',
@@ -71,7 +95,6 @@ SOURCE_MOD += [
     'vendor/trezor-crypto/secp256k1.c',
     'vendor/trezor-crypto/sha2.c',
     'vendor/trezor-crypto/tls_prf.c',
-    'vendor/trezor-storage/flash_area.c',
 ]
 
 # modtrezorui
@@ -82,9 +105,13 @@ CPPPATH_MOD += [
 SOURCE_MOD += [
     'embed/lib/colors.c',
     'embed/lib/display_utils.c',
-    'embed/lib/display.c',
+    'embed/lib/error_handling.c',
     'embed/lib/fonts/font_bitmap.c',
     'embed/lib/fonts/fonts.c',
+    'embed/lib/gfx_color.c',
+    'embed/lib/gfx_bitblt_rgb565.c',
+    'embed/lib/gfx_bitblt_rgba8888.c',
+    'embed/lib/gfx_bitblt_mono8.c',
     'embed/lib/image.c',
     'embed/lib/mini_printf.c',
     'embed/lib/qr-code-generator/qrcodegen.c',
@@ -94,19 +121,34 @@ SOURCE_MOD += [
     'vendor/micropython/lib/uzlib/tinflate.c',
 ]
 
+
+if NEW_RENDERING:
+    CPPDEFINES_MOD += ['NEW_RENDERING']
+    SOURCE_MOD += [
+        'embed/lib/gfx_draw.c',
+    ]
+else:
+    SOURCE_MOD += [
+        'embed/lib/display_draw.c',
+    ]
+
+
 # fonts
 tools.add_font('NORMAL', FONT_NORMAL, CPPDEFINES_MOD, SOURCE_MOD)
 tools.add_font('BOLD', FONT_BOLD, CPPDEFINES_MOD, SOURCE_MOD)
 tools.add_font('DEMIBOLD', FONT_DEMIBOLD, CPPDEFINES_MOD, SOURCE_MOD)
 tools.add_font('MONO', FONT_MONO, CPPDEFINES_MOD, SOURCE_MOD)
 tools.add_font('BIG', FONT_BIG, CPPDEFINES_MOD, SOURCE_MOD)
+tools.add_font('NORMAL_UPPER', FONT_NORMAL_UPPER, CPPDEFINES_MOD, SOURCE_MOD)
+tools.add_font('BOLD_UPPER', FONT_BOLD_UPPER, CPPDEFINES_MOD, SOURCE_MOD)
+tools.add_font('SUB', FONT_SUB, CPPDEFINES_MOD, SOURCE_MOD)
 
 env = Environment(
     ENV=os.environ,
     CFLAGS='%s -DPRODUCTION=%s' % (ARGUMENTS.get('CFLAGS', ''), ARGUMENTS.get('PRODUCTION', '0')),
     CPPDEFINES_IMPLICIT=[])
 
-FEATURES_AVAILABLE = tools.configure_board(TREZOR_MODEL, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
+FEATURES_AVAILABLE = models.configure_board(TREZOR_MODEL, HW_REVISION, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
 
 FILE_SUFFIX= env.get('ENV')['SUFFIX']
 LINKER_SCRIPT_SUFFIX= env.get('ENV')['LINKER_SCRIPT']
@@ -169,12 +211,12 @@ env.Replace(
     )
 
 env.Replace(
-    HEADERTOOL='tools/headertool.py',
+    HEADERTOOL='headertool',
 )
 
 
 env.Replace(
-    ALLSOURCES=SOURCE_MOD + SOURCE_PRODTEST + SOURCE_HAL,
+    ALLSOURCES=SOURCE_MOD + SOURCE_MOD_CRYPTO + SOURCE_PRODTEST + SOURCE_HAL,
     ALLDEFS=tools.get_defs_for_cmake(env['CPPDEFINES'] + env['CPPDEFINES_IMPLICIT']))
 
 cmake_gen = env.Command(
@@ -190,10 +232,11 @@ cmake_gen = env.Command(
 
 obj_program = []
 obj_program.extend(env.Object(source=SOURCE_MOD))
+obj_program.extend(env.Object(source=SOURCE_MOD_CRYPTO, CCFLAGS='$CCFLAGS -ftrivial-auto-var-init=zero'))
 obj_program.extend(env.Object(source=SOURCE_PRODTEST))
 obj_program.extend(env.Object(source=SOURCE_HAL))
 
-MODEL_IDENTIFIER = tools.get_model_identifier(TREZOR_MODEL)
+MODEL_IDENTIFIER = models.get_model_identifier(TREZOR_MODEL)
 
 
 if (vh := ARGUMENTS.get("VENDOR_HEADER", None)):
@@ -203,13 +246,13 @@ elif (vh := os.environ.get("VENDOR_HEADER", None)):
     # of vendor header which does not affect reproducibility of the build. Nonetheless,
     # we should figure out a cleaner way to pass in this argument, without having to teach
     # the Makefile about it.
-    VENDORHEADER = f'embed/vendorheader/{MODEL_IDENTIFIER}/{vh}'
+    VENDORHEADER = f'embed/models/{MODEL_IDENTIFIER}/vendorheader/{vh}'
 elif PRODUCTION:
-    VENDORHEADER = f'embed/vendorheader/{MODEL_IDENTIFIER}/vendorheader_prodtest_signed_prod.bin'
+    VENDORHEADER = f'embed/models/{MODEL_IDENTIFIER}/vendorheader/vendorheader_prodtest_signed_prod.bin'
 elif BOOTLOADER_DEVEL:
-    VENDORHEADER = f'embed/vendorheader/{MODEL_IDENTIFIER}/vendorheader_dev_DO_NOT_SIGN_signed_dev.bin'
+    VENDORHEADER = f'embed/models/{MODEL_IDENTIFIER}/vendorheader/vendorheader_dev_DO_NOT_SIGN_signed_dev.bin'
 else:
-    VENDORHEADER = f'embed/vendorheader/{MODEL_IDENTIFIER}/vendorheader_unsafe_signed_prod.bin'
+    VENDORHEADER = f'embed/models/{MODEL_IDENTIFIER}/vendorheader/vendorheader_unsafe_signed_prod.bin'
 
 
 
@@ -228,7 +271,7 @@ program_elf = env.Command(
     '$LINK -o $TARGET $CCFLAGS $CFLAGS $LINKFLAGS $SOURCES -lc_nano -lgcc',
 )
 
-BINARY_NAME = f"build/prodtest/prodtest-{tools.get_model_identifier(TREZOR_MODEL)}"
+BINARY_NAME = f"build/prodtest/prodtest-{models.get_model_identifier(TREZOR_MODEL)}"
 BINARY_NAME += "-" + tools.get_version('embed/prodtest/version.h')
 BINARY_NAME += "-" + tools.get_git_revision_short_hash()
 BINARY_NAME += "-dirty" if tools.get_git_modified() else ""

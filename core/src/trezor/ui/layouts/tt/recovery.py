@@ -1,9 +1,8 @@
-from typing import Callable, Iterable
+from typing import TYPE_CHECKING, Callable
 
 import trezorui2
 from trezor import TR
-from trezor.enums import ButtonRequestType
-from trezor.wire.context import wait as ctx_wait
+from trezor.enums import ButtonRequestType, RecoveryType
 
 from ..common import interact
 from . import RustLayout, raise_if_not_confirmed
@@ -11,23 +10,26 @@ from . import RustLayout, raise_if_not_confirmed
 CONFIRMED = trezorui2.CONFIRMED  # global_import_cache
 INFO = trezorui2.INFO  # global_import_cache
 
+if TYPE_CHECKING:
+    from apps.management.recovery_device.layout import RemainingSharesInfo
 
-async def _is_confirmed_info(
+
+async def _homepage_with_info(
     dialog: RustLayout,
     info_func: Callable,
-) -> bool:
+) -> trezorui2.UiResult:
     while True:
-        result = await ctx_wait(dialog)
+        result = await dialog
 
-        if result is trezorui2.INFO:
+        if result is INFO:
             await info_func()
             dialog.request_complete_repaint()
         else:
-            return result is CONFIRMED
+            return result
 
 
-async def request_word_count(dry_run: bool) -> int:
-    selector = RustLayout(trezorui2.select_word_count(dry_run=dry_run))
+async def request_word_count(recovery_type: RecoveryType) -> int:
+    selector = RustLayout(trezorui2.select_word_count(recovery_type=recovery_type))
     count = await interact(selector, "word_count", ButtonRequestType.MnemonicWordCount)
     return int(count)
 
@@ -50,12 +52,12 @@ async def request_word(
             )
         )
 
-    word: str = await ctx_wait(keyboard)
+    word: str = await keyboard
     return word
 
 
 async def show_remaining_shares(
-    groups: Iterable[tuple[int, tuple[str, ...]]],  # remaining + list 3 words
+    groups: set[tuple[str, ...]],
     shares_remaining: list[int],
     group_threshold: int,
 ) -> None:
@@ -63,7 +65,9 @@ async def show_remaining_shares(
     from trezor.crypto.slip39 import MAX_SHARE_COUNT
 
     pages: list[tuple[str, str]] = []
-    for remaining, group in groups:
+    completed_groups = shares_remaining.count(0)
+
+    for group, remaining in zip(groups, shares_remaining):
         if 0 < remaining < MAX_SHARE_COUNT:
             title = strings.format_plural(
                 TR.recovery__x_more_items_starting_template_plural,
@@ -72,10 +76,8 @@ async def show_remaining_shares(
             )
             words = "\n".join(group)
             pages.append((title, words))
-        elif (
-            remaining == MAX_SHARE_COUNT and shares_remaining.count(0) < group_threshold
-        ):
-            groups_remaining = group_threshold - shares_remaining.count(0)
+        elif remaining == MAX_SHARE_COUNT and completed_groups < group_threshold:
+            groups_remaining = group_threshold - completed_groups
             title = strings.format_plural(
                 TR.recovery__x_more_items_starting_template_plural,
                 groups_remaining,
@@ -112,43 +114,85 @@ async def show_group_share_success(share_index: int, group_index: int) -> None:
     )
 
 
+async def _confirm_abort(dry_run: bool = False) -> None:
+    from . import confirm_action
+
+    if dry_run:
+        await confirm_action(
+            "abort_recovery",
+            TR.recovery__title_cancel_dry_run,
+            TR.recovery__cancel_dry_run,
+            description=TR.recovery__wanna_cancel_dry_run,
+            verb=TR.buttons__cancel,
+            br_code=ButtonRequestType.ProtectCall,
+        )
+    else:
+        await confirm_action(
+            "abort_recovery",
+            TR.recovery__title_cancel_recovery,
+            TR.recovery__progress_will_be_lost,
+            TR.recovery__wanna_cancel_recovery,
+            verb=TR.buttons__cancel,
+            reverse=True,
+            br_code=ButtonRequestType.ProtectCall,
+        )
+
+
 async def continue_recovery(
     button_label: str,
     text: str,
     subtext: str | None,
-    info_func: Callable | None,
-    dry_run: bool,
-    show_info: bool = False,  # unused on TT
+    recovery_type: RecoveryType,
+    show_info: bool = False,
+    remaining_shares_info: "RemainingSharesInfo | None" = None,
 ) -> bool:
+    from trezor.wire import ActionCancelled
+
     from ..common import button_request
 
     if show_info:
         # Show this just one-time
-        description = TR.recovery__only_first_n_letters
+        description = TR.recovery__enter_each_word
     else:
         description = subtext or ""
 
-    homepage = RustLayout(
-        trezorui2.confirm_recovery(
-            title=text,
-            description=description,
-            button=button_label.upper(),
-            info_button=info_func is not None,
-            dry_run=dry_run,
+    while True:
+        homepage = RustLayout(
+            trezorui2.confirm_recovery(
+                title=text,
+                description=description,
+                button=button_label,
+                recovery_type=recovery_type,
+                info_button=remaining_shares_info is not None,
+            )
         )
-    )
 
-    await button_request("recovery", ButtonRequestType.RecoveryHomepage)
+        await button_request("recovery", ButtonRequestType.RecoveryHomepage)
 
-    if info_func is not None:
-        return await _is_confirmed_info(homepage, info_func)
-    else:
-        result = await ctx_wait(homepage)
-        return result is CONFIRMED
+        if remaining_shares_info is None:
+            result = await homepage
+        else:
+            groups, shares_remaining, group_threshold = remaining_shares_info
+            result = await _homepage_with_info(
+                homepage,
+                lambda: show_remaining_shares(
+                    groups, shares_remaining, group_threshold
+                ),
+            )
+
+        if result is CONFIRMED:
+            return True
+
+        try:
+            await _confirm_abort(recovery_type != RecoveryType.NormalRecovery)
+        except ActionCancelled:
+            pass
+        else:
+            return False
 
 
 async def show_recovery_warning(
-    br_type: str,
+    br_name: str,
     content: str,
     subheader: str | None = None,
     button: str | None = None,
@@ -161,11 +205,11 @@ async def show_recovery_warning(
                 trezorui2.show_warning(
                     title=content,
                     description=subheader or "",
-                    button=button.upper(),
+                    button=button,
                     allow_cancel=False,
                 )
             ),
-            br_type,
+            br_name,
             br_code,
         )
     )

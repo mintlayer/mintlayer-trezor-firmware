@@ -94,7 +94,7 @@ def _amount_to_int(
     if value.isdigit():
         return int(value)
     try:
-        number, unit = re.match(r"^(\d+(?:.\d+)?)([a-z]+)", value).groups()  # type: ignore ["groups" is not a known member of "None"]
+        number, unit = re.match(r"^(\d+(?:.\d+)?)([a-z]+)", value).groups()  # type: ignore ["groups" is not a known attribute of "None"]
         scale = ETHER_UNITS[unit]
         decoded_number = Decimal(number)
         return int(decoded_number * scale)
@@ -517,7 +517,7 @@ def sign_tx(
 
     if publish:
         tx_hash = _get_web3().eth.send_raw_transaction(tx_bytes).hex()
-        return f"Transaction published with ID: 0x{tx_hash}"
+        return f"Transaction published with ID: {tx_hash}"
     else:
         return f"Signed raw transaction:\n0x{tx_bytes.hex()}"
 

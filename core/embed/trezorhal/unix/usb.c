@@ -27,24 +27,23 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "error_handling.h"
 #include "profile.h"
 #include "usb.h"
 
 #include "memzero.h"
 
-void __attribute__((noreturn))
-__fatal_error(const char *expr, const char *msg, const char *file, int line,
-              const char *func);
-
-#define ensure(expr, msg) \
-  (((expr) == sectrue)    \
-       ? (void)0          \
-       : __fatal_error(#expr, msg, __FILE__, __LINE__, __func__))
-
 // emulator opens UDP server and emulates HID/WebUSB interfaces
 // gracefully ignores all other USB interfaces
 
 #define USBD_MAX_NUM_INTERFACES 8
+
+typedef enum {
+  USB_IFACE_TYPE_DISABLED = 0,
+  USB_IFACE_TYPE_VCP = 1,
+  USB_IFACE_TYPE_HID = 2,
+  USB_IFACE_TYPE_WEBUSB = 3,
+} usb_iface_type_t;
 
 static struct {
   usb_iface_type_t type;
@@ -54,7 +53,7 @@ static struct {
   socklen_t slen;
 } usb_ifaces[USBD_MAX_NUM_INTERFACES];
 
-void usb_init(const usb_dev_info_t *dev_info) {
+secbool usb_init(const usb_dev_info_t *dev_info) {
   (void)dev_info;
   for (int i = 0; i < USBD_MAX_NUM_INTERFACES; i++) {
     usb_ifaces[i].type = USB_IFACE_TYPE_DISABLED;
@@ -64,11 +63,12 @@ void usb_init(const usb_dev_info_t *dev_info) {
     memzero(&usb_ifaces[i].si_other, sizeof(struct sockaddr_in));
     usb_ifaces[i].slen = 0;
   }
+  return sectrue;
 }
 
 void usb_deinit(void) {}
 
-void usb_start(void) {
+secbool usb_start(void) {
   const char *ip = getenv("TREZOR_UDP_IP");
 
   // iterate interfaces
@@ -97,6 +97,8 @@ void usb_start(void) {
                                 sizeof(struct sockaddr_in))),
            NULL);
   }
+
+  return sectrue;
 }
 
 void usb_stop(void) {

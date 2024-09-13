@@ -37,6 +37,7 @@
 #include "bootui.h"
 #include "messages.h"
 #include "rust_ui.h"
+#include "version_check.h"
 
 #include "memzero.h"
 #include "model.h"
@@ -213,8 +214,9 @@ static void _usb_webusb_read_retry(uint8_t iface_num, uint8_t *buf) {
         continue;
       } else {
         // error
-        error_shutdown("USB ERROR",
-                       "Error reading from USB. Try different USB cable.");
+        error_shutdown_ex("USB ERROR",
+                          "Error reading from USB. Try different USB cable.",
+                          NULL);
       }
     }
     return;  // success
@@ -471,6 +473,10 @@ static void detect_installation(const vendor_header *current_vhdr,
     *is_new = sectrue;
     return;
   }
+  if (sectrue != check_firmware_min_version(current_hdr->monotonic)) {
+    *is_new = sectrue;
+    return;
+  }
   if (sectrue != check_image_header_sig(current_hdr, current_vhdr->vsig_m,
                                         current_vhdr->vsig_n,
                                         current_vhdr->vpub)) {
@@ -527,6 +533,14 @@ int process_msg_FirmwareUpload(uint8_t iface_num, uint32_t msg_size,
         return UPLOAD_ERR_INVALID_VENDOR_HEADER;
       }
 
+      if (sectrue != check_vendor_header_model(&vhdr)) {
+        MSG_SEND_INIT(Failure);
+        MSG_SEND_ASSIGN_VALUE(code, FailureType_Failure_ProcessError);
+        MSG_SEND_ASSIGN_STRING(message, "Wrong model");
+        MSG_SEND(Failure);
+        return UPLOAD_ERR_INVALID_VENDOR_HEADER_MODEL;
+      }
+
       if (sectrue != check_vendor_header_keys(&vhdr)) {
         MSG_SEND_INIT(Failure);
         MSG_SEND_ASSIGN_VALUE(code, FailureType_Failure_ProcessError);
@@ -565,7 +579,30 @@ int process_msg_FirmwareUpload(uint8_t iface_num, uint32_t msg_size,
         return UPLOAD_ERR_INVALID_IMAGE_HEADER_SIG;
       }
 
+      if (sectrue != check_firmware_min_version(received_hdr->monotonic)) {
+        MSG_SEND_INIT(Failure);
+        MSG_SEND_ASSIGN_VALUE(code, FailureType_Failure_ProcessError);
+        MSG_SEND_ASSIGN_STRING(message, "Cannot downgrade to this version");
+        MSG_SEND(Failure);
+        return UPLOAD_ERR_INVALID_IMAGE_HEADER_VERSION;
+      }
+
       memcpy(&hdr, received_hdr, sizeof(hdr));
+
+      size_t headers_end = IMAGE_HEADER_SIZE + vhdr.hdrlen;
+      size_t tmp_headers_offset =
+          IMAGE_CODE_ALIGN(IMAGE_HEADER_SIZE + vhdr.hdrlen);
+
+      // check padding between headers and the code
+      for (size_t i = headers_end; i < tmp_headers_offset; i++) {
+        if (CHUNK_BUFFER_PTR[i] != 0) {
+          MSG_SEND_INIT(Failure);
+          MSG_SEND_ASSIGN_VALUE(code, FailureType_Failure_ProcessError);
+          MSG_SEND_ASSIGN_STRING(message, "Invalid chunk padding");
+          MSG_SEND(Failure);
+          return UPLOAD_ERR_INVALID_CHUNK_PADDING;
+        }
+      }
 
       vendor_header current_vhdr;
 
@@ -626,7 +663,7 @@ int process_msg_FirmwareUpload(uint8_t iface_num, uint32_t msg_size,
           return UPLOAD_ERR_NOT_FIRMWARE_UPGRADE;
         }
 
-        if ((vhdr.vtrust & VTRUST_ALL) != VTRUST_ALL) {
+        if ((vhdr.vtrust & VTRUST_NO_WARNING) != VTRUST_NO_WARNING) {
           MSG_SEND_INIT(Failure);
           MSG_SEND_ASSIGN_VALUE(code, FailureType_Failure_ProcessError);
           MSG_SEND_ASSIGN_STRING(message, "Not a full-trust image");
@@ -638,9 +675,9 @@ int process_msg_FirmwareUpload(uint8_t iface_num, uint32_t msg_size,
         is_ilu = sectrue;
       }
 
-#if defined USE_OPTIGA && !defined STM32U5
-      if (sectrue != secret_wiped() &&
-          ((vhdr.vtrust & VTRUST_SECRET) != VTRUST_SECRET_ALLOW)) {
+#if defined USE_OPTIGA
+      if (secfalse != secret_optiga_present() &&
+          ((vhdr.vtrust & VTRUST_SECRET_MASK) != VTRUST_SECRET_ALLOW)) {
         MSG_SEND_INIT(Failure);
         MSG_SEND_ASSIGN_VALUE(code, FailureType_Failure_ProcessError);
         MSG_SEND_ASSIGN_STRING(message, "Install restricted");
@@ -650,13 +687,20 @@ int process_msg_FirmwareUpload(uint8_t iface_num, uint32_t msg_size,
 #endif
 
       uint32_t response = INPUT_CANCEL;
-      if (sectrue == is_new || sectrue == is_ilu) {
+      if (((vhdr.vtrust & VTRUST_NO_WARNING) == VTRUST_NO_WARNING) &&
+          (sectrue == is_new || sectrue == is_ilu)) {
         // new installation or interaction less updated - auto confirm
+        // only allowed for full-trust images
         response = INPUT_CONFIRM;
       } else {
-        int version_cmp = version_compare(hdr.version, current_hdr->version);
-        response = ui_screen_install_confirm(&vhdr, &hdr, should_keep_seed,
-                                             is_newvendor, version_cmp);
+        if (sectrue != is_new) {
+          int version_cmp = version_compare(hdr.version, current_hdr->version);
+          response = ui_screen_install_confirm(
+              &vhdr, &hdr, should_keep_seed, is_newvendor, is_new, version_cmp);
+        } else {
+          response = ui_screen_install_confirm(&vhdr, &hdr, sectrue,
+                                               is_newvendor, is_new, 0);
+        }
       }
 
       if (INPUT_CANCEL == response) {
@@ -675,7 +719,7 @@ int process_msg_FirmwareUpload(uint8_t iface_num, uint32_t msg_size,
                NULL);
       }
 
-      headers_offset = IMAGE_HEADER_SIZE + vhdr.hdrlen;
+      headers_offset = IMAGE_CODE_ALIGN(IMAGE_HEADER_SIZE + vhdr.hdrlen);
       read_offset = IMAGE_INIT_CHUNK_SIZE;
 
       // request the rest of the first chunk
@@ -837,10 +881,10 @@ void process_msg_unknown(uint8_t iface_num, uint32_t msg_size, uint8_t *buf) {
   MSG_SEND(Failure);
 }
 
-#if defined USE_OPTIGA && !defined STM32U5
+#if defined USE_OPTIGA
 void process_msg_UnlockBootloader(uint8_t iface_num, uint32_t msg_size,
                                   uint8_t *buf) {
-  secret_erase();
+  secret_optiga_erase();
   MSG_SEND_INIT(Success);
   MSG_SEND(Success);
 }

@@ -55,8 +55,16 @@ def _find_message_handler_module(msg_type: int) -> str:
     if msg_type == MessageType.RebootToBootloader:
         return "apps.management.reboot_to_bootloader"
 
-    if utils.INTERNAL_MODEL in ("T2B1",) and msg_type == MessageType.ShowDeviceTutorial:
+    if (
+        # pylint: disable-next=consider-using-in
+        utils.INTERNAL_MODEL == "T2B1"
+        or utils.INTERNAL_MODEL == "T3B1"
+        or utils.INTERNAL_MODEL == "T3T1"
+    ) and msg_type == MessageType.ShowDeviceTutorial:
         return "apps.management.show_tutorial"
+
+    if utils.USE_BACKLIGHT and msg_type == MessageType.SetBrightness:
+        return "apps.management.set_brightness"
 
     if utils.USE_SD_CARD and msg_type == MessageType.SdProtect:
         return "apps.management.sd_protect"
@@ -93,8 +101,6 @@ def _find_message_handler_module(msg_type: int) -> str:
         return "apps.misc.cipher_key_value"
     if msg_type == MessageType.GetFirmwareHash:
         return "apps.misc.get_firmware_hash"
-    if msg_type == MessageType.CosiCommit:
-        return "apps.misc.cosi_commit"
 
     if not utils.BITCOIN_ONLY:
         if msg_type == MessageType.SetU2FCounter:

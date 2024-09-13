@@ -18,8 +18,8 @@ if __debug__:
     class _RustFidoLayoutImpl(RustLayout):
         def create_tasks(self) -> tuple[AwaitableTask, ...]:
             return (
-                self.handle_timers(),
                 self.handle_input_and_rendering(),
+                self.handle_timers(),
                 self.handle_swipe(),
                 self.handle_debug_confirm(),
             )
@@ -36,8 +36,8 @@ if __debug__:
                 (io.TOUCH_END, 220, 220),
             ):
                 msg = self.layout.touch_event(event, x, y)
-                self.layout.paint()
-                ui.refresh()
+                if self.layout.paint():
+                    ui.refresh()
                 if msg is not None:
                     raise Result(msg)
 
@@ -56,7 +56,7 @@ async def confirm_fido(
     """Webauthn confirmation for one or more credentials."""
     confirm = _RustFidoLayout(
         trezorui2.confirm_fido(
-            title=header.upper(),
+            title=header,
             app_name=app_name,
             icon_name=icon_name,
             accounts=accounts,

@@ -8,6 +8,8 @@ use crate::{
         constant,
         display::{pixeldata, pixeldata_dirty, rect_fill_rounded, set_window, Color},
         geometry::{Insets, Offset, Rect},
+        shape,
+        shape::Renderer,
     },
 };
 
@@ -141,9 +143,37 @@ impl Component for Qr {
         Self::draw(&qr, area, self.border, scale);
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        sink(self.area)
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        let mut outbuffer = [0u8; QR_MAX_VERSION.buffer_len()];
+        let mut tempbuffer = [0u8; QR_MAX_VERSION.buffer_len()];
+
+        let qr = QrCode::encode_text(
+            self.text.as_ref(),
+            &mut tempbuffer,
+            &mut outbuffer,
+            QrCodeEcc::Medium,
+            Version::MIN,
+            QR_MAX_VERSION,
+            None,
+            true,
+        );
+        let qr = unwrap!(qr);
+
+        let scale = (self.area.width().min(self.area.height()) - self.border) / (qr.size() as i16);
+        let side = scale * qr.size() as i16;
+        let qr_area = Rect::from_center_and_size(self.area.center(), Offset::uniform(side));
+
+        if self.border > 0 {
+            shape::Bar::new(qr_area.expand(self.border))
+                .with_bg(LIGHT)
+                .with_radius(CORNER_RADIUS as i16 + 1) // !@# + 1 to fix difference on TR
+                .render(target);
+        }
+
+        shape::QrImage::new(qr_area, &qr)
+            .with_fg(LIGHT)
+            .with_bg(DARK)
+            .render(target);
     }
 }
 
@@ -152,5 +182,15 @@ impl crate::trace::Trace for Qr {
     fn trace(&self, t: &mut dyn crate::trace::Tracer) {
         t.component("Qr");
         t.string("text", self.text.as_str().into());
+    }
+}
+
+#[cfg(feature = "micropython")]
+mod micropython {
+    use crate::{error::Error, micropython::obj::Obj, ui::layout::obj::ComponentMsgObj};
+    impl ComponentMsgObj for super::Qr {
+        fn msg_try_into_obj(&self, _msg: Self::Msg) -> Result<Obj, Error> {
+            unreachable!();
+        }
     }
 }

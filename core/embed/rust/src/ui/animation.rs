@@ -4,6 +4,7 @@ use crate::{
 };
 
 /// Running, time-based linear progression of a value.
+#[derive(Clone)]
 pub struct Animation<T> {
     /// Starting value.
     pub from: T,
@@ -56,7 +57,11 @@ impl<T> Animation<T> {
         } else {
             // Duration is too large to be added to an `Instant`.
             #[cfg(feature = "ui_debug")]
-            panic!("offset is too large");
+            fatal_error!("Offset is too large");
         }
+    }
+
+    pub fn finished(&self, now: Instant) -> bool {
+        self.elapsed(now) >= self.duration
     }
 }

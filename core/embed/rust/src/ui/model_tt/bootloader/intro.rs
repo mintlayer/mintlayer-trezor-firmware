@@ -13,6 +13,7 @@ use crate::{
                 CONTENT_PADDING, CORNER_BUTTON_AREA, MENU32, TEXT_NORMAL, TEXT_WARNING, TITLE_AREA,
             },
         },
+        shape::Renderer,
     },
 };
 
@@ -105,8 +106,12 @@ impl<'a> Component for Intro<'a> {
         self.menu.paint();
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        self.menu.bounds(sink);
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.bg.render(target);
+        self.title.render(target);
+        self.text.render(target);
+        self.warn.render(target);
+        self.host.render(target);
+        self.menu.render(target);
     }
 }

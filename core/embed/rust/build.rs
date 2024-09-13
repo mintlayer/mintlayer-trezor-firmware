@@ -14,12 +14,67 @@ fn main() {
     link_core_objects();
 }
 
-// fn block_words() -> String {
-//     match env::var("FLASH_BLOCK_WORDS") {
-//         Ok(model) => model,
-//         Err(_) => panic!("FLASH_BLOCK_WORDS not set")
-//     }
-// }
+const DEFAULT_BINDGEN_MACROS_COMMON: &[&str] = &[
+    "-I../unix",
+    "-I../trezorhal/unix",
+    "-I../../build/unix",
+    "-I../../vendor/micropython/ports/unix",
+    "-I../../../crypto",
+    "-I../../../storage",
+    "-I../../vendor/micropython",
+    "-I../../vendor/micropython/lib/uzlib",
+    "-I../lib",
+    "-I../trezorhal",
+    "-I../trezorhal/unix",
+    "-I../models",
+    "-DTREZOR_EMULATOR",
+];
+
+#[cfg(feature = "model_tt")]
+const DEFAULT_BINDGEN_MACROS_T2T1: &[&str] = &[
+    "-DSTM32F427",
+    "-DTREZOR_MODEL_T",
+    "-DFLASH_BIT_ACCESS=1",
+    "-DFLASH_BLOCK_WORDS=1",
+    "-DTREZOR_BOARD=\"T2T1/boards/t2t1-unix.h\"",
+];
+#[cfg(not(feature = "model_tt"))]
+const DEFAULT_BINDGEN_MACROS_T2T1: &[&str] = &[];
+
+#[cfg(feature = "model_tr")]
+const DEFAULT_BINDGEN_MACROS_T2B1: &[&str] = &[
+    "-DSTM32F427",
+    "-DTREZOR_MODEL_R",
+    "-DFLASH_BIT_ACCESS=1",
+    "-DFLASH_BLOCK_WORDS=1",
+    "-DTREZOR_BOARD=\"T2B1/boards/t2b1-unix.h\"",
+];
+#[cfg(not(feature = "model_tr"))]
+const DEFAULT_BINDGEN_MACROS_T2B1: &[&str] = &[];
+
+#[cfg(feature = "model_mercury")]
+const DEFAULT_BINDGEN_MACROS_T3T1: &[&str] = &[
+    "-DSTM32U5",
+    "-DTREZOR_MODEL_T3T1",
+    "-DFLASH_BIT_ACCESS=0",
+    "-DFLASH_BLOCK_WORDS=4",
+    "-DTREZOR_BOARD=\"T3T1/boards/t3t1-unix.h\"",
+];
+#[cfg(not(feature = "model_mercury"))]
+const DEFAULT_BINDGEN_MACROS_T3T1: &[&str] = &[];
+
+fn add_bindgen_macros<'a>(clang_args: &mut Vec<&'a str>, envvar: Option<&'a str>) {
+    let default_macros = DEFAULT_BINDGEN_MACROS_COMMON
+        .iter()
+        .chain(DEFAULT_BINDGEN_MACROS_T2T1)
+        .chain(DEFAULT_BINDGEN_MACROS_T2B1)
+        .chain(DEFAULT_BINDGEN_MACROS_T3T1);
+
+    match envvar {
+        Some(envvar) => clang_args.extend(envvar.split(',')),
+        None => clang_args.extend(default_macros),
+    }
+}
 
 /// Generates Rust module that exports QSTR constants used in firmware.
 #[cfg(feature = "micropython")]
@@ -34,7 +89,10 @@ fn generate_qstr_bindings() {
     bindgen::Builder::default()
         .header("qstr.h")
         // Build the Qstr enum as a newtype so we can define method on it.
-        .default_enum_style(bindgen::EnumVariation::NewType { is_bitfield: false })
+        .default_enum_style(bindgen::EnumVariation::NewType {
+            is_bitfield: false,
+            is_global: false,
+        })
         // Pass in correct include paths.
         .clang_args(&[
             "-I",
@@ -70,11 +128,18 @@ fn prepare_bindings() -> bindgen::Builder {
     let mut bindings = bindgen::Builder::default();
 
     let mut clang_args: Vec<&str> = Vec::new();
-    let includes = env::var("BINDGEN_MACROS").unwrap();
-    let args = includes.split(',');
 
-    for arg in args {
-        clang_args.push(arg);
+    let bindgen_macros_env = env::var("BINDGEN_MACROS").ok();
+    add_bindgen_macros(&mut clang_args, bindgen_macros_env.as_deref());
+
+    #[cfg(feature = "xframebuffer")]
+    {
+        bindings = bindings.clang_args(&["-DXFRAMEBUFFER"]);
+    }
+
+    #[cfg(feature = "new_rendering")]
+    {
+        bindings = bindings.clang_args(["-DNEW_RENDERING"]);
     }
 
     // Pass in correct include paths and defines.
@@ -170,6 +235,8 @@ fn generate_micropython_bindings() {
         .allowlist_var("mp_type_fun_builtin_var")
         // gc
         .allowlist_function("gc_alloc")
+        .allowlist_function("gc_free")
+        .allowlist_var("GC_ALLOC_FLAG_HAS_FINALISER")
         // iter
         .allowlist_type("mp_obj_iter_buf_t")
         .allowlist_function("mp_getiter")
@@ -289,6 +356,29 @@ fn generate_trezorhal_bindings() {
         .allowlist_var("DISPLAY_FRAMEBUFFER_OFFSET_Y")
         .allowlist_var("DISPLAY_RESX")
         .allowlist_var("DISPLAY_RESY")
+        .allowlist_type("display_fb_info_t")
+        .allowlist_function("display_get_frame_buffer")
+        .allowlist_function("display_fill")
+        .allowlist_function("display_copy_rgb565")
+        // gfx_bitblt
+        .allowlist_type("gfx_bitblt_t")
+        .allowlist_function("gfx_rgb565_fill")
+        .allowlist_function("gfx_rgb565_copy_mono4")
+        .allowlist_function("gfx_rgb565_copy_rgb565")
+        .allowlist_function("gfx_rgb565_blend_mono4")
+        .allowlist_function("gfx_rgb565_blend_mono8")
+        .allowlist_function("gfx_rgba8888_fill")
+        .allowlist_function("gfx_rgba8888_copy_mono4")
+        .allowlist_function("gfx_rgba8888_copy_rgb565")
+        .allowlist_function("gfx_rgba8888_copy_rgba8888")
+        .allowlist_function("gfx_rgba8888_blend_mono4")
+        .allowlist_function("gfx_rgba8888_blend_mono8")
+        .allowlist_function("gfx_mono8_fill")
+        .allowlist_function("gfx_mono8_copy_mono1p")
+        .allowlist_function("gfx_mono8_copy_mono4")
+        .allowlist_function("gfx_mono8_blend_mono1p")
+        .allowlist_function("gfx_mono8_blend_mono4")
+        .allowlist_function("dma2d_wait")
         // fonts
         .allowlist_function("font_height")
         .allowlist_function("font_max_height")
@@ -353,12 +443,13 @@ fn generate_trezorhal_bindings() {
         //usb
         .allowlist_function("usb_configured")
         // touch
-        .allowlist_function("touch_read")
+        .allowlist_function("touch_get_event")
         // button
         .allowlist_function("button_read")
         // haptic
         .allowlist_type("haptic_effect_t")
-        .allowlist_function("haptic_play");
+        .allowlist_function("haptic_play")
+        .allowlist_function("haptic_play_custom");
 
     // Write the bindings to a file in the OUR_DIR.
     bindings

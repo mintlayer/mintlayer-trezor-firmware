@@ -78,6 +78,7 @@ class MessageType(IntEnum):
     ChangeLanguage = 990
     TranslationDataRequest = 991
     TranslationDataAck = 992
+    SetBrightness = 993
     SetU2FCounter = 63
     GetNextU2FCounter = 80
     NextU2FCounter = 81
@@ -109,10 +110,6 @@ class MessageType(IntEnum):
     SignedIdentity = 54
     GetECDHSessionKey = 61
     ECDHSessionKey = 62
-    CosiCommit = 71
-    CosiCommitment = 72
-    CosiSign = 73
-    CosiSignature = 74
     DebugLinkDecision = 100
     DebugLinkGetState = 101
     DebugLinkState = 102
@@ -128,6 +125,7 @@ class MessageType(IntEnum):
     DebugLinkEraseSdCard = 9005
     DebugLinkWatchLayout = 9006
     DebugLinkResetDebugEvents = 9007
+    DebugLinkOptigaSetSecMax = 9008
     EthereumGetPublicKey = 450
     EthereumPublicKey = 451
     EthereumGetAddress = 56
@@ -410,6 +408,16 @@ class CardanoCertificateType(IntEnum):
     STAKE_DEREGISTRATION = 1
     STAKE_DELEGATION = 2
     STAKE_POOL_REGISTRATION = 3
+    STAKE_REGISTRATION_CONWAY = 7
+    STAKE_DEREGISTRATION_CONWAY = 8
+    VOTE_DELEGATION = 9
+
+
+class CardanoDRepType(IntEnum):
+    KEY_HASH = 0
+    SCRIPT_HASH = 1
+    ABSTAIN = 2
+    NO_CONFIDENCE = 3
 
 
 class CardanoPoolRelayType(IntEnum):
@@ -444,6 +452,9 @@ class BackupType(IntEnum):
     Bip39 = 0
     Slip39_Basic = 1
     Slip39_Advanced = 2
+    Slip39_Single_Extendable = 3
+    Slip39_Basic_Extendable = 4
+    Slip39_Advanced_Extendable = 5
 
 
 class SafetyCheckLevel(IntEnum):
@@ -456,6 +467,24 @@ class HomescreenFormat(IntEnum):
     Toif = 1
     Jpeg = 2
     ToiG = 3
+
+
+class RecoveryType(IntEnum):
+    NormalRecovery = 0
+    DryRun = 1
+    UnlockRepeatedBackup = 2
+
+
+class BackupAvailability(IntEnum):
+    NotAvailable = 0
+    Required = 1
+    Available = 2
+
+
+class RecoveryStatus(IntEnum):
+    Nothing = 0
+    Recovery = 1
+    Backup = 2
 
 
 class Capability(IntEnum):
@@ -478,6 +507,8 @@ class Capability(IntEnum):
     PassphraseEntry = 17
     Solana = 18
     Translations = 19
+    Brightness = 20
+    Haptic = 21
 
 
 class SdProtectOperationType(IntEnum):
@@ -486,7 +517,7 @@ class SdProtectOperationType(IntEnum):
     REFRESH = 2
 
 
-class RecoveryDeviceType(IntEnum):
+class RecoveryDeviceInputMethod(IntEnum):
     ScrambledWords = 0
     Matrix = 1
 
@@ -861,6 +892,7 @@ class ButtonRequest(protobuf.MessageType):
     FIELDS = {
         1: protobuf.Field("code", "ButtonRequestType", repeated=False, required=False, default=None),
         2: protobuf.Field("pages", "uint32", repeated=False, required=False, default=None),
+        4: protobuf.Field("name", "string", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -868,9 +900,11 @@ class ButtonRequest(protobuf.MessageType):
         *,
         code: Optional["ButtonRequestType"] = None,
         pages: Optional["int"] = None,
+        name: Optional["str"] = None,
     ) -> None:
         self.code = code
         self.pages = pages
+        self.name = name
 
 
 class ButtonAck(protobuf.MessageType):
@@ -1713,8 +1747,8 @@ class CoinJoinRequest(protobuf.MessageType):
         1: protobuf.Field("fee_rate", "uint32", repeated=False, required=True),
         2: protobuf.Field("no_fee_threshold", "uint64", repeated=False, required=True),
         3: protobuf.Field("min_registrable_amount", "uint64", repeated=False, required=True),
-        4: protobuf.Field("mask_public_key", "bytes", repeated=False, required=True),
-        5: protobuf.Field("signature", "bytes", repeated=False, required=True),
+        4: protobuf.Field("mask_public_key", "bytes", repeated=False, required=False, default=None),
+        5: protobuf.Field("signature", "bytes", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -1723,8 +1757,8 @@ class CoinJoinRequest(protobuf.MessageType):
         fee_rate: "int",
         no_fee_threshold: "int",
         min_registrable_amount: "int",
-        mask_public_key: "bytes",
-        signature: "bytes",
+        mask_public_key: Optional["bytes"] = None,
+        signature: Optional["bytes"] = None,
     ) -> None:
         self.fee_rate = fee_rate
         self.no_fee_threshold = no_fee_threshold
@@ -2378,6 +2412,7 @@ class CardanoSignTxInit(protobuf.MessageType):
         20: protobuf.Field("total_collateral", "uint64", repeated=False, required=False, default=None),
         21: protobuf.Field("reference_inputs_count", "uint32", repeated=False, required=False, default=0),
         22: protobuf.Field("chunkify", "bool", repeated=False, required=False, default=None),
+        23: protobuf.Field("tag_cbor_sets", "bool", repeated=False, required=False, default=False),
     }
 
     def __init__(
@@ -2405,6 +2440,7 @@ class CardanoSignTxInit(protobuf.MessageType):
         total_collateral: Optional["int"] = None,
         reference_inputs_count: Optional["int"] = 0,
         chunkify: Optional["bool"] = None,
+        tag_cbor_sets: Optional["bool"] = False,
     ) -> None:
         self.signing_mode = signing_mode
         self.protocol_magic = protocol_magic
@@ -2428,6 +2464,7 @@ class CardanoSignTxInit(protobuf.MessageType):
         self.total_collateral = total_collateral
         self.reference_inputs_count = reference_inputs_count
         self.chunkify = chunkify
+        self.tag_cbor_sets = tag_cbor_sets
 
 
 class CardanoTxInput(protobuf.MessageType):
@@ -2648,6 +2685,26 @@ class CardanoPoolParametersType(protobuf.MessageType):
         self.metadata = metadata
 
 
+class CardanoDRep(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("type", "CardanoDRepType", repeated=False, required=True),
+        2: protobuf.Field("key_hash", "bytes", repeated=False, required=False, default=None),
+        3: protobuf.Field("script_hash", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        type: "CardanoDRepType",
+        key_hash: Optional["bytes"] = None,
+        script_hash: Optional["bytes"] = None,
+    ) -> None:
+        self.type = type
+        self.key_hash = key_hash
+        self.script_hash = script_hash
+
+
 class CardanoTxCertificate(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 325
     FIELDS = {
@@ -2657,6 +2714,8 @@ class CardanoTxCertificate(protobuf.MessageType):
         4: protobuf.Field("pool_parameters", "CardanoPoolParametersType", repeated=False, required=False, default=None),
         5: protobuf.Field("script_hash", "bytes", repeated=False, required=False, default=None),
         6: protobuf.Field("key_hash", "bytes", repeated=False, required=False, default=None),
+        7: protobuf.Field("deposit", "uint64", repeated=False, required=False, default=None),
+        8: protobuf.Field("drep", "CardanoDRep", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -2668,6 +2727,8 @@ class CardanoTxCertificate(protobuf.MessageType):
         pool_parameters: Optional["CardanoPoolParametersType"] = None,
         script_hash: Optional["bytes"] = None,
         key_hash: Optional["bytes"] = None,
+        deposit: Optional["int"] = None,
+        drep: Optional["CardanoDRep"] = None,
     ) -> None:
         self.path: Sequence["int"] = path if path is not None else []
         self.type = type
@@ -2675,6 +2736,8 @@ class CardanoTxCertificate(protobuf.MessageType):
         self.pool_parameters = pool_parameters
         self.script_hash = script_hash
         self.key_hash = key_hash
+        self.deposit = deposit
+        self.drep = drep
 
 
 class CardanoTxWithdrawal(protobuf.MessageType):
@@ -3072,77 +3135,6 @@ class ECDHSessionKey(protobuf.MessageType):
         self.public_key = public_key
 
 
-class CosiCommit(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 71
-    FIELDS = {
-        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
-        2: protobuf.Field("data", "bytes", repeated=False, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        address_n: Optional[Sequence["int"]] = None,
-        data: Optional["bytes"] = None,
-    ) -> None:
-        self.address_n: Sequence["int"] = address_n if address_n is not None else []
-        self.data = data
-
-
-class CosiCommitment(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 72
-    FIELDS = {
-        1: protobuf.Field("commitment", "bytes", repeated=False, required=True),
-        2: protobuf.Field("pubkey", "bytes", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        commitment: "bytes",
-        pubkey: "bytes",
-    ) -> None:
-        self.commitment = commitment
-        self.pubkey = pubkey
-
-
-class CosiSign(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 73
-    FIELDS = {
-        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
-        2: protobuf.Field("data", "bytes", repeated=False, required=True),
-        3: protobuf.Field("global_commitment", "bytes", repeated=False, required=True),
-        4: protobuf.Field("global_pubkey", "bytes", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        data: "bytes",
-        global_commitment: "bytes",
-        global_pubkey: "bytes",
-        address_n: Optional[Sequence["int"]] = None,
-    ) -> None:
-        self.address_n: Sequence["int"] = address_n if address_n is not None else []
-        self.data = data
-        self.global_commitment = global_commitment
-        self.global_pubkey = global_pubkey
-
-
-class CosiSignature(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 74
-    FIELDS = {
-        1: protobuf.Field("signature", "bytes", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        signature: "bytes",
-    ) -> None:
-        self.signature = signature
-
-
 class Initialize(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 0
     FIELDS = {
@@ -3187,7 +3179,7 @@ class Features(protobuf.MessageType):
         16: protobuf.Field("unlocked", "bool", repeated=False, required=False, default=None),
         17: protobuf.Field("_passphrase_cached", "bool", repeated=False, required=False, default=None),
         18: protobuf.Field("firmware_present", "bool", repeated=False, required=False, default=None),
-        19: protobuf.Field("needs_backup", "bool", repeated=False, required=False, default=None),
+        19: protobuf.Field("backup_availability", "BackupAvailability", repeated=False, required=False, default=None),
         20: protobuf.Field("flags", "uint32", repeated=False, required=False, default=None),
         21: protobuf.Field("model", "string", repeated=False, required=False, default=None),
         22: protobuf.Field("fw_major", "uint32", repeated=False, required=False, default=None),
@@ -3196,7 +3188,7 @@ class Features(protobuf.MessageType):
         25: protobuf.Field("fw_vendor", "string", repeated=False, required=False, default=None),
         27: protobuf.Field("unfinished_backup", "bool", repeated=False, required=False, default=None),
         28: protobuf.Field("no_backup", "bool", repeated=False, required=False, default=None),
-        29: protobuf.Field("recovery_mode", "bool", repeated=False, required=False, default=None),
+        29: protobuf.Field("recovery_status", "RecoveryStatus", repeated=False, required=False, default=None),
         30: protobuf.Field("capabilities", "Capability", repeated=True, required=False, default=None),
         31: protobuf.Field("backup_type", "BackupType", repeated=False, required=False, default=None),
         32: protobuf.Field("sd_card_present", "bool", repeated=False, required=False, default=None),
@@ -3219,6 +3211,9 @@ class Features(protobuf.MessageType):
         49: protobuf.Field("bootloader_locked", "bool", repeated=False, required=False, default=None),
         50: protobuf.Field("language_version_matches", "bool", repeated=False, required=False, default=True),
         51: protobuf.Field("unit_packaging", "uint32", repeated=False, required=False, default=None),
+        52: protobuf.Field("haptic_feedback", "bool", repeated=False, required=False, default=None),
+        53: protobuf.Field("recovery_type", "RecoveryType", repeated=False, required=False, default=None),
+        54: protobuf.Field("optiga_sec", "uint32", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -3242,7 +3237,7 @@ class Features(protobuf.MessageType):
         unlocked: Optional["bool"] = None,
         _passphrase_cached: Optional["bool"] = None,
         firmware_present: Optional["bool"] = None,
-        needs_backup: Optional["bool"] = None,
+        backup_availability: Optional["BackupAvailability"] = None,
         flags: Optional["int"] = None,
         model: Optional["str"] = None,
         fw_major: Optional["int"] = None,
@@ -3251,7 +3246,7 @@ class Features(protobuf.MessageType):
         fw_vendor: Optional["str"] = None,
         unfinished_backup: Optional["bool"] = None,
         no_backup: Optional["bool"] = None,
-        recovery_mode: Optional["bool"] = None,
+        recovery_status: Optional["RecoveryStatus"] = None,
         backup_type: Optional["BackupType"] = None,
         sd_card_present: Optional["bool"] = None,
         sd_protection: Optional["bool"] = None,
@@ -3273,6 +3268,9 @@ class Features(protobuf.MessageType):
         bootloader_locked: Optional["bool"] = None,
         language_version_matches: Optional["bool"] = True,
         unit_packaging: Optional["int"] = None,
+        haptic_feedback: Optional["bool"] = None,
+        recovery_type: Optional["RecoveryType"] = None,
+        optiga_sec: Optional["int"] = None,
     ) -> None:
         self.capabilities: Sequence["Capability"] = capabilities if capabilities is not None else []
         self.major_version = major_version
@@ -3292,7 +3290,7 @@ class Features(protobuf.MessageType):
         self.unlocked = unlocked
         self._passphrase_cached = _passphrase_cached
         self.firmware_present = firmware_present
-        self.needs_backup = needs_backup
+        self.backup_availability = backup_availability
         self.flags = flags
         self.model = model
         self.fw_major = fw_major
@@ -3301,7 +3299,7 @@ class Features(protobuf.MessageType):
         self.fw_vendor = fw_vendor
         self.unfinished_backup = unfinished_backup
         self.no_backup = no_backup
-        self.recovery_mode = recovery_mode
+        self.recovery_status = recovery_status
         self.backup_type = backup_type
         self.sd_card_present = sd_card_present
         self.sd_protection = sd_protection
@@ -3323,6 +3321,9 @@ class Features(protobuf.MessageType):
         self.bootloader_locked = bootloader_locked
         self.language_version_matches = language_version_matches
         self.unit_packaging = unit_packaging
+        self.haptic_feedback = haptic_feedback
+        self.recovery_type = recovery_type
+        self.optiga_sec = optiga_sec
 
 
 class LockDevice(protobuf.MessageType):
@@ -3361,6 +3362,7 @@ class ApplySettings(protobuf.MessageType):
         9: protobuf.Field("safety_checks", "SafetyCheckLevel", repeated=False, required=False, default=None),
         10: protobuf.Field("experimental_features", "bool", repeated=False, required=False, default=None),
         11: protobuf.Field("hide_passphrase_from_host", "bool", repeated=False, required=False, default=None),
+        13: protobuf.Field("haptic_feedback", "bool", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -3377,6 +3379,7 @@ class ApplySettings(protobuf.MessageType):
         safety_checks: Optional["SafetyCheckLevel"] = None,
         experimental_features: Optional["bool"] = None,
         hide_passphrase_from_host: Optional["bool"] = None,
+        haptic_feedback: Optional["bool"] = None,
     ) -> None:
         self.language = language
         self.label = label
@@ -3389,6 +3392,7 @@ class ApplySettings(protobuf.MessageType):
         self.safety_checks = safety_checks
         self.experimental_features = experimental_features
         self.hide_passphrase_from_host = hide_passphrase_from_host
+        self.haptic_feedback = haptic_feedback
 
 
 class ChangeLanguage(protobuf.MessageType):
@@ -3648,7 +3652,6 @@ class LoadDevice(protobuf.MessageType):
 class ResetDevice(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 14
     FIELDS = {
-        1: protobuf.Field("display_random", "bool", repeated=False, required=False, default=None),
         2: protobuf.Field("strength", "uint32", repeated=False, required=False, default=256),
         3: protobuf.Field("passphrase_protection", "bool", repeated=False, required=False, default=None),
         4: protobuf.Field("pin_protection", "bool", repeated=False, required=False, default=None),
@@ -3663,7 +3666,6 @@ class ResetDevice(protobuf.MessageType):
     def __init__(
         self,
         *,
-        display_random: Optional["bool"] = None,
         strength: Optional["int"] = 256,
         passphrase_protection: Optional["bool"] = None,
         pin_protection: Optional["bool"] = None,
@@ -3674,7 +3676,6 @@ class ResetDevice(protobuf.MessageType):
         no_backup: Optional["bool"] = None,
         backup_type: Optional["BackupType"] = BackupType.Bip39,
     ) -> None:
-        self.display_random = display_random
         self.strength = strength
         self.passphrase_protection = passphrase_protection
         self.pin_protection = pin_protection
@@ -3730,9 +3731,9 @@ class RecoveryDevice(protobuf.MessageType):
         4: protobuf.Field("language", "string", repeated=False, required=False, default=None),
         5: protobuf.Field("label", "string", repeated=False, required=False, default=None),
         6: protobuf.Field("enforce_wordlist", "bool", repeated=False, required=False, default=None),
-        8: protobuf.Field("type", "RecoveryDeviceType", repeated=False, required=False, default=None),
+        8: protobuf.Field("input_method", "RecoveryDeviceInputMethod", repeated=False, required=False, default=None),
         9: protobuf.Field("u2f_counter", "uint32", repeated=False, required=False, default=None),
-        10: protobuf.Field("dry_run", "bool", repeated=False, required=False, default=None),
+        10: protobuf.Field("type", "RecoveryType", repeated=False, required=False, default=RecoveryType.NormalRecovery),
     }
 
     def __init__(
@@ -3744,9 +3745,9 @@ class RecoveryDevice(protobuf.MessageType):
         language: Optional["str"] = None,
         label: Optional["str"] = None,
         enforce_wordlist: Optional["bool"] = None,
-        type: Optional["RecoveryDeviceType"] = None,
+        input_method: Optional["RecoveryDeviceInputMethod"] = None,
         u2f_counter: Optional["int"] = None,
-        dry_run: Optional["bool"] = None,
+        type: Optional["RecoveryType"] = RecoveryType.NormalRecovery,
     ) -> None:
         self.word_count = word_count
         self.passphrase_protection = passphrase_protection
@@ -3754,9 +3755,9 @@ class RecoveryDevice(protobuf.MessageType):
         self.language = language
         self.label = label
         self.enforce_wordlist = enforce_wordlist
-        self.type = type
+        self.input_method = input_method
         self.u2f_counter = u2f_counter
-        self.dry_run = dry_run
+        self.type = type
 
 
 class WordRequest(protobuf.MessageType):
@@ -3906,6 +3907,20 @@ class ShowDeviceTutorial(protobuf.MessageType):
 
 class UnlockBootloader(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 96
+
+
+class SetBrightness(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 993
+    FIELDS = {
+        1: protobuf.Field("value", "uint32", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        value: Optional["int"] = None,
+    ) -> None:
+        self.value = value
 
 
 class Slip39Group(protobuf.MessageType):
@@ -4194,6 +4209,10 @@ class DebugLinkWatchLayout(protobuf.MessageType):
 
 class DebugLinkResetDebugEvents(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 9007
+
+
+class DebugLinkOptigaSetSecMax(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 9008
 
 
 class EosGetPublicKey(protobuf.MessageType):

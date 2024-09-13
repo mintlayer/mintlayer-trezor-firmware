@@ -1,11 +1,31 @@
 use crate::ui::geometry::Rect;
+
 #[cfg(feature = "bootloader")]
-use crate::{trezorhal::secbool::secbool, ui::display::Color};
+use crate::trezorhal::secbool::secbool;
+
+#[cfg(not(feature = "new_rendering"))]
+use crate::ui::display::Color;
 
 pub trait UIFeaturesCommon {
     fn fadein() {}
     fn fadeout() {}
     fn backlight_on() {}
+
+    fn get_backlight_none() -> u8 {
+        0
+    }
+    fn get_backlight_normal() -> u8 {
+        0
+    }
+    fn get_backlight_low() -> u8 {
+        0
+    }
+    fn get_backlight_dim() -> u8 {
+        0
+    }
+    fn get_backlight_max() -> u8 {
+        0
+    }
 
     const SCREEN: Rect;
 
@@ -18,6 +38,7 @@ pub trait UIFeaturesCommon {
 pub trait UIFeaturesBootloader {
     fn screen_welcome();
 
+    #[cfg(not(feature = "new_rendering"))]
     fn bld_continue_label(bg_color: Color);
 
     fn screen_install_success(restart_seconds: u8, initial_setup: bool, complete_draw: bool);
@@ -30,6 +51,7 @@ pub trait UIFeaturesBootloader {
         fingerprint: &str,
         should_keep_seed: bool,
         is_newvendor: bool,
+        is_newinstall: bool,
         version_cmp: i32,
     ) -> u32;
 
@@ -54,6 +76,15 @@ pub trait UIFeaturesBootloader {
     fn screen_wipe_success();
 
     fn screen_wipe_fail();
+
+    #[cfg(feature = "new_rendering")]
+    fn screen_boot(
+        warning: bool,
+        vendor_str: Option<&str>,
+        version: [u8; 4],
+        vendor_img: &'static [u8],
+        wait: i32,
+    );
 }
 
 #[cfg(all(

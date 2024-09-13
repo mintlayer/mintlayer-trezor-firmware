@@ -1,10 +1,11 @@
 # pylint: disable=E0602
 
 import os
-import tools
+import tools, models
 
 TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T')
 CMAKELISTS = int(ARGUMENTS.get('CMAKELISTS', 0))
+HW_REVISION = ARGUMENTS.get('HW_REVISION', None)
 
 if TREZOR_MODEL in ('DISC1', 'DISC2'):
     # skip reflash build
@@ -23,29 +24,45 @@ CCFLAGS_MOD = ''
 CPPPATH_MOD = []
 CPPDEFINES_MOD = []
 SOURCE_MOD = []
+SOURCE_MOD_CRYPTO = []
 CPPDEFINES_HAL = []
 SOURCE_HAL = []
 PATH_HAL = []
 
-if TREZOR_MODEL in ('1', 'R'):
+if TREZOR_MODEL in ('1', 'R', 'T3B1'):
     FONT_NORMAL=None
     FONT_DEMIBOLD=None
     FONT_BOLD='Font_PixelOperator_Bold_8'
     FONT_MONO=None
     FONT_BIG=None
-elif TREZOR_MODEL in ('T', 'T3T1'):
+    FONT_NORMAL_UPPER=None
+    FONT_BOLD_UPPER=None
+    FONT_SUB=None
+elif TREZOR_MODEL in ('T',):
     FONT_NORMAL=None
     FONT_DEMIBOLD=None
     FONT_BOLD='Font_Roboto_Bold_20'
     FONT_MONO=None
     FONT_BIG=None
+    FONT_NORMAL_UPPER=None
+    FONT_BOLD_UPPER=None
+    FONT_SUB=None
+elif TREZOR_MODEL in ('T3T1',):
+    FONT_NORMAL=None
+    FONT_DEMIBOLD=None
+    FONT_BOLD='Font_TTSatoshi_DemiBold_21'
+    FONT_MONO=None
+    FONT_BIG=None
+    FONT_NORMAL_UPPER=None
+    FONT_BOLD_UPPER=None
+    FONT_SUB=None
 
 # modtrezorcrypto
 CPPPATH_MOD += [
     'vendor/trezor-crypto',
     'vendor/trezor-storage',
 ]
-SOURCE_MOD += [
+SOURCE_MOD_CRYPTO += [
     'vendor/trezor-crypto/memzero.c',
 ]
 
@@ -55,8 +72,9 @@ CPPPATH_MOD += [
 ]
 SOURCE_MOD += [
     'embed/lib/colors.c',
+    'embed/lib/display_draw.c',
     'embed/lib/display_utils.c',
-    'embed/lib/display.c',
+    'embed/lib/error_handling.c',
     'embed/lib/fonts/font_bitmap.c',
     'embed/lib/fonts/fonts.c',
     'embed/lib/image.c',
@@ -74,6 +92,9 @@ tools.add_font('BOLD', FONT_BOLD, CPPDEFINES_MOD, SOURCE_MOD)
 tools.add_font('DEMIBOLD', FONT_DEMIBOLD, CPPDEFINES_MOD, SOURCE_MOD)
 tools.add_font('MONO', FONT_MONO, CPPDEFINES_MOD, SOURCE_MOD)
 tools.add_font('BIG', FONT_BIG, CPPDEFINES_MOD, SOURCE_MOD)
+tools.add_font('NORMAL_UPPER', FONT_NORMAL_UPPER, CPPDEFINES_MOD, SOURCE_MOD)
+tools.add_font('BOLD_UPPER', FONT_BOLD_UPPER, CPPDEFINES_MOD, SOURCE_MOD)
+tools.add_font('SUB', FONT_SUB, CPPDEFINES_MOD, SOURCE_MOD)
 
 env = Environment(
     ENV=os.environ,
@@ -82,7 +103,7 @@ env = Environment(
     CPPDEFINES_IMPLICIT=[]
     )
 
-FEATURES_AVAILABLE = tools.configure_board(TREZOR_MODEL, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
+FEATURES_AVAILABLE = models.configure_board(TREZOR_MODEL, HW_REVISION, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
 
 FILE_SUFFIX= env.get('ENV')['SUFFIX']
 LINKER_SCRIPT_SUFFIX= env.get('ENV')['LINKER_SCRIPT']
@@ -136,11 +157,11 @@ env.Replace(
     )
 
 env.Replace(
-    HEADERTOOL='tools/headertool.py',
+    HEADERTOOL='headertool',
 )
 
 env.Replace(
-    ALLSOURCES=SOURCE_MOD + SOURCE_REFLASH + SOURCE_HAL,
+    ALLSOURCES=SOURCE_MOD + SOURCE_MOD_CRYPTO + SOURCE_REFLASH + SOURCE_HAL,
     ALLDEFS=tools.get_defs_for_cmake(env['CPPDEFINES'] + env['CPPDEFINES_IMPLICIT']))
 
 cmake_gen = env.Command(
@@ -155,12 +176,13 @@ cmake_gen = env.Command(
 
 obj_program = []
 obj_program += env.Object(source=SOURCE_MOD)
+obj_program += env.Object(source=SOURCE_MOD_CRYPTO, CCFLAGS='$CCFLAGS -ftrivial-auto-var-init=zero')
 obj_program += env.Object(source=SOURCE_REFLASH)
 obj_program += env.Object(source=SOURCE_HAL)
 
-MODEL_IDENTIFIER = tools.get_model_identifier(TREZOR_MODEL)
+MODEL_IDENTIFIER = models.get_model_identifier(TREZOR_MODEL)
 
-VENDORHEADER = f'embed/vendorheader/{MODEL_IDENTIFIER}/vendorheader_' + ('unsafe_signed_dev.bin' if ARGUMENTS.get('PRODUCTION', '0') == '0' else 'satoshilabs_signed_prod.bin')
+VENDORHEADER = f'embed/models/{MODEL_IDENTIFIER}/vendorheader/vendorheader_' + ('unsafe_signed_dev.bin' if ARGUMENTS.get('PRODUCTION', '0') == '0' else 'satoshilabs_signed_prod.bin')
 
 obj_program.extend(
     env.Command(
@@ -177,7 +199,7 @@ program_elf = env.Command(
     '$LINK -o $TARGET $CCFLAGS $CFLAGS $LINKFLAGS $SOURCES -lc_nano -lgcc',
 )
 
-BINARY_NAME = f"build/reflash/reflash-{tools.get_model_identifier(TREZOR_MODEL)}"
+BINARY_NAME = f"build/reflash/reflash-{models.get_model_identifier(TREZOR_MODEL)}"
 BINARY_NAME += "-" + tools.get_version('embed/reflash/version.h')
 BINARY_NAME += "-" + tools.get_git_revision_short_hash()
 BINARY_NAME += "-dirty" if tools.get_git_modified() else ""

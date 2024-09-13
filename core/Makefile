@@ -1,3 +1,4 @@
+
 .PHONY: vendor
 
 # get the number of CPU cores in a "portable" manner
@@ -36,71 +37,68 @@ ADDRESS_SANITIZER ?= 0
 CMAKELISTS ?= 0
 PYTEST_TIMEOUT ?= 500
 TEST_LANG ?= "en"
+THP ?= 0
 
 # OpenOCD interface default. Alternative: ftdi/olimex-arm-usb-tiny-h
 OPENOCD_INTERFACE ?= stlink
 # OpenOCD transport default. Alternative: jtag
 OPENOCD_TRANSPORT ?= hla_swd
 
-BINDGEN_MACROS_COMMON=-I../unix,-I../trezorhal/unix,-I../../build/unix,-I../../vendor/micropython/ports/unix,-I../../../crypto,-I../../../storage,-I../../vendor/micropython,-I../../vendor/micropython/lib/uzlib,-I../lib,-I../trezorhal,-I../trezorhal/unix,-I../models,-DTREZOR_EMULATOR,-DTREZOR_BOARD="boards/board-unix.h",
-
 ifeq ($(TREZOR_MODEL), 1)
 MCU = STM32F2
-LAYOUT_FILE = embed/models/model_T1B1.h
 OPENOCD_TARGET = target/stm32f2x.cfg
 else ifeq ($(TREZOR_MODEL),$(filter $(TREZOR_MODEL),T))
 MCU = STM32F4
-LAYOUT_FILE = embed/models/model_T2T1.h
 OPENOCD_TARGET = target/stm32f4x.cfg
-BINDGEN_MACROS_MODEL = -DSTM32F427,-DTREZOR_MODEL_T,-DFLASH_BIT_ACCESS=1,-DFLASH_BLOCK_WORDS=1,
 MODEL_FEATURE = model_tt
 else ifeq ($(TREZOR_MODEL),$(filter $(TREZOR_MODEL),R))
 MCU = STM32F4
-LAYOUT_FILE = embed/models/model_T2B1.h
 OPENOCD_TARGET = target/stm32f4x.cfg
-BINDGEN_MACROS_MODEL =-DSTM32F427,-DTREZOR_MODEL_R,-DFLASH_BIT_ACCESS=1,-DFLASH_BLOCK_WORDS=1,
 MODEL_FEATURE = model_tr
 else ifeq ($(TREZOR_MODEL),$(filter $(TREZOR_MODEL),T3T1))
 MCU = STM32U5
 OPENOCD_TARGET = target/stm32u5x.cfg
-LAYOUT_FILE = embed/models/model_T3T1.h
+MODEL_FEATURE = model_mercury
+else ifeq ($(TREZOR_MODEL),$(filter $(TREZOR_MODEL),T3B1))
+MCU = STM32U5
+OPENOCD_TARGET = target/stm32u5x.cfg
+MODEL_FEATURE = model_tr
 else ifeq ($(TREZOR_MODEL),$(filter $(TREZOR_MODEL),DISC1))
 MCU = STM32F4
-LAYOUT_FILE = embed/models/model_D001.h
+OPENOCD_TARGET = target/stm32f4x.cfg
 else ifeq ($(TREZOR_MODEL),$(filter $(TREZOR_MODEL),DISC2))
 MCU = STM32U5
-LAYOUT_FILE = embed/models/model_D002.h
 OPENOCD_TARGET = target/stm32u5x.cfg
 else
 $(error Unknown TREZOR_MODEL: $(TREZOR_MODEL))
 endif
 
 
-FLASH_START              = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} FLASH_START)
-BOARDLOADER_START        = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} BOARDLOADER_START)
-BOOTLOADER_START         = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} BOOTLOADER_START)
-FIRMWARE_START           = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} FIRMWARE_START)
-FIRMWARE_P2_START        = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} FIRMWARE_P2_START)
-STORAGE_1_OFFSET         = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} STORAGE_1_OFFSET)
-STORAGE_2_OFFSET         = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} STORAGE_2_OFFSET)
-STORAGE_SIZE             = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} NORCOW_SECTOR_SIZE)
-BOARDLOADER_MAXSIZE      = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} BOARDLOADER_IMAGE_MAXSIZE)
-BOOTLOADER_MAXSIZE       = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} BOOTLOADER_IMAGE_MAXSIZE)
-FIRMWARE_MAXSIZE         = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} FIRMWARE_IMAGE_MAXSIZE)
-FIRMWARE_P1_MAXSIZE      = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} FIRMWARE_P1_IMAGE_MAXSIZE)
-FIRMWARE_P2_MAXSIZE      = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} FIRMWARE_P2_IMAGE_MAXSIZE)
-BOARDLOADER_SECTOR_START = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} BOARDLOADER_SECTOR_START)
-BOARDLOADER_SECTOR_END   = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} BOARDLOADER_SECTOR_END)
-BOOTLOADER_SECTOR_START  = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} BOOTLOADER_SECTOR_START)
-BOOTLOADER_SECTOR_END    = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} BOOTLOADER_SECTOR_END)
-FIRMWARE_SECTOR_START    = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} FIRMWARE_SECTOR_START)
-FIRMWARE_SECTOR_END      = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} FIRMWARE_SECTOR_END)
-FIRMWARE_P2_SECTOR_START = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} FIRMWARE_P2_SECTOR_START)
-FIRMWARE_P2_SECTOR_END   = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} FIRMWARE_P2_SECTOR_END)
-STORAGE_1_SECTOR_START   = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} STORAGE_1_SECTOR_START)
-STORAGE_1_SECTOR_END     = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} STORAGE_1_SECTOR_END)
-STORAGE_2_SECTOR_START   = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} STORAGE_2_SECTOR_START)
-STORAGE_2_SECTOR_END     = $(shell python ./tools/layout_parser.py ${LAYOUT_FILE} STORAGE_2_SECTOR_END)
+FLASH_START              = $(shell layout_parser ${TREZOR_MODEL} FLASH_START)
+BOARDLOADER_START        = $(shell layout_parser ${TREZOR_MODEL} BOARDLOADER_START)
+BOOTLOADER_START         = $(shell layout_parser ${TREZOR_MODEL} BOOTLOADER_START)
+FIRMWARE_START           = $(shell layout_parser ${TREZOR_MODEL} FIRMWARE_START)
+FIRMWARE_P2_START        = $(shell layout_parser ${TREZOR_MODEL} FIRMWARE_P2_START)
+STORAGE_1_OFFSET         = $(shell layout_parser ${TREZOR_MODEL} STORAGE_1_OFFSET)
+STORAGE_2_OFFSET         = $(shell layout_parser ${TREZOR_MODEL} STORAGE_2_OFFSET)
+STORAGE_SIZE             = $(shell layout_parser ${TREZOR_MODEL} NORCOW_SECTOR_SIZE)
+BOARDLOADER_MAXSIZE      = $(shell layout_parser ${TREZOR_MODEL} BOARDLOADER_IMAGE_MAXSIZE)
+BOOTLOADER_MAXSIZE       = $(shell layout_parser ${TREZOR_MODEL} BOOTLOADER_IMAGE_MAXSIZE)
+FIRMWARE_MAXSIZE         = $(shell layout_parser ${TREZOR_MODEL} FIRMWARE_IMAGE_MAXSIZE)
+FIRMWARE_P1_MAXSIZE      = $(shell layout_parser ${TREZOR_MODEL} FIRMWARE_P1_IMAGE_MAXSIZE)
+FIRMWARE_P2_MAXSIZE      = $(shell layout_parser ${TREZOR_MODEL} FIRMWARE_P2_IMAGE_MAXSIZE)
+BOARDLOADER_SECTOR_START = $(shell layout_parser ${TREZOR_MODEL} BOARDLOADER_SECTOR_START)
+BOARDLOADER_SECTOR_END   = $(shell layout_parser ${TREZOR_MODEL} BOARDLOADER_SECTOR_END)
+BOOTLOADER_SECTOR_START  = $(shell layout_parser ${TREZOR_MODEL} BOOTLOADER_SECTOR_START)
+BOOTLOADER_SECTOR_END    = $(shell layout_parser ${TREZOR_MODEL} BOOTLOADER_SECTOR_END)
+FIRMWARE_SECTOR_START    = $(shell layout_parser ${TREZOR_MODEL} FIRMWARE_SECTOR_START)
+FIRMWARE_SECTOR_END      = $(shell layout_parser ${TREZOR_MODEL} FIRMWARE_SECTOR_END)
+FIRMWARE_P2_SECTOR_START = $(shell layout_parser ${TREZOR_MODEL} FIRMWARE_P2_SECTOR_START)
+FIRMWARE_P2_SECTOR_END   = $(shell layout_parser ${TREZOR_MODEL} FIRMWARE_P2_SECTOR_END)
+STORAGE_1_SECTOR_START   = $(shell layout_parser ${TREZOR_MODEL} STORAGE_1_SECTOR_START)
+STORAGE_1_SECTOR_END     = $(shell layout_parser ${TREZOR_MODEL} STORAGE_1_SECTOR_END)
+STORAGE_2_SECTOR_START   = $(shell layout_parser ${TREZOR_MODEL} STORAGE_2_SECTOR_START)
+STORAGE_2_SECTOR_END     = $(shell layout_parser ${TREZOR_MODEL} STORAGE_2_SECTOR_END)
 
 OPENOCD = openocd -f interface/$(OPENOCD_INTERFACE).cfg -c "transport select $(OPENOCD_TRANSPORT)" -f $(OPENOCD_TARGET)
 
@@ -143,7 +141,6 @@ emu: ## run emulator
 test: ## run unit tests
 	cd tests ; ./run_tests.sh $(TESTOPTS)
 
-test_rust: export BINDGEN_MACROS=$(BINDGEN_MACROS_COMMON)$(BINDGEN_MACROS_MODEL)
 test_rust: ## run rs unit tests
 	cd embed/rust ; cargo test $(TESTOPTS) --target=$(RUST_TARGET) \
 		--no-default-features --features $(MODEL_FEATURE),test \
@@ -213,7 +210,6 @@ typecheck: pyright
 pyright:
 	python ../tools/pyright_tool.py
 
-clippy: export BINDGEN_MACROS:=$(BINDGEN_MACROS_COMMON)$(BINDGEN_MACROS_MODEL)
 clippy:
 	cd embed/rust ; cargo clippy $(TESTOPTS) --all-features --target=$(RUST_TARGET)
 
@@ -241,18 +237,25 @@ build_embed: build_boardloader build_bootloader build_firmware # build boardload
 
 build_boardloader: ## build boardloader
 	$(SCONS) CFLAGS="$(CFLAGS)" PRODUCTION="$(PRODUCTION)" TREZOR_MODEL="$(TREZOR_MODEL)" \
-		CMAKELISTS="$(CMAKELISTS)" $(BOARDLOADER_BUILD_DIR)/boardloader.bin
+		CMAKELISTS="$(CMAKELISTS)" NEW_RENDERING="$(NEW_RENDERING)" $(BOARDLOADER_BUILD_DIR)/boardloader.bin
 
 build_bootloader: ## build bootloader
 	$(SCONS) CFLAGS="$(CFLAGS)" PRODUCTION="$(PRODUCTION)" TREZOR_MODEL="$(TREZOR_MODEL)" \
-		CMAKELISTS="$(CMAKELISTS)" BOOTLOADER_QA="$(BOOTLOADER_QA)" BOOTLOADER_DEVEL="$(BOOTLOADER_DEVEL)" $(BOOTLOADER_BUILD_DIR)/bootloader.bin
+		CMAKELISTS="$(CMAKELISTS)" BOOTLOADER_QA="$(BOOTLOADER_QA)" BOOTLOADER_DEVEL="$(BOOTLOADER_DEVEL)" \
+		NEW_RENDERING="$(NEW_RENDERING)" $(BOOTLOADER_BUILD_DIR)/bootloader.bin
 
 build_bootloader_ci: ## build CI device testing bootloader
 	$(SCONS) CFLAGS="$(CFLAGS)" PRODUCTION="$(PRODUCTION)" TREZOR_MODEL="$(TREZOR_MODEL)" \
 		CMAKELISTS="$(CMAKELISTS)" $(BOOTLOADER_CI_BUILD_DIR)/bootloader.bin
 
 build_bootloader_emu: ## build the unix bootloader emulator
-	$(SCONS) CFLAGS="$(CFLAGS)" PRODUCTION="$(PRODUCTION)" TREZOR_MODEL="$(TREZOR_MODEL)" CMAKELISTS="$(CMAKELISTS)" $(BOOTLOADER_EMU_BUILD_DIR)/bootloader.elf
+	$(SCONS) CFLAGS="$(CFLAGS)" PRODUCTION="$(PRODUCTION)" TREZOR_MODEL="$(TREZOR_MODEL)" \
+	CMAKELISTS="$(CMAKELISTS)" NEW_RENDERING="$(NEW_RENDERING)" $(BOOTLOADER_EMU_BUILD_DIR)/bootloader.elf
+
+build_bootloader_emu_debug: ## build the unix bootloader emulator
+	$(SCONS) CFLAGS="$(CFLAGS)" PRODUCTION="$(PRODUCTION)" TREZOR_MODEL="$(TREZOR_MODEL)" \
+	CMAKELISTS="$(CMAKELISTS)" NEW_RENDERING="$(NEW_RENDERING)" TREZOR_EMULATOR_DEBUGGABLE=1 \
+	$(BOOTLOADER_EMU_BUILD_DIR)/bootloader.elf
 
 build_prodtest: ## build production test firmware
 	$(SCONS) CFLAGS="$(CFLAGS)" PRODUCTION="$(PRODUCTION)" TREZOR_MODEL="$(TREZOR_MODEL)" \
@@ -260,7 +263,7 @@ build_prodtest: ## build production test firmware
 
 build_reflash: ## build reflash firmware + reflash image
 	$(SCONS) CFLAGS="$(CFLAGS)" PRODUCTION="$(PRODUCTION)" TREZOR_MODEL="$(TREZOR_MODEL)" \
-		CMAKELISTS="$(CMAKELISTS)" $(REFLASH_BUILD_DIR)/reflash.bin
+		CMAKELISTS="$(CMAKELISTS)" NEW_RENDERING="$(NEW_RENDERING)" $(REFLASH_BUILD_DIR)/reflash.bin
 	dd if=build/boardloader/boardloader.bin of=$(REFLASH_BUILD_DIR)/sdimage.bin bs=1 seek=0
 	dd if=build/bootloader/bootloader.bin of=$(REFLASH_BUILD_DIR)/sdimage.bin bs=1 seek=49152
 
@@ -269,24 +272,26 @@ build_firmware: templates build_cross ## build firmware with frozen modules
 		TREZOR_MODEL="$(TREZOR_MODEL)" CMAKELISTS="$(CMAKELISTS)" \
 		PYOPT="$(PYOPT)" BITCOIN_ONLY="$(BITCOIN_ONLY)" \
 		BOOTLOADER_QA="$(BOOTLOADER_QA)" BOOTLOADER_DEVEL="$(BOOTLOADER_DEVEL)" \
-		DISABLE_OPTIGA="$(DISABLE_OPTIGA)" \
+		DISABLE_OPTIGA="$(DISABLE_OPTIGA)" THP="$(THP)" NEW_RENDERING="$(NEW_RENDERING)" \
 		$(FIRMWARE_BUILD_DIR)/firmware.bin
 
 build_unix: templates ## build unix port
 	$(SCONS) CFLAGS="$(CFLAGS)" $(UNIX_BUILD_DIR)/trezor-emu-core $(UNIX_PORT_OPTS) \
-		TREZOR_MODEL="$(TREZOR_MODEL)" CMAKELISTS="$(CMAKELISTS)" \
-		PYOPT="0" BITCOIN_ONLY="$(BITCOIN_ONLY)" TREZOR_EMULATOR_ASAN="$(ADDRESS_SANITIZER)"
+		TREZOR_MODEL="$(TREZOR_MODEL)" CMAKELISTS="$(CMAKELISTS)" THP="$(THP)" \
+		PYOPT="0" BITCOIN_ONLY="$(BITCOIN_ONLY)" TREZOR_EMULATOR_ASAN="$(ADDRESS_SANITIZER)" \
+		NEW_RENDERING="$(NEW_RENDERING)"
 
 build_unix_frozen: templates build_cross ## build unix port with frozen modules
 	$(SCONS) CFLAGS="$(CFLAGS)" $(UNIX_BUILD_DIR)/trezor-emu-core $(UNIX_PORT_OPTS) \
 		TREZOR_MODEL="$(TREZOR_MODEL)" CMAKELISTS="$(CMAKELISTS)" \
 		PYOPT="$(PYOPT)" BITCOIN_ONLY="$(BITCOIN_ONLY)" TREZOR_EMULATOR_ASAN="$(ADDRESS_SANITIZER)" \
-		TREZOR_MEMPERF="$(TREZOR_MEMPERF)" TREZOR_EMULATOR_FROZEN=1
+		TREZOR_MEMPERF="$(TREZOR_MEMPERF)" TREZOR_EMULATOR_FROZEN=1 NEW_RENDERING="$(NEW_RENDERING)"
 
 build_unix_debug: templates ## build unix port
 	$(SCONS) --max-drift=1 CFLAGS="$(CFLAGS)" $(UNIX_BUILD_DIR)/trezor-emu-core $(UNIX_PORT_OPTS) \
 		TREZOR_MODEL="$(TREZOR_MODEL)" CMAKELISTS="$(CMAKELISTS)" \
-		BITCOIN_ONLY="$(BITCOIN_ONLY)" TREZOR_EMULATOR_ASAN=1 TREZOR_EMULATOR_DEBUGGABLE=1
+		BITCOIN_ONLY="$(BITCOIN_ONLY)" TREZOR_EMULATOR_ASAN=1 TREZOR_EMULATOR_DEBUGGABLE=1 \
+		NEW_RENDERING="$(NEW_RENDERING)"
 
 build_cross: ## build mpy-cross port
 	$(MAKE) -C vendor/micropython/mpy-cross $(CROSS_PORT_OPTS)
@@ -427,8 +432,8 @@ sizecheck: ## check sizes of binary files
 	test $(FIRMWARE_MAXSIZE) -ge $(shell wc -c < $(FIRMWARE_BUILD_DIR)/firmware.bin)
 
 combine: ## combine boardloader + bootloader + prodtest into one combined image
-	./tools/combine_firmware \
-		$(LAYOUT_FILE) \
+	combine_firmware \
+		$(TREZOR_MODEL) \
 		$(PRODTEST_BUILD_DIR)/combined.bin \
 		-b BOARDLOADER $(BOARDLOADER_BUILD_DIR)/boardloader.bin \
 		-b BOOTLOADER $(BOOTLOADER_BUILD_DIR)/bootloader.bin \
@@ -436,8 +441,8 @@ combine: ## combine boardloader + bootloader + prodtest into one combined image
 
 ifeq  ($(MCU),$(filter $(MCU),STM32F4))
 combine_fw: ## combine boardloader + bootloader + firmware into one combined image
-	./tools/combine_firmware \
-		$(LAYOUT_FILE) \
+	combine_firmware \
+		$(TREZOR_MODEL) \
 		$(PRODTEST_BUILD_DIR)/combined.bin \
 		-b BOARDLOADER $(BOARDLOADER_BUILD_DIR)/boardloader.bin \
 		-b BOOTLOADER $(BOOTLOADER_BUILD_DIR)/bootloader.bin \
@@ -445,8 +450,8 @@ combine_fw: ## combine boardloader + bootloader + firmware into one combined ima
 		-b FIRMWARE_P2 $(FIRMWARE_BUILD_DIR)/firmware.bin.p2
 else ifeq ($(MCU),$(filter $(MCU),STM32U5))
 combine_fw: ## combine boardloader + bootloader + firmware into one combined image
-	./tools/combine_firmware \
-		$(LAYOUT_FILE) \
+	combine_firmware \
+		$(TREZOR_MODEL) \
 		$(PRODTEST_BUILD_DIR)/combined.bin \
 		-b BOARDLOADER $(BOARDLOADER_BUILD_DIR)/boardloader.bin \
 		-b BOOTLOADER $(BOOTLOADER_BUILD_DIR)/bootloader.bin \

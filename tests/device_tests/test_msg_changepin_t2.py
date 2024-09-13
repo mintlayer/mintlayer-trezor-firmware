@@ -16,11 +16,13 @@
 
 import pytest
 
-from trezorlib import btc, device, messages, models
+from trezorlib import btc, device, messages
 from trezorlib.client import MAX_PIN_LENGTH, PASSPHRASE_TEST_PATH
+from trezorlib.debuglink import LayoutType
 from trezorlib.debuglink import TrezorClientDebugLink as Client
 from trezorlib.exceptions import Cancelled, TrezorFailure
 
+from .. import buttons
 from ..input_flows import (
     InputFlowCodeChangeFail,
     InputFlowNewCodeMismatch,
@@ -31,7 +33,7 @@ PIN4 = "1234"
 PIN60 = "789456" * 10
 PIN_MAX = "".join(chr((i % 10) + ord("0")) for i in range(MAX_PIN_LENGTH))
 
-pytestmark = pytest.mark.skip_t1b1
+pytestmark = pytest.mark.models("core")
 
 
 def _check_pin(client: Client, pin: str):
@@ -62,11 +64,10 @@ def test_set_pin(client: Client):
 
     # Let's set new PIN
     with client:
-        br_count = {
-            models.T2T1: 4,
-            models.T2B1: 6,
-            models.T3T1: 4,
-        }[client.model]
+        if client.layout_type is LayoutType.TR:
+            br_count = 6
+        else:
+            br_count = 4
         client.use_pin_sequence([PIN_MAX, PIN_MAX])
         client.set_expected_responses(
             [messages.ButtonRequest] * br_count + [messages.Success, messages.Features]
@@ -88,11 +89,10 @@ def test_change_pin(client: Client):
     # Let's change PIN
     with client:
         client.use_pin_sequence([PIN4, PIN_MAX, PIN_MAX])
-        br_count = {
-            models.T2T1: 5,
-            models.T2B1: 6,
-            models.T3T1: 5,
-        }[client.model]
+        if client.layout_type is LayoutType.TR:
+            br_count = 6
+        else:
+            br_count = 5
         client.set_expected_responses(
             [messages.ButtonRequest] * br_count + [messages.Success, messages.Features]
         )
@@ -180,3 +180,26 @@ def test_change_invalid_current(client: Client):
     client.init_device()
     assert client.features.pin_protection is True
     _check_pin(client, PIN4)
+
+
+@pytest.mark.models("mercury")
+@pytest.mark.setup_client(pin=None)
+def test_pin_menu_cancel_setup(client: Client):
+    def cancel_pin_setup_input_flow():
+        yield
+        # enter context menu
+        client.debug.click(buttons.CORNER_BUTTON)
+        client.debug.synchronize_at("VerticalMenu")
+        # click "Cancel PIN setup"
+        client.debug.click(buttons.VERTICAL_MENU[0])
+        client.debug.synchronize_at("Paragraphs")
+        # swipe through info screen
+        client.debug.swipe_up()
+        client.debug.synchronize_at("PromptScreen")
+        # tap to confirm
+        client.debug.click(buttons.TAP_TO_CONFIRM)
+
+    with client, pytest.raises(Cancelled):
+        client.set_input_flow(cancel_pin_setup_input_flow)
+        client.call(messages.ChangePin())
+    _check_no_pin(client)

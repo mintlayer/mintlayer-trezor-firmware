@@ -1,5 +1,5 @@
 use crate::{
-    error::Error,
+    error::{value_error, Error},
     trezorhal::uzlib::{UzlibContext, UZLIB_WINDOW_SIZE},
     ui::{
         component::image::Image,
@@ -208,11 +208,11 @@ impl<'i> Toif<'i> {
     pub const fn new(data: &'i [u8]) -> Result<Self, Error> {
         if data.len() < TOIF_HEADER_LENGTH || data[0] != b'T' || data[1] != b'O' || data[2] != b'I'
         {
-            return Err(value_error!("Invalid TOIF header."));
+            return Err(value_error!(c"Invalid TOIF header."));
         }
         let zdatalen = u32::from_le_bytes([data[8], data[9], data[10], data[11]]) as usize;
         if zdatalen + TOIF_HEADER_LENGTH != data.len() {
-            return Err(value_error!("Invalid TOIF length."));
+            return Err(value_error!(c"Invalid TOIF length."));
         }
         Ok(Self {
             data,
@@ -269,6 +269,10 @@ impl<'i> Toif<'i> {
 
     pub fn zdata(&self) -> &'i [u8] {
         &self.data[TOIF_HEADER_LENGTH..]
+    }
+
+    pub fn original_data(&self) -> &'i [u8] {
+        self.data
     }
 
     pub fn uncompress(&self, dest: &mut [u8]) {

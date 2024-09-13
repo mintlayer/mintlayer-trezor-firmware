@@ -48,6 +48,7 @@ trezor_message_impl! {
     ChangeLanguage => MessageType_ChangeLanguage,
     TranslationDataRequest => MessageType_TranslationDataRequest,
     TranslationDataAck => MessageType_TranslationDataAck,
+    SetBrightness => MessageType_SetBrightness,
     SetU2FCounter => MessageType_SetU2FCounter,
     GetNextU2FCounter => MessageType_GetNextU2FCounter,
     NextU2FCounter => MessageType_NextU2FCounter,
@@ -63,10 +64,6 @@ trezor_message_impl! {
     SignedIdentity => MessageType_SignedIdentity,
     GetECDHSessionKey => MessageType_GetECDHSessionKey,
     ECDHSessionKey => MessageType_ECDHSessionKey,
-    CosiCommit => MessageType_CosiCommit,
-    CosiCommitment => MessageType_CosiCommitment,
-    CosiSign => MessageType_CosiSign,
-    CosiSignature => MessageType_CosiSignature,
     DebugLinkDecision => MessageType_DebugLinkDecision,
     DebugLinkGetState => MessageType_DebugLinkGetState,
     DebugLinkState => MessageType_DebugLinkState,
@@ -82,6 +79,7 @@ trezor_message_impl! {
     DebugLinkEraseSdCard => MessageType_DebugLinkEraseSdCard,
     DebugLinkWatchLayout => MessageType_DebugLinkWatchLayout,
     DebugLinkResetDebugEvents => MessageType_DebugLinkResetDebugEvents,
+    DebugLinkOptigaSetSecMax => MessageType_DebugLinkOptigaSetSecMax,
 }
 
 #[cfg(feature = "binance")]

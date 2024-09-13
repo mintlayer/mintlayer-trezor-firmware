@@ -25,7 +25,7 @@ from ...common import MNEMONIC12
 PIN4 = "1234"
 PIN6 = "789456"
 
-pytestmark = [pytest.mark.skip_t2t1, pytest.mark.skip_t2b1, pytest.mark.skip_t3t1]
+pytestmark = pytest.mark.models("legacy")
 
 
 @pytest.mark.setup_client(uninitialized=True)
@@ -202,16 +202,17 @@ def test_already_initialized(client: Client):
     with pytest.raises(RuntimeError):
         device.recover(
             client,
-            12,
-            False,
-            False,
-            "label",
+            word_count=12,
+            pin_protection=False,
+            passphrase_protection=False,
+            label="label",
             input_callback=client.mnemonic_callback,
         )
 
     ret = client.call_raw(
         messages.RecoveryDevice(
-            word_count=12, type=messages.RecoveryDeviceType.ScrambledWords
+            word_count=12,
+            input_method=messages.RecoveryDeviceInputMethod.ScrambledWords,
         )
     )
     assert isinstance(ret, messages.Failure)

@@ -10,6 +10,7 @@ use crate::{
             Child, Component, Event, EventCtx, Never,
         },
         geometry::{Insets, LinearPlacement, Rect},
+        shape::Renderer,
     },
 };
 
@@ -71,10 +72,9 @@ where
         self.controls.paint();
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        self.content.bounds(sink);
-        self.controls.bounds(sink);
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.content.render(target);
+        self.controls.render(target);
     }
 }
 
@@ -196,11 +196,10 @@ where
         self.controls.paint();
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        self.image.bounds(sink);
-        self.paragraphs.bounds(sink);
-        self.controls.bounds(sink);
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.image.render(target);
+        self.paragraphs.render(target);
+        self.controls.render(target);
     }
 }
 

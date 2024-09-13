@@ -23,7 +23,7 @@ class HashBuilderCollection:
         self.size = size
         self.remaining = size
         self.hash_fn: HashContext | None = None
-        self.parent: "HashBuilderCollection" | None = None
+        self.parent: "HashBuilderCollection | None" = None
         self.has_unfinished_child = False
 
     def start(self, hash_fn: HashContext) -> "HashBuilderCollection":
@@ -88,6 +88,19 @@ class HashBuilderList(HashBuilderCollection, Generic[T]):
 
     def _header_bytes(self) -> bytes:
         return cbor.create_array_header(self.size)
+
+
+class HashBuilderSet(HashBuilderList, Generic[T]):
+    def __init__(self, size: int, *, tagged: bool) -> None:
+        super().__init__(size)
+        self.tagged = tagged
+
+    def _header_bytes(self) -> bytes:
+        return (
+            cbor.create_tagged_set_header(self.size)
+            if self.tagged
+            else cbor.create_array_header(self.size)
+        )
 
 
 class HashBuilderDict(HashBuilderCollection, Generic[K, V]):

@@ -4,6 +4,8 @@ use crate::{
         component::{Child, Component, Event, EventCtx, Label, Pad},
         geometry::{Alignment, Alignment2D, Rect},
         layout::simplified::ReturnToC,
+        shape,
+        shape::Renderer,
     },
 };
 
@@ -104,11 +106,24 @@ impl<'a> Component for Intro<'a> {
         self.buttons.paint();
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        self.title.bounds(sink);
-        self.warn.bounds(sink);
-        self.text.bounds(sink);
-        self.buttons.bounds(sink);
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.bg.render(target);
+        self.title.render(target);
+
+        let area = self.bg.area;
+
+        shape::ToifImage::new(area.top_left(), ICON_WARN_TITLE.toif)
+            .with_align(Alignment2D::TOP_LEFT)
+            .with_fg(BLD_FG)
+            .render(target);
+
+        shape::ToifImage::new(area.top_left(), ICON_WARN_TITLE.toif)
+            .with_align(Alignment2D::TOP_RIGHT)
+            .with_fg(BLD_FG)
+            .render(target);
+
+        self.warn.render(target);
+        self.text.render(target);
+        self.buttons.render(target);
     }
 }

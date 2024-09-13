@@ -169,10 +169,12 @@ impl Trezor {
         req.set_pin_protection(pin_protection);
         req.set_label(label);
         req.set_enforce_wordlist(true);
-        req.set_dry_run(dry_run);
-        req.set_type(
-            protos::recovery_device::RecoveryDeviceType::RecoveryDeviceType_ScrambledWords,
-        );
+        if dry_run {
+            req.set_type(protos::RecoveryType::DryRun);
+        } else {
+            req.set_type(protos::RecoveryType::NormalRecovery);
+        }
+        req.set_input_method(protos::recovery_device::RecoveryDeviceInputMethod::ScrambledWords);
         //TODO(stevenroose) support languages
         req.set_language("english".to_owned());
         self.call(req, Box::new(|_, _| Ok(())))
@@ -181,7 +183,6 @@ impl Trezor {
     #[allow(clippy::too_many_arguments)]
     pub fn reset_device(
         &mut self,
-        display_random: bool,
         strength: usize,
         passphrase_protection: bool,
         pin_protection: bool,
@@ -190,7 +191,6 @@ impl Trezor {
         no_backup: bool,
     ) -> Result<TrezorResponse<'_, EntropyRequest<'_>, protos::EntropyRequest>> {
         let mut req = protos::ResetDevice::new();
-        req.set_display_random(display_random);
         req.set_strength(strength as u32);
         req.set_passphrase_protection(passphrase_protection);
         req.set_pin_protection(pin_protection);

@@ -3,6 +3,7 @@ use crate::{
     ui::{
         constant,
         geometry::{Offset, Point, Rect},
+        shape::{Bitmap, BitmapFormat},
     },
 };
 use core::slice;
@@ -41,12 +42,12 @@ impl Glyph {
             let width = *data.offset(0) as i16;
             let height = *data.offset(1) as i16;
 
-            let data_bits = constant::FONT_BPP * width * height;
-
-            let data_bytes = if data_bits % 8 == 0 {
-                data_bits / 8
-            } else {
-                (data_bits / 8) + 1
+            let data_bytes = match constant::FONT_BPP {
+                1 => (width * height + 7) / 8, // packed bits
+                2 => (width * height + 3) / 4, // packed bits
+                4 => (width + 1) / 2 * height, // row aligned to bytes
+                8 => width * height,
+                _ => fatal_error!("Unsupported font bpp"),
             };
 
             Glyph {
@@ -119,18 +120,42 @@ impl Glyph {
             _ => 0,
         }
     }
+
+    pub fn bitmap(&self) -> Bitmap<'static> {
+        match constant::FONT_BPP {
+            1 => unwrap!(Bitmap::new(
+                BitmapFormat::MONO1P,
+                None,
+                Offset::new(self.width, self.height),
+                None,
+                self.data,
+            )),
+            4 => unwrap!(Bitmap::new(
+                BitmapFormat::MONO4,
+                None,
+                Offset::new(self.width, self.height),
+                None,
+                self.data,
+            )),
+            _ => unimplemented!(),
+        }
+    }
 }
 
 /// Font constants. Keep in sync with FONT_ definitions in
-/// `extmod/modtrezorui/fonts/fonts.h`.
+/// `core/embed/lib/fonts/fonts.h`.
 #[derive(Copy, Clone, PartialEq, Eq, FromPrimitive)]
 #[repr(u8)]
+#[allow(non_camel_case_types)]
 pub enum Font {
     NORMAL = 1,
     BOLD = 2,
     MONO = 3,
     BIG = 4,
     DEMIBOLD = 5,
+    NORMAL_UPPER = 6,
+    BOLD_UPPER = 7,
+    SUB = 8,
 }
 
 impl From<Font> for i32 {
@@ -240,7 +265,32 @@ impl Font {
         constant::LINE_SPACE + self.text_height()
     }
 
+    /// Helper functions for **horizontal** text centering.
+    ///
+    /// The `text` is centered between `start` and `end`.
+    ///
+    /// Returns x-coordinate of the centered text start (including left
+    /// bearing).
+    pub fn horz_center(&self, start: i16, end: i16, text: &str) -> i16 {
+        (start + end - self.visible_text_width(text)) / 2 - self.start_x_bearing(text)
+    }
+
+    /// Helper functions for **vertical** text centering.
+    ///
+    /// The `text` is centered between `start` and `end`.
+    ///
+    /// Returns y-coordinate of the centered text baseline.
+    pub fn vert_center(&self, start: i16, end: i16, text: &str) -> i16 {
+        (start + end + self.visible_text_height(text)) / 2
+    }
+
     pub fn get_glyph(self, ch: char) -> Glyph {
+        /* have the non-breaking space counted for width but not counted as a
+         * breaking point */
+        let ch = match ch {
+            '\u{00a0}' => '\u{0020}',
+            c => c,
+        };
         let gl_data = display::get_char_glyph(ch as u16, self.into());
 
         ensure!(!gl_data.is_null(), "Failed to load glyph");
@@ -272,6 +322,16 @@ impl Font {
         }
 
         text.len() // it fits in its entirety
+    }
+
+    pub fn visible_text_height_ex(&self, text: &str) -> (i16, i16) {
+        let (mut ascent, mut descent) = (0, 0);
+        for c in text.chars() {
+            let glyph = self.get_glyph(c);
+            ascent = ascent.max(glyph.bearing_y);
+            descent = descent.max(glyph.height - glyph.bearing_y);
+        }
+        (ascent, descent)
     }
 }
 

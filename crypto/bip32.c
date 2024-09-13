@@ -103,6 +103,7 @@ int hdnode_from_xpub(uint32_t depth, uint32_t child_num,
   memzero(out->private_key, 32);
   memzero(out->private_key_extension, 32);
   memcpy(out->public_key, public_key, 33);
+  out->is_public_key_set = true;
   return 1;
 }
 
@@ -136,6 +137,7 @@ int hdnode_from_xprv(uint32_t depth, uint32_t child_num,
   memcpy(out->chain_code, chain_code, 32);
   memcpy(out->private_key, private_key, 32);
   memzero(out->public_key, sizeof(out->public_key));
+  out->is_public_key_set = false;
   memzero(out->private_key_extension, sizeof(out->private_key_extension));
   return 1;
 }
@@ -174,6 +176,7 @@ int hdnode_from_seed(const uint8_t *seed, int seed_len, const char *curve,
   memcpy(out->private_key, I, 32);
   memcpy(out->chain_code, I + 32, 32);
   memzero(out->public_key, sizeof(out->public_key));
+  out->is_public_key_set = false;
   memzero(I, sizeof(I));
   return 1;
 }
@@ -206,6 +209,8 @@ int hdnode_private_ckd_bip32(HDNode *inout, uint32_t i) {
     memcpy(data + 1, inout->private_key, 32);
   } else {  // public derivation
     if (!inout->curve->params) {
+      // SLIP-10 doesn't support private key to private key non-hardened
+      // derivation for curve25519 and ed25519
       return 0;
     }
     if (hdnode_fill_public_key(inout) != 0) {
@@ -255,6 +260,7 @@ int hdnode_private_ckd_bip32(HDNode *inout, uint32_t i) {
   inout->depth++;
   inout->child_num = i;
   memzero(inout->public_key, sizeof(inout->public_key));
+  inout->is_public_key_set = false;
 
   // making sure to wipe our memory
   memzero(&a, sizeof(a));
@@ -275,91 +281,51 @@ int hdnode_private_ckd(HDNode *inout, uint32_t i) {
   }
 }
 
-int hdnode_public_ckd_cp(const ecdsa_curve *curve, const curve_point *parent,
-                         const uint8_t *parent_chain_code, uint32_t i,
-                         curve_point *child, uint8_t *child_chain_code) {
-  uint8_t data[(1 + 32) + 4] = {0};
-  uint8_t I[32 + 32] = {0};
-  bignum256 c = {0};
+int hdnode_public_ckd(HDNode *inout, uint32_t i) {
+  if (!inout->curve->params) {
+    // SLIP-10 doesn't support public key to public key derivation for
+    // curve25519 and ed25519, Cardano BIP32-ed22519 public key to public key
+    // derivation is not implemented
+    return 0;
+  }
+
+  uint8_t data[33 + 4] = {0};
+  uint8_t digest[32 + 32] = {0};
+  int result = 0;
 
   if (i & 0x80000000) {  // private derivation
     return 0;
   }
 
-  data[0] = 0x02 | (parent->y.val[0] & 0x01);
-  bn_write_be(&parent->x, data + 1);
+  memcpy(data, inout->public_key, 33);
   write_be(data + 33, i);
 
   while (true) {
-    hmac_sha512(parent_chain_code, 32, data, sizeof(data), I);
-    bn_read_be(I, &c);
-    if (bn_is_less(&c, &curve->order)) {  // < order
-      scalar_multiply(curve, &c, child);  // b = c * G
-      point_add(curve, parent, child);    // b = a + b
-      if (!point_is_infinity(child)) {
-        if (child_chain_code) {
-          memcpy(child_chain_code, I + 32, 32);
-        }
+    hmac_sha512(inout->chain_code, 32, data, sizeof(data), digest);
 
-        // Wipe all stack data.
-        memzero(data, sizeof(data));
-        memzero(I, sizeof(I));
-        memzero(&c, sizeof(c));
-        return 1;
-      }
+    result = ecdsa_tweak_pubkey(inout->curve->params, inout->public_key, digest,
+                                inout->public_key);
+    if (result == ECDSA_TWEAK_PUBKEY_SUCCESS) {
+      memcpy(inout->chain_code, digest + 32, 32);
+      inout->depth++;
+      inout->child_num = i;
+      memzero(inout->private_key, 32);
+      break;
+    }
+    if (result != ECDSA_TWEAK_PUBKEY_INVALID_TWEAK_OR_RESULT_ERR) {
+      break;
     }
 
+    // The tweak is less than the order of the curve or the tweaked public key
+    // is the point at infinity
     data[0] = 1;
-    memcpy(data + 1, I + 32, 32);
+    memcpy(data + 1, digest + 32, 32);
   }
-}
 
-int hdnode_public_ckd(HDNode *inout, uint32_t i) {
-  curve_point parent = {0}, child = {0};
+  memzero(digest, sizeof(digest));
+  memzero(data, sizeof(data));
 
-  if (!ecdsa_read_pubkey(inout->curve->params, inout->public_key, &parent)) {
-    return 0;
-  }
-  if (!hdnode_public_ckd_cp(inout->curve->params, &parent, inout->chain_code, i,
-                            &child, inout->chain_code)) {
-    return 0;
-  }
-  memzero(inout->private_key, 32);
-  inout->depth++;
-  inout->child_num = i;
-  inout->public_key[0] = 0x02 | (child.y.val[0] & 0x01);
-  bn_write_be(&child.x, inout->public_key + 1);
-
-  // Wipe all stack data.
-  memzero(&parent, sizeof(parent));
-  memzero(&child, sizeof(child));
-
-  return 1;
-}
-
-void hdnode_public_ckd_address_optimized(const curve_point *pub,
-                                         const uint8_t *chain_code, uint32_t i,
-                                         uint32_t version,
-                                         HasherType hasher_pubkey,
-                                         HasherType hasher_base58, char *addr,
-                                         int addrsize, int addrformat) {
-  uint8_t child_pubkey[33] = {0};
-  curve_point b = {0};
-
-  hdnode_public_ckd_cp(&secp256k1, pub, chain_code, i, &b, NULL);
-  child_pubkey[0] = 0x02 | (b.y.val[0] & 0x01);
-  bn_write_be(&b.x, child_pubkey + 1);
-
-  switch (addrformat) {
-    case 1:  // Segwit-in-P2SH
-      ecdsa_get_address_segwit_p2sh(child_pubkey, version, hasher_pubkey,
-                                    hasher_base58, addr, addrsize);
-      break;
-    default:  // normal address
-      ecdsa_get_address(child_pubkey, version, hasher_pubkey, hasher_base58,
-                        addr, addrsize);
-      break;
-  }
+  return result == ECDSA_TWEAK_PUBKEY_SUCCESS;
 }
 
 #if USE_BIP32_CACHE
@@ -468,7 +434,9 @@ int hdnode_get_address(HDNode *node, uint32_t version, char *addr,
 }
 
 int hdnode_fill_public_key(HDNode *node) {
-  if (node->public_key[0] != 0) return 0;
+  if (node->is_public_key_set) {
+    return 0;
+  }
 
 #if USE_BIP32_25519_CURVES
   if (node->curve->params) {
@@ -477,7 +445,8 @@ int hdnode_fill_public_key(HDNode *node) {
       return 1;
     }
   } else {
-    node->public_key[0] = 1;
+    // According to SLIP-10, curve25519 and ed25519 use the prefix 0x00
+    node->public_key[0] = 0;
     if (node->curve == &ed25519_info) {
       ed25519_publickey(node->private_key, node->public_key + 1);
     } else if (node->curve == &ed25519_sha3_info) {
@@ -501,6 +470,7 @@ int hdnode_fill_public_key(HDNode *node) {
     return 1;
   }
 #endif
+  node->is_public_key_set = true;
   return 0;
 }
 
@@ -683,6 +653,8 @@ int hdnode_get_shared_key(const HDNode *node, const uint8_t *peer_public_key,
     *result_size = 65;
     return 0;
   } else if (node->curve == &curve25519_info) {
+    // The prefix 0x04 doesn't make sense here, and may be changed or removed in
+    // the future
     session_key[0] = 0x04;
     if (peer_public_key[0] != 0x40) {
       return 1;  // Curve25519 public key should start with 0x40 byte.
@@ -750,9 +722,11 @@ static int hdnode_deserialize(const char *str, uint32_t version,
     }
     memcpy(node->private_key, node_data + 46, 32);
     memzero(node->public_key, sizeof(node->public_key));
+    node->is_public_key_set = false;
   } else {
     memzero(node->private_key, sizeof(node->private_key));
     memcpy(node->public_key, node_data + 45, 33);
+    node->is_public_key_set = true;
   }
   node->depth = node_data[4];
   if (fingerprint) {

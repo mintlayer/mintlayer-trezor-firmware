@@ -10,6 +10,7 @@ use crate::{
             Component, Event, EventCtx, Paginate, Qr,
         },
         geometry::Rect,
+        shape::Renderer,
     },
 };
 
@@ -46,7 +47,7 @@ impl AddressDetails {
         if let Some(p) = path {
             para.add(Paragraph::new(
                 &theme::TEXT_NORMAL,
-                TR::address_details__derivation_path,
+                TR::address_details__derivation_path_colon,
             ));
             para.add(Paragraph::new(&theme::TEXT_MONO, p));
         }
@@ -176,12 +177,11 @@ impl Component for AddressDetails {
         }
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
         match self.current_page {
-            0 => self.qr_code.bounds(sink),
-            1 => self.details.bounds(sink),
-            _ => self.xpub_view.bounds(sink),
+            0 => self.qr_code.render(target),
+            1 => self.details.render(target),
+            _ => self.xpub_view.render(target),
         }
     }
 }

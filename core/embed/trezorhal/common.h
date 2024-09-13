@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include "secbool.h"
 
+#include "error_handling.h"
 #include "platform.h"
 
 #ifndef MIN_8bits
@@ -53,20 +54,6 @@
 
 void __attribute__((noreturn)) trezor_shutdown(void);
 
-void __attribute__((noreturn))
-__fatal_error(const char *expr, const char *msg, const char *file, int line,
-              const char *func);
-void __attribute__((noreturn))
-error_shutdown(const char *label, const char *msg);
-
-void show_wipe_code_screen(void);
-void show_pin_too_many_screen(void);
-
-#define ensure(expr, msg) \
-  (((expr) == sectrue)    \
-       ? (void)0          \
-       : __fatal_error(#expr, msg, __FILE__, __LINE__, __func__))
-
 void hal_delay(uint32_t ms);
 uint32_t hal_ticks_ms();
 void hal_delay_us(uint16_t delay_us);
@@ -74,5 +61,9 @@ void hal_delay_us(uint16_t delay_us);
 void collect_hw_entropy(void);
 #define HW_ENTROPY_LEN (12 + 32)
 extern uint8_t HW_ENTROPY_DATA[HW_ENTROPY_LEN];
+
+// Invalidates firmware on the device
+// Note: only works when write access to firmware area is enabled by MPU
+void invalidate_firmware(void);
 
 #endif

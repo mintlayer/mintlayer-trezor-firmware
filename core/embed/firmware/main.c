@@ -60,8 +60,13 @@
 #include "consumption_mask.h"
 #endif
 #ifdef USE_DMA2D
+#ifdef NEW_RENDERING
+#include "dma2d_bitblt.h"
+#else
 #include "dma2d.h"
 #endif
+#endif
+
 #ifdef USE_BUTTON
 #include "button.h"
 #endif
@@ -228,11 +233,17 @@ int main(void) {
 #endif
 
   optiga_init();
-  optiga_open_application();
   if (sectrue == secret_ok) {
-    optiga_sec_chan_handshake(secret, sizeof(secret));
+    // If the shielded connection cannot be established, reset Optiga and
+    // continue without it. In this case, OID_KEY_FIDO and OID_KEY_DEV cannot be
+    // used, which means device and FIDO attestation will not work.
+    if (optiga_sec_chan_handshake(secret, sizeof(secret)) != OPTIGA_SUCCESS) {
+      optiga_soft_reset();
+    }
   }
   memzero(secret, sizeof(secret));
+  ensure(sectrue * (optiga_open_application() == OPTIGA_SUCCESS),
+         "Cannot initialize optiga.");
 #endif
 
 #if !defined TREZOR_MODEL_1
@@ -274,7 +285,7 @@ int main(void) {
   mp_deinit();
 
   // Python code shouldn't ever exit, avoid black screen if it does
-  error_shutdown("INTERNAL ERROR", "(PE)");
+  error_shutdown("(PE)");
 
   return 0;
 }
@@ -282,7 +293,7 @@ int main(void) {
 // MicroPython default exception handler
 
 void __attribute__((noreturn)) nlr_jump_fail(void *val) {
-  error_shutdown("INTERNAL ERROR", "(UE)");
+  error_shutdown("(UE)");
 }
 
 // MicroPython builtin stubs

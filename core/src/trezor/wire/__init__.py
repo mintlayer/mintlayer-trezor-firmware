@@ -31,7 +31,7 @@ from trezor import log, loop, protobuf, utils, workflow
 from trezor.enums import FailureType
 from trezor.messages import Failure
 from trezor.wire import codec_v1, context
-from trezor.wire.errors import ActionCancelled, DataError, Error
+from trezor.wire.errors import ActionCancelled, DataError, Error, UnexpectedMessage
 
 # Import all errors into namespace, so that `wire.Error` is available from
 # other packages.
@@ -89,20 +89,19 @@ if __debug__:
 
 async def _handle_single_message(
     ctx: context.Context, msg: codec_v1.Message, use_workflow: bool
-) -> codec_v1.Message | None:
+) -> bool:
     """Handle a message that was loaded from USB by the caller.
 
     Find the appropriate handler, run it and write its result on the wire. In case
     a problem is encountered at any point, write the appropriate error on the wire.
 
-    If the workflow finished normally or with an error, the return value is None.
-
-    If an unexpected message had arrived on the wire while the workflow was processing,
-    the workflow is shut down with an `UnexpectedMessage` exception. This is not
-    considered an "error condition" to return over the wire -- instead the message
-    is processed as if starting a new workflow.
-    In such case, the `UnexpectedMessage` is caught and the message is returned
-    to the caller. It will then be processed in the next iteration of the message loop.
+    The return value indicates whether to override the default restarting behavior. If
+    `False` is returned, the caller is allowed to clear the loop and restart the
+    MicroPython machine (see `session.py`). This would lose all state and incurs a cost
+    in terms of repeated startup time. When handling the message didn't cause any
+    significant fragmentation (e.g., if decoding the message was skipped), or if
+    the type of message is supposed to be optimized and not disrupt the running state,
+    this function will return `True`.
     """
     if __debug__:
         try:
@@ -119,14 +118,14 @@ async def _handle_single_message(
 
     res_msg: protobuf.MessageType | None = None
 
-    # We need to find a handler for this message type.  Should not raise.
-    handler = find_handler(ctx.iface, msg.type)  # pylint: disable=assignment-from-none
-
-    if handler is None:
-        # If no handler is found, we can skip decoding and directly
-        # respond with failure.
-        await ctx.write(unexpected_message())
-        return None
+    # We need to find a handler for this message type.
+    try:
+        handler = find_handler(ctx.iface, msg.type)
+    except Error as exc:
+        # Handlers are allowed to exception out. In that case, we can skip decoding
+        # and return the error.
+        await ctx.write(failure(exc))
+        return True
 
     if msg.type in workflow.ALLOW_WHILE_LOCKED:
         workflow.autolock_interrupts_workflow = False
@@ -158,16 +157,21 @@ async def _handle_single_message(
             # results of the handler.
             res_msg = await task
 
-    except context.UnexpectedMessage as exc:
+    except context.UnexpectedMessage:
         # Workflow was trying to read a message from the wire, and
         # something unexpected came in.  See Context.read() for
         # example, which expects some particular message and raises
         # UnexpectedMessage if another one comes in.
-        # In order not to lose the message, we return it to the caller.
-        # TODO:
-        # We might handle only the few common cases here, like
-        # Initialize and Cancel.
-        return exc.msg
+        #
+        # We process the unexpected message by aborting the current workflow and
+        # possibly starting a new one, initiated by that message. (The main usecase
+        # being, the host does not finish the workflow, we want other callers to
+        # be able to do their own thing.)
+        #
+        # The message is stored in the exception, which we re-raise for the caller
+        # to process. It is not a standard exception that should be logged and a result
+        # sent to the wire.
+        raise
 
     except BaseException as exc:
         # Either:
@@ -189,7 +193,9 @@ async def _handle_single_message(
         # perform the write outside the big try-except block, so that usb write
         # problem bubbles up
         await ctx.write(res_msg)
-    return None
+
+    # Look into `AVOID_RESTARTING_FOR` to see if this message should avoid restarting.
+    return msg.type in AVOID_RESTARTING_FOR
 
 
 async def handle_session(
@@ -230,9 +236,16 @@ async def handle_session(
                 next_msg = None
 
             try:
-                next_msg = await _handle_single_message(
+                do_not_restart = await _handle_single_message(
                     ctx, msg, use_workflow=not is_debug_session
                 )
+            except context.UnexpectedMessage as unexpected:
+                # The workflow was interrupted by an unexpected message. We need to
+                # process it as if it was a new message...
+                next_msg = unexpected.msg
+                # ...and we must not restart because that would lose the message.
+                do_not_restart = True
+                continue
             except Exception as exc:
                 # Log and ignore. The session handler can only exit explicitly in the
                 # following finally block.
@@ -246,8 +259,7 @@ async def handle_session(
                     # workflow running on wire.
                     utils.unimport_end(modules)
 
-                    if next_msg is None and msg.type not in AVOID_RESTARTING_FOR:
-                        # Shut down the loop if there is no next message waiting.
+                    if not do_not_restart:
                         # Let the session be restarted from `main`.
                         loop.clear()
                         return  # pylint: disable=lost-exception
@@ -259,12 +271,60 @@ async def handle_session(
                 log.exception(__name__, exc)
 
 
-def _find_handler_placeholder(iface: WireInterface, msg_type: int) -> Handler | None:
-    """Placeholder handler lookup before a proper one is registered."""
-    return None
+def find_handler(iface: WireInterface, msg_type: int) -> Handler:
+    import usb
+
+    from apps import workflow_handlers
+
+    handler = workflow_handlers.find_registered_handler(iface, msg_type)
+    if handler is None:
+        raise UnexpectedMessage("Unexpected message")
+
+    if __debug__ and iface is usb.iface_debug:
+        # no filtering allowed for debuglink
+        return handler
+
+    for filter in filters:
+        handler = filter(msg_type, handler)
+
+    return handler
 
 
-find_handler = _find_handler_placeholder
+filters: list[Callable[[int, Handler], Handler]] = []
+"""Filters for the wire handler.
+
+Filters are applied in order. Each filter gets a message id and a preceding handler. It
+must either return a handler (the same one or a modified one), or raise an exception
+that gets sent to wire directly.
+
+Filters are not applied to debug sessions.
+
+The filters are designed for:
+ * rejecting messages -- while in Recovery mode, most messages are not allowed
+ * adding additional behavior -- while device is soft-locked, a PIN screen will be shown
+   before allowing a message to trigger its original behavior.
+
+For this, the filters are effectively deny-first. If an earlier filter rejects the
+message, the later filters are not called. But if a filter adds behavior, the latest
+filter "wins" and the latest behavior triggers first.
+Please note that this behavior is really unsuited to anything other than what we are
+using it for now. It might be necessary to modify the semantics if we need more complex
+usecases.
+
+NB: `filters` is currently public so callers can have control over where they insert
+new filters, but removal should be done using `remove_filter`!
+We should, however, change it such that filters must be added using an `add_filter`
+and `filters` becomes private!
+"""
+
+
+def remove_filter(filter):
+    try:
+        filters.remove(filter)
+    except ValueError:
+        pass
+
+
 AVOID_RESTARTING_FOR: Container[int] = ()
 
 

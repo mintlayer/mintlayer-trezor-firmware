@@ -87,13 +87,8 @@ SECTIONS {
     . = ALIGN(4);
   } >SRAM1
 
-  .buf : ALIGN(4) {
-    *(.buf*);
-    . = ALIGN(4);
-  } >SRAM1
-
   .stack : ALIGN(8) {
-    . = 16K; /* Overflow causes UsageFault */
+    . = 32K; /* Overflow causes UsageFault */
   } >SRAM2
 
   .confidential : ALIGN(512) {
@@ -107,6 +102,11 @@ SECTIONS {
     *(.fb2*);
     *(.framebuffer_select*);
    __fb_end = .;
+    . = ALIGN(4);
+  } >SRAM3
+
+  .buf : ALIGN(4) {
+    *(.buf*);
     . = ALIGN(4);
   } >SRAM3
 

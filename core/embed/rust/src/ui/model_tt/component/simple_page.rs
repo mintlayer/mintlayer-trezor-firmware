@@ -2,6 +2,7 @@ use crate::ui::{
     component::{base::ComponentExt, Component, Event, EventCtx, Pad, PageMsg, Paginate},
     display::{self, Color},
     geometry::{Axis, Insets, Rect},
+    shape::Renderer,
 };
 
 use super::{theme, ScrollBar, Swipe, SwipeDirection};
@@ -17,7 +18,7 @@ pub struct SimplePage<T> {
     scrollbar: ScrollBar,
     axis: Axis,
     swipe_right_to_go_back: bool,
-    fade: Cell<Option<u16>>,
+    fade: Cell<Option<u8>>,
 }
 
 impl<T> SimplePage<T>
@@ -80,7 +81,8 @@ where
 
         // Swipe has dimmed the screen, so fade back to normal backlight after the next
         // paint.
-        self.fade.set(Some(theme::BACKLIGHT_NORMAL));
+        self.fade
+            .set(Some(theme::backlight::get_backlight_normal()));
     }
 
     fn is_horizontal(&self) -> bool {
@@ -165,11 +167,16 @@ where
         }
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        sink(self.pad.area);
-        self.scrollbar.bounds(sink);
-        self.content.bounds(sink);
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.pad.render(target);
+        self.content.render(target);
+        if self.scrollbar.has_pages() {
+            self.scrollbar.render(target);
+        }
+        if let Some(val) = self.fade.take() {
+            // Note that this is blocking and takes some time.
+            display::fade_backlight(val);
+        }
     }
 }
 

@@ -4,11 +4,13 @@ use crate::{
         component::{Component, Event, EventCtx, Never},
         display::Font,
         geometry::{Alignment, Insets, Offset, Point, Rect},
+        shape::Renderer,
     },
 };
 
 use super::{text::TextStyle, TextLayout};
 
+#[derive(Clone)]
 pub struct Label<'a> {
     text: TString<'a>,
     layout: TextLayout,
@@ -16,7 +18,7 @@ pub struct Label<'a> {
 }
 
 impl<'a> Label<'a> {
-    pub fn new(text: TString<'a>, align: Alignment, style: TextStyle) -> Self {
+    pub const fn new(text: TString<'a>, align: Alignment, style: TextStyle) -> Self {
         Self {
             text,
             layout: TextLayout::new(style).with_align(align),
@@ -24,20 +26,35 @@ impl<'a> Label<'a> {
         }
     }
 
-    pub fn left_aligned(text: TString<'a>, style: TextStyle) -> Self {
+    pub const fn left_aligned(text: TString<'a>, style: TextStyle) -> Self {
         Self::new(text, Alignment::Start, style)
     }
 
-    pub fn right_aligned(text: TString<'a>, style: TextStyle) -> Self {
+    pub const fn right_aligned(text: TString<'a>, style: TextStyle) -> Self {
         Self::new(text, Alignment::End, style)
     }
 
-    pub fn centered(text: TString<'a>, style: TextStyle) -> Self {
+    pub const fn centered(text: TString<'a>, style: TextStyle) -> Self {
         Self::new(text, Alignment::Center, style)
     }
 
-    pub fn vertically_centered(mut self) -> Self {
+    pub const fn top_aligned(mut self) -> Self {
+        self.vertical = Alignment::Start;
+        self
+    }
+
+    pub const fn vertically_centered(mut self) -> Self {
         self.vertical = Alignment::Center;
+        self
+    }
+
+    pub const fn bottom_aligned(mut self) -> Self {
+        self.vertical = Alignment::End;
+        self
+    }
+
+    pub const fn styled(mut self, style: TextStyle) -> Self {
+        self.layout.style = style;
         self
     }
 
@@ -49,6 +66,10 @@ impl<'a> Label<'a> {
         self.text = text;
     }
 
+    pub fn set_style(&mut self, style: TextStyle) {
+        self.layout.style = style;
+    }
+
     pub fn font(&self) -> Font {
         self.layout.style.text_font
     }
@@ -57,7 +78,7 @@ impl<'a> Label<'a> {
         self.layout.bounds
     }
 
-    pub fn alignment(&self) -> Alignment {
+    pub const fn alignment(&self) -> Alignment {
         self.layout.align
     }
 
@@ -87,6 +108,11 @@ impl<'a> Label<'a> {
         };
         Rect::from_bottom_left_and_size(baseline, Offset::new(width, height))
     }
+
+    pub fn render_with_alpha<'s>(&self, target: &mut impl Renderer<'s>, alpha: u8) {
+        self.text
+            .map(|c| self.layout.render_text_with_alpha(c, target, alpha));
+    }
 }
 
 impl Component for Label<'_> {
@@ -114,9 +140,8 @@ impl Component for Label<'_> {
         self.text.map(|c| self.layout.render_text(c));
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        sink(self.layout.bounds)
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.text.map(|c| self.layout.render_text2(c, target));
     }
 }
 

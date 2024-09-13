@@ -13,7 +13,7 @@ async def load_device(msg: LoadDevice) -> Success:
     from trezor.ui.layouts import confirm_action
     from trezor.wire import ProcessError, UnexpectedMessage
 
-    from apps.management import backup_types
+    from apps.common import backup_types
 
     mnemonics = msg.mnemonics  # local_cache_attribute
 
@@ -49,18 +49,15 @@ async def load_device(msg: LoadDevice) -> Success:
         secret = msg.mnemonics[0].encode()
         backup_type = BackupType.Bip39
     else:
-        identifier, iteration_exponent, secret = slip39.recover_ems(mnemonics)
+        identifier, extendable, iteration_exponent, secret = slip39.recover_ems(
+            mnemonics
+        )
 
         # this must succeed if the recover_ems call succeeded
         share = slip39.decode_mnemonic(mnemonics[0])
-        if share.group_count == 1:
-            backup_type = BackupType.Slip39_Basic
-        elif share.group_count > 1:
-            backup_type = BackupType.Slip39_Advanced
-        else:
-            raise ProcessError("Invalid group count")
-
-        storage_device.set_slip39_identifier(identifier)
+        backup_type = backup_types.infer_backup_type(is_slip39, share)
+        if not extendable:
+            storage_device.set_slip39_identifier(identifier)
         storage_device.set_slip39_iteration_exponent(iteration_exponent)
 
     storage_device.store_mnemonic_secret(

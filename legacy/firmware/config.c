@@ -979,7 +979,7 @@ void config_setU2FCounter(uint32_t u2fcounter) {
   storage_set_counter(KEY_U2F_COUNTER, u2fcounter);
 }
 
-uint32_t config_getAutoLockDelayMs() {
+uint32_t config_getAutoLockDelayMs(void) {
   if (sectrue == autoLockDelayMsCached) {
     return autoLockDelayMs;
   }
@@ -1026,7 +1026,6 @@ void config_wipe(void) {
   storage_set(KEY_VERSION, &CONFIG_VERSION, sizeof(CONFIG_VERSION));
   session_clear(false);
   fsm_abortWorkflows();
-  fsm_clearCosiNonce();
 
 #if USE_BIP32_CACHE
   bip32_cache_clear();

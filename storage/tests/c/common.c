@@ -23,28 +23,26 @@
 
 #include "common.h"
 
+static uint32_t ticks_ms = 0;
+
 void __shutdown(void) {
   printf("SHUTDOWN\n");
   exit(3);
 }
 
-void __fatal_error(const char *expr, const char *msg, const char *file,
-                   int line, const char *func) {
+void __fatal_error(const char *msg, const char *file, int line) {
   printf("\nFATAL ERROR:\n");
-  if (expr) {
-    printf("expr: %s\n", expr);
-  }
   if (msg) {
     printf("msg : %s\n", msg);
   }
   if (file) {
     printf("file: %s:%d\n", file, line);
   }
-  if (func) {
-    printf("func: %s\n", func);
-  }
   __shutdown();
 }
 
 void show_wipe_code_screen(void) {}
 void show_pin_too_many_screen(void) {}
+
+void hal_delay(uint32_t delay_ms) { ticks_ms += delay_ms; }
+uint32_t hal_ticks_ms(void) { return ticks_ms; }

@@ -2,42 +2,22 @@ from typing import TYPE_CHECKING
 
 from trezor import TR
 from trezor.enums import ButtonRequestType
-from trezor.ui.layouts import confirm_action
 from trezor.ui.layouts.recovery import (  # noqa: F401
     request_word_count,
     show_group_share_success,
     show_recovery_warning,
-    show_remaining_shares,
 )
 
-from .. import backup_types
+from apps.common import backup_types
 
 if TYPE_CHECKING:
-    from typing import Callable
-
     from trezor.enums import BackupType
 
-
-async def _confirm_abort(dry_run: bool = False) -> None:
-    if dry_run:
-        await confirm_action(
-            "abort_recovery",
-            TR.recovery__title_cancel_dry_run,
-            TR.recovery__cancel_dry_run,
-            description=TR.recovery__wanna_cancel_dry_run,
-            verb=TR.buttons__cancel,
-            br_code=ButtonRequestType.ProtectCall,
-        )
-    else:
-        await confirm_action(
-            "abort_recovery",
-            TR.recovery__title_cancel_recovery,
-            TR.recovery__progress_will_be_lost,
-            TR.recovery__wanna_cancel_recovery,
-            verb=TR.buttons__cancel,
-            reverse=True,
-            br_code=ButtonRequestType.ProtectCall,
-        )
+    # RemainingSharesInfo represents the data structure for remaining shares in SLIP-39 recovery:
+    # - Set of tuples, each containing 2 or 3 words identifying a group
+    # - List of remaining share counts for each group
+    # - Group threshold (minimum number of groups required)
+    RemainingSharesInfo = tuple[set[tuple[str, ...]], list[int], int]
 
 
 async def request_mnemonic(
@@ -50,14 +30,14 @@ async def request_mnemonic(
 
     await button_request("mnemonic", code=ButtonRequestType.MnemonicInput)
 
-    # Allowing to go back to previous words, therefore cannot use just loop over range(word_count)
+    # Pre-allocate the list to enable going back and overwriting words.
     words: list[str] = [""] * word_count
     i = 0
-    while True:
-        # All the words have been entered
-        if i >= word_count:
-            break
 
+    def all_words_entered() -> bool:
+        return i >= word_count
+
+    while not all_words_entered():
         # Prefilling the previously inputted word in case of going back
         word = await request_word(
             i,
@@ -66,9 +46,10 @@ async def request_mnemonic(
             prefill_word=words[i],
         )
 
-        # User has decided to go back
         if not word:
+            # User has decided to go back
             if i > 0:
+                words[i] = ""
                 i -= 1
             continue
 
@@ -91,7 +72,8 @@ async def request_mnemonic(
             # show_identifier_mismatch
             await show_recovery_warning(
                 "warning_mismatched_share",
-                TR.recovery__share_from_another_shamir,
+                "",
+                TR.recovery__share_from_another_multi_share_backup,
             )
             return None
         except word_validity.ThresholdReached:
@@ -129,14 +111,14 @@ async def show_invalid_mnemonic(word_count: int) -> None:
     if backup_types.is_slip39_word_count(word_count):
         await show_recovery_warning(
             "warning_invalid_share",
-            TR.recovery__invalid_share_entered,
             TR.words__please_try_again,
+            TR.recovery__invalid_share_entered,
         )
     else:
         await show_recovery_warning(
             "warning_invalid_seed",
-            TR.recovery__invalid_wallet_backup_entered,
             TR.words__please_try_again,
+            TR.recovery__invalid_wallet_backup_entered,
         )
 
 
@@ -144,26 +126,21 @@ async def homescreen_dialog(
     button_label: str,
     text: str,
     subtext: str | None = None,
-    info_func: Callable | None = None,
     show_info: bool = False,
+    remaining_shares_info: "RemainingSharesInfo | None" = None,
 ) -> None:
     import storage.recovery as storage_recovery
     from trezor.ui.layouts.recovery import continue_recovery
-    from trezor.wire import ActionCancelled
 
     from .recover import RecoveryAborted
 
-    while True:
-        dry_run = storage_recovery.is_dry_run()
-        if await continue_recovery(
-            button_label, text, subtext, info_func, dry_run, show_info
-        ):
-            # go forward in the recovery process
-            break
-        # user has chosen to abort, confirm the choice
-        try:
-            await _confirm_abort(dry_run)
-        except ActionCancelled:
-            pass
-        else:
-            raise RecoveryAborted
+    recovery_type = storage_recovery.get_type()
+    if not await continue_recovery(
+        button_label,
+        text,
+        subtext,
+        recovery_type,
+        show_info,
+        remaining_shares_info,
+    ):
+        raise RecoveryAborted

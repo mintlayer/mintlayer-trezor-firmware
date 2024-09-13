@@ -8,6 +8,7 @@ use crate::{
         display::Icon,
         geometry::{Alignment, Insets, Offset, Rect},
         model_tt::component::{Button, ButtonMsg, CancelInfoConfirmMsg},
+        shape::Renderer,
     },
 };
 
@@ -175,12 +176,11 @@ where
         self.content.paint();
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        self.title.bounds(sink);
-        self.subtitle.bounds(sink);
-        self.button.bounds(sink);
-        self.content.bounds(sink);
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.title.render(target);
+        self.subtitle.render(target);
+        self.button.render(target);
+        self.content.render(target);
     }
 }
 

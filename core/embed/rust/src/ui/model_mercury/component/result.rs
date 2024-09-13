@@ -1,10 +1,12 @@
 use crate::{
     strutil::TString,
     ui::{
-        component::{text::TextStyle, Child, Component, Event, EventCtx, Label, Never, Pad},
+        component::{text::TextStyle, Component, Event, EventCtx, Label, Never, Pad},
         constant::screen,
         display::{self, Color, Font, Icon},
         geometry::{Alignment2D, Insets, Offset, Point, Rect},
+        shape,
+        shape::Renderer,
     },
 };
 
@@ -94,6 +96,20 @@ impl Component for ResultFooter<'_> {
         // footer text
         self.text.paint();
     }
+
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        // divider line
+        let bar = Rect::from_center_and_size(
+            Point::new(self.area.center().x, self.area.y0),
+            Offset::new(self.area.width(), 1),
+        );
+        shape::Bar::new(bar)
+            .with_fg(self.style.divider_color)
+            .render(target);
+
+        // footer text
+        self.text.render(target);
+    }
 }
 
 pub struct ResultScreen<'a> {
@@ -101,8 +117,8 @@ pub struct ResultScreen<'a> {
     footer_pad: Pad,
     style: &'a ResultStyle,
     icon: Icon,
-    message: Child<Label<'a>>,
-    footer: Child<ResultFooter<'a>>,
+    message: Label<'a>,
+    footer: ResultFooter<'a>,
 }
 
 impl<'a> ResultScreen<'a> {
@@ -118,8 +134,8 @@ impl<'a> ResultScreen<'a> {
             footer_pad: Pad::with_background(style.bg_color),
             style,
             icon,
-            message: Child::new(Label::centered(message, style.message_style())),
-            footer: Child::new(ResultFooter::new(footer, style)),
+            message: Label::centered(message, style.message_style()),
+            footer: ResultFooter::new(footer, style),
         };
 
         if complete_draw {
@@ -164,5 +180,22 @@ impl<'a> Component for ResultScreen<'a> {
         );
         self.message.paint();
         self.footer.paint();
+    }
+
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.bg.render(target);
+        self.footer_pad.render(target);
+
+        shape::ToifImage::new(
+            Point::new(screen().center().x, ICON_CENTER_Y),
+            self.icon.toif,
+        )
+        .with_align(Alignment2D::CENTER)
+        .with_fg(self.style.fg_color)
+        .with_bg(self.style.bg_color)
+        .render(target);
+
+        self.message.render(target);
+        self.footer.render(target);
     }
 }

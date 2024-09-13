@@ -35,7 +35,11 @@
 #include "secret.h"
 
 #ifdef USE_DMA2D
+#ifdef NEW_RENDERING
+#include "dma2d_bitblt.h"
+#else
 #include "dma2d.h"
+#endif
 #endif
 #ifdef USE_I2C
 #include "i2c.h"
@@ -65,14 +69,15 @@
 
 #include "bootui.h"
 #include "messages.h"
+#include "monoctr.h"
 #include "rust_ui.h"
 #include "unit_variant.h"
+#include "version_check.h"
 
 #ifdef TREZOR_EMULATOR
 #include "emulator.h"
 #else
 #include "compiler_traits.h"
-#include "mini_printf.h"
 #include "mpu.h"
 #include "platform.h"
 #endif
@@ -98,8 +103,8 @@ static void usb_init_all(secbool usb21_landing) {
       .vendor_id = 0x1209,
       .product_id = 0x53C0,
       .release_num = 0x0200,
-      .manufacturer = "SatoshiLabs",
-      .product = "TREZOR",
+      .manufacturer = MODEL_USB_MANUFACTURER,
+      .product = MODEL_USB_PRODUCT,
       .serial_number = "000000000000000000000000",
       .interface = "TREZOR Interface",
       .usb21_enabled = sectrue,
@@ -113,8 +118,8 @@ static void usb_init_all(secbool usb21_landing) {
 #ifdef TREZOR_EMULATOR
       .emu_port = 21324,
 #else
-      .ep_in = USB_EP_DIR_IN | 0x01,
-      .ep_out = USB_EP_DIR_OUT | 0x01,
+      .ep_in = 0x01,
+      .ep_out = 0x01,
 #endif
       .subclass = 0,
       .protocol = 0,
@@ -123,11 +128,11 @@ static void usb_init_all(secbool usb21_landing) {
       .polling_interval = 1,
   };
 
-  usb_init(&dev_info);
+  ensure(usb_init(&dev_info), NULL);
 
   ensure(usb_webusb_add(&webusb_info), NULL);
 
-  usb_start();
+  ensure(usb_start(), NULL);
 }
 
 static usb_result_t bootloader_usb_loop(const vendor_header *const vhdr,
@@ -166,7 +171,6 @@ static usb_result_t bootloader_usb_loop(const vendor_header *const vhdr,
         if (INPUT_CANCEL == response) {
           send_user_abort(USB_IFACE_NUM, "Wipe cancelled");
           hal_delay(100);
-          usb_stop();
           usb_deinit();
           return RETURN_TO_MENU;
         }
@@ -175,13 +179,11 @@ static usb_result_t bootloader_usb_loop(const vendor_header *const vhdr,
         if (r < 0) {  // error
           screen_wipe_fail();
           hal_delay(100);
-          usb_stop();
           usb_deinit();
           return SHUTDOWN;
         } else {  // success
           screen_wipe_success();
           hal_delay(100);
-          usb_stop();
           usb_deinit();
           return SHUTDOWN;
         }
@@ -193,16 +195,15 @@ static usb_result_t bootloader_usb_loop(const vendor_header *const vhdr,
         r = process_msg_FirmwareUpload(USB_IFACE_NUM, msg_size, buf);
         if (r < 0 && r != UPLOAD_ERR_USER_ABORT) {  // error, but not user abort
           if (r == UPLOAD_ERR_BOOTLOADER_LOCKED) {
-            secret_show_install_restricted_screen();
+            // This function does not return
+            show_install_restricted_screen();
           } else {
             ui_screen_fail();
           }
-          usb_stop();
           usb_deinit();
           return SHUTDOWN;
         } else if (r == UPLOAD_ERR_USER_ABORT) {
           hal_delay(100);
-          usb_stop();
           usb_deinit();
           return RETURN_TO_MENU;
         } else if (r == 0) {  // last chunk received
@@ -214,7 +215,6 @@ static usb_result_t bootloader_usb_loop(const vendor_header *const vhdr,
           hal_delay(1000);
           ui_screen_done(1, secfalse);
           hal_delay(1000);
-          usb_stop();
           usb_deinit();
           return CONTINUE_TO_FIRMWARE;
         }
@@ -222,20 +222,18 @@ static usb_result_t bootloader_usb_loop(const vendor_header *const vhdr,
       case MessageType_MessageType_GetFeatures:
         process_msg_GetFeatures(USB_IFACE_NUM, msg_size, buf, vhdr, hdr);
         break;
-#if defined USE_OPTIGA && !defined STM32U5
+#if defined USE_OPTIGA
       case MessageType_MessageType_UnlockBootloader:
         response = ui_screen_unlock_bootloader_confirm();
         if (INPUT_CANCEL == response) {
           send_user_abort(USB_IFACE_NUM, "Bootloader unlock cancelled");
           hal_delay(100);
-          usb_stop();
           usb_deinit();
           return RETURN_TO_MENU;
         }
         process_msg_UnlockBootloader(USB_IFACE_NUM, msg_size, buf);
         screen_unlock_bootloader_success();
         hal_delay(100);
-        usb_stop();
         usb_deinit();
         return SHUTDOWN;
         break;
@@ -264,37 +262,7 @@ static secbool check_vendor_header_lock(const vendor_header *const vhdr) {
   return sectrue * (0 == memcmp(lock, hash, 32));
 }
 
-// protection against bootloader downgrade
-
-#if PRODUCTION && !defined STM32U5
-
-static void check_bootloader_version(void) {
-  uint8_t bits[FLASH_OTP_BLOCK_SIZE];
-  for (int i = 0; i < FLASH_OTP_BLOCK_SIZE * 8; i++) {
-    if (i < VERSION_MONOTONIC) {
-      bits[i / 8] &= ~(1 << (7 - (i % 8)));
-    } else {
-      bits[i / 8] |= (1 << (7 - (i % 8)));
-    }
-  }
-  ensure(flash_otp_write(FLASH_OTP_BLOCK_BOOTLOADER_VERSION, 0, bits,
-                         FLASH_OTP_BLOCK_SIZE),
-         NULL);
-
-  uint8_t bits2[FLASH_OTP_BLOCK_SIZE];
-  ensure(flash_otp_read(FLASH_OTP_BLOCK_BOOTLOADER_VERSION, 0, bits2,
-                        FLASH_OTP_BLOCK_SIZE),
-         NULL);
-
-  ensure(sectrue * (0 == memcmp(bits, bits2, FLASH_OTP_BLOCK_SIZE)),
-         "Bootloader downgrade protection");
-}
-
-#endif
-
-void failed_jump_to_firmware(void) {
-  error_shutdown("INTERNAL ERROR", "(glitch)");
-}
+void failed_jump_to_firmware(void) { error_shutdown("(glitch)"); }
 
 void real_jump_to_firmware(void) {
   const image_header *hdr = NULL;
@@ -321,24 +289,29 @@ void real_jump_to_firmware(void) {
   ensure(check_image_header_sig(hdr, vhdr.vsig_m, vhdr.vsig_n, vhdr.vpub),
          "Firmware is corrupted");
 
+  ensure(check_firmware_min_version(hdr->monotonic),
+         "Firmware downgrade protection");
+  ensure_firmware_min_version(hdr->monotonic);
+
   ensure(check_image_contents(hdr, IMAGE_HEADER_SIZE + vhdr.hdrlen,
                               &FIRMWARE_AREA),
          "Firmware is corrupted");
 
   secret_prepare_fw(
-      ((vhdr.vtrust & VTRUST_SECRET) == VTRUST_SECRET_ALLOW) * sectrue,
-      ((vhdr.vtrust & VTRUST_ALL) == VTRUST_ALL) * sectrue);
+      ((vhdr.vtrust & VTRUST_SECRET_MASK) == VTRUST_SECRET_ALLOW) * sectrue,
+      ((vhdr.vtrust & VTRUST_NO_WARNING) == VTRUST_NO_WARNING) * sectrue);
 
-  // if all VTRUST flags are unset = ultimate trust => skip the procedure
-  if ((vhdr.vtrust & VTRUST_ALL) != VTRUST_ALL) {
+  // if all warnings are disabled in VTRUST flags then skip the procedure
+  if ((vhdr.vtrust & VTRUST_NO_WARNING) != VTRUST_NO_WARNING) {
     ui_fadeout();
-    ui_screen_boot(&vhdr, hdr);
+    ui_screen_boot(&vhdr, hdr, 0);
     ui_fadein();
 
-    int delay = (vhdr.vtrust & VTRUST_WAIT) ^ VTRUST_WAIT;
+    // The delay is encoded in bitwise complement form.
+    int delay = (vhdr.vtrust & VTRUST_WAIT_MASK) ^ VTRUST_WAIT_MASK;
     if (delay > 1) {
       while (delay > 0) {
-        ui_screen_boot_wait(delay);
+        ui_screen_boot(&vhdr, hdr, delay);
         hal_delay(1000);
         delay--;
       }
@@ -346,8 +319,9 @@ void real_jump_to_firmware(void) {
       hal_delay(1000);
     }
 
-    if ((vhdr.vtrust & VTRUST_CLICK) == 0) {
-      ui_screen_boot_click();
+    if ((vhdr.vtrust & VTRUST_NO_CLICK) == 0) {
+      ui_screen_boot(&vhdr, hdr, -1);
+      ui_click();
     }
 
     ui_screen_boot_stage_1(false);
@@ -356,11 +330,8 @@ void real_jump_to_firmware(void) {
   display_finish_actions();
   ensure_compatible_settings();
 
-  // mpu_config_firmware();
-  // jump_to_unprivileged(FIRMWARE_START + vhdr.hdrlen + IMAGE_HEADER_SIZE);
-
   mpu_config_off();
-  jump_to(FIRMWARE_START + vhdr.hdrlen + IMAGE_HEADER_SIZE);
+  jump_to(IMAGE_CODE_ALIGN(FIRMWARE_START + vhdr.hdrlen + IMAGE_HEADER_SIZE));
 }
 
 #ifdef STM32U5
@@ -406,7 +377,6 @@ int bootloader_main(void) {
   unit_variant_init();
 
 #ifdef USE_TOUCH
-  touch_power_on();
 #ifdef TREZOR_MODEL_T3T1
   // on T3T1, tester needs to run without touch, so making an exception
   // until unit variant is written in OTP
@@ -441,6 +411,8 @@ int bootloader_main(void) {
   volatile secbool vhdr_lock_ok = secfalse;
   volatile secbool img_hdr_ok = secfalse;
   volatile secbool model_ok = secfalse;
+  volatile secbool signatures_ok = secfalse;
+  volatile secbool version_ok = secfalse;
   volatile secbool header_present = secfalse;
   volatile secbool firmware_present = secfalse;
   volatile secbool firmware_present_backup = secfalse;
@@ -467,12 +439,22 @@ int bootloader_main(void) {
   if (sectrue == img_hdr_ok) {
     model_ok = check_image_model(hdr);
   }
+
   if (sectrue == model_ok) {
-    header_present =
+    signatures_ok =
         check_image_header_sig(hdr, vhdr.vsig_m, vhdr.vsig_n, vhdr.vpub);
   }
 
+  if (sectrue == signatures_ok) {
+    version_ok = check_firmware_min_version(hdr->monotonic);
+  }
+
+  if (sectrue == version_ok) {
+    header_present = version_ok;
+  }
+
   if (sectrue == header_present) {
+    ensure_firmware_min_version(hdr->monotonic);
     firmware_present = check_image_contents(
         hdr, IMAGE_HEADER_SIZE + vhdr.hdrlen, &FIRMWARE_AREA);
     firmware_present_backup = firmware_present;
@@ -496,12 +478,12 @@ int bootloader_main(void) {
 
 #if PRODUCTION && !defined STM32U5
   // for STM32U5, this check is moved to boardloader
-  check_bootloader_version();
+  ensure_bootloader_min_version();
 #endif
 
   switch (bootargs_get_command()) {
     case BOOT_COMMAND_STOP_AND_WAIT:
-      // firmare requested to stay in bootloader
+      // firmware requested to stay in bootloader
       stay_in_bootloader = sectrue;
       break;
     case BOOT_COMMAND_INSTALL_UPGRADE:
@@ -522,17 +504,22 @@ int bootloader_main(void) {
   uint32_t touched = 0;
 #ifdef USE_TOUCH
   if (firmware_present == sectrue && stay_in_bootloader != sectrue) {
-    touch_wait_until_ready();
+    // Wait until the touch controller is ready
+    // (on hardware this may take a while)
+    while (touch_ready() != sectrue) {
+      hal_delay(1);
+    }
+#ifdef TREZOR_EMULATOR
+    hal_delay(500);
+#endif
+    // Give the touch controller time to report events
+    // if someone touches the screen
     for (int i = 0; i < 10; i++) {
-      touched = touch_is_detected() | touch_read();
-      if (touched) {
+      if (touch_activity() == sectrue) {
+        touched = 1;
         break;
       }
-#ifdef TREZOR_EMULATOR
-      hal_delay(25);
-#else
-      hal_delay_us(1000);
-#endif
+      hal_delay(5);
     }
   }
 #elif defined USE_BUTTON

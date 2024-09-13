@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from trezorlib import device, messages
+from trezorlib.debuglink import LayoutType
 
 from ..common import EXTERNAL_ENTROPY, WITH_MOCK_URANDOM, generate_entropy
 from . import reset
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
     from ..device_handler import BackgroundDeviceHandler
 
 
-pytestmark = [pytest.mark.skip_t1b1]
+pytestmark = pytest.mark.models("core")
 
 
 @pytest.mark.parametrize(
@@ -62,10 +63,7 @@ def test_backup_slip39_custom(
     reset.confirm_new_wallet(debug)
 
     # cancel back up
-    reset.cancel_backup(debug)
-
-    # confirm cancel
-    reset.cancel_backup(debug)
+    reset.cancel_backup(debug, confirm=True)
 
     assert device_handler.result() == "Initialized"
 
@@ -81,11 +79,14 @@ def test_backup_slip39_custom(
     if share_count > 1:
         # confirm shamir warning
         reset.confirm_read(debug, middle_r=True)
+    else:
+        # confirm backup intro
+        reset.confirm_read(debug, middle_r=True)
 
     all_words: list[str] = []
     for _ in range(share_count):
         # read words
-        words = reset.read_words(debug, messages.BackupType.Slip39_Basic)
+        words = reset.read_words(debug)
 
         # confirm words
         reset.confirm_words(debug, words)
@@ -96,7 +97,10 @@ def test_backup_slip39_custom(
         all_words.append(" ".join(words))
 
     # confirm backup done
-    reset.confirm_read(debug)
+    if debug.layout_type is LayoutType.Mercury and share_count > 1:
+        reset.confirm_read(debug)
+    elif debug.layout_type is not LayoutType.Mercury:
+        reset.confirm_read(debug)
 
     # generate secret locally
     internal_entropy = debug.state().reset_entropy
@@ -109,7 +113,7 @@ def test_backup_slip39_custom(
     assert device_handler.result() == "Seed successfully backed up"
     features = device_handler.features()
     assert features.initialized is True
-    assert features.needs_backup is False
+    assert features.backup_availability == messages.BackupAvailability.NotAvailable
     assert features.pin_protection is False
     assert features.passphrase_protection is False
-    assert features.backup_type is messages.BackupType.Slip39_Basic
+    assert features.backup_type is messages.BackupType.Slip39_Basic_Extendable

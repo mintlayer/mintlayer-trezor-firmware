@@ -75,11 +75,10 @@ void fsm_msgGetPublicKey(const GetPublicKey *msg) {
   memcpy(resp->node.chain_code.bytes, node->chain_code, 32);
   resp->node.has_private_key = false;
   resp->node.public_key.size = 33;
+  // For curve25519 and ed25519, the public key has the prefix 0x00, as
+  // specified by SLIP-10. However, since this prefix is non-standard, it may be
+  // removed in the future.
   memcpy(resp->node.public_key.bytes, node->public_key, 33);
-  if (node->public_key[0] == 1) {
-    /* ed25519 public key */
-    resp->node.public_key.bytes[0] = 0;
-  }
 
   if (coin->xpub_magic && (script_type == InputScriptType_SPENDADDRESS ||
                            script_type == InputScriptType_SPENDMULTISIG)) {

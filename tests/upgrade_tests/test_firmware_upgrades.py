@@ -18,22 +18,32 @@ import dataclasses
 from typing import TYPE_CHECKING, List, Optional
 
 import pytest
+from shamir_mnemonic import shamir
 
 from trezorlib import btc, debuglink, device, exceptions, fido, models
-from trezorlib.messages import BackupType
+from trezorlib.messages import (
+    ApplySettings,
+    BackupAvailability,
+    BackupType,
+    RecoveryStatus,
+    Success,
+)
 from trezorlib.tools import H_
 
 from ..common import MNEMONIC_SLIP39_BASIC_20_3of6, MNEMONIC_SLIP39_BASIC_20_3of6_SECRET
 from ..device_handler import BackgroundDeviceHandler
 from ..emulators import ALL_TAGS, EmulatorWrapper
-from . import for_all, for_tags, recovery_old
+from ..input_flows import InputFlowSlip39BasicBackup
+from . import for_all, for_tags, recovery_old, version_from_tag
 
 if TYPE_CHECKING:
     from trezorlib.debuglink import TrezorClientDebugLink as Client
 
-models.TREZOR_ONE = dataclasses.replace(models.TREZOR_ONE, minimum_version=(1, 0, 0))
-models.TREZOR_T = dataclasses.replace(models.TREZOR_T, minimum_version=(2, 0, 0))
-models.TREZORS = {models.TREZOR_ONE, models.TREZOR_T}
+models.T1B1 = dataclasses.replace(models.T1B1, minimum_version=(1, 0, 0))
+models.T2T1 = dataclasses.replace(models.T2T1, minimum_version=(2, 0, 0))
+models.TREZOR_ONE = models.T1B1
+models.TREZOR_T = models.T2T1
+models.TREZORS = {models.T1B1, models.T2T1}
 
 # **** COMMON DEFINITIONS ****
 
@@ -193,14 +203,13 @@ def test_upgrade_reset(gen: str, tag: str):
         assert not client.features.passphrase_protection
         assert client.features.initialized
         assert client.features.label == LABEL
-        assert not client.features.needs_backup
+        assert client.features.backup_availability == BackupAvailability.NotAvailable
         assert not client.features.unfinished_backup
         assert not client.features.no_backup
 
     with EmulatorWrapper(gen, tag) as emu:
         device.reset(
             emu.client,
-            display_random=False,
             strength=STRENGTH,
             passphrase_protection=False,
             pin_protection=False,
@@ -224,14 +233,13 @@ def test_upgrade_reset_skip_backup(gen: str, tag: str):
         assert not client.features.passphrase_protection
         assert client.features.initialized
         assert client.features.label == LABEL
-        assert client.features.needs_backup
+        assert client.features.backup_availability == BackupAvailability.Required
         assert not client.features.unfinished_backup
         assert not client.features.no_backup
 
     with EmulatorWrapper(gen, tag) as emu:
         device.reset(
             emu.client,
-            display_random=False,
             strength=STRENGTH,
             passphrase_protection=False,
             pin_protection=False,
@@ -256,14 +264,13 @@ def test_upgrade_reset_no_backup(gen: str, tag: str):
         assert not client.features.passphrase_protection
         assert client.features.initialized
         assert client.features.label == LABEL
-        assert not client.features.needs_backup
+        assert client.features.backup_availability == BackupAvailability.NotAvailable
         assert not client.features.unfinished_backup
         assert client.features.no_backup
 
     with EmulatorWrapper(gen, tag) as emu:
         device.reset(
             emu.client,
-            display_random=False,
             strength=STRENGTH,
             passphrase_protection=False,
             pin_protection=False,
@@ -287,7 +294,7 @@ def test_upgrade_shamir_recovery(gen: str, tag: Optional[str]):
     with EmulatorWrapper(gen, tag) as emu, BackgroundDeviceHandler(
         emu.client
     ) as device_handler:
-        assert emu.client.features.recovery_mode is False
+        assert emu.client.features.recovery_status == RecoveryStatus.Nothing
         emu.client.watch_layout(True)
         debug = device_handler.debuglink()
 
@@ -308,7 +315,7 @@ def test_upgrade_shamir_recovery(gen: str, tag: Optional[str]):
 
     with EmulatorWrapper(gen, storage=storage) as emu:
         assert device_id == emu.client.features.device_id
-        assert emu.client.features.recovery_mode
+        assert emu.client.features.recovery_status == RecoveryStatus.Recovery
         debug = emu.client.debug
         emu.client.watch_layout(True)
 
@@ -322,7 +329,7 @@ def test_upgrade_shamir_recovery(gen: str, tag: Optional[str]):
         # last one
         layout = recovery_old.enter_share(debug, MNEMONIC_SLIP39_BASIC_20_3of6[1])
         assert (
-            "Wallet recovered successfully" in layout.text_content()
+            "Wallet recovery completed" in layout.text_content()
             or "finished recovering" in layout.text_content()
         )
 
@@ -331,6 +338,68 @@ def test_upgrade_shamir_recovery(gen: str, tag: Optional[str]):
         assert state.mnemonic_secret is not None
         assert state.mnemonic_secret.hex() == MNEMONIC_SLIP39_BASIC_20_3of6_SECRET
         assert state.mnemonic_type == BackupType.Slip39_Basic
+
+
+@for_all("core", core_minimum_version=(2, 1, 9))
+def test_upgrade_shamir_backup(gen: str, tag: Optional[str]):
+    with EmulatorWrapper(gen, tag) as emu:
+        # Generate a new encrypted master secret and record it.
+        device.reset(
+            emu.client,
+            pin_protection=False,
+            skip_backup=True,
+            backup_type=BackupType.Slip39_Basic,
+        )
+        device_id = emu.client.features.device_id
+        backup_type = emu.client.features.backup_type
+        mnemonic_secret = emu.client.debug.state().mnemonic_secret
+
+        # Set passphrase_source = HOST.
+        resp = emu.client.call(ApplySettings(_passphrase_source=2, use_passphrase=True))
+        assert isinstance(resp, Success)
+
+        # Get a passphrase-less and a passphrased address.
+        address = btc.get_address(emu.client, "Bitcoin", PATH)
+        emu.client.init_device(new_session=True)
+        emu.client.use_passphrase("TREZOR")
+        address_passphrase = btc.get_address(emu.client, "Bitcoin", PATH)
+
+        assert emu.client.features.backup_availability == BackupAvailability.Required
+        storage = emu.get_storage()
+
+    with EmulatorWrapper(gen, storage=storage) as emu:
+        assert emu.client.features.device_id == device_id
+
+        # Create a backup of the encrypted master secret.
+        assert emu.client.features.backup_availability == BackupAvailability.Required
+        with emu.client:
+            IF = InputFlowSlip39BasicBackup(emu.client, False)
+            emu.client.set_input_flow(IF.get())
+            device.backup(emu.client)
+        assert (
+            emu.client.features.backup_availability == BackupAvailability.NotAvailable
+        )
+
+        # Check the backup type.
+        assert emu.client.features.backup_type == backup_type
+        tag_version = version_from_tag(tag)
+        if tag_version is not None:
+            assert (
+                backup_type == BackupType.Slip39_Basic
+                if tag_version < (2, 7, 1)
+                else BackupType.Slip39_Basic_Extendable
+            )
+
+        # Check that the backup contains the originally generated encrypted master secret.
+        groups = shamir.decode_mnemonics(IF.mnemonics[:3])
+        ems = shamir.recover_ems(groups)
+        assert ems.ciphertext == mnemonic_secret
+
+        # Check that addresses are the same after firmware upgrade and backup.
+        assert btc.get_address(emu.client, "Bitcoin", PATH) == address
+        emu.client.init_device(new_session=True)
+        emu.client.use_passphrase("TREZOR")
+        assert btc.get_address(emu.client, "Bitcoin", PATH) == address_passphrase
 
 
 @for_all(legacy_minimum_version=(1, 8, 4), core_minimum_version=(2, 1, 9))

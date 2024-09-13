@@ -7,8 +7,10 @@ use crate::{
         constant::screen,
         display,
         display::{Font, Icon},
-        geometry::{Alignment2D, Offset, Point, Rect},
+        geometry::{Alignment, Alignment2D, Offset, Point, Rect},
         layout::simplified::ReturnToC,
+        shape,
+        shape::Renderer,
     },
 };
 
@@ -67,6 +69,26 @@ impl Choice for MenuChoice {
             BLD_FG,
             BLD_BG,
         );
+    }
+
+    fn render_center<'s>(&self, target: &mut impl Renderer<'s>, _area: Rect, _inverse: bool) {
+        // Icon on top and two lines of text below
+        shape::ToifImage::new(SCREEN_CENTER + Offset::y(-20), self.icon.toif)
+            .with_align(Alignment2D::CENTER)
+            .with_fg(BLD_FG)
+            .render(target);
+
+        shape::Text::new(SCREEN_CENTER, self.first_line)
+            .with_align(Alignment::Center)
+            .with_font(Font::NORMAL)
+            .with_fg(BLD_FG)
+            .render(target);
+
+        shape::Text::new(SCREEN_CENTER + Offset::y(10), self.second_line)
+            .with_align(Alignment::Center)
+            .with_font(Font::NORMAL)
+            .with_fg(BLD_FG)
+            .render(target);
     }
 
     fn btn_layout(&self) -> ButtonLayout {
@@ -162,8 +184,8 @@ impl Component for Menu {
         self.choice_page.paint();
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        self.choice_page.bounds(sink)
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.pad.render(target);
+        self.choice_page.render(target);
     }
 }

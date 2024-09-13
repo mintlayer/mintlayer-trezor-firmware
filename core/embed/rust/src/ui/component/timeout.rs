@@ -3,9 +3,11 @@ use crate::{
     ui::{
         component::{Component, Event, EventCtx, TimerToken},
         geometry::Rect,
+        shape::Renderer,
     },
 };
 
+#[derive(Clone)]
 pub struct Timeout {
     time_ms: u32,
     timer: Option<TimerToken>,
@@ -30,7 +32,7 @@ impl Component for Timeout {
     fn event(&mut self, ctx: &mut EventCtx, event: Event) -> Option<Self::Msg> {
         match event {
             // Set up timer.
-            Event::Attach => {
+            Event::Attach(_) => {
                 self.timer = Some(ctx.request_timer(Duration::from_millis(self.time_ms)));
                 None
             }
@@ -44,6 +46,8 @@ impl Component for Timeout {
     }
 
     fn paint(&mut self) {}
+
+    fn render<'s>(&'s self, _target: &mut impl Renderer<'s>) {}
 }
 
 #[cfg(feature = "ui_debug")]

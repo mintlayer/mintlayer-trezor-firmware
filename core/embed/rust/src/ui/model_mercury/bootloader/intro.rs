@@ -5,6 +5,7 @@ use crate::{
         constant::screen,
         display::Icon,
         geometry::{Alignment, Insets, Point, Rect},
+        shape::Renderer,
     },
 };
 
@@ -43,7 +44,11 @@ impl<'a> Intro<'a> {
                     .styled(button_bld_menu())
                     .with_expanded_touch_area(Insets::uniform(13)),
             ),
-            host: Child::new(Button::with_text("INSTALL FIRMWARE".into()).styled(button_bld())),
+            host: Child::new(
+                Button::with_text("INSTALL FIRMWARE".into())
+                    .styled(button_bld())
+                    .with_text_align(Alignment::Center),
+            ),
             text: Child::new(Label::left_aligned(content, TEXT_NORMAL).vertically_centered()),
             warn: (!fw_ok).then_some(Child::new(
                 Label::new("FIRMWARE CORRUPTED".into(), Alignment::Start, TEXT_WARNING)
@@ -106,8 +111,12 @@ impl<'a> Component for Intro<'a> {
         self.menu.paint();
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        self.menu.bounds(sink);
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.bg.render(target);
+        self.title.render(target);
+        self.text.render(target);
+        self.warn.render(target);
+        self.host.render(target);
+        self.menu.render(target);
     }
 }

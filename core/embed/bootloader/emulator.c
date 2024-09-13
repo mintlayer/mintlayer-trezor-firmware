@@ -22,6 +22,9 @@ uint8_t *FIRMWARE_START = 0;
 
 void set_core_clock(int) {}
 
+// used in fw emulator to raise python exception on exit
+void __attribute__((noreturn)) main_clean_exit() { exit(3); }
+
 int bootloader_main(void);
 
 // assuming storage is single subarea
@@ -62,20 +65,20 @@ bool load_firmware(const char *filename, uint8_t *hash) {
   size_t read = fread(buffer, 1, sizeof(buffer), file);
   fclose(file);
   if (read != sizeof(buffer)) {
-    printf("File '%s' does not contain a valid firmware image.\n");
+    printf("File '%s' does not contain a valid firmware image.\n", filename);
     return false;
   }
 
   // read vendor and image header
   vendor_header vhdr;
   if (sectrue != read_vendor_header(buffer, &vhdr)) {
-    printf("File '%s' does not contain a valid vendor header.\n");
+    printf("File '%s' does not contain a valid vendor header.\n", filename);
     return false;
   }
   const image_header *hdr = read_image_header(
       buffer + vhdr.hdrlen, FIRMWARE_IMAGE_MAGIC, FIRMWARE_IMAGE_MAXSIZE);
   if (hdr != (const image_header *)(buffer + vhdr.hdrlen)) {
-    printf("File '%s' does not contain a valid firmware image.\n");
+    printf("File '%s' does not contain a valid firmware image.\n", filename);
     return false;
   }
 
@@ -88,28 +91,8 @@ bool load_firmware(const char *filename, uint8_t *hash) {
   return true;
 }
 
-__attribute__((noreturn)) void display_error_and_die(const char *message,
-                                                     const char *title,
-                                                     const char *footer) {
-  if (footer == NULL) {
-    footer = "PLEASE VISIT\nTREZOR.IO/RSOD";
-  }
-  if (title == NULL) {
-    title = "INTERNAL ERROR";
-  }
-  display_init();
-  display_backlight(180);
-  screen_fatal_error_rust(title, message, footer);
-#if USE_TOUCH
-  printf("Click screen to exit.\n");
-#elif USE_BUTTON
-  printf("Press both buttons to exit.\n");
-#endif
-  ui_click();
-  exit(0);
-}
-
 __attribute__((noreturn)) int main(int argc, char **argv) {
+  display_init();
   flash_init();
   flash_otp_init();
 
@@ -174,7 +157,7 @@ __attribute__((noreturn)) int main(int argc, char **argv) {
     } else {
       message = "No message specified";
     }
-    display_error_and_die(message, title, footer);
+    error_shutdown_ex(title, message, footer);
   }
 
   // write variant to OTP
@@ -184,35 +167,26 @@ __attribute__((noreturn)) int main(int argc, char **argv) {
 
   bootloader_main();
   hal_delay(3000);
-  jump_to(NULL);
+  jump_to(0);
 }
-
-void display_set_little_endian(void) {}
-
-void display_reinit(void) {}
 
 void mpu_config_bootloader(void) {}
 
 void mpu_config_off(void) {}
 
-__attribute__((noreturn)) void jump_to(void *addr) {
+__attribute__((noreturn)) void jump_to(uint32_t address) {
   bool storage_is_erased =
       storage_empty(&STORAGE_AREAS[0]) && storage_empty(&STORAGE_AREAS[1]);
 
   if (storage_is_erased) {
     printf("STORAGE WAS ERASED\n");
-    screen_fatal_error_rust("BOOTLOADER EXIT", "Jumped to firmware",
-                            "STORAGE WAS ERASED");
+    error_shutdown_ex("BOOTLOADER EXIT", "Jumped to firmware",
+                      "STORAGE WAS ERASED");
   } else {
     printf("storage was retained\n");
-    screen_fatal_error_rust("BOOTLOADER EXIT", "Jumped to firmware",
-                            "STORAGE WAS RETAINED");
+    error_shutdown_ex("BOOTLOADER EXIT", "Jumped to firmware",
+                      "STORAGE WAS RETAINED");
   }
-  display_backlight(180);
-  hal_delay(3000);
-  exit(0);
 }
 
 void ensure_compatible_settings(void) {}
-
-void main_clean_exit(int code) { exit(code); }

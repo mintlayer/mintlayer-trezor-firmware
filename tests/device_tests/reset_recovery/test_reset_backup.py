@@ -20,7 +20,7 @@ from shamir_mnemonic import shamir
 
 from trezorlib import device
 from trezorlib.debuglink import TrezorClientDebugLink as Client
-from trezorlib.messages import BackupType
+from trezorlib.messages import BackupAvailability, BackupType
 
 from ...common import WITH_MOCK_URANDOM
 from ...input_flows import (
@@ -66,12 +66,12 @@ def backup_flow_slip39_advanced(client: Client):
 
 VECTORS = [
     (BackupType.Bip39, backup_flow_bip39),
-    (BackupType.Slip39_Basic, backup_flow_slip39_basic),
-    (BackupType.Slip39_Advanced, backup_flow_slip39_advanced),
+    (BackupType.Slip39_Basic_Extendable, backup_flow_slip39_basic),
+    (BackupType.Slip39_Advanced_Extendable, backup_flow_slip39_advanced),
 ]
 
 
-@pytest.mark.skip_t1b1
+@pytest.mark.models("core")
 @pytest.mark.parametrize("backup_type, backup_flow", VECTORS)
 @pytest.mark.setup_client(uninitialized=True)
 def test_skip_backup_msg(client: Client, backup_type, backup_flow):
@@ -85,7 +85,7 @@ def test_skip_backup_msg(client: Client, backup_type, backup_flow):
         )
 
     assert client.features.initialized is True
-    assert client.features.needs_backup is True
+    assert client.features.backup_availability == BackupAvailability.Required
     assert client.features.unfinished_backup is False
     assert client.features.no_backup is False
     assert client.features.backup_type is backup_type
@@ -94,7 +94,7 @@ def test_skip_backup_msg(client: Client, backup_type, backup_flow):
 
     client.init_device()
     assert client.features.initialized is True
-    assert client.features.needs_backup is False
+    assert client.features.backup_availability == BackupAvailability.NotAvailable
     assert client.features.unfinished_backup is False
     assert client.features.backup_type is backup_type
 
@@ -104,7 +104,7 @@ def test_skip_backup_msg(client: Client, backup_type, backup_flow):
     assert state.mnemonic_secret == secret
 
 
-@pytest.mark.skip_t1b1
+@pytest.mark.models("core")
 @pytest.mark.parametrize("backup_type, backup_flow", VECTORS)
 @pytest.mark.setup_client(uninitialized=True)
 def test_skip_backup_manual(client: Client, backup_type: BackupType, backup_flow):
@@ -119,7 +119,7 @@ def test_skip_backup_manual(client: Client, backup_type: BackupType, backup_flow
         )
 
     assert client.features.initialized is True
-    assert client.features.needs_backup is True
+    assert client.features.backup_availability == BackupAvailability.Required
     assert client.features.unfinished_backup is False
     assert client.features.no_backup is False
     assert client.features.backup_type is backup_type
@@ -128,7 +128,7 @@ def test_skip_backup_manual(client: Client, backup_type: BackupType, backup_flow
 
     client.init_device()
     assert client.features.initialized is True
-    assert client.features.needs_backup is False
+    assert client.features.backup_availability == BackupAvailability.NotAvailable
     assert client.features.unfinished_backup is False
     assert client.features.backup_type is backup_type
 

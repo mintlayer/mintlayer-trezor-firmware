@@ -1,8 +1,8 @@
 from micropython import const
 from typing import TYPE_CHECKING
 
-import storage.cache as storage_cache
 from storage import common
+from trezor import utils
 
 if TYPE_CHECKING:
     from trezor.enums import BackupType
@@ -35,6 +35,13 @@ INITIALIZED                = const(0x13)  # bool (0x01 or empty)
 _SAFETY_CHECK_LEVEL        = const(0x14)  # int
 _EXPERIMENTAL_FEATURES     = const(0x15)  # bool (0x01 or empty)
 _HIDE_PASSPHRASE_FROM_HOST = const(0x16)  # bool (0x01 or empty)
+if utils.USE_THP:
+    _DEVICE_SECRET         = const(0x17)  # bytes
+    _CRED_AUTH_KEY_COUNTER = const(0x18)  # bytes
+# unused from python:
+# _BRIGHTNESS                = const(0x19)  # int
+_DISABLE_HAPTIC_FEEDBACK   = const(0x20)  # bool (0x01 or empty)
+
 
 SAFETY_CHECK_LEVEL_STRICT  : Literal[0] = const(0)
 SAFETY_CHECK_LEVEL_PROMPT  : Literal[1] = const(1)
@@ -129,10 +136,17 @@ def get_backup_type() -> BackupType:
         BackupType.Bip39,
         BackupType.Slip39_Basic,
         BackupType.Slip39_Advanced,
+        BackupType.Slip39_Single_Extendable,
+        BackupType.Slip39_Basic_Extendable,
+        BackupType.Slip39_Advanced_Extendable,
     ):
         # Invalid backup type
         raise RuntimeError
-    return backup_type  # type: ignore [int-into-enum]
+    return backup_type
+
+
+def set_backup_type(backup_type: BackupType) -> None:
+    common.set_uint8(_NAMESPACE, _BACKUP_TYPE, backup_type)
 
 
 def is_passphrase_enabled() -> bool:
@@ -256,7 +270,7 @@ def set_slip39_identifier(identifier: int) -> None:
 
 
 def get_slip39_identifier() -> int | None:
-    """The device's actual SLIP-39 identifier used in passphrase derivation."""
+    """The device's actual SLIP-39 identifier used in legacy passphrase derivation."""
     return common.get_uint16(_NAMESPACE, _SLIP39_IDENTIFIER)
 
 
@@ -304,7 +318,7 @@ def safety_check_level() -> StorageSafetyCheckLevel:
     if level not in (SAFETY_CHECK_LEVEL_STRICT, SAFETY_CHECK_LEVEL_PROMPT):
         return _DEFAULT_SAFETY_CHECK_LEVEL
     else:
-        return level  # type: ignore [int-into-enum]
+        return level
 
 
 # do not use this function directly, see apps.common.safety_checks instead
@@ -314,22 +328,12 @@ def set_safety_check_level(level: StorageSafetyCheckLevel) -> None:
     common.set_uint8(_NAMESPACE, _SAFETY_CHECK_LEVEL, level)
 
 
-@storage_cache.stored(storage_cache.STORAGE_DEVICE_EXPERIMENTAL_FEATURES)
-def _get_experimental_features() -> bytes:
-    if common.get_bool(_NAMESPACE, _EXPERIMENTAL_FEATURES):
-        return b"\x01"
-    else:
-        return b""
-
-
 def get_experimental_features() -> bool:
-    return bool(_get_experimental_features())
+    return common.get_bool(_NAMESPACE, _EXPERIMENTAL_FEATURES, True)
 
 
 def set_experimental_features(enabled: bool) -> None:
-    cached_bytes = b"\x01" if enabled else b""
-    storage_cache.set(storage_cache.STORAGE_DEVICE_EXPERIMENTAL_FEATURES, cached_bytes)
-    common.set_true_or_delete(_NAMESPACE, _EXPERIMENTAL_FEATURES, enabled)
+    common.set_true_or_delete(_NAMESPACE, _EXPERIMENTAL_FEATURES, enabled, True)
 
 
 def set_hide_passphrase_from_host(hide: bool) -> None:
@@ -344,3 +348,40 @@ def get_hide_passphrase_from_host() -> bool:
     Whether we should hide the passphrase from the host.
     """
     return common.get_bool(_NAMESPACE, _HIDE_PASSPHRASE_FROM_HOST)
+
+
+if utils.USE_THP:
+
+    def get_device_secret() -> bytes:
+        """
+        Device secret is used to derive keys that are independent of the seed.
+        """
+        device_secret = common.get(_NAMESPACE, _DEVICE_SECRET)
+        if not device_secret:
+            from trezor.crypto import random
+
+            device_secret = random.bytes(16, True)
+            common.set(_NAMESPACE, _DEVICE_SECRET, device_secret)
+        return device_secret
+
+    def get_cred_auth_key_counter() -> bytes:
+        return common.get(_NAMESPACE, _CRED_AUTH_KEY_COUNTER) or bytes(4)
+
+    def increment_cred_auth_key_counter() -> None:
+        counter = int.from_bytes(get_cred_auth_key_counter(), "big")
+        utils.ensure(counter < 0xFFFFFFFF, "Overflow of cred_auth_key_counter")
+        common.set(_NAMESPACE, _CRED_AUTH_KEY_COUNTER, (counter + 1).to_bytes(4, "big"))
+
+
+def set_haptic_feedback(enable: bool) -> None:
+    """
+    Enable or disable haptic feedback.
+    """
+    common.set_bool(_NAMESPACE, _DISABLE_HAPTIC_FEEDBACK, not enable, True)
+
+
+def get_haptic_feedback() -> bool:
+    """
+    Get haptic feedback enable, default to true if not set.
+    """
+    return not common.get_bool(_NAMESPACE, _DISABLE_HAPTIC_FEEDBACK, True)

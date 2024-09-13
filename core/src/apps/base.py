@@ -23,6 +23,7 @@ if TYPE_CHECKING:
         Ping,
         SetBusy,
     )
+    from trezor.wire import Handler, Msg
 
 
 _SCREENSAVER_IS_ON = False
@@ -60,11 +61,11 @@ def _language_version_matches() -> bool | None:
 def get_features() -> Features:
     import storage.recovery as storage_recovery
     from trezor import translations
-    from trezor.enums import Capability
+    from trezor.enums import BackupAvailability, Capability, RecoveryStatus
     from trezor.messages import Features
     from trezor.ui import HEIGHT, WIDTH
 
-    from apps.common import mnemonic, safety_checks
+    from apps.common import backup, mnemonic, safety_checks
 
     v_major, v_minor, v_patch, _v_build = utils.VERSION
 
@@ -92,7 +93,11 @@ def get_features() -> Features:
         bootloader_locked=utils.bootloader_locked(),
     )
 
-    if utils.INTERNAL_MODEL in ("T1B1", "T2B1"):
+    if (
+        utils.INTERNAL_MODEL == "T1B1"  # pylint: disable=consider-using-in
+        or utils.INTERNAL_MODEL == "T2B1"
+        or utils.INTERNAL_MODEL == "T3B1"
+    ):
         f.homescreen_format = HomescreenFormat.ToiG
     else:
         f.homescreen_format = HomescreenFormat.Jpeg
@@ -126,14 +131,21 @@ def get_features() -> Features:
             Capability.Translations,
         ]
 
-        # We do not support some currencies on T2B1
-        if not utils.MODEL_IS_T2B1:
+        # We don't support some currencies on later models (see #2793)
+        if utils.INTERNAL_MODEL == "T2T1":
             f.capabilities.extend(
                 [
                     Capability.NEM,
                     Capability.EOS,
                 ]
             )
+
+    if utils.USE_HAPTIC:
+        f.haptic_feedback = storage_device.get_haptic_feedback()
+        f.capabilities.append(Capability.Haptic)
+
+    if utils.USE_BACKLIGHT:
+        f.capabilities.append(Capability.Brightness)
 
     # Only some models are capable of SD card
     if utils.USE_SD_CARD:
@@ -143,17 +155,33 @@ def get_features() -> Features:
     else:
         f.sd_card_present = False
 
+    if utils.USE_OPTIGA:
+        from trezor.crypto import optiga
+
+        f.optiga_sec = optiga.get_sec()
+
     f.initialized = storage_device.is_initialized()
 
     # private fields:
     if config.is_unlocked():
         # passphrase_protection is private, see #1807
         f.passphrase_protection = storage_device.is_passphrase_enabled()
-        f.needs_backup = storage_device.needs_backup()
+        if storage_device.needs_backup():
+            f.backup_availability = BackupAvailability.Required
+        elif backup.repeated_backup_enabled():
+            f.backup_availability = BackupAvailability.Available
+        else:
+            f.backup_availability = BackupAvailability.NotAvailable
         f.unfinished_backup = storage_device.unfinished_backup()
         f.no_backup = storage_device.no_backup()
         f.flags = storage_device.get_flags()
-        f.recovery_mode = storage_recovery.is_in_progress()
+        if storage_recovery.is_in_progress():
+            f.recovery_status = RecoveryStatus.Recovery
+            f.recovery_type = storage_recovery.get_type()
+        elif backup.repeated_backup_enabled():
+            f.recovery_status = RecoveryStatus.Backup
+        else:
+            f.recovery_status = RecoveryStatus.Nothing
         f.backup_type = mnemonic.get_type()
 
         # Only some models are capable of SD card
@@ -179,7 +207,7 @@ async def handle_Initialize(msg: Initialize) -> Features:
     session_id = storage_cache.start_session(msg.session_id)
 
     if not utils.BITCOIN_ONLY:
-        derive_cardano = storage_cache.get(storage_cache.APP_COMMON_DERIVE_CARDANO)
+        derive_cardano = storage_cache.get_bool(storage_cache.APP_COMMON_DERIVE_CARDANO)
         have_seed = storage_cache.is_set(storage_cache.APP_COMMON_SEED)
 
         if (
@@ -194,9 +222,8 @@ async def handle_Initialize(msg: Initialize) -> Features:
             have_seed = False
 
         if not have_seed:
-            storage_cache.set(
-                storage_cache.APP_COMMON_DERIVE_CARDANO,
-                b"\x01" if msg.derive_cardano else b"",
+            storage_cache.set_bool(
+                storage_cache.APP_COMMON_DERIVE_CARDANO, bool(msg.derive_cardano)
             )
 
     features = get_features()
@@ -209,6 +236,7 @@ async def handle_GetFeatures(msg: GetFeatures) -> Features:
 
 
 async def handle_Cancel(msg: Cancel) -> Success:
+    workflow.close_others()
     raise wire.ActionCancelled
 
 
@@ -308,6 +336,7 @@ async def handle_UnlockPath(msg: UnlockPath) -> protobuf.MessageType:
             title="Coinjoin",
             description=TR.coinjoin__access_account,
             verb=TR.buttons__access,
+            prompt_screen=True,
         )
 
     wire_types = (MessageType.GetAddress, MessageType.GetPublicKey, MessageType.SignTx)
@@ -332,6 +361,8 @@ async def handle_CancelAuthorization(msg: CancelAuthorization) -> protobuf.Messa
 def set_homescreen() -> None:
     import storage.recovery as storage_recovery
 
+    from apps.common import backup
+
     set_default = workflow.set_default  # local_cache_attribute
 
     if storage_cache.is_set(storage_cache.APP_COMMON_BUSY_DEADLINE_MS):
@@ -349,7 +380,7 @@ def set_homescreen() -> None:
 
         set_default(screensaver, restart=True)
 
-    elif storage_recovery.is_in_progress():
+    elif storage_recovery.is_in_progress() or backup.repeated_backup_enabled():
         from apps.management.recovery_device.homescreen import recovery_homescreen
 
         set_default(recovery_homescreen)
@@ -363,7 +394,7 @@ def set_homescreen() -> None:
 def lock_device(interrupt_workflow: bool = True) -> None:
     if config.has_pin():
         config.lock()
-        wire.find_handler = get_pinlocked_handler
+        wire.filters.append(_pinlock_filter)
         set_homescreen()
         if interrupt_workflow:
             workflow.close_others()
@@ -399,28 +430,16 @@ async def unlock_device() -> None:
 
     _SCREENSAVER_IS_ON = False
     set_homescreen()
-    wire.find_handler = workflow_handlers.find_registered_handler
+    wire.remove_filter(_pinlock_filter)
 
 
-def get_pinlocked_handler(
-    iface: wire.WireInterface, msg_type: int
-) -> wire.Handler[wire.Msg] | None:
-    orig_handler = workflow_handlers.find_registered_handler(iface, msg_type)
-    if orig_handler is None:
-        return None
-
-    if __debug__:
-        import usb
-
-        if iface is usb.iface_debug:
-            return orig_handler
-
+def _pinlock_filter(msg_type: int, prev_handler: Handler[Msg]) -> Handler[Msg]:
     if msg_type in workflow.ALLOW_WHILE_LOCKED:
-        return orig_handler
+        return prev_handler
 
-    async def wrapper(msg: wire.Msg) -> protobuf.MessageType:
+    async def wrapper(msg: Msg) -> protobuf.MessageType:
         await unlock_device()
-        return await orig_handler(msg)
+        return await prev_handler(msg)
 
     return wrapper
 
@@ -434,15 +453,17 @@ def reload_settings_from_storage() -> None:
     )
     wire.EXPERIMENTAL_ENABLED = storage_device.get_experimental_features()
     if ui.display.orientation() != storage_device.get_rotation():
-        ui.backlight_fade(ui.style.BACKLIGHT_DIM)
+        ui.backlight_fade(ui.BacklightLevels.DIM)
         ui.display.orientation(storage_device.get_rotation())
 
 
 def boot() -> None:
+    from apps.common import backup
+
     MT = MessageType  # local_cache_global
 
     # Register workflow handlers
-    for msg_type, handler in (
+    for msg_type, handler in [
         (MT.Initialize, handle_Initialize),
         (MT.GetFeatures, handle_GetFeatures),
         (MT.Cancel, handle_Cancel),
@@ -453,11 +474,13 @@ def boot() -> None:
         (MT.UnlockPath, handle_UnlockPath),
         (MT.CancelAuthorization, handle_CancelAuthorization),
         (MT.SetBusy, handle_SetBusy),
-    ):
-        workflow_handlers.register(msg_type, handler)  # type: ignore [cannot be assigned to type]
+    ]:
+        workflow_handlers.register(msg_type, handler)
 
     reload_settings_from_storage()
-    if config.is_unlocked():
-        wire.find_handler = workflow_handlers.find_registered_handler
-    else:
-        wire.find_handler = get_pinlocked_handler
+
+    if backup.repeated_backup_enabled():
+        backup.activate_repeated_backup()
+    if not config.is_unlocked():
+        # pinlocked handler should always be the last one
+        wire.filters.append(_pinlock_filter)

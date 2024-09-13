@@ -1,16 +1,19 @@
-from typing import Callable, Iterable
+from typing import TYPE_CHECKING, Iterable
 
 import trezorui2
 from trezor import TR
-from trezor.enums import ButtonRequestType
+from trezor.enums import ButtonRequestType, RecoveryType
 
 from ..common import interact
 from . import RustLayout, raise_if_not_confirmed, show_warning
 
+if TYPE_CHECKING:
+    from apps.management.recovery_device.layout import RemainingSharesInfo
 
-async def request_word_count(dry_run: bool) -> int:
+
+async def request_word_count(recovery_type: RecoveryType) -> int:
     count = await interact(
-        RustLayout(trezorui2.select_word_count(dry_run=dry_run)),
+        RustLayout(trezorui2.select_word_count(recovery_type=recovery_type)),
         "word_count",
         ButtonRequestType.MnemonicWordCount,
     )
@@ -21,8 +24,6 @@ async def request_word_count(dry_run: bool) -> int:
 async def request_word(
     word_index: int, word_count: int, is_slip39: bool, prefill_word: str = ""
 ) -> str:
-    from trezor.wire.context import wait
-
     prompt = TR.recovery__word_x_of_y_template.format(word_index + 1, word_count)
 
     can_go_back = word_index > 0
@@ -40,7 +41,7 @@ async def request_word(
             )
         )
 
-    word: str = await wait(word_choice)
+    word: str = await word_choice
     return word
 
 
@@ -71,49 +72,85 @@ async def show_group_share_success(share_index: int, group_index: int) -> None:
     )
 
 
+async def _confirm_abort(dry_run: bool = False) -> None:
+    from . import confirm_action
+
+    if dry_run:
+        await confirm_action(
+            "abort_recovery",
+            TR.recovery__title_cancel_dry_run,
+            TR.recovery__cancel_dry_run,
+            description=TR.recovery__wanna_cancel_dry_run,
+            verb=TR.buttons__cancel,
+            br_code=ButtonRequestType.ProtectCall,
+        )
+    else:
+        await confirm_action(
+            "abort_recovery",
+            TR.recovery__title_cancel_recovery,
+            TR.recovery__progress_will_be_lost,
+            TR.recovery__wanna_cancel_recovery,
+            verb=TR.buttons__cancel,
+            reverse=True,
+            br_code=ButtonRequestType.ProtectCall,
+        )
+
+
 async def continue_recovery(
     button_label: str,
     text: str,
     subtext: str | None,
-    info_func: Callable | None,
-    dry_run: bool,
+    recovery_type: RecoveryType,
     show_info: bool = False,
+    remaining_shares_info: "RemainingSharesInfo | None" = None,  # unused on TR
 ) -> bool:
     # TODO: implement info_func?
     # There is very limited space on the screen
     # (and having middle button would mean shortening the right button text)
 
+    from trezor.wire import ActionCancelled
+
     # Never showing info for dry-run, user already saw it and it is disturbing
-    if dry_run:
+    if recovery_type in (RecoveryType.DryRun, RecoveryType.UnlockRepeatedBackup):
         show_info = False
 
     if subtext:
         text += f"\n\n{subtext}"
 
-    homepage = RustLayout(
-        trezorui2.confirm_recovery(
-            title="",
-            description=text,
-            button=button_label.upper(),
-            info_button=False,
-            dry_run=dry_run,
-            show_info=show_info,  # type: ignore [No parameter named "show_info"]
+    while True:
+        homepage = RustLayout(
+            trezorui2.confirm_recovery(
+                title="",
+                description=text,
+                button=button_label,
+                recovery_type=recovery_type,
+                info_button=False,
+                show_info=show_info,  # type: ignore [No parameter named "show_info"]
+            )
         )
-    )
-    result = await interact(
-        homepage,
-        "recovery",
-        ButtonRequestType.RecoveryHomepage,
-    )
-    return result is trezorui2.CONFIRMED
+        result = await interact(
+            homepage,
+            "recovery",
+            ButtonRequestType.RecoveryHomepage,
+        )
+        if result is trezorui2.CONFIRMED:
+            return True
+
+        # user has chosen to abort, confirm the choice
+        try:
+            await _confirm_abort(recovery_type != RecoveryType.NormalRecovery)
+        except ActionCancelled:
+            pass
+        else:
+            return False
 
 
 async def show_recovery_warning(
-    br_type: str,
+    br_name: str,
     content: str,
     subheader: str | None = None,
     button: str | None = None,
     br_code: ButtonRequestType = ButtonRequestType.Warning,
 ) -> None:
     button = button or TR.buttons__try_again  # def_arg
-    await show_warning(br_type, content, subheader, button, br_code)
+    await show_warning(br_name, content, subheader, button, br_code)

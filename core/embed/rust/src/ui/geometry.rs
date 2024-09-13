@@ -1,5 +1,5 @@
 use crate::ui::lerp::Lerp;
-use core::ops::{Add, Neg, Sub};
+use core::ops::{Add, Mul, Neg, Sub};
 
 const fn min(a: i16, b: i16) -> i16 {
     if a < b {
@@ -128,15 +128,33 @@ impl Sub<Offset> for Offset {
     }
 }
 
+impl Mul<f32> for Offset {
+    type Output = Offset;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Offset::new(
+            (f32::from(self.x) * rhs) as i16,
+            (f32::from(self.y) * rhs) as i16,
+        )
+    }
+}
+
 impl From<Point> for Offset {
     fn from(val: Point) -> Self {
         Offset::new(val.x, val.y)
     }
 }
 
+impl Lerp for Offset {
+    fn lerp(a: Self, b: Self, t: f32) -> Self {
+        Offset::new(i16::lerp(a.x, b.x, t), i16::lerp(a.y, b.y, t))
+    }
+}
+
 /// A point in 2D space defined by the the `x` and `y` coordinate. Relative
 /// coordinates, vectors, and offsets are represented by the `Offset` type.
 #[derive(Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(ufmt::derive::uDebug))]
 pub struct Point {
     pub x: i16,
     pub y: i16,
@@ -545,6 +563,7 @@ pub enum Alignment {
     End,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Alignment2D(pub Alignment, pub Alignment);
 
 impl Alignment2D {
@@ -552,6 +571,8 @@ impl Alignment2D {
     pub const TOP_RIGHT: Alignment2D = Alignment2D(Alignment::End, Alignment::Start);
     pub const TOP_CENTER: Alignment2D = Alignment2D(Alignment::Center, Alignment::Start);
     pub const CENTER: Alignment2D = Alignment2D(Alignment::Center, Alignment::Center);
+    pub const CENTER_LEFT: Alignment2D = Alignment2D(Alignment::Start, Alignment::Center);
+    pub const CENTER_RIGHT: Alignment2D = Alignment2D(Alignment::End, Alignment::Center);
     pub const BOTTOM_LEFT: Alignment2D = Alignment2D(Alignment::Start, Alignment::End);
     pub const BOTTOM_RIGHT: Alignment2D = Alignment2D(Alignment::End, Alignment::End);
     pub const BOTTOM_CENTER: Alignment2D = Alignment2D(Alignment::Center, Alignment::End);

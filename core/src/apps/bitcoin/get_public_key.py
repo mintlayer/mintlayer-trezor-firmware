@@ -70,8 +70,7 @@ async def get_public_key(
         raise wire.DataError("Invalid combination of coin and script_type")
 
     pubkey = node.public_key()
-    if pubkey[0] == 1:
-        pubkey = b"\x00" + pubkey[1:]
+    # For curve25519 and ed25519, the public key has the prefix 0x00, as specified by SLIP-10. However, since this prefix is non-standard, it may be removed in the future.
     node_type = HDNodeType(
         depth=node.depth(),
         child_num=node.child_num(),
@@ -110,7 +109,7 @@ async def get_public_key(
             account=account,
             path=path,
             mismatch_title=TR.addr_mismatch__xpub_mismatch,
-            br_type="show_xpub",
+            br_name="show_xpub",
         )
 
     return PublicKey(

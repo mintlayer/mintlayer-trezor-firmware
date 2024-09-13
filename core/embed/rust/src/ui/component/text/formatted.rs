@@ -1,10 +1,11 @@
 use crate::ui::{
     component::{Component, Event, EventCtx, Never, Paginate},
     geometry::{Alignment, Offset, Rect},
+    shape::Renderer,
 };
 
 use super::{
-    layout::{LayoutFit, LayoutSink, TextNoOp, TextRenderer},
+    layout::{LayoutFit, LayoutSink, TextNoOp, TextRenderer, TextRenderer2},
     op::OpTextLayout,
 };
 
@@ -133,9 +134,8 @@ impl Component for FormattedText {
         self.layout_content(&mut TextRenderer);
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        sink(self.op_layout.layout.bounds)
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.layout_content(&mut TextRenderer2::new(target));
     }
 }
 
@@ -153,5 +153,15 @@ impl crate::trace::Trace for FormattedText {
             fit.set(Some(result));
         });
         t.bool("fits", matches!(fit.get(), Some(LayoutFit::Fitting { .. })));
+    }
+}
+
+#[cfg(feature = "micropython")]
+mod micropython {
+    use crate::{error::Error, micropython::obj::Obj, ui::layout::obj::ComponentMsgObj};
+    impl ComponentMsgObj for super::FormattedText {
+        fn msg_try_into_obj(&self, _msg: Self::Msg) -> Result<Obj, Error> {
+            unreachable!();
+        }
     }
 }

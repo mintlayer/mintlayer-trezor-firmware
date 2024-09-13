@@ -46,7 +46,8 @@ class SigHashType(IntEnum):
 
     @classmethod
     def from_int(cls, sighash_type: int) -> "SigHashType":
-        for val in cls.__dict__.values():  # type: SigHashType
+        val: SigHashType
+        for val in cls.__dict__.values():
             if val == sighash_type:
                 return val
         raise ValueError("Unsupported sighash type.")
@@ -119,6 +120,10 @@ def bip340_sign(node: bip32.HDNode, digest: bytes) -> bytes:
 
 def ecdsa_hash_pubkey(pubkey: bytes, coin: CoinInfo) -> bytes:
     from trezor.utils import ensure
+
+    ensure(
+        coin.curve_name.startswith("secp256k1")
+    )  # The following code makes sense only for Weiersrass curves
 
     if pubkey[0] == 0x04:
         ensure(len(pubkey) == 65)  # uncompressed format

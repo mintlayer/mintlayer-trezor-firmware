@@ -4,10 +4,10 @@
  }:
 
 let
-  # the last commit from master as of 2023-04-14
+  # the last commit from master as of 2024-01-22
   rustOverlay = import (builtins.fetchTarball {
-    url = "https://github.com/oxalica/rust-overlay/archive/db7bf4a2dd295adeeaa809d36387098926a15487.tar.gz";
-    sha256 = "0gk6kag09w8lyn9was8dpjgslxw5p81bx04379m9v6ky09kw482d";
+    url = "https://github.com/oxalica/rust-overlay/archive/e36f66bb10b09f5189dc3b1706948eaeb9a1c555.tar.gz";
+    sha256 = "1vivsmqmqajbvv7181y7mfl48fxmm75hq2c8rj6h1l2ymq28zcpg";
   });
   # define this variable and devTools if you want nrf{util,connect}
   acceptJlink = builtins.getEnv "TREZOR_FIRMWARE_ACCEPT_JLINK_LICENSE" == "yes";
@@ -15,6 +15,17 @@ let
   nixpkgs = import (builtins.fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/c58e6fbf258df1572b535ac1868ec42faf7675dd.tar.gz";
     sha256 = "18pna0yinvdprhhcmhyanlgrmgf81nwpc0j2z9fy9mc8cqkx3937";
+  }) {
+    config = {
+      allowUnfree = acceptJlink;
+      segger-jlink.acceptLicense = acceptJlink;
+    };
+    overlays = [ rustOverlay ];
+  };
+  # 23.11 from 15. 4. 2024
+  newNixpkgs = import (builtins.fetchTarball {
+    url = "https://github.com/NixOS/nixpkgs/archive/53a2c32bc66f5ae41a28d7a9a49d321172af621e.tar.gz";
+    sha256 = "0yqbwqbripb1bbhlwjfbqmg9qb0lai2fc0k1vfh674d6rrc8igwv";
   }) {
     config = {
       allowUnfree = acceptJlink;
@@ -49,7 +60,7 @@ let
       done
     '';
   # NOTE: don't forget to update Minimum Supported Rust Version in docs/core/build/emulator.md
-  rustProfiles = nixpkgs.rust-bin.nightly."2023-04-14";
+  rustProfiles = nixpkgs.rust-bin.nightly."2024-01-21";
   rustNightly = rustProfiles.minimal.override {
     targets = [
       "thumbv7em-none-eabihf" # TT
@@ -108,7 +119,7 @@ stdenvNoCC.mkDerivation ({
     libffi
     libjpeg
     libusb1
-    llvmPackages.clang
+    newNixpkgs.llvmPackages_17.clang
     openssl
     pkgconfig
     poetry
@@ -120,7 +131,7 @@ stdenvNoCC.mkDerivation ({
     moreutils
   ] ++ lib.optionals (!stdenv.isDarwin) [
     autoPatchelfHook
-    gcc11
+    gcc12
     procps
     valgrind
   ] ++ lib.optionals (stdenv.isDarwin) [

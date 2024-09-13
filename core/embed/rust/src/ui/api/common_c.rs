@@ -1,26 +1,28 @@
 //! Reexporting the `screens` module according to the
 //! current feature (Trezor model)
 
+use crate::ui::ui_features::{ModelUI, UIFeaturesCommon};
+
+#[cfg(not(feature = "new_rendering"))]
 use crate::ui::{
     component::image::Image,
     display::{Color, Icon},
     geometry::{Alignment2D, Point},
-    ui_features::{ModelUI, UIFeaturesCommon},
 };
 
-use crate::ui::util::from_c_str;
+use crate::{trezorhal::fatal_error, ui::util::from_c_str};
 
 #[no_mangle]
-extern "C" fn screen_fatal_error_rust(
+extern "C" fn error_shutdown_rust(
     title: *const cty::c_char,
     msg: *const cty::c_char,
     footer: *const cty::c_char,
-) {
+) -> ! {
     let title = unsafe { from_c_str(title) }.unwrap_or("");
     let msg = unsafe { from_c_str(msg) }.unwrap_or("");
     let footer = unsafe { from_c_str(footer) }.unwrap_or("");
 
-    ModelUI::screen_fatal_error(title, msg, footer);
+    fatal_error::error_shutdown(title, msg, footer)
 }
 
 #[no_mangle]
@@ -29,6 +31,7 @@ extern "C" fn screen_boot_stage_2() {
 }
 
 #[no_mangle]
+#[cfg(not(feature = "new_rendering"))]
 extern "C" fn display_icon(
     x: cty::int16_t,
     y: cty::int16_t,
@@ -48,6 +51,7 @@ extern "C" fn display_icon(
 }
 
 #[no_mangle]
+#[cfg(not(feature = "new_rendering"))]
 extern "C" fn display_image(
     x: cty::int16_t,
     y: cty::int16_t,

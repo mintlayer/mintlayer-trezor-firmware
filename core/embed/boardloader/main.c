@@ -21,9 +21,11 @@
 
 #include TREZOR_BOARD
 #include "board_capabilities.h"
+#include "buffers.h"
 #include "common.h"
 #include "compiler_traits.h"
 #include "display.h"
+#include "display_draw.h"
 #include "fault_handlers.h"
 #include "flash.h"
 #include "image.h"
@@ -42,8 +44,17 @@
 #include "hash_processor.h"
 #endif
 
+#ifdef USE_DMA2D
+#ifdef NEW_RENDERING
+#include "dma2d_bitblt.h"
+#else
+#include "dma2d.h"
+#endif
+#endif
+
 #include "lowlevel.h"
 #include "model.h"
+#include "monoctr.h"
 #include "version.h"
 
 #include "memzero.h"
@@ -66,45 +77,17 @@ static const uint8_t * const BOARDLOADER_KEYS[] = {
 #endif
 };
 
-#ifdef STM32U5
-uint8_t get_bootloader_min_version(void) {
-  const uint8_t *counter_addr =
-      flash_area_get_address(&SECRET_AREA, SECRET_MONOTONIC_COUNTER_OFFSET,
-                             SECRET_MONOTONIC_COUNTER_LEN);
-
-  ensure((counter_addr != NULL) * sectrue, "counter_addr is NULL");
-
-  int counter = 0;
-
-  for (int i = 0; i < SECRET_MONOTONIC_COUNTER_LEN / 16; i++) {
-    secbool not_cleared = sectrue;
-    for (int j = 0; j < 16; j++) {
-      if (counter_addr[i * 16 + j] != 0xFF) {
-        not_cleared = secfalse;
-        break;
-      }
-    }
-
-    if (not_cleared != sectrue) {
-      counter++;
-    } else {
-      break;
-    }
-  }
-
-  return counter;
+static uint8_t get_bootloader_min_version(void) {
+  uint8_t version = 0;
+  ensure(monoctr_read(MONOCTR_BOOTLOADER_VERSION, &version), "monoctr read");
+  return version;
 }
 
-void write_bootloader_min_version(uint8_t version) {
+static void write_bootloader_min_version(uint8_t version) {
   if (version > get_bootloader_min_version()) {
-    for (int i = 0; i < version; i++) {
-      uint32_t data[4] = {0};
-      secret_write((uint8_t *)data, SECRET_MONOTONIC_COUNTER_OFFSET + i * 16,
-                   16);
-    }
+    ensure(monoctr_write(MONOCTR_BOOTLOADER_VERSION, version), "monoctr write");
   }
 }
-#endif
 
 struct BoardCapabilities capabilities
     __attribute__((section(".capabilities_section"))) = {
@@ -165,9 +148,19 @@ static uint32_t check_sdcard(void) {
     _Static_assert(IMAGE_CHUNK_SIZE >= BOOTLOADER_IMAGE_MAXSIZE,
                    "BOOTLOADER IMAGE MAXSIZE too large for IMAGE_CHUNK_SIZE");
 
-    if (sectrue != (check_single_hash(
-                       hdr->hashes, ((const uint8_t *)sdcard_buf) + hdr->hdrlen,
-                       hdr->codelen))) {
+    const uint32_t headers_end_offset = hdr->hdrlen;
+    const uint32_t code_start_offset = IMAGE_CODE_ALIGN(headers_end_offset);
+
+    for (uint32_t i = headers_end_offset; i < code_start_offset; i++) {
+      if (((uint8_t *)sdcard_buf)[i] != 0) {
+        return 0;
+      }
+    }
+
+    if (sectrue !=
+        (check_single_hash(hdr->hashes,
+                           (const uint8_t *)sdcard_buf + code_start_offset,
+                           hdr->codelen))) {
       return 0;
     }
 
@@ -177,11 +170,9 @@ static uint32_t check_sdcard(void) {
       }
     }
 
-#ifdef STM32U5
     if (hdr->monotonic < get_bootloader_min_version()) {
       return 0;
     }
-#endif
 
     return hdr->codelen;
   }
@@ -279,6 +270,10 @@ int main(void) {
   hash_processor_init();
 #endif
 
+#ifdef USE_DMA2D
+  dma2d_init();
+#endif
+
   display_init();
   display_clear();
   display_refresh();
@@ -286,7 +281,6 @@ int main(void) {
 #if defined USE_SD_CARD
   sdcard_init();
 
-#ifdef STM32U5
   // If the bootloader is being updated from SD card, we need to preserve the
   // monotonic counter from the old bootloader. This is in case that the old
   // bootloader did not have the chance yet to write its monotonic counter to
@@ -303,7 +297,6 @@ int main(void) {
        check_image_contents(old_hdr, IMAGE_HEADER_SIZE, &BOOTLOADER_AREA))) {
     write_bootloader_min_version(old_hdr->monotonic);
   }
-#endif
 
   if (check_sdcard()) {
     return copy_sdcard() == sectrue ? 0 : 3;
@@ -324,21 +317,19 @@ int main(void) {
   ensure(check_image_contents(hdr, IMAGE_HEADER_SIZE, &BOOTLOADER_AREA),
          "invalid bootloader hash");
 
-#ifdef STM32U5
   uint8_t bld_min_version = get_bootloader_min_version();
   ensure((hdr->monotonic >= bld_min_version) * sectrue,
          "BOOTLOADER DOWNGRADED");
   // Write the bootloader version to the secret area.
   // This includes the version of bootloader potentially updated from SD card.
   write_bootloader_min_version(hdr->monotonic);
-#endif
 
   ensure_compatible_settings();
 
   mpu_config_off();
 
   // g_boot_command is preserved on STM32U5
-  jump_to(BOOTLOADER_START + IMAGE_HEADER_SIZE);
+  jump_to(IMAGE_CODE_ALIGN(BOOTLOADER_START + IMAGE_HEADER_SIZE));
 
   return 0;
 }

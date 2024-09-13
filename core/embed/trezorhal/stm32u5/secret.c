@@ -37,10 +37,16 @@ secbool secret_ensure_initialized(void) {
 }
 
 secbool secret_bootloader_locked(void) {
-#ifdef FIRMWARE
-  return TAMP->BKP8R != 0 * sectrue;
+#if defined BOOTLOADER || defined BOARDLOADER
+  return secret_optiga_present();
 #else
-  return sectrue;
+  const volatile uint32_t *reg1 = &TAMP->BKP8R;
+  for (int i = 0; i < 8; i++) {
+    if (reg1[i] != 0) {
+      return sectrue;
+    }
+  }
+  return secfalse;
 #endif
 }
 
@@ -102,7 +108,9 @@ static secbool secret_present(uint32_t offset, uint32_t len) {
   int secret_empty_bytes = 0;
 
   for (int i = 0; i < len; i++) {
-    if (secret[i] == 0xFF) {
+    // 0xFF being the default value of the flash memory (before any write)
+    // 0x00 being the value of the flash memory after manual erase
+    if (secret[i] == 0xFF || secret[i] == 0x00) {
       secret_empty_bytes++;
     }
   }
@@ -164,8 +172,31 @@ void secret_bhk_regenerate(void) {
 // This functions only works when software has access to the secret storage,
 // i.e. in bootloader. Access to secret storage is restricted by calling
 // secret_hide.
-static secbool secret_optiga_present(void) {
+secbool secret_optiga_present(void) {
   return secret_present(SECRET_OPTIGA_KEY_OFFSET, SECRET_OPTIGA_KEY_LEN);
+}
+
+secbool secret_optiga_writable(void) {
+  const uint32_t offset = SECRET_OPTIGA_KEY_OFFSET;
+  const uint32_t len = SECRET_OPTIGA_KEY_LEN;
+
+  const uint8_t *const secret =
+      (uint8_t *)flash_area_get_address(&SECRET_AREA, offset, len);
+
+  if (secret == NULL) {
+    return secfalse;
+  }
+
+  int secret_empty_bytes = 0;
+
+  for (int i = 0; i < len; i++) {
+    // 0xFF being the default value of the flash memory (before any write)
+    // 0x00 being the value of the flash memory after manual erase
+    if (secret[i] == 0xFF) {
+      secret_empty_bytes++;
+    }
+  }
+  return sectrue * (secret_empty_bytes == len);
 }
 
 // Backs up the optiga pairing secret from the secret storage to the backup
@@ -235,14 +266,13 @@ static void secret_optiga_uncache(void) {
 }
 #endif
 
-void secret_erase(void) {
-  ensure(flash_area_erase(&SECRET_AREA, NULL), "secret erase");
+void secret_optiga_erase(void) {
+  uint8_t value[SECRET_OPTIGA_KEY_LEN] = {0};
+  secret_write(value, SECRET_OPTIGA_KEY_OFFSET, SECRET_OPTIGA_KEY_LEN);
 }
 
-void secret_show_install_restricted_screen(void) {
-  // this should never happen on U5
-  __fatal_error("INTERNAL ERROR", "Install restricted", __FILE__, __LINE__,
-                __func__);
+void secret_erase(void) {
+  ensure(flash_area_erase(&SECRET_AREA, NULL), "secret erase");
 }
 
 void secret_prepare_fw(secbool allow_run_with_secret, secbool trust_all) {
@@ -263,13 +293,25 @@ void secret_prepare_fw(secbool allow_run_with_secret, secbool trust_all) {
   secret_bhk_lock();
 #ifdef USE_OPTIGA
   secret_optiga_uncache();
-  if (sectrue == allow_run_with_secret) {
-    if (secfalse != secret_optiga_present()) {
-      secret_optiga_cache();
-      secret_disable_access();
-    }
-  } else {
-    secret_disable_access();
+  secbool optiga_secret_present = secret_optiga_present();
+  secbool optiga_secret_writable = secret_optiga_writable();
+  if (sectrue == trust_all && sectrue == allow_run_with_secret &&
+      sectrue == optiga_secret_writable && secfalse == optiga_secret_present) {
+    // Secret is not present and the secret sector is writable.
+    // This means the U5 chip is unprovisioned.
+    // Allow trusted firmware (prodtest presumably) to access the secret sector,
+    // early return here.
+    return;
+  }
+  if (sectrue == allow_run_with_secret && sectrue == optiga_secret_present) {
+    // Firmware is trusted and the Optiga secret is present, make it available.
+    secret_optiga_cache();
+  }
+  // Disable access unconditionally.
+  secret_disable_access();
+  if (sectrue != trust_all && sectrue == optiga_secret_present) {
+    // Untrusted firmware, locked bootloader. Show the restricted screen.
+    show_install_restricted_screen();
   }
 #else
   secret_disable_access();

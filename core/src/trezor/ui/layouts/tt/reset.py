@@ -1,19 +1,12 @@
-from typing import TYPE_CHECKING
+from typing import Callable, Sequence
 
 import trezorui2
 from trezor import TR
 from trezor.enums import ButtonRequestType
 from trezor.wire import ActionCancelled
-from trezor.wire.context import wait as ctx_wait
 
 from ..common import interact
-from . import RustLayout, raise_if_not_confirmed
-
-if TYPE_CHECKING:
-    from typing import Callable, Sequence
-
-    from trezor.enums import BackupType
-
+from . import RustLayout, raise_if_not_confirmed, show_success
 
 CONFIRMED = trezorui2.CONFIRMED  # global_import_cache
 
@@ -95,15 +88,13 @@ async def select_word(
     while len(words) < 3:
         words.append(words[-1])
 
-    result = await ctx_wait(
-        RustLayout(
-            trezorui2.select_word(
-                title=title,
-                description=TR.reset__select_word_x_of_y_template.format(
-                    checked_index + 1, count
-                ),
-                words=(words[0], words[1], words[2]),
-            )
+    result = await RustLayout(
+        trezorui2.select_word(
+            title=title,
+            description=TR.reset__select_word_x_of_y_template.format(
+                checked_index + 1, count
+            ),
+            words=(words[0], words[1], words[2]),
         )
     )
     if __debug__ and isinstance(result, str):
@@ -112,18 +103,19 @@ async def select_word(
     return words[result]
 
 
-async def slip39_show_checklist(step: int, backup_type: BackupType) -> None:
-    from trezor.enums import BackupType
-
-    assert backup_type in (BackupType.Slip39_Basic, BackupType.Slip39_Advanced)
-
+async def slip39_show_checklist(
+    step: int,
+    advanced: bool,
+    count: int | None = None,
+    threshold: int | None = None,
+) -> None:
     items = (
         (
             TR.reset__slip39_checklist_set_num_shares,
             TR.reset__slip39_checklist_set_threshold,
-            TR.reset__slip39_checklist_write_down_recovery,
+            TR.reset__slip39_checklist_write_down,
         )
-        if backup_type == BackupType.Slip39_Basic
+        if not advanced
         else (
             TR.reset__slip39_checklist_set_num_groups,
             TR.reset__slip39_checklist_set_num_shares,
@@ -158,7 +150,7 @@ async def _prompt_number(
 ) -> int:
     num_input = RustLayout(
         trezorui2.request_number(
-            title=title.upper(),
+            title=title,
             description=description,
             count=count,
             min_count=min_count,
@@ -183,13 +175,11 @@ async def _prompt_number(
             assert isinstance(value, int)
             return value
 
-        await ctx_wait(
-            RustLayout(
-                trezorui2.show_simple(
-                    title=None,
-                    description=info(value),
-                    button=TR.buttons__ok_i_understand,
-                )
+        await RustLayout(
+            trezorui2.show_simple(
+                title=None,
+                description=info(value),
+                button=TR.buttons__ok_i_understand,
             )
         )
         num_input.request_complete_repaint()
@@ -251,7 +241,9 @@ async def slip39_prompt_threshold(
     )
 
 
-async def slip39_prompt_number_of_shares(group_id: int | None = None) -> int:
+async def slip39_prompt_number_of_shares(
+    num_words: int, group_id: int | None = None
+) -> int:
     count = 5
     min_count = 1
     max_count = 16
@@ -268,9 +260,11 @@ async def slip39_prompt_number_of_shares(group_id: int | None = None) -> int:
             )
 
     if group_id is None:
-        info = TR.reset__num_of_shares_basic_info
+        info = TR.reset__num_of_shares_basic_info_template.format(num_words)
     else:
-        info = TR.reset__num_of_shares_advanced_info_template.format(group_id + 1)
+        info = TR.reset__num_of_shares_advanced_info_template.format(
+            num_words, group_id + 1
+        )
 
     return await _prompt_number(
         TR.reset__title_set_number_of_shares,
@@ -319,6 +313,27 @@ async def slip39_advanced_prompt_group_threshold(num_of_groups: int) -> int:
     )
 
 
+async def show_intro_backup(single_share: bool, num_of_words: int | None) -> None:
+    if single_share:
+        assert num_of_words is not None
+        description = TR.backup__info_single_share_backup.format(num_of_words)
+    else:
+        description = TR.backup__info_multi_share_backup
+
+    await interact(
+        RustLayout(
+            trezorui2.show_info(
+                title="",
+                button=TR.buttons__continue,
+                description=description,
+                allow_cancel=False,
+            )
+        ),
+        "backup_warning",
+        ButtonRequestType.ResetDevice,
+    )
+
+
 async def show_warning_backup() -> None:
     result = await interact(
         RustLayout(
@@ -336,8 +351,6 @@ async def show_warning_backup() -> None:
 
 
 async def show_success_backup() -> None:
-    from . import show_success
-
     await show_success(
         "success_backup",
         TR.reset__use_your_backup,
@@ -346,7 +359,7 @@ async def show_success_backup() -> None:
 
 
 async def show_reset_warning(
-    br_type: str,
+    br_name: str,
     content: str,
     subheader: str | None = None,
     button: str | None = None,
@@ -359,11 +372,55 @@ async def show_reset_warning(
                 trezorui2.show_warning(
                     title=subheader or "",
                     description=content,
-                    button=button.upper(),
+                    button=button,
                     allow_cancel=False,
                 )
             ),
-            br_type,
+            br_name,
             br_code,
         )
+    )
+
+
+async def show_share_confirmation_success(
+    share_index: int | None = None,
+    num_of_shares: int | None = None,
+    group_index: int | None = None,
+) -> None:
+    if share_index is None or num_of_shares is None:
+        # it is a BIP39 or a 1-of-1 SLIP39 backup
+        subheader = TR.reset__finished_verifying_wallet_backup
+        text = ""
+
+    elif share_index == num_of_shares - 1:
+        if group_index is None:
+            subheader = TR.reset__finished_verifying_shares
+        else:
+            subheader = TR.reset__finished_verifying_group_template.format(
+                group_index + 1
+            )
+        text = ""
+
+    else:
+        if group_index is None:
+            subheader = TR.reset__share_checked_successfully_template.format(
+                share_index + 1
+            )
+            text = TR.reset__continue_with_share_template.format(share_index + 2)
+        else:
+            subheader = TR.reset__group_share_checked_successfully_template.format(
+                group_index + 1, share_index + 1
+            )
+            text = TR.reset__continue_with_next_share
+
+    return await show_success("success_recovery", text, subheader)
+
+
+async def show_share_confirmation_failure() -> None:
+    await show_reset_warning(
+        "warning_backup_check",
+        TR.words__please_check_again,
+        TR.reset__wrong_word_selected,
+        TR.buttons__check_again,
+        ButtonRequestType.ResetDevice,
     )

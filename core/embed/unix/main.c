@@ -37,6 +37,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "display.h"
 #include "extmod/misc.h"
 #include "extmod/vfs_posix.h"
 #include "flash.h"
@@ -52,6 +53,7 @@
 #include "py/repl.h"
 #include "py/runtime.h"
 #include "py/stackctrl.h"
+#include "touch.h"
 
 #include "common.h"
 
@@ -406,7 +408,10 @@ STATIC void set_sys_argv(char *argv[], int argc, int start_arg) {
   }
 }
 
-void main_clean_exit(int status) {
+// Inject SystemExit exception. This is primarily needed by prof.py to run the
+// atexit() handler.
+void __attribute__((noreturn)) main_clean_exit() {
+  const int status = 3;
   fflush(stdout);
   fflush(stderr);
   // sys.exit is disabled, so raise a SystemExit exception directly
@@ -480,6 +485,12 @@ MP_NOINLINE int main_(int argc, char **argv) {
   mp_stack_set_limit(600000 * (sizeof(void *) / 4));
 
   pre_process_options(argc, argv);
+
+  display_init();
+
+#if USE_TOUCH
+  touch_init();
+#endif
 
   // Map trezor.flash to memory.
   flash_init();
@@ -684,9 +695,11 @@ MP_NOINLINE int main_(int argc, char **argv) {
 #if !MICROPY_VFS
 
 #ifdef TREZOR_EMULATOR_FROZEN
-uint mp_import_stat(const char *path) { return MP_IMPORT_STAT_NO_EXIST; }
+mp_import_stat_t mp_import_stat(const char *path) {
+  return MP_IMPORT_STAT_NO_EXIST;
+}
 #else
-uint mp_import_stat(const char *path) {
+mp_import_stat_t mp_import_stat(const char *path) {
   struct stat st;
   if (stat(path, &st) == 0) {
     if (S_ISDIR(st.st_mode)) {

@@ -8,9 +8,6 @@ use crate::{
     },
 };
 
-use cstr_core::CStr;
-use heapless::String;
-
 use super::display::Font;
 
 pub trait ResultExt {
@@ -21,9 +18,7 @@ impl<T, E> ResultExt for Result<T, E> {
     fn assert_if_debugging_ui(self, #[allow(unused)] message: &str) {
         #[cfg(feature = "ui_debug")]
         if self.is_err() {
-            print!("Panic from assert_if_debugging_ui: ");
-            println!(message);
-            panic!("{}", message);
+            fatal_error!(message);
         }
     }
 }
@@ -41,7 +36,7 @@ pub unsafe fn from_c_str<'a>(c_str: *const cty::c_char) -> Option<&'a str> {
         return None;
     }
     unsafe {
-        let bytes = CStr::from_ptr(c_str).to_bytes();
+        let bytes = core::ffi::CStr::from_ptr(c_str as _).to_bytes();
         if bytes.is_ascii() {
             Some(core::str::from_utf8_unchecked(bytes))
         } else {
@@ -131,7 +126,7 @@ pub fn icon_text_center(
 
 /// Convert char to a ShortString.
 pub fn char_to_string(ch: char) -> ShortString {
-    let mut s = String::new();
+    let mut s = ShortString::new();
     unwrap!(s.push(ch));
     s
 }
@@ -139,8 +134,7 @@ pub fn char_to_string(ch: char) -> ShortString {
 /// Returns text to be fit on one line of a given length.
 /// When the text is too long to fit, it is truncated with ellipsis
 /// on the left side.
-/// Hardcoding 50 (via ShortString) as the length of the returned String -
-/// there should not be any lines as long as this.
+/// This assumes no lines are longer than 50 chars (ShortString limit)
 pub fn long_line_content_with_ellipsis(
     text: &str,
     ellipsis: &str,
@@ -148,7 +142,7 @@ pub fn long_line_content_with_ellipsis(
     available_width: i16,
 ) -> ShortString {
     if text_font.text_width(text) <= available_width {
-        unwrap!(String::try_from(text)) // whole text can fit
+        unwrap!(ShortString::try_from(text)) // whole text can fit
     } else {
         // Text is longer, showing its right end with ellipsis at the beginning.
         // Finding out how many additional text characters will fit in,
@@ -157,20 +151,29 @@ pub fn long_line_content_with_ellipsis(
         let remaining_available_width = available_width - ellipsis_width;
         let chars_from_right = text_font.longest_suffix(remaining_available_width, text);
 
-        build_string!(50, ellipsis, &text[text.len() - chars_from_right..])
+        let mut s = ShortString::new();
+        unwrap!(s.push_str(ellipsis));
+        unwrap!(s.push_str(&text[text.len() - chars_from_right..]));
+        s
     }
 }
 
-#[macro_export]
 /// Create the `Icon` constant with given name and path.
 /// Possibly users can supply `true` as a third argument and this
 /// will signify that the icon has empty right column.
 macro_rules! include_icon {
     ($name:ident, $path:expr, empty_right_col = $empty:expr) => {
-        pub const $name: Icon = if $empty {
-            Icon::debug_named(include_res!($path), stringify!($name)).with_empty_right_column()
+        pub const $name: $crate::ui::display::toif::Icon = if $empty {
+            $crate::ui::display::toif::Icon::debug_named(
+                $crate::ui::util::include_res!($path),
+                stringify!($name),
+            )
+            .with_empty_right_column()
         } else {
-            Icon::debug_named(include_res!($path), stringify!($name))
+            $crate::ui::display::toif::Icon::debug_named(
+                $crate::ui::util::include_res!($path),
+                stringify!($name),
+            )
         };
     };
     // No empty right column by default.
@@ -178,6 +181,14 @@ macro_rules! include_icon {
         include_icon!($name, $path, empty_right_col = false);
     };
 }
+pub(crate) use include_icon;
+
+macro_rules! include_res {
+    ($filename:expr) => {
+        include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/ui/", $filename))
+    };
+}
+pub(crate) use include_res;
 
 #[cfg(test)]
 mod tests {

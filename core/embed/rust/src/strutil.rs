@@ -9,19 +9,6 @@ use crate::micropython::{buffer::StrBuffer, obj::Obj};
 #[cfg(feature = "translations")]
 use crate::translations::TR;
 
-/// Trait for internal representation of strings. This is a legacy crutch before
-/// we fully transition to `TString`. For now, it allows some manner of
-/// compatibility between `&str` and `StrBuffer`. Implies the following
-/// operations:
-/// - dereference into a short-lived `&str` reference (AsRef<str>) (probably not
-///   strictly necessary anymore)
-/// - create a new string from a string literal (From<&'static str>)
-/// - infallibly convert into a `TString` (Into<TString<'static>>), which is
-///   then used for other operations.
-pub trait StringType: AsRef<str> + From<&'static str> + Into<TString<'static>> {}
-
-impl<T> StringType for T where T: AsRef<str> + From<&'static str> + Into<TString<'static>> {}
-
 /// Unified-length String type, long enough for most simple use-cases.
 pub type ShortString = String<50>;
 
@@ -195,3 +182,43 @@ impl<'a, 'b> PartialEq<TString<'a>> for TString<'b> {
 }
 
 impl Eq for TString<'_> {}
+
+impl ufmt::uDisplay for TString<'_> {
+    fn fmt<W>(&self, f: &mut ufmt::Formatter<'_, W>) -> Result<(), W::Error>
+    where
+        W: ufmt::uWrite + ?Sized,
+    {
+        self.map(|s| f.write_str(s))
+    }
+}
+
+#[cfg(feature = "debug")]
+impl ufmt::uDebug for TString<'_> {
+    fn fmt<W>(&self, f: &mut ufmt::Formatter<'_, W>) -> Result<(), W::Error>
+    where
+        W: ufmt::uWrite + ?Sized,
+    {
+        match self {
+            #[cfg(feature = "micropython")]
+            TString::Allocated(buf) => {
+                f.write_str("Allocated(")?;
+                buf.fmt(f)?;
+                f.write_str(")")?;
+            }
+            #[cfg(feature = "translations")]
+            TString::Translation { tr, offset } => {
+                f.write_str("Translation(")?;
+                tr.fmt(f)?;
+                f.write_str(", ")?;
+                offset.fmt(f)?;
+                f.write_str(")")?;
+            }
+            TString::Str(s) => {
+                f.write_str("Str(")?;
+                f.write_str(s)?;
+                f.write_str(")")?;
+            }
+        }
+        Ok(())
+    }
+}

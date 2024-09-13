@@ -14,8 +14,11 @@
 # You should have received a copy of the License along with this library.
 # If not, see <https://www.gnu.org/licenses/lgpl-3.0.html>.
 
-from trezorlib import device
+import pytest
+
+from trezorlib import device, models
 from trezorlib.debuglink import DebugLink
+from trezorlib.messages import RecoveryStatus
 
 from .. import buttons
 from ..click_tests import recovery
@@ -38,11 +41,14 @@ def test_abort(core_emulator: Emulator):
     debug = device_handler.debuglink()
     features = device_handler.features()
 
-    assert features.recovery_mode is False
+    if debug.model is models.T3T1:
+        pytest.skip("abort not supported on T3T1")
+
+    assert features.recovery_status == RecoveryStatus.Nothing
 
     device_handler.run(device.recover, pin_protection=False)
 
-    assert debug.wait_layout().title() == "RECOVER WALLET"
+    assert debug.wait_layout().title().lower() == "recover wallet"
 
     layout = debug.click(buttons.OK, wait=True)
     assert "number of words" in layout.text_content()
@@ -50,7 +56,7 @@ def test_abort(core_emulator: Emulator):
     debug = _restart(device_handler, core_emulator)
     features = device_handler.features()
 
-    assert features.recovery_mode is True
+    assert features.recovery_status == RecoveryStatus.Recovery
 
     # no waiting for layout because layout doesn't change
     assert "number of words" in debug.read_layout().text_content()
@@ -61,12 +67,12 @@ def test_abort(core_emulator: Emulator):
     assert "Enter your backup" in debug.read_layout().text_content()
     layout = debug.click(buttons.CANCEL, wait=True)
 
-    assert layout.title() in ("ABORT RECOVERY", "CANCEL RECOVERY")
+    assert layout.title().lower() in ("abort recovery", "cancel recovery")
     layout = debug.click(buttons.OK, wait=True)
 
     assert layout.main_component() == "Homescreen"
     features = device_handler.features()
-    assert features.recovery_mode is False
+    assert features.recovery_status == RecoveryStatus.Nothing
 
 
 @core_only
@@ -76,7 +82,7 @@ def test_recovery_single_reset(core_emulator: Emulator):
     features = device_handler.features()
 
     assert features.initialized is False
-    assert features.recovery_mode is False
+    assert features.recovery_status == RecoveryStatus.Nothing
 
     device_handler.run(device.recover, pin_protection=False)
 
@@ -86,7 +92,7 @@ def test_recovery_single_reset(core_emulator: Emulator):
 
     debug = _restart(device_handler, core_emulator)
     features = device_handler.features()
-    assert features.recovery_mode is True
+    assert features.recovery_status == RecoveryStatus.Recovery
 
     # we need to enter the number of words again, that's a feature
     recovery.select_number_of_words(debug, wait=False)
@@ -95,7 +101,7 @@ def test_recovery_single_reset(core_emulator: Emulator):
 
     features = device_handler.features()
     assert features.initialized is True
-    assert features.recovery_mode is False
+    assert features.recovery_status == RecoveryStatus.Nothing
 
 
 @core_only
@@ -113,7 +119,7 @@ def test_recovery_on_old_wallet(core_emulator: Emulator):
     features = device_handler.features()
 
     assert features.initialized is False
-    assert features.recovery_mode is False
+    assert features.recovery_status == RecoveryStatus.Nothing
 
     # enter recovery mode
     device_handler.run(device.recover, pin_protection=False)
@@ -123,7 +129,7 @@ def test_recovery_on_old_wallet(core_emulator: Emulator):
     # restart to get into stand-alone recovery
     debug = _restart(device_handler, core_emulator)
     features = device_handler.features()
-    assert features.recovery_mode is True
+    assert features.recovery_status == RecoveryStatus.Recovery
 
     # enter number of words
     recovery.select_number_of_words(debug, wait=False)
@@ -132,7 +138,7 @@ def test_recovery_on_old_wallet(core_emulator: Emulator):
     words = first_share.split(" ")
 
     # start entering first share
-    assert "Enter any share" in debug.read_layout().text_content()
+    assert "Enter each word of your wallet backup" in debug.read_layout().text_content()
     debug.press_yes()
     assert debug.wait_layout().main_component() == "MnemonicKeyboard"
 
@@ -151,7 +157,7 @@ def test_recovery_on_old_wallet(core_emulator: Emulator):
         layout = debug.wait_layout()
 
     # check that we entered the first share successfully
-    assert "1 of 3 shares entered" in layout.text_content()
+    assert "2 more shares needed" in layout.text_content()
 
     # try entering the remaining shares
     for share in MNEMONIC_SLIP39_BASIC_20_3of6[1:3]:
@@ -162,7 +168,7 @@ def test_recovery_on_old_wallet(core_emulator: Emulator):
     # check that the recovery succeeded
     features = device_handler.features()
     assert features.initialized is True
-    assert features.recovery_mode is False
+    assert features.recovery_status == RecoveryStatus.Nothing
 
 
 @core_only
@@ -170,7 +176,7 @@ def test_recovery_multiple_resets(core_emulator: Emulator):
     def enter_shares_with_restarts(debug: DebugLink) -> None:
         shares = MNEMONIC_SLIP39_ADVANCED_20
         layout = debug.read_layout()
-        expected_text = "Enter any share"
+        expected_text = "Enter each word of your wallet backup"
         remaining = len(shares)
         for share in shares:
             assert expected_text in layout.text_content()
@@ -179,14 +185,14 @@ def test_recovery_multiple_resets(core_emulator: Emulator):
             expected_text = "You have entered"
             debug = _restart(device_handler, core_emulator)
 
-        assert "Wallet recovered successfully" in layout.text_content()
+        assert "Wallet recovery completed" in layout.text_content()
 
     device_handler = BackgroundDeviceHandler(core_emulator.client)
     debug = device_handler.debuglink()
     features = device_handler.features()
 
     assert features.initialized is False
-    assert features.recovery_mode is False
+    assert features.recovery_status == RecoveryStatus.Nothing
 
     # start device and recovery
     device_handler.run(device.recover, pin_protection=False)
@@ -199,7 +205,7 @@ def test_recovery_multiple_resets(core_emulator: Emulator):
     # restart
     debug = _restart(device_handler, core_emulator)
     features = device_handler.features()
-    assert features.recovery_mode is True
+    assert features.recovery_status == RecoveryStatus.Recovery
 
     # enter the number of words again, that's a feature!
     recovery.select_number_of_words(debug, wait=False)
@@ -211,4 +217,4 @@ def test_recovery_multiple_resets(core_emulator: Emulator):
 
     features = device_handler.features()
     assert features.initialized is True
-    assert features.recovery_mode is False
+    assert features.recovery_status == RecoveryStatus.Nothing

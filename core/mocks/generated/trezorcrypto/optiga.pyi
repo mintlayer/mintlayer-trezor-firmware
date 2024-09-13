@@ -29,5 +29,19 @@ def sign(
     Uses the private key at key_index to produce a DER-encoded signature of
     the digest.
     """
+
+
+# extmod/modtrezorcrypto/modtrezorcrypto-optiga.h
+def get_sec() -> int | None:
+    """
+    Returns the value of Optiga's security event counter.
+    """
+
+
+# extmod/modtrezorcrypto/modtrezorcrypto-optiga.h
+def set_sec_max() -> None:
+    """
+    Set Optiga's security event counter to maximum.
+    """
 DEVICE_CERT_INDEX: int
 DEVICE_ECC_KEY_INDEX: int

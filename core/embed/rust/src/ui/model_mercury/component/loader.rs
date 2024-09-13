@@ -5,8 +5,10 @@ use crate::{
     ui::{
         animation::Animation,
         component::{Component, Event, EventCtx, Pad},
-        display::{self, toif::Icon, Color},
-        geometry::{Offset, Rect},
+        display::{self, toif::Icon, Color, LOADER_MAX},
+        geometry::{Alignment2D, Offset, Rect},
+        model_mercury::cshape::{render_loader, LoaderRange},
+        shape::{self, Renderer},
         util::animation_disabled,
     },
 };
@@ -51,7 +53,7 @@ impl Loader {
 
     pub fn with_styles(styles: LoaderStyleSheet) -> Self {
         Self {
-            pad: Pad::with_background(styles.normal.background_color),
+            pad: Pad::with_background(styles.active.background_color),
             state: State::Initial,
             growing_duration: Duration::from_millis(GROWING_DURATION_MS),
             shrinking_duration: Duration::from_millis(SHRINKING_DURATION_MS),
@@ -122,8 +124,16 @@ impl Loader {
         }
     }
 
-    pub fn progress(&self, now: Instant) -> Option<u16> {
+    pub fn progress_raw(&self, now: Instant) -> Option<u16> {
         self.animation().map(|a| a.value(now))
+    }
+
+    pub fn progress(&self, now: Instant) -> Option<u16> {
+        if animation_disabled() {
+            self.progress_raw(now).map(|_a| display::LOADER_MIN)
+        } else {
+            self.progress_raw(now)
+        }
     }
 
     pub fn is_animating(&self) -> bool {
@@ -131,11 +141,11 @@ impl Loader {
     }
 
     pub fn is_completely_grown(&self, now: Instant) -> bool {
-        matches!(self.progress(now), Some(display::LOADER_MAX))
+        matches!(self.progress_raw(now), Some(display::LOADER_MAX))
     }
 
     pub fn is_completely_shrunk(&self, now: Instant) -> bool {
-        matches!(self.progress(now), Some(display::LOADER_MIN))
+        matches!(self.progress_raw(now), Some(display::LOADER_MIN))
     }
 }
 
@@ -189,32 +199,72 @@ impl Component for Loader {
         let now = Instant::now();
 
         if let Some(progress) = self.progress(now) {
-            let style = if progress < display::LOADER_MAX {
-                self.styles.normal
-            } else {
-                self.styles.active
-            };
+            let style = self.styles.active;
 
             self.pad.paint();
             display::loader(
                 progress,
                 self.offset_y,
-                style.loader_color,
+                style.active,
                 style.background_color,
                 style.icon,
             );
         }
     }
+
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        // TODO: Consider passing the current instant along with the event -- that way,
+        // we could synchronize painting across the component tree. Also could be useful
+        // in automated tests.
+        // In practice, taking the current instant here is more precise in case some
+        // other component in the tree takes a long time to draw.
+        let now = Instant::now();
+
+        if let Some(progress) = self.progress(now) {
+            let style = self.styles.active;
+
+            self.pad.render(target);
+
+            let center = self.pad.area.center();
+
+            let inactive_color = style.inactive;
+            let active_color = style.active;
+            let background_color = style.background_color;
+
+            let end = 360.0 * progress as f32 / 1000.0;
+            let start = 0.0;
+
+            render_loader(
+                center,
+                inactive_color,
+                active_color,
+                background_color,
+                if progress >= LOADER_MAX {
+                    LoaderRange::Full
+                } else {
+                    LoaderRange::FromTo(start, end)
+                },
+                target,
+            );
+
+            if let Some((icon, color)) = style.icon {
+                shape::ToifImage::new(center, icon.toif)
+                    .with_align(Alignment2D::CENTER)
+                    .with_fg(color)
+                    .render(target);
+            }
+        }
+    }
 }
 
 pub struct LoaderStyleSheet {
-    pub normal: &'static LoaderStyle,
     pub active: &'static LoaderStyle,
 }
 
 pub struct LoaderStyle {
     pub icon: Option<(Icon, Color)>,
-    pub loader_color: Color,
+    pub active: Color,
+    pub inactive: Color,
     pub background_color: Color,
 }
 

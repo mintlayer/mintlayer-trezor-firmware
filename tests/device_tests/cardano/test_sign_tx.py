@@ -16,16 +16,18 @@
 
 import pytest
 
-from trezorlib import cardano, device, messages, models
+from trezorlib import cardano, device, messages
+from trezorlib.debuglink import LayoutType
 from trezorlib.debuglink import TrezorClientDebugLink as Client
 from trezorlib.exceptions import TrezorFailure
 
 from ...common import parametrize_using_common_fixtures
+from ...input_flows import InputFlowConfirmAllWarnings
 
 pytestmark = [
     pytest.mark.altcoin,
     pytest.mark.cardano,
-    pytest.mark.skip_t1b1,
+    pytest.mark.models("core"),
 ]
 
 
@@ -33,10 +35,10 @@ def show_details_input_flow(client: Client):
     yield
     client.debug.wait_layout()
     # Touch screen click vs pressing right for T2B1
-    if client.model in (models.T2T1, models.T3T1):
+    if client.layout_type in (LayoutType.TT, LayoutType.Mercury):
         SHOW_ALL_BUTTON_POSITION = (143, 167)
         client.debug.click(SHOW_ALL_BUTTON_POSITION)
-    elif client.model is models.T2B1:
+    elif client.layout_type is LayoutType.TR:
         client.debug.press_yes()
     else:
         raise NotImplementedError
@@ -53,10 +55,15 @@ def show_details_input_flow(client: Client):
     "cardano/sign_tx.slip39.json",
 )
 def test_cardano_sign_tx(client: Client, parameters, result):
-    response = call_sign_tx(client, parameters)
+    response = call_sign_tx(
+        client,
+        parameters,
+        input_flow=lambda client: InputFlowConfirmAllWarnings(client).get(),
+    )
     assert response == _transform_expected_result(result)
 
 
+@pytest.mark.models(skip="mercury", reason="Not yet implemented in new UI")
 @parametrize_using_common_fixtures("cardano/sign_tx.show_details.json")
 def test_cardano_sign_tx_show_details(client: Client, parameters, result):
     response = call_sign_tx(client, parameters, show_details_input_flow, chunkify=True)
@@ -139,6 +146,7 @@ def call_sign_tx(client: Client, parameters, input_flow=None, chunkify: bool = F
             additional_witness_requests=additional_witness_requests,
             include_network_id=parameters["include_network_id"],
             chunkify=chunkify,
+            tag_cbor_sets=parameters["tag_cbor_sets"],
         )
 
 

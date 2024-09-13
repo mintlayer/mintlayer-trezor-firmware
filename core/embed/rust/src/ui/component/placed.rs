@@ -1,6 +1,7 @@
 use crate::ui::{
     component::{Component, Event, EventCtx},
     geometry::{Alignment, Alignment2D, Axis, Grid, GridCellSpan, Insets, Offset, Rect},
+    shape::Renderer,
 };
 
 pub struct GridPlaced<T> {
@@ -63,6 +64,10 @@ where
     fn paint(&mut self) {
         self.inner.paint()
     }
+
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.inner.render(target);
+    }
 }
 
 #[cfg(feature = "ui_debug")]
@@ -105,6 +110,10 @@ where
 
     fn paint(&mut self) {
         self.inner.paint()
+    }
+
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.inner.render(target);
     }
 }
 
@@ -154,7 +163,7 @@ where
         let mut border = self.border;
         let area = match self.align.0 {
             Alignment::Start => bounds.split_left(self.size.x).0,
-            Alignment::Center => panic!("alignment not supported"),
+            Alignment::Center => fatal_error!("Alignment not supported"),
             Alignment::End => {
                 border.x = -border.x;
                 bounds.split_right(self.size.x).1
@@ -162,7 +171,7 @@ where
         };
         let area = match self.align.1 {
             Alignment::Start => area.split_top(self.size.y).0,
-            Alignment::Center => panic!("alignment not supported"),
+            Alignment::Center => fatal_error!("Alignment not supported"),
             Alignment::End => {
                 border.y = -border.y;
                 area.split_bottom(self.size.y).1
@@ -177,6 +186,10 @@ where
 
     fn paint(&mut self) {
         self.inner.paint()
+    }
+
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.inner.render(target);
     }
 }
 
@@ -268,6 +281,11 @@ where
     fn paint(&mut self) {
         self.first.paint();
         self.second.paint();
+    }
+
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.first.render(target);
+        self.second.render(target);
     }
 }
 

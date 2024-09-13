@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from trezorlib import models
+from trezorlib.debuglink import LayoutType
 
 from .. import buttons
 from .. import translations as TR
@@ -45,21 +45,34 @@ def get_char_category(char: str) -> PassphraseCategory:
     return PassphraseCategory.SPECIAL
 
 
-def go_next(debug: "DebugLink", wait: bool = False) -> "LayoutContent" | None:
-    if debug.model in (models.T2T1, models.T3T1):
+def go_next(debug: "DebugLink", wait: bool = False) -> LayoutContent | None:
+    if debug.layout_type is LayoutType.TT:
         return debug.click(buttons.OK, wait=wait)  # type: ignore
-    elif debug.model in (models.T2B1,):
+    elif debug.layout_type is LayoutType.TR:
         return debug.press_right(wait=wait)  # type: ignore
+    elif debug.layout_type is LayoutType.Mercury:
+        return debug.swipe_up(wait=wait)
+    else:
+        raise RuntimeError("Unknown model")
+
+
+def tap_to_confirm(debug: "DebugLink", wait: bool = False) -> LayoutContent | None:
+    if debug.layout_type is LayoutType.TT:
+        return debug.read_layout()  # type: ignore
+    elif debug.layout_type is LayoutType.TR:
+        return debug.read_layout()  # type: ignore
+    elif debug.layout_type is LayoutType.Mercury:
+        return debug.click(buttons.TAP_TO_CONFIRM, wait=wait)
     else:
         raise RuntimeError("Unknown model")
 
 
 def go_back(
     debug: "DebugLink", wait: bool = False, r_middle: bool = False
-) -> "LayoutContent" | None:
-    if debug.model in (models.T2T1, models.T3T1):
+) -> LayoutContent | None:
+    if debug.layout_type in (LayoutType.TT, LayoutType.Mercury):
         return debug.click(buttons.CANCEL, wait=wait)  # type: ignore
-    elif debug.model in (models.T2B1,):
+    elif debug.layout_type is LayoutType.TR:
 
         if r_middle:
             return debug.press_middle(wait=wait)  # type: ignore
@@ -109,6 +122,17 @@ def navigate_to_action_and_press(
         debug.press_middle_htc(1000)
     else:
         debug.press_middle(wait=True)
+
+
+def unlock_gesture(debug: "DebugLink", wait: bool = False) -> LayoutContent | None:
+    if debug.layout_type is LayoutType.TT:
+        return debug.click(buttons.OK, wait=wait)  # type: ignore
+    elif debug.layout_type is LayoutType.TR:
+        return debug.press_right(wait=wait)  # type: ignore
+    elif debug.layout_type is LayoutType.Mercury:
+        return debug.click(buttons.TAP_TO_CONFIRM, wait=wait)  # type: ignore
+    else:
+        raise RuntimeError("Unknown model")
 
 
 def _get_action_index(wanted_action: str, all_actions: list[str]) -> int:

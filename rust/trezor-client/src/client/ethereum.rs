@@ -45,7 +45,7 @@ impl Trezor {
             Box::new(|_, m: protos::EthereumMessageSignature| {
                 let signature = m.signature();
                 if signature.len() != 65 {
-                    return Err(Error::MalformedSignature)
+                    return Err(Error::MalformedSignature);
                 }
                 let r = signature[0..32].try_into().unwrap();
                 let s = signature[32..64].try_into().unwrap();
@@ -162,6 +162,6 @@ fn convert_signature(resp: &EthereumTxRequest, chain_id: Option<u64>) -> Result<
         }
     }
     let r = resp.signature_r().try_into().map_err(|_| Error::MalformedSignature)?;
-    let s = resp.signature_r().try_into().map_err(|_| Error::MalformedSignature)?;
+    let s = resp.signature_s().try_into().map_err(|_| Error::MalformedSignature)?;
     Ok(Signature { r, s, v })
 }

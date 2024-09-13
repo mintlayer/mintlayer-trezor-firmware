@@ -1,10 +1,12 @@
 # pylint: disable=E0602
 
 import os
-import tools
+import tools, models
 
 TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T')
 CMAKELISTS = int(ARGUMENTS.get('CMAKELISTS', 0))
+HW_REVISION = ARGUMENTS.get('HW_REVISION', None)
+NEW_RENDERING = ARGUMENTS.get('NEW_RENDERING', '1') == '1'
 
 if TREZOR_MODEL in ('1', ):
     # skip boardloader build
@@ -20,10 +22,14 @@ if TREZOR_MODEL in ('1', ):
 
 FEATURES_WANTED = ["sd_card"]
 
+if NEW_RENDERING:
+    FEATURES_WANTED.append("new_rendering")
+
 CCFLAGS_MOD = ''
 CPPPATH_MOD = []
 CPPDEFINES_MOD = ["BOARDLOADER"]
 SOURCE_MOD = []
+SOURCE_MOD_CRYPTO = []
 CPPDEFINES_HAL = []
 SOURCE_HAL = []
 PATH_HAL = []
@@ -41,6 +47,9 @@ CPPDEFINES_MOD += [
     'ED25519_NO_PRECOMP',
 ]
 SOURCE_MOD += [
+    'vendor/trezor-storage/flash_area.c',
+]
+SOURCE_MOD_CRYPTO += [
     'vendor/trezor-crypto/blake2s.c',
     'vendor/trezor-crypto/ed25519-donna/curve25519-donna-32bit.c',
     'vendor/trezor-crypto/ed25519-donna/curve25519-donna-helpers.c',
@@ -50,7 +59,6 @@ SOURCE_MOD += [
     'vendor/trezor-crypto/ed25519-donna/modm-donna-32bit.c',
     'vendor/trezor-crypto/memzero.c',
     'vendor/trezor-crypto/sha2.c',
-    'vendor/trezor-storage/flash_area.c',
 ]
 
 # modtrezorui
@@ -60,13 +68,28 @@ CPPPATH_MOD += [
 SOURCE_MOD += [
     'embed/lib/colors.c',
     'embed/lib/display_utils.c',
-    'embed/lib/display.c',
+    'embed/lib/error_handling.c',
     'embed/lib/fonts/font_bitmap.c',
     'embed/lib/fonts/fonts.c',
+    'embed/lib/gfx_color.c',
+    'embed/lib/gfx_bitblt_rgb565.c',
+    'embed/lib/gfx_bitblt_rgba8888.c',
+    'embed/lib/gfx_bitblt_mono8.c',
     'embed/lib/image.c',
     'embed/lib/mini_printf.c',
     'embed/lib/terminal.c',
 ]
+if NEW_RENDERING:
+    CPPDEFINES_MOD += ['NEW_RENDERING']
+    SOURCE_MOD += [
+        'embed/lib/gfx_draw.c',
+    ]
+else:
+    SOURCE_MOD += [
+        'embed/lib/display_draw.c',
+    ]
+
+
 
 env = Environment(ENV=os.environ,
      CFLAGS='%s -DPRODUCTION=%s' % (ARGUMENTS.get('CFLAGS', ''), ARGUMENTS.get('PRODUCTION', '0')),
@@ -74,7 +97,7 @@ env = Environment(ENV=os.environ,
      CPPDEFINES_IMPLICIT=[]
  )
 
-FEATURES_AVAILABLE = tools.configure_board(TREZOR_MODEL, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
+FEATURES_AVAILABLE = models.configure_board(TREZOR_MODEL, HW_REVISION, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
 
 FILE_SUFFIX= env.get('ENV')['SUFFIX']
 LINKER_SCRIPT_SUFFIX= env.get('ENV')['LINKER_SCRIPT']
@@ -130,7 +153,7 @@ env.Replace(
     )
 
 env.Replace(
-    ALLSOURCES=SOURCE_MOD + SOURCE_BOARDLOADER + SOURCE_HAL,
+    ALLSOURCES=SOURCE_MOD + SOURCE_MOD_CRYPTO + SOURCE_BOARDLOADER + SOURCE_HAL,
     ALLDEFS=tools.get_defs_for_cmake(env['CPPDEFINES'] + env['CPPDEFINES_IMPLICIT']))
 
 cmake_gen = env.Command(
@@ -145,6 +168,7 @@ cmake_gen = env.Command(
 
 obj_program = []
 obj_program += env.Object(source=SOURCE_MOD)
+obj_program += env.Object(source=SOURCE_MOD_CRYPTO, CCFLAGS='$CCFLAGS -ftrivial-auto-var-init=zero')
 obj_program += env.Object(source=SOURCE_BOARDLOADER)
 obj_program += env.Object(source=SOURCE_HAL)
 
@@ -155,7 +179,7 @@ program_elf = env.Command(
     '$LINK -o $TARGET $CCFLAGS $CFLAGS $LINKFLAGS $SOURCES -lc_nano -lgcc',
 )
 
-BINARY_NAME = f"build/boardloader/boardloader-{tools.get_model_identifier(TREZOR_MODEL)}"
+BINARY_NAME = f"build/boardloader/boardloader-{models.get_model_identifier(TREZOR_MODEL)}"
 BINARY_NAME += "-" + tools.get_version('embed/boardloader/version.h')
 BINARY_NAME += "-" + tools.get_git_revision_short_hash()
 BINARY_NAME += "-dirty" if tools.get_git_modified() else ""

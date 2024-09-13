@@ -47,6 +47,7 @@ def apply_settings(
     safety_checks: Optional[messages.SafetyCheckLevel] = None,
     experimental_features: Optional[bool] = None,
     hide_passphrase_from_host: Optional[bool] = None,
+    haptic_feedback: Optional[bool] = None,
 ) -> "MessageType":
     if language is not None:
         warnings.warn(
@@ -63,6 +64,7 @@ def apply_settings(
         safety_checks=safety_checks,
         experimental_features=experimental_features,
         hide_passphrase_from_host=hide_passphrase_from_host,
+        haptic_feedback=haptic_feedback,
     )
 
     out = client.call(settings)
@@ -157,9 +159,11 @@ def recover(
     label: Optional[str] = None,
     language: Optional[str] = None,
     input_callback: Optional[Callable] = None,
-    type: messages.RecoveryDeviceType = messages.RecoveryDeviceType.ScrambledWords,
-    dry_run: bool = False,
+    input_method: messages.RecoveryDeviceInputMethod = messages.RecoveryDeviceInputMethod.ScrambledWords,
+    dry_run: Optional[bool] = None,
     u2f_counter: Optional[int] = None,
+    *,
+    type: Optional[messages.RecoveryType] = None,
 ) -> "MessageType":
     if language is not None:
         warnings.warn(
@@ -167,13 +171,29 @@ def recover(
             DeprecationWarning,
         )
 
+    if dry_run is not None:
+        warnings.warn(
+            "Use type=RecoveryType.DryRun instead!",
+            DeprecationWarning,
+        )
+
+        if type is not None:
+            raise ValueError("Cannot use both dry_run and type simultaneously.")
+        elif dry_run:
+            type = messages.RecoveryType.DryRun
+        else:
+            type = messages.RecoveryType.NormalRecovery
+
+    if type is None:
+        type = messages.RecoveryType.NormalRecovery
+
     if client.features.model == "1" and input_callback is None:
         raise RuntimeError("Input callback required for Trezor One")
 
     if word_count not in (12, 18, 24):
         raise ValueError("Invalid word count. Use 12/18/24")
 
-    if client.features.initialized and not dry_run:
+    if client.features.initialized and type == messages.RecoveryType.NormalRecovery:
         raise RuntimeError(
             "Device already initialized. Call device.wipe() and try again."
         )
@@ -182,10 +202,13 @@ def recover(
         u2f_counter = int(time.time())
 
     msg = messages.RecoveryDevice(
-        word_count=word_count, enforce_wordlist=True, type=type, dry_run=dry_run
+        word_count=word_count,
+        enforce_wordlist=True,
+        input_method=input_method,
+        type=type,
     )
 
-    if not dry_run:
+    if type == messages.RecoveryType.NormalRecovery:
         # set additional parameters
         msg.passphrase_protection = passphrase_protection
         msg.pin_protection = pin_protection
@@ -221,6 +244,12 @@ def reset(
     no_backup: bool = False,
     backup_type: messages.BackupType = messages.BackupType.Bip39,
 ) -> "MessageType":
+    if display_random:
+        warnings.warn(
+            "display_random ignored. The feature is deprecated.",
+            DeprecationWarning,
+        )
+
     if language is not None:
         warnings.warn(
             "language ignored. Use change_language() to set device language.",
@@ -240,7 +269,6 @@ def reset(
 
     # Begin with device reset workflow
     msg = messages.ResetDevice(
-        display_random=bool(display_random),
         strength=strength,
         passphrase_protection=bool(passphrase_protection),
         pin_protection=bool(pin_protection),
@@ -348,3 +376,10 @@ def set_busy(client: "TrezorClient", expiry_ms: Optional[int]) -> "MessageType":
 @expect(messages.AuthenticityProof)
 def authenticate(client: "TrezorClient", challenge: bytes):
     return client.call(messages.AuthenticateDevice(challenge=challenge))
+
+
+@expect(messages.Success, field="message", ret_type=str)
+def set_brightness(
+    client: "TrezorClient", value: Optional[int] = None
+) -> "MessageType":
+    return client.call(messages.SetBrightness(value=value))

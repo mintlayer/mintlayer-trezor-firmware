@@ -47,7 +47,7 @@ def process_slip39(words: str) -> tuple[bytes | None, slip39.Share]:
         # if share threshold and group threshold are 1
         # we can calculate the secret right away
         if share.threshold == 1 and share.group_threshold == 1:
-            _, _, secret = slip39.recover_ems([words])
+            _, _, _, secret = slip39.recover_ems([words])
             return secret, share
         else:
             # we need more shares
@@ -85,7 +85,7 @@ def process_slip39(words: str) -> tuple[bytes | None, slip39.Share]:
         # in case of slip39 basic we only need the first and only group
         mnemonics = storage_recovery_shares.fetch_group(0)
 
-    _, _, secret = slip39.recover_ems(mnemonics)
+    _, _, _, secret = slip39.recover_ems(mnemonics)
     return secret, share
 
 
@@ -94,7 +94,7 @@ if TYPE_CHECKING:
 
 
 def load_slip39_state() -> Slip39State:
-    from .. import backup_types
+    from apps.common import backup_types
 
     previous_mnemonics = fetch_previous_mnemonics()
     if not previous_mnemonics:

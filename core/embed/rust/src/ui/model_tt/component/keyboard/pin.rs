@@ -1,8 +1,7 @@
 use core::mem;
-use heapless::String;
 
 use crate::{
-    strutil::TString,
+    strutil::{ShortString, TString},
     time::Duration,
     trezorhal::random,
     ui::{
@@ -12,11 +11,15 @@ use crate::{
         },
         display::{self, Font},
         event::TouchEvent,
-        geometry::{Alignment2D, Grid, Insets, Offset, Rect},
+        geometry::{Alignment, Alignment2D, Grid, Insets, Offset, Rect},
         model_tt::component::{
-            button::{Button, ButtonContent, ButtonMsg, ButtonMsg::Clicked},
+            button::{
+                Button, ButtonContent,
+                ButtonMsg::{self, Clicked},
+            },
             theme,
         },
+        shape::{self, Renderer},
     },
 };
 
@@ -197,7 +200,7 @@ impl Component for PinKeyboard<'_> {
     fn event(&mut self, ctx: &mut EventCtx, event: Event) -> Option<Self::Msg> {
         match event {
             // Set up timer to switch off warning prompt.
-            Event::Attach if self.major_warning.is_some() => {
+            Event::Attach(_) if self.major_warning.is_some() => {
                 self.warning_timer = Some(ctx.request_timer(Duration::from_secs(2)));
             }
             // Hide warning, show major prompt.
@@ -264,16 +267,23 @@ impl Component for PinKeyboard<'_> {
         }
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        self.major_prompt.bounds(sink);
-        self.minor_prompt.bounds(sink);
-        self.erase_btn.bounds(sink);
-        self.cancel_btn.bounds(sink);
-        self.confirm_btn.bounds(sink);
-        self.textbox.bounds(sink);
-        for b in &self.digit_btns {
-            b.bounds(sink)
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.erase_btn.render(target);
+        self.textbox_pad.render(target);
+        if self.textbox.inner().is_empty() {
+            if let Some(ref w) = self.major_warning {
+                w.render(target);
+            } else {
+                self.major_prompt.render(target);
+            }
+            self.minor_prompt.render(target);
+            self.cancel_btn.render(target);
+        } else {
+            self.textbox.render(target);
+        }
+        self.confirm_btn.render(target);
+        for btn in &self.digit_btns {
+            btn.render(target);
         }
     }
 }
@@ -282,7 +292,7 @@ struct PinDots {
     area: Rect,
     pad: Pad,
     style: TextStyle,
-    digits: String<MAX_LENGTH>,
+    digits: ShortString,
     display_digits: bool,
 }
 
@@ -292,11 +302,13 @@ impl PinDots {
     const TWITCH: i16 = 4;
 
     fn new(style: TextStyle) -> Self {
+        let digits = ShortString::new();
+        debug_assert!(digits.capacity() >= MAX_LENGTH);
         Self {
             area: Rect::zero(),
             pad: Pad::with_background(style.background_color),
             style,
-            digits: String::new(),
+            digits,
             display_digits: false,
         }
     }
@@ -313,7 +325,7 @@ impl PinDots {
     }
 
     fn is_full(&self) -> bool {
-        self.digits.len() == self.digits.capacity()
+        self.digits.len() >= MAX_LENGTH
     }
 
     fn clear(&mut self, ctx: &mut EventCtx) {
@@ -364,6 +376,27 @@ impl PinDots {
         }
     }
 
+    fn render_digits<'s>(&self, area: Rect, target: &mut impl Renderer<'s>) {
+        let center = area.center() + Offset::y(Font::MONO.text_height() / 2);
+        let right = center + Offset::x(Font::MONO.text_width("0") * (MAX_VISIBLE_DOTS as i16) / 2);
+        let digits = self.digits.len();
+
+        if digits <= MAX_VISIBLE_DOTS {
+            shape::Text::new(center, &self.digits)
+                .with_align(Alignment::Center)
+                .with_font(Font::MONO)
+                .with_fg(self.style.text_color)
+                .render(target);
+        } else {
+            let offset: usize = digits.saturating_sub(MAX_VISIBLE_DIGITS);
+            shape::Text::new(right, &self.digits[offset..])
+                .with_align(Alignment::End)
+                .with_font(Font::MONO)
+                .with_fg(self.style.text_color)
+                .render(target);
+        }
+    }
+
     fn paint_dots(&self, area: Rect) {
         let mut cursor = self.size().snap(area.center(), Alignment2D::CENTER);
 
@@ -404,6 +437,44 @@ impl PinDots {
                 self.style.text_color,
                 self.style.background_color,
             );
+            cursor.x += step;
+        }
+    }
+
+    fn render_dots<'s>(&self, area: Rect, target: &mut impl Renderer<'s>) {
+        let mut cursor = self.size().snap(area.center(), Alignment2D::CENTER);
+
+        let digits = self.digits.len();
+        let dots_visible = digits.min(MAX_VISIBLE_DOTS);
+        let step = Self::DOT + Self::PADDING;
+
+        // Jiggle when overflowed.
+        if digits > dots_visible && digits % 2 == 0 {
+            cursor.x += Self::TWITCH
+        }
+
+        // Small leftmost dot.
+        if digits > dots_visible + 1 {
+            shape::ToifImage::new(cursor - Offset::x(2 * step), theme::DOT_SMALL.toif)
+                .with_align(Alignment2D::TOP_LEFT)
+                .with_fg(self.style.text_color)
+                .render(target);
+        }
+
+        // Greyed out dot.
+        if digits > dots_visible {
+            shape::ToifImage::new(cursor - Offset::x(step), theme::DOT_ACTIVE.toif)
+                .with_align(Alignment2D::TOP_LEFT)
+                .with_fg(theme::GREY_LIGHT)
+                .render(target);
+        }
+
+        // Draw a dot for each PIN digit.
+        for _ in 0..dots_visible {
+            shape::ToifImage::new(cursor, theme::DOT_ACTIVE.toif)
+                .with_align(Alignment2D::TOP_LEFT)
+                .with_fg(self.style.text_color)
+                .render(target);
             cursor.x += step;
         }
     }
@@ -449,10 +520,14 @@ impl Component for PinDots {
         }
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        sink(self.area);
-        sink(self.area.inset(HEADER_PADDING));
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        let dot_area = self.area.inset(HEADER_PADDING);
+        self.pad.render(target);
+        if self.display_digits {
+            self.render_digits(dot_area, target)
+        } else {
+            self.render_dots(dot_area, target)
+        }
     }
 }
 
@@ -461,7 +536,7 @@ impl crate::trace::Trace for PinKeyboard<'_> {
     fn trace(&self, t: &mut dyn crate::trace::Tracer) {
         t.component("PinKeyboard");
         // So that debuglink knows the locations of the buttons
-        let mut digits_order: String<10> = String::new();
+        let mut digits_order = ShortString::new();
         for btn in self.digit_btns.iter() {
             let btn_content = btn.inner().content();
 

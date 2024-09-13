@@ -1,10 +1,12 @@
 # pylint: disable=E0602
 
 import os
-import tools
+import tools, models
 
 TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T')
 CMAKELISTS = int(ARGUMENTS.get('CMAKELISTS', 0))
+HW_REVISION = ARGUMENTS.get('HW_REVISION', None)
+NEW_RENDERING = ARGUMENTS.get('NEW_RENDERING', '1') == '1' or TREZOR_MODEL in ('T3T1',)
 
 if TREZOR_MODEL in ('1', 'DISC1', 'DISC2'):
     # skip bootloader_ci build
@@ -24,28 +26,38 @@ CCFLAGS_MOD = ''
 CPPPATH_MOD = []
 CPPDEFINES_MOD = []
 SOURCE_MOD = []
+SOURCE_MOD_CRYPTO = []
 CPPDEFINES_HAL = []
 SOURCE_HAL = []
 PATH_HAL = []
 
-if TREZOR_MODEL in ('1', 'R'):
+if TREZOR_MODEL in ('1', 'R', 'T3B1'):
     FONT_NORMAL='Font_PixelOperator_Regular_8'
     FONT_DEMIBOLD=None
     FONT_BOLD=None
     FONT_MONO='Font_PixelOperatorMono_Regular_8'
-    FONT_BIG=None
+    FONT_BIG='Font_PixelOperator_Regular_8'
+    FONT_NORMAL_UPPER='Font_PixelOperator_Regular_8_upper'
+    FONT_BOLD_UPPER=None
+    FONT_SUB=None
 elif TREZOR_MODEL in ('T',):
     FONT_NORMAL='Font_Roboto_Regular_20'
     FONT_DEMIBOLD=None
     FONT_BOLD=None
     FONT_MONO='Font_RobotoMono_Medium_20'
     FONT_BIG=None
+    FONT_NORMAL_UPPER=None
+    FONT_BOLD_UPPER=None
+    FONT_SUB=None
 elif TREZOR_MODEL in ('T3T1',):
     FONT_NORMAL='Font_TTSatoshi_DemiBold_21'
     FONT_DEMIBOLD=None
     FONT_BOLD=None
     FONT_MONO='Font_RobotoMono_Medium_21'
     FONT_BIG=None
+    FONT_NORMAL_UPPER=None
+    FONT_BOLD_UPPER=None
+    FONT_SUB=None
 
 # modtrezorcrypto
 CCFLAGS_MOD += '-Wno-sequence-point '
@@ -60,6 +72,9 @@ CPPDEFINES_MOD += [
     'ED25519_NO_PRECOMP',
 ]
 SOURCE_MOD += [
+    'vendor/trezor-storage/flash_area.c',
+]
+SOURCE_MOD_CRYPTO += [
     'vendor/trezor-crypto/blake2s.c',
     'vendor/trezor-crypto/chacha_drbg.c',
     'vendor/trezor-crypto/chacha20poly1305/chacha_merged.c',
@@ -72,7 +87,6 @@ SOURCE_MOD += [
     'vendor/trezor-crypto/memzero.c',
     'vendor/trezor-crypto/rand.c',
     'vendor/trezor-crypto/sha2.c',
-    'vendor/trezor-storage/flash_area.c',
 ]
 
 # modtrezorui
@@ -82,8 +96,9 @@ CPPPATH_MOD += [
 SOURCE_MOD += [
     'embed/extmod/modtrezorcrypto/rand.c',
     'embed/lib/colors.c',
+    'embed/lib/display_draw.c',
     'embed/lib/display_utils.c',
-    'embed/lib/display.c',
+    'embed/lib/error_handling.c',
     'embed/lib/fonts/font_bitmap.c',
     'embed/lib/fonts/fonts.c',
     'embed/lib/image.c',
@@ -106,13 +121,16 @@ tools.add_font('BOLD', FONT_BOLD, CPPDEFINES_MOD, SOURCE_MOD)
 tools.add_font('DEMIBOLD', FONT_DEMIBOLD, CPPDEFINES_MOD, SOURCE_MOD)
 tools.add_font('MONO', FONT_MONO, CPPDEFINES_MOD, SOURCE_MOD)
 tools.add_font('BIG', FONT_BIG, CPPDEFINES_MOD, SOURCE_MOD)
+tools.add_font('NORMAL_UPPER', FONT_NORMAL_UPPER, CPPDEFINES_MOD, SOURCE_MOD)
+tools.add_font('BOLD_UPPER', FONT_BOLD_UPPER, CPPDEFINES_MOD, SOURCE_MOD)
+tools.add_font('SUB', FONT_SUB, CPPDEFINES_MOD, SOURCE_MOD)
 
 env = Environment(
     ENV=os.environ, CFLAGS='%s -DPRODUCTION=%s' % (ARGUMENTS.get('CFLAGS', ''), ARGUMENTS.get('PRODUCTION', '0')),
     CPPDEFINES_IMPLICIT=[]
     )
 
-FEATURES_AVAILABLE = tools.configure_board(TREZOR_MODEL, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
+FEATURES_AVAILABLE = models.configure_board(TREZOR_MODEL, HW_REVISION, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
 
 FILE_SUFFIX= env.get('ENV')['SUFFIX']
 LINKER_SCRIPT_SUFFIX= env.get('ENV')['LINKER_SCRIPT']
@@ -173,14 +191,14 @@ env.Replace(
     ] + CPPDEFINES_MOD + CPPDEFINES_HAL,
     ASFLAGS=env.get('ENV')['CPU_ASFLAGS'],
     ASPPFLAGS='$CFLAGS $CCFLAGS',
-    ALLSOURCES=SOURCE_MOD + SOURCE_BOOTLOADER + SOURCE_HAL+ SOURCE_NANOPB, )
+    ALLSOURCES=SOURCE_MOD + SOURCE_MOD_CRYPTO + SOURCE_BOOTLOADER + SOURCE_HAL+ SOURCE_NANOPB, )
 
 env.Replace(
-    HEADERTOOL='tools/headertool.py',
+    HEADERTOOL='headertool',
 )
 
 env.Replace(
-    ALLSOURCES=SOURCE_MOD + SOURCE_BOOTLOADER + SOURCE_NANOPB + SOURCE_HAL,
+    ALLSOURCES=SOURCE_MOD + SOURCE_MOD_CRYPTO + SOURCE_BOOTLOADER + SOURCE_NANOPB + SOURCE_HAL,
     ALLDEFS=tools.get_defs_for_cmake(env['CPPDEFINES'] + env['CPPDEFINES_IMPLICIT']))
 
 cmake_gen = env.Command(
@@ -196,6 +214,7 @@ cmake_gen = env.Command(
 
 obj_program = []
 obj_program += env.Object(source=SOURCE_MOD)
+obj_program += env.Object(source=SOURCE_MOD_CRYPTO, CCFLAGS='$CCFLAGS -ftrivial-auto-var-init=zero')
 obj_program += env.Object(source=SOURCE_BOOTLOADER)
 obj_program += env.Object(source=SOURCE_NANOPB)
 obj_program += env.Object(source=SOURCE_HAL)
@@ -207,7 +226,7 @@ program_elf = env.Command(
     '$LINK -o $TARGET $CCFLAGS $CFLAGS $LINKFLAGS $SOURCES -lc_nano -lgcc',
 )
 
-BINARY_NAME = f"build/bootloader_ci/bootloader_ci-{tools.get_model_identifier(TREZOR_MODEL)}"
+BINARY_NAME = f"build/bootloader_ci/bootloader_ci-{models.get_model_identifier(TREZOR_MODEL)}"
 BINARY_NAME += "-" + tools.get_version('embed/bootloader_ci/version.h')
 BINARY_NAME += "-" + tools.get_git_revision_short_hash()
 BINARY_NAME += "-dirty" if tools.get_git_modified() else ""

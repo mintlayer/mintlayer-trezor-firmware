@@ -58,28 +58,6 @@
 #define QC32up(j, r)   SPH_C32(0xFFFFFFFF)
 #define QC32dn(j, r)   (((sph_u32)(r) << 24) ^ SPH_T32(~((sph_u32)(j) << 24)))
 
-#define C64e(x)     ((SPH_C64(x) >> 56) \
-                    | ((SPH_C64(x) >> 40) & SPH_C64(0x000000000000FF00)) \
-                    | ((SPH_C64(x) >> 24) & SPH_C64(0x0000000000FF0000)) \
-                    | ((SPH_C64(x) >>  8) & SPH_C64(0x00000000FF000000)) \
-                    | ((SPH_C64(x) <<  8) & SPH_C64(0x000000FF00000000)) \
-                    | ((SPH_C64(x) << 24) & SPH_C64(0x0000FF0000000000)) \
-                    | ((SPH_C64(x) << 40) & SPH_C64(0x00FF000000000000)) \
-                    | ((SPH_C64(x) << 56) & SPH_C64(0xFF00000000000000)))
-#define dec64e_aligned   sph_dec64le_aligned
-#define enc64e           sph_enc64le
-#define B64_0(x)    ((x) & 0xFF)
-#define B64_1(x)    (((x) >> 8) & 0xFF)
-#define B64_2(x)    (((x) >> 16) & 0xFF)
-#define B64_3(x)    (((x) >> 24) & 0xFF)
-#define B64_4(x)    (((x) >> 32) & 0xFF)
-#define B64_5(x)    (((x) >> 40) & 0xFF)
-#define B64_6(x)    (((x) >> 48) & 0xFF)
-#define B64_7(x)    ((x) >> 56)
-#define R64         SPH_ROTL64
-#define PC64(j, r)  ((sph_u64)((j) + (r)))
-#define QC64(j, r)  (((sph_u64)(r) << 56) ^ SPH_T64(~((sph_u64)(j) << 56)))
-
 
 static const sph_u32 T0up[] = {
 	C32e(0xc632f4a5), C32e(0xf86f9784), C32e(0xee5eb099), C32e(0xf67a8c8d),
@@ -349,132 +327,6 @@ static const sph_u32 T1dn[] = {
 	C32e(0xcb46f6cb), C32e(0xfc1f4bfc), C32e(0xd661dad6), C32e(0x3a4e583a)
 };
 
-#define DECL_STATE_SMALL \
-	sph_u32 H[16] = {0};
-
-#define READ_STATE_SMALL(sc)   do { \
-		memcpy(H, (sc)->state.narrow, sizeof H); \
-	} while (0)
-
-#define WRITE_STATE_SMALL(sc)   do { \
-		memcpy((sc)->state.narrow, H, sizeof H); \
-	} while (0)
-
-#define XCAT(x, y)    XCAT_(x, y)
-#define XCAT_(x, y)   x ## y
-
-#define RSTT(d0, d1, a, b0, b1, b2, b3, b4, b5, b6, b7)   do { \
-		t[d0] = T0up[B32_0(a[b0])] \
-			^ T1up[B32_1(a[b1])] \
-			^ T2up[B32_2(a[b2])] \
-			^ T3up[B32_3(a[b3])] \
-			^ T0dn[B32_0(a[b4])] \
-			^ T1dn[B32_1(a[b5])] \
-			^ T2dn[B32_2(a[b6])] \
-			^ T3dn[B32_3(a[b7])]; \
-		t[d1] = T0dn[B32_0(a[b0])] \
-			^ T1dn[B32_1(a[b1])] \
-			^ T2dn[B32_2(a[b2])] \
-			^ T3dn[B32_3(a[b3])] \
-			^ T0up[B32_0(a[b4])] \
-			^ T1up[B32_1(a[b5])] \
-			^ T2up[B32_2(a[b6])] \
-			^ T3up[B32_3(a[b7])]; \
-	} while (0)
-
-#define ROUND_SMALL_P(a, r)   do { \
-		sph_u32 t[16]; \
-		a[0x0] ^= PC32up(0x00, r); \
-		a[0x1] ^= PC32dn(0x00, r); \
-		a[0x2] ^= PC32up(0x10, r); \
-		a[0x3] ^= PC32dn(0x10, r); \
-		a[0x4] ^= PC32up(0x20, r); \
-		a[0x5] ^= PC32dn(0x20, r); \
-		a[0x6] ^= PC32up(0x30, r); \
-		a[0x7] ^= PC32dn(0x30, r); \
-		a[0x8] ^= PC32up(0x40, r); \
-		a[0x9] ^= PC32dn(0x40, r); \
-		a[0xA] ^= PC32up(0x50, r); \
-		a[0xB] ^= PC32dn(0x50, r); \
-		a[0xC] ^= PC32up(0x60, r); \
-		a[0xD] ^= PC32dn(0x60, r); \
-		a[0xE] ^= PC32up(0x70, r); \
-		a[0xF] ^= PC32dn(0x70, r); \
-		RSTT(0x0, 0x1, a, 0x0, 0x2, 0x4, 0x6, 0x9, 0xB, 0xD, 0xF); \
-		RSTT(0x2, 0x3, a, 0x2, 0x4, 0x6, 0x8, 0xB, 0xD, 0xF, 0x1); \
-		RSTT(0x4, 0x5, a, 0x4, 0x6, 0x8, 0xA, 0xD, 0xF, 0x1, 0x3); \
-		RSTT(0x6, 0x7, a, 0x6, 0x8, 0xA, 0xC, 0xF, 0x1, 0x3, 0x5); \
-		RSTT(0x8, 0x9, a, 0x8, 0xA, 0xC, 0xE, 0x1, 0x3, 0x5, 0x7); \
-		RSTT(0xA, 0xB, a, 0xA, 0xC, 0xE, 0x0, 0x3, 0x5, 0x7, 0x9); \
-		RSTT(0xC, 0xD, a, 0xC, 0xE, 0x0, 0x2, 0x5, 0x7, 0x9, 0xB); \
-		RSTT(0xE, 0xF, a, 0xE, 0x0, 0x2, 0x4, 0x7, 0x9, 0xB, 0xD); \
-		memcpy(a, t, sizeof t); \
-	} while (0)
-
-#define ROUND_SMALL_Q(a, r)   do { \
-		sph_u32 t[16]; \
-		a[0x0] ^= QC32up(0x00, r); \
-		a[0x1] ^= QC32dn(0x00, r); \
-		a[0x2] ^= QC32up(0x10, r); \
-		a[0x3] ^= QC32dn(0x10, r); \
-		a[0x4] ^= QC32up(0x20, r); \
-		a[0x5] ^= QC32dn(0x20, r); \
-		a[0x6] ^= QC32up(0x30, r); \
-		a[0x7] ^= QC32dn(0x30, r); \
-		a[0x8] ^= QC32up(0x40, r); \
-		a[0x9] ^= QC32dn(0x40, r); \
-		a[0xA] ^= QC32up(0x50, r); \
-		a[0xB] ^= QC32dn(0x50, r); \
-		a[0xC] ^= QC32up(0x60, r); \
-		a[0xD] ^= QC32dn(0x60, r); \
-		a[0xE] ^= QC32up(0x70, r); \
-		a[0xF] ^= QC32dn(0x70, r); \
-		RSTT(0x0, 0x1, a, 0x2, 0x6, 0xA, 0xE, 0x1, 0x5, 0x9, 0xD); \
-		RSTT(0x2, 0x3, a, 0x4, 0x8, 0xC, 0x0, 0x3, 0x7, 0xB, 0xF); \
-		RSTT(0x4, 0x5, a, 0x6, 0xA, 0xE, 0x2, 0x5, 0x9, 0xD, 0x1); \
-		RSTT(0x6, 0x7, a, 0x8, 0xC, 0x0, 0x4, 0x7, 0xB, 0xF, 0x3); \
-		RSTT(0x8, 0x9, a, 0xA, 0xE, 0x2, 0x6, 0x9, 0xD, 0x1, 0x5); \
-		RSTT(0xA, 0xB, a, 0xC, 0x0, 0x4, 0x8, 0xB, 0xF, 0x3, 0x7); \
-		RSTT(0xC, 0xD, a, 0xE, 0x2, 0x6, 0xA, 0xD, 0x1, 0x5, 0x9); \
-		RSTT(0xE, 0xF, a, 0x0, 0x4, 0x8, 0xC, 0xF, 0x3, 0x7, 0xB); \
-		memcpy(a, t, sizeof t); \
-	} while (0)
-
-#define PERM_SMALL_P(a)   do { \
-		int r; \
-		for (r = 0; r < 10; r ++) \
-			ROUND_SMALL_P(a, r); \
-	} while (0)
-
-#define PERM_SMALL_Q(a)   do { \
-		int r; \
-		for (r = 0; r < 10; r ++) \
-			ROUND_SMALL_Q(a, r); \
-	} while (0)
-
-
-#define COMPRESS_SMALL   do { \
-		sph_u32 g[16], m[16]; \
-		size_t u; \
-		for (u = 0; u < 16; u ++) { \
-			m[u] = dec32e_aligned(buf + (u << 2)); \
-			g[u] = m[u] ^ H[u]; \
-		} \
-		PERM_SMALL_P(g); \
-		PERM_SMALL_Q(m); \
-		for (u = 0; u < 16; u ++) \
-			H[u] ^= g[u] ^ m[u]; \
-	} while (0)
-
-#define FINAL_SMALL   do { \
-		sph_u32 x[16]; \
-		size_t u; \
-		memcpy(x, H, sizeof x); \
-		PERM_SMALL_P(x); \
-		for (u = 0; u < 16; u ++) \
-			H[u] ^= x[u]; \
-	} while (0)
-
 #define DECL_STATE_BIG \
 	sph_u32 H[32] = {0};
 
@@ -487,153 +339,73 @@ static const sph_u32 T1dn[] = {
 	} while (0)
 
 
-#define RBTT(d0, d1, a, b0, b1, b2, b3, b4, b5, b6, b7)   do { \
-		sph_u32 fu2 = T0up[B32_2(a[b2])]; \
-		sph_u32 fd2 = T0dn[B32_2(a[b2])]; \
-		sph_u32 fu3 = T1up[B32_3(a[b3])]; \
-		sph_u32 fd3 = T1dn[B32_3(a[b3])]; \
-		sph_u32 fu6 = T0up[B32_2(a[b6])]; \
-		sph_u32 fd6 = T0dn[B32_2(a[b6])]; \
-		sph_u32 fu7 = T1up[B32_3(a[b7])]; \
-		sph_u32 fd7 = T1dn[B32_3(a[b7])]; \
-		t[d0] = T0up[B32_0(a[b0])] \
-			^ T1up[B32_1(a[b1])] \
-			^ R32u(fu2, fd2) \
-			^ R32u(fu3, fd3) \
-			^ T0dn[B32_0(a[b4])] \
-			^ T1dn[B32_1(a[b5])] \
-			^ R32d(fu6, fd6) \
-			^ R32d(fu7, fd7); \
-		t[d1] = T0dn[B32_0(a[b0])] \
-			^ T1dn[B32_1(a[b1])] \
-			^ R32d(fu2, fd2) \
-			^ R32d(fu3, fd3) \
-			^ T0up[B32_0(a[b4])] \
-			^ T1up[B32_1(a[b5])] \
-			^ R32u(fu6, fd6) \
-			^ R32u(fu7, fd7); \
-	} while (0)
 
+static void RBTT(size_t d0, size_t d1, sph_u32 *a, size_t b0, size_t b1,
+                 size_t b2, size_t b3, size_t b4, size_t b5, size_t b6,
+                 size_t b7, sph_u32 *t) {
+  sph_u32 fu2 = T0up[B32_2(a[b2])];
+  sph_u32 fd2 = T0dn[B32_2(a[b2])];
+  sph_u32 fu3 = T1up[B32_3(a[b3])];
+  sph_u32 fd3 = T1dn[B32_3(a[b3])];
+  sph_u32 fu6 = T0up[B32_2(a[b6])];
+  sph_u32 fd6 = T0dn[B32_2(a[b6])];
+  sph_u32 fu7 = T1up[B32_3(a[b7])];
+  sph_u32 fd7 = T1dn[B32_3(a[b7])];
+  t[d0] = T0up[B32_0(a[b0])] ^ T1up[B32_1(a[b1])] ^ R32u(fu2, fd2) ^
+          R32u(fu3, fd3) ^ T0dn[B32_0(a[b4])] ^ T1dn[B32_1(a[b5])] ^
+          R32d(fu6, fd6) ^ R32d(fu7, fd7);
+  t[d1] = T0dn[B32_0(a[b0])] ^ T1dn[B32_1(a[b1])] ^ R32d(fu2, fd2) ^
+          R32d(fu3, fd3) ^ T0up[B32_0(a[b4])] ^ T1up[B32_1(a[b5])] ^
+          R32u(fu6, fd6) ^ R32u(fu7, fd7);
+}
 
-#define ROUND_BIG_P(a, r)   do { \
-		sph_u32 t[32]; \
-		size_t u; \
-		a[0x00] ^= PC32up(0x00, r); \
-		a[0x01] ^= PC32dn(0x00, r); \
-		a[0x02] ^= PC32up(0x10, r); \
-		a[0x03] ^= PC32dn(0x10, r); \
-		a[0x04] ^= PC32up(0x20, r); \
-		a[0x05] ^= PC32dn(0x20, r); \
-		a[0x06] ^= PC32up(0x30, r); \
-		a[0x07] ^= PC32dn(0x30, r); \
-		a[0x08] ^= PC32up(0x40, r); \
-		a[0x09] ^= PC32dn(0x40, r); \
-		a[0x0A] ^= PC32up(0x50, r); \
-		a[0x0B] ^= PC32dn(0x50, r); \
-		a[0x0C] ^= PC32up(0x60, r); \
-		a[0x0D] ^= PC32dn(0x60, r); \
-		a[0x0E] ^= PC32up(0x70, r); \
-		a[0x0F] ^= PC32dn(0x70, r); \
-		a[0x10] ^= PC32up(0x80, r); \
-		a[0x11] ^= PC32dn(0x80, r); \
-		a[0x12] ^= PC32up(0x90, r); \
-		a[0x13] ^= PC32dn(0x90, r); \
-		a[0x14] ^= PC32up(0xA0, r); \
-		a[0x15] ^= PC32dn(0xA0, r); \
-		a[0x16] ^= PC32up(0xB0, r); \
-		a[0x17] ^= PC32dn(0xB0, r); \
-		a[0x18] ^= PC32up(0xC0, r); \
-		a[0x19] ^= PC32dn(0xC0, r); \
-		a[0x1A] ^= PC32up(0xD0, r); \
-		a[0x1B] ^= PC32dn(0xD0, r); \
-		a[0x1C] ^= PC32up(0xE0, r); \
-		a[0x1D] ^= PC32dn(0xE0, r); \
-		a[0x1E] ^= PC32up(0xF0, r); \
-		a[0x1F] ^= PC32dn(0xF0, r); \
-		for (u = 0; u < 32; u += 8) { \
-			RBTT(u + 0x00, (u + 0x01) & 0x1F, a, \
-				u + 0x00, (u + 0x02) & 0x1F, \
-				(u + 0x04) & 0x1F, (u + 0x06) & 0x1F, \
-				(u + 0x09) & 0x1F, (u + 0x0B) & 0x1F, \
-				(u + 0x0D) & 0x1F, (u + 0x17) & 0x1F); \
-			RBTT(u + 0x02, (u + 0x03) & 0x1F, a, \
-				u + 0x02, (u + 0x04) & 0x1F, \
-				(u + 0x06) & 0x1F, (u + 0x08) & 0x1F, \
-				(u + 0x0B) & 0x1F, (u + 0x0D) & 0x1F, \
-				(u + 0x0F) & 0x1F, (u + 0x19) & 0x1F); \
-			RBTT(u + 0x04, (u + 0x05) & 0x1F, a, \
-				u + 0x04, (u + 0x06) & 0x1F, \
-				(u + 0x08) & 0x1F, (u + 0x0A) & 0x1F, \
-				(u + 0x0D) & 0x1F, (u + 0x0F) & 0x1F, \
-				(u + 0x11) & 0x1F, (u + 0x1B) & 0x1F); \
-			RBTT(u + 0x06, (u + 0x07) & 0x1F, a, \
-				u + 0x06, (u + 0x08) & 0x1F, \
-				(u + 0x0A) & 0x1F, (u + 0x0C) & 0x1F, \
-				(u + 0x0F) & 0x1F, (u + 0x11) & 0x1F, \
-				(u + 0x13) & 0x1F, (u + 0x1D) & 0x1F); \
-		} \
-		memcpy(a, t, sizeof t); \
-	} while (0)
+static void ROUND_BIG_P(sph_u32 *a, int r) {
+  sph_u32 t[32] = {0};
+  for (size_t i = 0; i < 16; i++) {
+    int j = i << 4;
+    a[2 * i] ^= PC32up(j, r);
+    a[2 * i + 1] ^= PC32dn(j, r);
+  }
+  for (size_t u = 0; u < 32; u += 8) {
+    RBTT(u + 0x00, (u + 0x01) & 0x1F, a, u + 0x00, (u + 0x02) & 0x1F,
+         (u + 0x04) & 0x1F, (u + 0x06) & 0x1F, (u + 0x09) & 0x1F,
+         (u + 0x0B) & 0x1F, (u + 0x0D) & 0x1F, (u + 0x17) & 0x1F, t);
+    RBTT(u + 0x02, (u + 0x03) & 0x1F, a, u + 0x02, (u + 0x04) & 0x1F,
+         (u + 0x06) & 0x1F, (u + 0x08) & 0x1F, (u + 0x0B) & 0x1F,
+         (u + 0x0D) & 0x1F, (u + 0x0F) & 0x1F, (u + 0x19) & 0x1F, t);
+    RBTT(u + 0x04, (u + 0x05) & 0x1F, a, u + 0x04, (u + 0x06) & 0x1F,
+         (u + 0x08) & 0x1F, (u + 0x0A) & 0x1F, (u + 0x0D) & 0x1F,
+         (u + 0x0F) & 0x1F, (u + 0x11) & 0x1F, (u + 0x1B) & 0x1F, t);
+    RBTT(u + 0x06, (u + 0x07) & 0x1F, a, u + 0x06, (u + 0x08) & 0x1F,
+         (u + 0x0A) & 0x1F, (u + 0x0C) & 0x1F, (u + 0x0F) & 0x1F,
+         (u + 0x11) & 0x1F, (u + 0x13) & 0x1F, (u + 0x1D) & 0x1F, t);
+  }
+  memcpy(a, t, sizeof(t));
+}
 
-#define ROUND_BIG_Q(a, r)   do { \
-		sph_u32 t[32]; \
-		size_t u; \
-		a[0x00] ^= QC32up(0x00, r); \
-		a[0x01] ^= QC32dn(0x00, r); \
-		a[0x02] ^= QC32up(0x10, r); \
-		a[0x03] ^= QC32dn(0x10, r); \
-		a[0x04] ^= QC32up(0x20, r); \
-		a[0x05] ^= QC32dn(0x20, r); \
-		a[0x06] ^= QC32up(0x30, r); \
-		a[0x07] ^= QC32dn(0x30, r); \
-		a[0x08] ^= QC32up(0x40, r); \
-		a[0x09] ^= QC32dn(0x40, r); \
-		a[0x0A] ^= QC32up(0x50, r); \
-		a[0x0B] ^= QC32dn(0x50, r); \
-		a[0x0C] ^= QC32up(0x60, r); \
-		a[0x0D] ^= QC32dn(0x60, r); \
-		a[0x0E] ^= QC32up(0x70, r); \
-		a[0x0F] ^= QC32dn(0x70, r); \
-		a[0x10] ^= QC32up(0x80, r); \
-		a[0x11] ^= QC32dn(0x80, r); \
-		a[0x12] ^= QC32up(0x90, r); \
-		a[0x13] ^= QC32dn(0x90, r); \
-		a[0x14] ^= QC32up(0xA0, r); \
-		a[0x15] ^= QC32dn(0xA0, r); \
-		a[0x16] ^= QC32up(0xB0, r); \
-		a[0x17] ^= QC32dn(0xB0, r); \
-		a[0x18] ^= QC32up(0xC0, r); \
-		a[0x19] ^= QC32dn(0xC0, r); \
-		a[0x1A] ^= QC32up(0xD0, r); \
-		a[0x1B] ^= QC32dn(0xD0, r); \
-		a[0x1C] ^= QC32up(0xE0, r); \
-		a[0x1D] ^= QC32dn(0xE0, r); \
-		a[0x1E] ^= QC32up(0xF0, r); \
-		a[0x1F] ^= QC32dn(0xF0, r); \
-		for (u = 0; u < 32; u += 8) { \
-			RBTT(u + 0x00, (u + 0x01) & 0x1F, a, \
-				(u + 0x02) & 0x1F, (u + 0x06) & 0x1F, \
-				(u + 0x0A) & 0x1F, (u + 0x16) & 0x1F, \
-				(u + 0x01) & 0x1F, (u + 0x05) & 0x1F, \
-				(u + 0x09) & 0x1F, (u + 0x0D) & 0x1F); \
-			RBTT(u + 0x02, (u + 0x03) & 0x1F, a, \
-				(u + 0x04) & 0x1F, (u + 0x08) & 0x1F, \
-				(u + 0x0C) & 0x1F, (u + 0x18) & 0x1F, \
-				(u + 0x03) & 0x1F, (u + 0x07) & 0x1F, \
-				(u + 0x0B) & 0x1F, (u + 0x0F) & 0x1F); \
-			RBTT(u + 0x04, (u + 0x05) & 0x1F, a, \
-				(u + 0x06) & 0x1F, (u + 0x0A) & 0x1F, \
-				(u + 0x0E) & 0x1F, (u + 0x1A) & 0x1F, \
-				(u + 0x05) & 0x1F, (u + 0x09) & 0x1F, \
-				(u + 0x0D) & 0x1F, (u + 0x11) & 0x1F); \
-			RBTT(u + 0x06, (u + 0x07) & 0x1F, a, \
-				(u + 0x08) & 0x1F, (u + 0x0C) & 0x1F, \
-				(u + 0x10) & 0x1F, (u + 0x1C) & 0x1F, \
-				(u + 0x07) & 0x1F, (u + 0x0B) & 0x1F, \
-				(u + 0x0F) & 0x1F, (u + 0x13) & 0x1F); \
-		} \
-		memcpy(a, t, sizeof t); \
-	} while (0)
+static void ROUND_BIG_Q(sph_u32 *a, int r) {
+  sph_u32 t[32] = {0};
+  for (size_t i = 0; i < 16; i++) {
+    int j = i << 4;
+    a[2 * i] ^= QC32up(j, r);
+    a[2 * i + 1] ^= QC32dn(j, r);
+  }
+  for (size_t u = 0; u < 32; u += 8) {
+    RBTT(u + 0x00, (u + 0x01) & 0x1F, a, (u + 0x02) & 0x1F, (u + 0x06) & 0x1F,
+         (u + 0x0A) & 0x1F, (u + 0x16) & 0x1F, (u + 0x01) & 0x1F,
+         (u + 0x05) & 0x1F, (u + 0x09) & 0x1F, (u + 0x0D) & 0x1F, t);
+    RBTT(u + 0x02, (u + 0x03) & 0x1F, a, (u + 0x04) & 0x1F, (u + 0x08) & 0x1F,
+         (u + 0x0C) & 0x1F, (u + 0x18) & 0x1F, (u + 0x03) & 0x1F,
+         (u + 0x07) & 0x1F, (u + 0x0B) & 0x1F, (u + 0x0F) & 0x1F, t);
+    RBTT(u + 0x04, (u + 0x05) & 0x1F, a, (u + 0x06) & 0x1F, (u + 0x0A) & 0x1F,
+         (u + 0x0E) & 0x1F, (u + 0x1A) & 0x1F, (u + 0x05) & 0x1F,
+         (u + 0x09) & 0x1F, (u + 0x0D) & 0x1F, (u + 0x11) & 0x1F, t);
+    RBTT(u + 0x06, (u + 0x07) & 0x1F, a, (u + 0x08) & 0x1F, (u + 0x0C) & 0x1F,
+         (u + 0x10) & 0x1F, (u + 0x1C) & 0x1F, (u + 0x07) & 0x1F,
+         (u + 0x0B) & 0x1F, (u + 0x0F) & 0x1F, (u + 0x13) & 0x1F, t);
+  }
+  memcpy(a, t, sizeof(t));
+}
 
 
 #define PERM_BIG_P(a)   do { \

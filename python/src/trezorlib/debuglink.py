@@ -21,7 +21,7 @@ import textwrap
 import time
 from copy import deepcopy
 from datetime import datetime
-from enum import IntEnum
+from enum import Enum, IntEnum, auto
 from itertools import zip_longest
 from pathlib import Path
 from typing import (
@@ -63,6 +63,25 @@ if TYPE_CHECKING:
 EXPECTED_RESPONSES_CONTEXT_LINES = 3
 
 LOG = logging.getLogger(__name__)
+
+
+class LayoutType(Enum):
+    T1 = auto()
+    TT = auto()
+    TR = auto()
+    Mercury = auto()
+
+    @classmethod
+    def from_model(cls, model: models.TrezorModel) -> "LayoutType":
+        if model in (models.T2T1,):
+            return cls.TT
+        if model in (models.T2B1, models.T3B1):
+            return cls.TR
+        if model in (models.T3T1,):
+            return cls.Mercury
+        if model in (models.T1B1,):
+            return cls.T1
+        raise ValueError(f"Unknown model: {model}")
 
 
 class UnstructuredJSONReader:
@@ -156,8 +175,8 @@ class LayoutContent(UnstructuredJSONReader):
             ********************
             ICON_CANCEL, -, CONFIRM
         """
-        title_separator = f"\n{20*'-'}\n"
-        btn_separator = f"\n{20*'*'}\n"
+        title_separator = f"\n{20 * '-'}\n"
+        btn_separator = f"\n{20 * '*'}\n"
 
         visible = ""
         if self.title():
@@ -171,26 +190,31 @@ class LayoutContent(UnstructuredJSONReader):
 
         return visible
 
+    def _get_str_or_dict_text(self, key: str) -> str:
+        value = self.find_unique_value_by_key(key, "")
+        if isinstance(value, dict):
+            return value["text"]
+        return value
+
     def title(self) -> str:
-        """Getting text that is displayed as a title."""
+        """Getting text that is displayed as a title and potentially subtitle."""
         # There could be possibly subtitle as well
         title_parts: List[str] = []
 
-        def _get_str_or_dict_text(key: str) -> str:
-            value = self.find_unique_value_by_key(key, "")
-            if isinstance(value, dict):
-                return value["text"]
-            return value
-
-        title = _get_str_or_dict_text("title")
+        title = self._get_str_or_dict_text("title")
         if title:
             title_parts.append(title)
 
-        subtitle = _get_str_or_dict_text("subtitle")
+        subtitle = self.subtitle()
         if subtitle:
             title_parts.append(subtitle)
 
         return "\n".join(title_parts)
+
+    def subtitle(self) -> str:
+        """Getting text that is displayed as a subtitle."""
+        subtitle = self._get_str_or_dict_text("subtitle")
+        return subtitle
 
     def text_content(self) -> str:
         """What is on the screen, in one long string, so content can be
@@ -355,6 +379,12 @@ class LayoutContent(UnstructuredJSONReader):
             choice_obj.get(choice, {}).get("content", "") for choice in choice_keys
         )
 
+    def footer(self) -> str:
+        footer = self.find_unique_object_with_key_and_value("component", "Footer")
+        if not footer:
+            return ""
+        return footer.get("description", "") + " " + footer.get("instruction", "")
+
 
 def multipage_content(layouts: List[LayoutContent]) -> str:
     """Get overall content from multiple-page layout."""
@@ -392,6 +422,11 @@ class DebugLink:
     def legacy_debug(self) -> bool:
         """Differences in handling debug events and LayoutContent."""
         return self.version < (2, 6, 1)
+
+    @property
+    def layout_type(self) -> LayoutType:
+        assert self.model is not None
+        return LayoutType.from_model(self.model)
 
     def set_screen_text_file(self, file_path: Optional[Path]) -> None:
         if file_path is not None:
@@ -804,6 +839,25 @@ class DebugUI:
             Generator[None, messages.ButtonRequest, None], object, None
         ] = None
 
+    def _default_input_flow(self, br: messages.ButtonRequest) -> None:
+        if br.code == messages.ButtonRequestType.PinEntry:
+            self.debuglink.input(self.get_pin())
+        else:
+            # Paginating (going as further as possible) and pressing Yes
+            if br.pages is not None:
+                for _ in range(br.pages - 1):
+                    self.debuglink.swipe_up(wait=True)
+            if self.debuglink.model is models.T3T1:
+                layout = self.debuglink.read_layout()
+                if "PromptScreen" in layout.all_components():
+                    self.debuglink.press_yes()
+                elif "SwipeContent" in layout.all_components():
+                    self.debuglink.swipe_up()
+                else:
+                    self.debuglink.press_yes()
+            else:
+                self.debuglink.press_yes()
+
     def button_request(self, br: messages.ButtonRequest) -> None:
         self.debuglink.take_t1_screenshot_if_relevant()
 
@@ -814,14 +868,7 @@ class DebugUI:
             # recording their screens that way (as well as
             # possible swipes below).
             self.debuglink.save_current_screen_if_relevant(wait=True)
-            if br.code == messages.ButtonRequestType.PinEntry:
-                self.debuglink.input(self.get_pin())
-            else:
-                # Paginating (going as further as possible) and pressing Yes
-                if br.pages is not None:
-                    for _ in range(br.pages - 1):
-                        self.debuglink.swipe_up(wait=True)
-                self.debuglink.press_yes()
+            self._default_input_flow(br)
         elif self.input_flow is self.INPUT_FLOW_DONE:
             raise AssertionError("input flow ended prematurely")
         else:
@@ -972,6 +1019,10 @@ class TrezorClientDebugLink(TrezorClient):
         self.debug.model = self.model
         self.debug.version = self.version
 
+    @property
+    def layout_type(self) -> LayoutType:
+        return self.debug.layout_type
+
     def reset_debug_features(self) -> None:
         """Prepare the debugging client for a new testcase.
 
@@ -1091,12 +1142,24 @@ class TrezorClientDebugLink(TrezorClient):
         # copy expected/actual responses before clearing them
         expected_responses = self.expected_responses
         actual_responses = self.actual_responses
+
+        # grab a copy of the inputflow generator to raise an exception through it
+        if isinstance(self.ui, DebugUI):
+            input_flow = self.ui.input_flow
+        else:
+            input_flow = None
+
         self.reset_debug_features()
 
         if exc_type is None:
             # If no other exception was raised, evaluate missed responses
             # (raises AssertionError on mismatch)
             self._verify_responses(expected_responses, actual_responses)
+
+        elif isinstance(input_flow, Generator):
+            # Propagate the exception through the input flow, so that we see in
+            # traceback where it is stuck.
+            input_flow.throw(exc_type, value, traceback)
 
     def set_expected_responses(
         self, expected: List[Union["ExpectedMessage", Tuple[bool, "ExpectedMessage"]]]
@@ -1327,3 +1390,8 @@ def record_screen(
 def _is_emulator(debug_client: "TrezorClientDebugLink") -> bool:
     """Check if we are connected to emulator, in contrast to hardware device."""
     return debug_client.features.fw_vendor == "EMULATOR"
+
+
+@expect(messages.Success, field="message", ret_type=str)
+def optiga_set_sec_max(client: "TrezorClient") -> protobuf.MessageType:
+    return client.call(messages.DebugLinkOptigaSetSecMax())

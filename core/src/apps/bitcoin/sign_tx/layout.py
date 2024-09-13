@@ -62,6 +62,7 @@ async def confirm_output(
     amount_unit: AmountUnit,
     output_index: int,
     chunkify: bool,
+    address_n: Bip32Path | None,
 ) -> None:
     from trezor.enums import OutputScriptType
 
@@ -99,8 +100,14 @@ async def confirm_output(
         if output.address_n and not output.multisig:
             from trezor import utils
 
-            # Showing the account string only for T2B1 model
-            show_account_str = utils.INTERNAL_MODEL == "T2B1"
+            # Showing the account string only for model_tr layout
+            # TODO expose layout_type so that we can check for it, instead of listing
+            # all models that use the layout?
+            show_account_str = (
+                # pylint: disable-next=consider-using-in
+                utils.INTERNAL_MODEL == "T2B1"
+                or utils.INTERNAL_MODEL == "T3B1"
+            )
             script_type = CHANGE_OUTPUT_TO_INPUT_SCRIPT_TYPES[output.script_type]
             address_label = (
                 address_n_to_name(
@@ -119,6 +126,8 @@ async def confirm_output(
             address_label=address_label,
             output_index=output_index,
             chunkify=chunkify,
+            source_account=account_label(coin, address_n),
+            source_account_path=address_n_to_str(address_n) if address_n else None,
         )
 
     await layout
@@ -245,7 +254,8 @@ async def confirm_total(
         format_coin_amount(spending, coin, amount_unit),
         format_coin_amount(fee, coin, amount_unit),
         fee_rate_amount=format_fee_rate(fee_rate, coin) if fee_rate >= 0 else None,
-        account_label=account_label(coin, address_n),
+        source_account=account_label(coin, address_n),
+        source_account_path=address_n_to_str(address_n) if address_n else None,
     )
 
 

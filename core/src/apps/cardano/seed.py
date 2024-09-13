@@ -112,7 +112,7 @@ def is_minting_path(path: Bip32Path) -> bool:
 
 def derive_and_store_secrets(passphrase: str) -> None:
     assert device.is_initialized()
-    assert cache.get(cache.APP_COMMON_DERIVE_CARDANO)
+    assert cache.get_bool(cache.APP_COMMON_DERIVE_CARDANO)
 
     if not mnemonic.is_bip39():
         # nothing to do for SLIP-39, where we can derive the root from the main seed
@@ -148,7 +148,7 @@ async def _get_keychain_bip39(derivation_type: CardanoDerivationType) -> Keychai
         seed = await get_seed()
         return Keychain(cardano.from_seed_ledger(seed))
 
-    if not cache.get(cache.APP_COMMON_DERIVE_CARDANO):
+    if not cache.get_bool(cache.APP_COMMON_DERIVE_CARDANO):
         raise wire.ProcessError("Cardano derivation is not enabled for this session")
 
     if derivation_type == CardanoDerivationType.ICARUS:
@@ -171,7 +171,7 @@ async def _get_keychain(derivation_type: CardanoDerivationType) -> Keychain:
     if mnemonic.is_bip39():
         return await _get_keychain_bip39(derivation_type)
     else:
-        # derive the root node via SLIP-0023 https://github.com/satoshilabs/slips/blob/master/slip-0022.md
+        # derive the root node via SLIP-0023 https://github.com/satoshilabs/slips/blob/master/slip-0023.md
         seed = await get_seed()
         return Keychain(cardano.from_seed_slip23(seed))
 

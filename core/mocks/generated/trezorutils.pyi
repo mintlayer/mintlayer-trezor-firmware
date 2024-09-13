@@ -126,12 +126,18 @@ USE_SD_CARD: bool
 """Whether the hardware supports SD card."""
 USE_BACKLIGHT: bool
 """Whether the hardware supports backlight brightness control."""
+USE_HAPTIC: bool
+"""Whether the hardware supports haptic feedback."""
 USE_OPTIGA: bool
 """Whether the hardware supports Optiga secure element."""
 MODEL: str
 """Model name."""
 MODEL_FULL_NAME: str
 """Full name including Trezor prefix."""
+MODEL_USB_MANUFACTURER: str
+"""USB Manufacturer name."""
+MODEL_USB_PRODUCT: str
+"""USB Product name."""
 INTERNAL_MODEL: str
 """Internal model code."""
 EMULATOR: bool
@@ -140,3 +146,5 @@ BITCOIN_ONLY: bool
 """Whether the firmware is Bitcoin-only."""
 UI_LAYOUT: str
 """UI layout identifier ("tt" for model T, "tr" for models One and R)."""
+USE_THP: bool
+"""Whether the firmware supports Trezor-Host Protocol (version 3)."""

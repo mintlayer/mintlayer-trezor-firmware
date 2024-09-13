@@ -2,7 +2,9 @@ use crate::{
     strutil::TString,
     ui::{
         component::{Child, Component, ComponentExt, Event, EventCtx, Pad, Paginate},
+        constant::SCREEN,
         geometry::Rect,
+        shape::Renderer,
     },
 };
 
@@ -19,8 +21,9 @@ where
     pages: FlowPages<F>,
     /// Instance of the current Page
     current_page: Page,
-    /// Title being shown at the top in bold
+    /// Title being shown at the top in bold upper
     title: Option<Title>,
+    has_common_title: bool,
     scrollbar: Child<ScrollBar>,
     content_area: Rect,
     title_area: Rect,
@@ -45,6 +48,7 @@ where
             pages,
             current_page,
             title,
+            has_common_title: false,
             content_area: Rect::zero(),
             title_area: Rect::zero(),
             scrollbar: Child::new(ScrollBar::to_be_filled_later()),
@@ -64,6 +68,7 @@ where
     /// with the page content, as the content will be offset.
     pub fn with_common_title(mut self, title: TString<'static>) -> Self {
         self.title = Some(Title::new(title));
+        self.has_common_title = true;
         self
     }
 
@@ -94,11 +99,15 @@ where
     /// position.
     fn change_current_page(&mut self, ctx: &mut EventCtx) {
         self.current_page = self.pages.get(self.page_counter);
-        if let Some(title) = self.current_page.title() {
-            self.title = Some(Title::new(title));
-            self.title.place(self.title_area);
-        } else {
-            self.title = None;
+        if !self.has_common_title {
+            if let Some(title) = self.current_page.title() {
+                self.title = Some(Title::new(title));
+            } else {
+                self.title = None;
+            }
+            // in case the title was added or removed, re-calculate the areas for
+            // subcomponents
+            self.place(SCREEN);
         }
         let scrollbar_active_index = self
             .pages
@@ -304,6 +313,23 @@ where
         // whole height of the display for showing the content
         // (and painting buttons last would cover the lower part).
         self.current_page.paint();
+    }
+
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.pad.render(target);
+        // Scrollbars are painted only with a title and when requested
+        if self.title.is_some() {
+            if self.show_scrollbar {
+                self.scrollbar.render(target);
+            }
+            self.title.render(target);
+        }
+        self.buttons.render(target);
+        // On purpose painting current page at the end, after buttons,
+        // because we sometimes (in the case of QR code) need to use the
+        // whole height of the display for showing the content
+        // (and painting buttons last would cover the lower part).
+        self.current_page.render(target);
     }
 }
 

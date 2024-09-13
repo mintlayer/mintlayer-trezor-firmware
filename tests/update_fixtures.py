@@ -39,9 +39,18 @@ def _get_current_git_branch() -> str:
     "-g",
     "--github",
     is_flag=True,
-    help="Fetch from GitHub Actions instead of GitLab CI",
+    help="Fetch from GitHub Actions (default)",
+    hidden=True,
+    expose_value=False,
+)
+@click.option(
+    "-l",
+    "--gitlab",
+    is_flag=True,
+    help="Fetch from Gitlab CI instead of GitHub Actions",
 )
 @click.option("-b", "--branch", help="Branch name")
+@click.option("-r", "--run-id", help="GitHub Actions run id", type=int)
 @click.option(
     "-o",
     "--only-jobs",
@@ -56,8 +65,9 @@ def _get_current_git_branch() -> str:
 )
 @click.option("-r", "--remove-missing", is_flag=True, help="Remove missing tests")
 def ci(
-    github: bool,
+    gitlab: bool,
     branch: str | None,
+    run_id: int | None,
     only_jobs: Iterable[str] | None,
     exclude_jobs: Iterable[str] | None,
     remove_missing: bool,
@@ -77,10 +87,12 @@ def ci(
     if exclude_jobs:
         print(f"Exclude jobs: {exclude_jobs}")
 
-    if github:
+    if not gitlab:
         from github import get_branch_ui_fixtures_results
 
-        ui_results = get_branch_ui_fixtures_results(branch, only_jobs, exclude_jobs)
+        ui_results = get_branch_ui_fixtures_results(
+            branch, only_jobs, exclude_jobs, run_id
+        )
     else:
         from gitlab import get_branch_ui_fixtures_results, get_jobs_of_interest
 
@@ -97,7 +109,9 @@ def ci(
             is_error = True
             print("No results found.")
             continue
+        _model, lang, _job = job_name.split("-")
         model = next(iter(ui_res_dict.keys()))
+        assert model == _model
         group = next(iter(ui_res_dict[model].keys()))
         current_model = current_fixtures.setdefault(model, {})
         current_group = current_model.setdefault(group, {})  # type: ignore
@@ -106,6 +120,8 @@ def ci(
             # get rid of tests that were not run in CI
             removed = 0
             for key in list(current_group.keys()):
+                if not key.startswith(f"{model}_{lang}_"):
+                    continue
                 if key not in ui_res_dict[model][group]:
                     current_group.pop(key)
                     removed += 1

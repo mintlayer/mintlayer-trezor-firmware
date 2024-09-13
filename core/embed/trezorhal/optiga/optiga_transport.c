@@ -62,11 +62,18 @@ static const uint8_t BASE_ADDR = 0x30;
 static const uint16_t OPTIGA_ADDRESS = (BASE_ADDR << 1);
 
 // Constants for our I2C HAL.
-static const uint32_t I2C_TIMEOUT = 15;
+static const uint32_t I2C_TIMEOUT_MS = 25;
 static const int I2C_MAX_RETRY_COUNT = 10;
 
-// Maximum number of times to retry reading Optiga's response to a command.
-static const int MAX_RETRY_READ = 10000;
+// Maximum time in millisecods to retry reading Optiga's response to a command.
+// If the SEC is high, then the throttling down delay can be as high as
+// t_max = 5000 ms. The maximum time to execute a non-RSA operation is 130 ms.
+// We round the total up to the nearest second.
+static const int MAX_RETRY_READ_MS = 6000;
+
+// Maximum number of times to retry reading Optiga's response to a command when
+// it claims it's not busy executing a command.
+static const int MAX_RETRY_READ_NOT_BUSY = 10;
 
 // Maximum number of packets per response. Used for flushing old reponses.
 static const int MAX_RESPONSE_PACKET_COUNT = 15;
@@ -107,6 +114,7 @@ static uint8_t frame_num_out = 0xff;
 static uint8_t frame_num_in = 0xff;
 static uint8_t frame_buffer[1 + OPTIGA_DATA_REG_LEN];
 static size_t frame_size = 0;  // Set by optiga_read().
+static optiga_ui_progress_t ui_progress = NULL;
 
 // Secure channel constants.
 #define SEC_CHAN_SCTR_SIZE 1
@@ -162,6 +170,8 @@ void optiga_transport_set_log_hex(optiga_log_hex_t f) { log_hex = f; }
   }
 #endif
 
+void optiga_set_ui_progress(optiga_ui_progress_t f) { ui_progress = f; }
+
 static uint16_t calc_crc_byte(uint16_t seed, uint8_t c) {
   uint16_t h1 = (seed ^ c) & 0xFF;
   uint16_t h2 = h1 & 0x0F;
@@ -191,7 +201,7 @@ static optiga_result optiga_i2c_write(const uint8_t *data, uint16_t data_size) {
       hal_delay(1);
     }
     if (HAL_OK == i2c_transmit(OPTIGA_I2C_INSTANCE, OPTIGA_ADDRESS,
-                               (uint8_t *)data, data_size, I2C_TIMEOUT)) {
+                               (uint8_t *)data, data_size, I2C_TIMEOUT_MS)) {
       hal_delay_us(1000);
       return OPTIGA_SUCCESS;
     }
@@ -204,7 +214,7 @@ static optiga_result optiga_i2c_read(uint8_t *buffer, uint16_t buffer_size) {
   for (int try_count = 0; try_count <= I2C_MAX_RETRY_COUNT; ++try_count) {
     HAL_Delay(1);
     if (HAL_OK == i2c_receive(OPTIGA_I2C_INSTANCE, OPTIGA_ADDRESS, buffer,
-                              buffer_size, I2C_TIMEOUT)) {
+                              buffer_size, I2C_TIMEOUT_MS)) {
       OPTIGA_LOG("<<<", buffer, buffer_size)
       return OPTIGA_SUCCESS;
     }
@@ -270,7 +280,8 @@ static optiga_result optiga_check_ack(void) {
 static optiga_result optiga_ensure_ready(void) {
   optiga_result ret = OPTIGA_SUCCESS;
   for (int i = 0; i < MAX_RESPONSE_PACKET_COUNT; ++i) {
-    for (int j = 0; j < MAX_RETRY_READ; ++j) {
+    uint32_t deadline = hal_ticks_ms() + MAX_RETRY_READ_MS;
+    do {
       ret = optiga_i2c_write(&REG_I2C_STATE, 1);
       if (OPTIGA_SUCCESS != ret) {
         return ret;
@@ -291,7 +302,7 @@ static optiga_result optiga_ensure_ready(void) {
         return OPTIGA_SUCCESS;
       }
       ret = OPTIGA_ERR_BUSY;
-    }
+    } while (hal_ticks_ms() < deadline);
 
     if (ret != OPTIGA_SUCCESS) {
       // Optiga is busy even after maximum retries at reading the I2C state.
@@ -371,7 +382,12 @@ optiga_result optiga_set_data_reg_len(size_t size) {
 }
 
 static optiga_result optiga_read(void) {
-  for (int i = 0; i < MAX_RETRY_READ; ++i) {
+  // The number of times we tried reading Optiga's response to a command while
+  // it claimed it's not busy executing a command.
+  int not_busy_count = 0;
+
+  uint32_t deadline = hal_ticks_ms() + MAX_RETRY_READ_MS;
+  do {
     optiga_result ret = optiga_i2c_write(&REG_I2C_STATE, 1);
     if (OPTIGA_SUCCESS != ret) {
       return ret;
@@ -410,11 +426,18 @@ static optiga_result optiga_read(void) {
 
     if ((frame_buffer[0] & I2C_STATE_BYTE1_BUSY) == 0) {
       // Optiga has no response ready and is not busy. This shouldn't happen if
-      // we are expecting to read a response, but Optiga occasionally fails to
-      // give any response to a command.
-      return OPTIGA_ERR_UNEXPECTED;
+      // we are expecting to read a response. However, we have observed that if
+      // we retry reading, then Optiga may return a response.
+      if (not_busy_count >= MAX_RETRY_READ_NOT_BUSY) {
+        return OPTIGA_ERR_UNEXPECTED;
+      }
+      not_busy_count += 1;
     }
-  }
+
+    if (ui_progress != NULL) {
+      ui_progress();
+    }
+  } while (hal_ticks_ms() < deadline);
 
   return OPTIGA_ERR_TIMEOUT;
 }

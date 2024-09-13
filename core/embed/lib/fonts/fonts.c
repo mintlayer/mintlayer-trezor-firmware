@@ -42,6 +42,14 @@ int font_height(int font) {
     case FONT_BOLD:
       return FONT_BOLD_HEIGHT;
 #endif
+#ifdef TREZOR_FONT_NORMAL_UPPER_ENABLE
+    case FONT_NORMAL_UPPER:
+      return FONT_NORMAL_UPPER_HEIGHT;
+#endif
+#ifdef TREZOR_FONT_BOLD_UPPER_ENABLE
+    case FONT_BOLD_UPPER:
+      return FONT_BOLD_UPPER_HEIGHT;
+#endif
 #ifdef TREZOR_FONT_MONO_ENABLE
     case FONT_MONO:
       return FONT_MONO_HEIGHT;
@@ -49,6 +57,10 @@ int font_height(int font) {
 #ifdef TREZOR_FONT_BIG_ENABLE
     case FONT_BIG:
       return FONT_BIG_HEIGHT;
+#endif
+#ifdef TREZOR_FONT_SUB_ENABLE
+    case FONT_SUB:
+      return FONT_SUB_HEIGHT;
 #endif
   }
   return 0;
@@ -68,6 +80,14 @@ int font_max_height(int font) {
     case FONT_BOLD:
       return FONT_BOLD_MAX_HEIGHT;
 #endif
+#ifdef TREZOR_FONT_NORMAL_UPPER_ENABLE
+    case FONT_NORMAL_UPPER:
+      return FONT_NORMAL_UPPER_MAX_HEIGHT;
+#endif
+#ifdef TREZOR_FONT_BOLD_UPPER_ENABLE
+    case FONT_BOLD_UPPER:
+      return FONT_BOLD_UPPER_MAX_HEIGHT;
+#endif
 #ifdef TREZOR_FONT_MONO_ENABLE
     case FONT_MONO:
       return FONT_MONO_MAX_HEIGHT;
@@ -75,6 +95,10 @@ int font_max_height(int font) {
 #ifdef TREZOR_FONT_BIG_ENABLE
     case FONT_BIG:
       return FONT_BIG_MAX_HEIGHT;
+#endif
+#ifdef TREZOR_FONT_SUB_ENABLE
+    case FONT_SUB:
+      return FONT_SUB_MAX_HEIGHT;
 #endif
   }
   return 0;
@@ -94,6 +118,14 @@ int font_baseline(int font) {
     case FONT_BOLD:
       return FONT_BOLD_BASELINE;
 #endif
+#ifdef TREZOR_FONT_NORMAL_UPPER_ENABLE
+    case FONT_NORMAL_UPPER:
+      return FONT_NORMAL_UPPER_BASELINE;
+#endif
+#ifdef TREZOR_FONT_BOLD_UPPER_ENABLE
+    case FONT_BOLD_UPPER:
+      return FONT_BOLD_UPPER_BASELINE;
+#endif
 #ifdef TREZOR_FONT_MONO_ENABLE
     case FONT_MONO:
       return FONT_MONO_BASELINE;
@@ -101,6 +133,10 @@ int font_baseline(int font) {
 #ifdef TREZOR_FONT_BIG_ENABLE
     case FONT_BIG:
       return FONT_BIG_BASELINE;
+#endif
+#ifdef TREZOR_FONT_SUB_ENABLE
+    case FONT_SUB:
+      return FONT_SUB_BASELINE;
 #endif
   }
   return 0;
@@ -115,7 +151,7 @@ font_glyph_iter_t font_glyph_iter_init(const int font, const uint8_t *text,
   };
 }
 
-#define IS_UTF8_CONTINUE(c) (((c)&0b11000000) == 0b10000000)
+#define IS_UTF8_CONTINUE(c) (((c) & 0b11000000) == 0b10000000)
 
 static uint16_t next_utf8_codepoint(font_glyph_iter_t *iter) {
   uint16_t out;
@@ -192,6 +228,14 @@ const uint8_t *font_nonprintable_glyph(int font) {
     case FONT_BOLD:
       return NONPRINTABLE_GLYPH(FONT_BOLD_DATA);
 #endif
+#ifdef TREZOR_FONT_NORMAL_UPPER_ENABLE
+    case FONT_NORMAL_UPPER:
+      return NONPRINTABLE_GLYPH(FONT_NORMAL_UPPER_DATA);
+#endif
+#ifdef TREZOR_FONT_BOLD_UPPER_ENABLE
+    case FONT_BOLD_UPPER:
+      return NONPRINTABLE_GLYPH(FONT_BOLD_UPPER_DATA);
+#endif
 #ifdef TREZOR_FONT_MONO_ENABLE
     case FONT_MONO:
       return NONPRINTABLE_GLYPH(FONT_MONO_DATA);
@@ -199,6 +243,10 @@ const uint8_t *font_nonprintable_glyph(int font) {
 #ifdef TREZOR_FONT_BIG_ENABLE
     case FONT_BIG:
       return NONPRINTABLE_GLYPH(FONT_BIG_DATA);
+#endif
+#ifdef TREZOR_FONT_SUB_ENABLE
+    case FONT_SUB:
+      return NONPRINTABLE_GLYPH(FONT_SUB_DATA);
 #endif
     default:
       return NULL;
@@ -233,6 +281,14 @@ const uint8_t *font_get_glyph(int font, uint16_t c) {
       case FONT_BOLD:
         return FONT_BOLD_DATA[c - ' '];
 #endif
+#ifdef TREZOR_FONT_NORMAL_UPPER_ENABLE
+      case FONT_NORMAL_UPPER:
+        return FONT_NORMAL_UPPER_DATA[c - ' '];
+#endif
+#ifdef TREZOR_FONT_BOLD_UPPER_ENABLE
+      case FONT_BOLD_UPPER:
+        return FONT_BOLD_UPPER_DATA[c - ' '];
+#endif
 #ifdef TREZOR_FONT_MONO_ENABLE
       case FONT_MONO:
         return FONT_MONO_DATA[c - ' '];
@@ -240,6 +296,10 @@ const uint8_t *font_get_glyph(int font, uint16_t c) {
 #ifdef TREZOR_FONT_BIG_ENABLE
       case FONT_BIG:
         return FONT_BIG_DATA[c - ' '];
+#endif
+#ifdef TREZOR_FONT_SUB_ENABLE
+      case FONT_SUB:
+        return FONT_SUB_DATA[c - ' '];
 #endif
     }
     return 0;

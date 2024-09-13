@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 import storage.device as storage_device
 import trezorui2
-from trezor import TR
+from trezor import TR, utils
 from trezor.enums import ButtonRequestType
 from trezor.ui.layouts import confirm_action
 from trezor.wire import DataError
@@ -50,6 +50,7 @@ async def apply_settings(msg: ApplySettings) -> Success:
     msg_safety_checks = msg.safety_checks  # local_cache_attribute
     experimental_features = msg.experimental_features  # local_cache_attribute
     hide_passphrase_from_host = msg.hide_passphrase_from_host  # local_cache_attribute
+    haptic_feedback = msg.haptic_feedback
 
     if (
         homescreen is None
@@ -61,6 +62,7 @@ async def apply_settings(msg: ApplySettings) -> Success:
         and msg_safety_checks is None
         and experimental_features is None
         and hide_passphrase_from_host is None
+        and (haptic_feedback is None or not utils.USE_HAPTIC)
     ):
         raise ProcessError("No setting provided")
 
@@ -114,6 +116,13 @@ async def apply_settings(msg: ApplySettings) -> Success:
         await _require_confirm_hide_passphrase_from_host(hide_passphrase_from_host)
         storage_device.set_hide_passphrase_from_host(hide_passphrase_from_host)
 
+    if haptic_feedback is not None and utils.USE_HAPTIC:
+        from trezor import io
+
+        await _require_confirm_haptic_feedback(haptic_feedback)
+        io.haptic.haptic_set_enabled(haptic_feedback)
+        storage_device.set_haptic_feedback(haptic_feedback)
+
     reload_settings_from_storage()
 
     return Success(message="Settings applied")
@@ -138,31 +147,24 @@ async def _require_confirm_change_label(label: str) -> None:
 
 
 async def _require_confirm_change_passphrase(use: bool) -> None:
-    description = TR.passphrase__turn_on if use else TR.passphrase__turn_off
-    verb = TR.buttons__turn_on if use else TR.buttons__turn_off
-    await confirm_action(
-        "set_passphrase",
-        TR.passphrase__title_settings,
-        description=description,
-        verb=verb,
-        br_code=BRT_PROTECT_CALL,
-    )
+    from trezor.ui.layouts import confirm_change_passphrase
+
+    await confirm_change_passphrase(use)
+
+
+async def _require_confirm_hide_passphrase_from_host(enable: bool) -> None:
+    from trezor.ui.layouts import confirm_hide_passphrase_from_host
+
+    if enable:
+        await confirm_hide_passphrase_from_host()
 
 
 async def _require_confirm_change_passphrase_source(
     passphrase_always_on_device: bool,
 ) -> None:
-    description = (
-        TR.passphrase__always_on_device
-        if passphrase_always_on_device
-        else TR.passphrase__revoke_on_device
-    )
-    await confirm_action(
-        "set_passphrase_source",
-        TR.passphrase__title_source,
-        description=description,
-        br_code=BRT_PROTECT_CALL,
-    )
+    from trezor.ui.layouts import confirm_change_passphrase_source
+
+    await confirm_change_passphrase_source(passphrase_always_on_device)
 
 
 async def _require_confirm_change_display_rotation(rotation: int) -> None:
@@ -183,6 +185,7 @@ async def _require_confirm_change_display_rotation(rotation: int) -> None:
         description=TR.rotation__change_template,
         description_param=label,
         br_code=BRT_PROTECT_CALL,
+        prompt_screen=True,
     )
 
 
@@ -202,6 +205,7 @@ async def _require_confirm_change_autolock_delay(delay_ms: int) -> None:
         description=TR.auto_lock__change_template,
         description_param=format_duration_ms(delay_ms, unit_plurals),
         br_code=BRT_PROTECT_CALL,
+        prompt_screen=True,
     )
 
 
@@ -214,6 +218,7 @@ async def _require_confirm_safety_checks(level: SafetyCheckLevel) -> None:
             TR.safety_checks__title,
             description=TR.safety_checks__enforce_strict,
             br_code=BRT_PROTECT_CALL,
+            prompt_screen=True,
         )
     elif level in (SafetyCheckLevel.PromptAlways, SafetyCheckLevel.PromptTemporarily):
         description = (
@@ -230,6 +235,7 @@ async def _require_confirm_safety_checks(level: SafetyCheckLevel) -> None:
             verb=TR.buttons__hold_to_confirm,
             reverse=True,
             br_code=BRT_PROTECT_CALL,
+            prompt_screen=True,
         )
     else:
         raise ValueError  # enum value out of range
@@ -244,14 +250,18 @@ async def _require_confirm_experimental_features(enable: bool) -> None:
             TR.experimental_mode__enable,
             reverse=True,
             br_code=BRT_PROTECT_CALL,
+            prompt_screen=True,
         )
 
 
-async def _require_confirm_hide_passphrase_from_host(enable: bool) -> None:
-    if enable:
+if utils.USE_HAPTIC:
+
+    async def _require_confirm_haptic_feedback(enable: bool) -> None:
         await confirm_action(
-            "set_hide_passphrase_from_host",
-            TR.passphrase__title_hide,
-            description=TR.passphrase__hide,
+            "haptic_feedback__settings",
+            TR.haptic_feedback__title,
+            TR.haptic_feedback__enable if enable else TR.haptic_feedback__disable,
+            subtitle=TR.haptic_feedback__subtitle,
             br_code=BRT_PROTECT_CALL,
+            prompt_screen=True,
         )

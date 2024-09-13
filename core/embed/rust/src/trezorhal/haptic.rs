@@ -11,3 +11,9 @@ pub fn play(effect: HapticEffect) {
         ffi::haptic_play(effect as _);
     }
 }
+
+pub fn play_custom(amplitude_pct: i8, duration_ms: u16) {
+    unsafe {
+        ffi::haptic_play_custom(amplitude_pct, duration_ms);
+    }
+}

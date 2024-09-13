@@ -1,9 +1,6 @@
 from micropython import const
 from typing import Sequence
 
-from trezor import TR
-from trezor.enums import ButtonRequestType
-from trezor.ui.layouts import show_success
 from trezor.ui.layouts.reset import (  # noqa: F401
     show_share_words,
     slip39_advanced_prompt_group_threshold,
@@ -14,17 +11,6 @@ from trezor.ui.layouts.reset import (  # noqa: F401
 )
 
 _NUM_OF_CHOICES = const(3)
-
-
-async def show_internal_entropy(entropy: bytes) -> None:
-    from trezor.ui.layouts import confirm_blob
-
-    await confirm_blob(
-        "entropy",
-        TR.entropy__title,
-        entropy,
-        br_code=ButtonRequestType.ResetDevice,
-    )
 
 
 async def _confirm_word(
@@ -69,17 +55,20 @@ async def _share_words_confirmed(
 
     Return true if the words are confirmed successfully.
     """
-    # TODO: confirm_action("Select the words bla bla")
+    from trezor.ui.layouts.reset import (
+        show_share_confirmation_failure,
+        show_share_confirmation_success,
+    )
 
     if await _do_confirm_share_words(share_index, share_words, group_index):
-        await _show_confirmation_success(
+        await show_share_confirmation_success(
             share_index,
             num_of_shares,
             group_index,
         )
         return True
     else:
-        await _show_confirmation_failure()
+        await show_share_confirmation_failure()
 
     return False
 
@@ -105,50 +94,12 @@ async def _do_confirm_share_words(
     return True
 
 
-async def _show_confirmation_success(
-    share_index: int | None = None,
-    num_of_shares: int | None = None,
-    group_index: int | None = None,
+async def show_backup_intro(
+    single_share: bool, num_of_words: int | None = None
 ) -> None:
-    if share_index is None or num_of_shares is None:
-        # it is a BIP39 or a 1-of-1 SLIP39 backup
-        subheader = TR.reset__finished_verifying_wallet_backup
-        text = ""
+    from trezor.ui.layouts.reset import show_intro_backup
 
-    elif share_index == num_of_shares - 1:
-        if group_index is None:
-            subheader = TR.reset__finished_verifying_shares
-        else:
-            subheader = TR.reset__finished_verifying_group_template.format(
-                group_index + 1
-            )
-        text = ""
-
-    else:
-        if group_index is None:
-            subheader = TR.reset__share_checked_successfully_template.format(
-                share_index + 1
-            )
-            text = TR.reset__continue_with_share_template.format(share_index + 2)
-        else:
-            subheader = TR.reset__group_share_checked_successfully_template.format(
-                group_index + 1, share_index + 1
-            )
-            text = TR.reset__continue_with_next_share
-
-    return await show_success("success_recovery", text, subheader)
-
-
-async def _show_confirmation_failure() -> None:
-    from trezor.ui.layouts.reset import show_reset_warning
-
-    await show_reset_warning(
-        "warning_backup_check",
-        TR.words__please_check_again,
-        TR.reset__wrong_word_selected,
-        TR.buttons__check_again,
-        ButtonRequestType.ResetDevice,
-    )
+    await show_intro_backup(single_share, num_of_words)
 
 
 async def show_backup_warning() -> None:
@@ -167,11 +118,9 @@ async def show_backup_success() -> None:
 # ===
 
 
-async def show_and_confirm_mnemonic(mnemonic: str) -> None:
+async def show_and_confirm_single_share(words: Sequence[str]) -> None:
     # warn user about mnemonic safety
     await show_backup_warning()
-
-    words = mnemonic.split()
 
     while True:
         # display paginated mnemonic on the screen

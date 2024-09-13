@@ -9,6 +9,7 @@
 
 #define SECRET_MONOTONIC_COUNTER_OFFSET 48
 #define SECRET_MONOTONIC_COUNTER_LEN 1024
+#define SECRET_MONOTONIC_COUNTER2_OFFSET (SECRET_MONOTONIC_COUNTER_LEN + 48)
 
 #define SECRET_BHK_OFFSET (1024 * 8)
 #define SECRET_BHK_LEN 32
@@ -52,6 +53,15 @@ secbool secret_optiga_set(const uint8_t secret[SECRET_OPTIGA_KEY_LEN]);
 // was made unavailable by calling secret_optiga_hide
 secbool secret_optiga_get(uint8_t dest[SECRET_OPTIGA_KEY_LEN]);
 
+// Checks if the optiga pairing secret is present in the secret storage
+secbool secret_optiga_present(void);
+
+// Checks if the optiga pairing secret can be written to the secret storage
+secbool secret_optiga_writable(void);
+
+// Erases optiga pairing secret from the secret storage
+void secret_optiga_erase(void);
+
 // Regenerates the BHK and writes it to the secret storage
 void secret_bhk_regenerate(void);
 
@@ -60,7 +70,3 @@ void secret_bhk_regenerate(void);
 // Disables access to the secret storage until next reset, if possible
 // This function is called by the bootloader before starting the firmware
 void secret_prepare_fw(secbool allow_run_with_secret, secbool trust_all);
-
-// Shows a screen informing the user that installation of custom firmware is
-// currently restricted
-void secret_show_install_restricted_screen(void);

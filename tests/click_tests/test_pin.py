@@ -20,7 +20,8 @@ from typing import TYPE_CHECKING, Generator
 
 import pytest
 
-from trezorlib import device, exceptions, models
+from trezorlib import device, exceptions
+from trezorlib.debuglink import LayoutType
 
 from .. import buttons
 from .. import translations as TR
@@ -37,7 +38,7 @@ if TYPE_CHECKING:
     from ..device_handler import BackgroundDeviceHandler
 
 
-pytestmark = pytest.mark.skip_t1b1
+pytestmark = pytest.mark.models("core")
 
 PIN_CANCELLED = pytest.raises(exceptions.TrezorFailure, match="PIN entry cancelled")
 PIN_INVALID = pytest.raises(exceptions.TrezorFailure, match="PIN invalid")
@@ -74,6 +75,7 @@ class Situation(Enum):
     PIN_SETUP = 2
     PIN_CHANGE = 3
     WIPE_CODE_SETUP = 4
+    PIN_INPUT_CANCEL = 5
 
 
 @contextmanager
@@ -88,17 +90,25 @@ def prepare(
     # without reseeding "again", the results are still random.
     debug.reseed(0)
 
+    tap = False
+
     # Setup according to the wanted situation
     if situation == Situation.PIN_INPUT:
+        # Any action triggering the PIN dialogue
+        device_handler.run(device.apply_settings, auto_lock_delay_ms=300_000)  # type: ignore
+        tap = True
+    if situation == Situation.PIN_INPUT_CANCEL:
         # Any action triggering the PIN dialogue
         device_handler.run(device.apply_settings, auto_lock_delay_ms=300_000)  # type: ignore
     elif situation == Situation.PIN_SETUP:
         # Set new PIN
         device_handler.run(device.change_pin)  # type: ignore
-        TR.assert_in(debug.wait_layout().text_content(), "pin__turn_on")
-        if debug.model in (models.T2T1, models.T3T1):
+        TR.assert_in_multiple(
+            debug.wait_layout().text_content(), ["pin__turn_on", "pin__info"]
+        )
+        if debug.layout_type in (LayoutType.TT, LayoutType.Mercury):
             go_next(debug)
-        elif debug.model in (models.T2B1,):
+        elif debug.layout_type is LayoutType.TR:
             go_next(debug, wait=True)
             go_next(debug, wait=True)
             go_next(debug, wait=True)
@@ -117,7 +127,7 @@ def prepare(
             _input_see_confirm(debug, old_pin)
         TR.assert_in(debug.wait_layout().text_content(), "wipe_code__turn_on")
         go_next(debug, wait=True)
-        if debug.model in (models.T2B1,):
+        if debug.layout_type is LayoutType.TR:
             go_next(debug, wait=True)
             go_next(debug, wait=True)
             go_next(debug, wait=True)
@@ -128,7 +138,13 @@ def prepare(
     debug.wait_layout()
     _assert_pin_entry(debug)
     yield debug
-    go_next(debug)
+
+    if debug.layout_type is LayoutType.Mercury and tap:
+        go_next(debug, wait=True)
+        debug.click(buttons.TAP_TO_CONFIRM)
+    else:
+        go_next(debug)
+
     device_handler.result()
 
 
@@ -141,13 +157,13 @@ def _input_pin(debug: "DebugLink", pin: str, check: bool = False) -> None:
     if check:
         before = debug.read_layout().pin()
 
-    if debug.model in (models.T2T1, models.T3T1):
+    if debug.layout_type in (LayoutType.TT, LayoutType.Mercury):
         digits_order = debug.read_layout().tt_pin_digits_order()
         for digit in pin:
             digit_index = digits_order.index(digit)
             coords = buttons.pin_passphrase_index(digit_index)
             debug.click(coords, wait=True)
-    elif debug.model in (models.T2B1,):
+    elif debug.layout_type is LayoutType.TR:
         for digit in pin:
             navigate_to_action_and_press(debug, digit, TR_PIN_ACTIONS)
 
@@ -158,9 +174,9 @@ def _input_pin(debug: "DebugLink", pin: str, check: bool = False) -> None:
 
 def _see_pin(debug: "DebugLink") -> None:
     """Navigate to "SHOW" and press it"""
-    if debug.model in (models.T2T1, models.T3T1):
+    if debug.layout_type in (LayoutType.TT, LayoutType.Mercury):
         debug.click(buttons.TOP_ROW, wait=True)
-    elif debug.model in (models.T2B1,):
+    elif debug.layout_type is LayoutType.TR:
         navigate_to_action_and_press(debug, SHOW, TR_PIN_ACTIONS)
 
 
@@ -170,9 +186,9 @@ def _delete_pin(debug: "DebugLink", digits_to_delete: int, check: bool = True) -
         before = debug.read_layout().pin()
 
     for _ in range(digits_to_delete):
-        if debug.model in (models.T2T1, models.T3T1):
+        if debug.layout_type in (LayoutType.TT, LayoutType.Mercury):
             debug.click(buttons.pin_passphrase_grid(9), wait=True)
-        elif debug.model in (models.T2B1,):
+        elif debug.layout_type is LayoutType.TR:
             navigate_to_action_and_press(debug, DELETE, TR_PIN_ACTIONS)
 
     if check:
@@ -182,9 +198,9 @@ def _delete_pin(debug: "DebugLink", digits_to_delete: int, check: bool = True) -
 
 def _delete_all(debug: "DebugLink", check: bool = True) -> None:
     """Navigate to "DELETE" and hold it until all digits are deleted"""
-    if debug.model in (models.T2T1, models.T3T1):
+    if debug.layout_type in (LayoutType.TT, LayoutType.Mercury):
         debug.click_hold(buttons.pin_passphrase_grid(9), hold_ms=1500)
-    elif debug.model in (models.T2B1,):
+    elif debug.layout_type is LayoutType.TR:
         navigate_to_action_and_press(debug, DELETE, TR_PIN_ACTIONS, hold_ms=1000)
 
     if check:
@@ -201,9 +217,9 @@ def _cancel_pin(debug: "DebugLink") -> None:
 
 def _confirm_pin(debug: "DebugLink") -> None:
     """Navigate to "ENTER" and press it"""
-    if debug.model in (models.T2T1, models.T3T1):
+    if debug.layout_type in (LayoutType.TT, LayoutType.Mercury):
         debug.click(buttons.pin_passphrase_grid(11), wait=True)
-    elif debug.model in (models.T2B1,):
+    elif debug.layout_type is LayoutType.TR:
         navigate_to_action_and_press(debug, ENTER, TR_PIN_ACTIONS)
 
 
@@ -216,7 +232,7 @@ def _input_see_confirm(debug: "DebugLink", pin: str) -> None:
 def _enter_two_times(debug: "DebugLink", pin1: str, pin2: str) -> None:
     _input_see_confirm(debug, pin1)
 
-    if debug.model in (models.T2B1,):
+    if debug.layout_type is LayoutType.TR:
         # Please re-enter
         go_next(debug, wait=True)
 
@@ -285,10 +301,10 @@ def test_pin_incorrect(device_handler: "BackgroundDeviceHandler"):
         _input_see_confirm(debug, PIN4)
 
 
-@pytest.mark.skip_t2b1("TODO: will we support cancelling on T2B1?")
+@pytest.mark.models(skip="safe3", reason="TODO: will we support cancelling on T2B1?")
 @pytest.mark.setup_client(pin=PIN4)
 def test_pin_cancel(device_handler: "BackgroundDeviceHandler"):
-    with PIN_CANCELLED, prepare(device_handler) as debug:
+    with PIN_CANCELLED, prepare(device_handler, Situation.PIN_INPUT_CANCEL) as debug:
         _input_pin(debug, PIN4)
         _see_pin(debug)
         _delete_pin(debug, len(PIN4))
@@ -306,12 +322,15 @@ def test_pin_setup(device_handler: "BackgroundDeviceHandler"):
 def test_pin_setup_mismatch(device_handler: "BackgroundDeviceHandler"):
     with PIN_CANCELLED, prepare(device_handler, Situation.PIN_SETUP) as debug:
         _enter_two_times(debug, "1", "2")
-        if debug.model in (models.T2T1, models.T3T1):
+        if debug.layout_type is LayoutType.TT:
             go_next(debug)
             _cancel_pin(debug)
-        elif debug.model in (models.T2B1,):
+        elif debug.layout_type is LayoutType.TR:
             debug.press_middle()
             debug.press_no()
+        elif debug.layout_type is LayoutType.Mercury:
+            go_next(debug, wait=True)
+            _cancel_pin(debug)
 
 
 @pytest.mark.setup_client(pin="1")

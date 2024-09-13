@@ -31,11 +31,11 @@ def delete(
     config.delete(app, key, public, writable_locked)
 
 
-def set_true_or_delete(app: int, key: int, value: bool) -> None:
+def set_true_or_delete(app: int, key: int, value: bool, public: bool = False) -> None:
     if value:
-        set_bool(app, key, value)
+        set_bool(app, key, value, public)
     else:
-        delete(app, key)
+        delete(app, key, public)
 
 
 def set_bool(app: int, key: int, value: bool, public: bool = False) -> None:
@@ -49,12 +49,12 @@ def get_bool(app: int, key: int, public: bool = False) -> bool:
     return get(app, key, public) == _TRUE_BYTE
 
 
-def set_uint8(app: int, key: int, val: int) -> None:
-    set(app, key, val.to_bytes(1, "big"))
+def set_uint8(app: int, key: int, val: int, public: bool = False) -> None:
+    set(app, key, val.to_bytes(1, "big"), public)
 
 
-def get_uint8(app: int, key: int) -> int | None:
-    val = get(app, key)
+def get_uint8(app: int, key: int, public: bool = False) -> int | None:
+    val = get(app, key, public)
     if not val:
         return None
     return int.from_bytes(val, "big")

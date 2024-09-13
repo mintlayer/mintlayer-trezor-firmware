@@ -56,6 +56,7 @@ typedef struct {
   uint8_t private_key_extension[32];
 
   uint8_t public_key[33];
+  bool is_public_key_set;
   const curve_info *curve;
 } HDNode;
 
@@ -74,19 +75,7 @@ int hdnode_from_seed(const uint8_t *seed, int seed_len, const char *curve,
   hdnode_private_ckd((X), ((I) | 0x80000000))
 
 int hdnode_private_ckd(HDNode *inout, uint32_t i);
-
-int hdnode_public_ckd_cp(const ecdsa_curve *curve, const curve_point *parent,
-                         const uint8_t *parent_chain_code, uint32_t i,
-                         curve_point *child, uint8_t *child_chain_code);
-
 int hdnode_public_ckd(HDNode *inout, uint32_t i);
-
-void hdnode_public_ckd_address_optimized(const curve_point *pub,
-                                         const uint8_t *chain_code, uint32_t i,
-                                         uint32_t version,
-                                         HasherType hasher_pubkey,
-                                         HasherType hasher_base58, char *addr,
-                                         int addrsize, int addrformat);
 
 #if USE_BIP32_CACHE
 void bip32_cache_clear(void);

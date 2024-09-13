@@ -90,11 +90,12 @@ STATIC mp_obj_t mod_trezorcrypto_optiga_sign(mp_obj_t key_index,
   vstr_t sig = {0};
   vstr_init_len(&sig, MAX_DER_SIGNATURE_SIZE);
   size_t sig_size = 0;
-  int ret = optiga_sign(idx, (const uint8_t *)dig.buf, dig.len,
-                        ((uint8_t *)sig.buf), sig.alloc, &sig_size);
-  if (ret != 0) {
+  optiga_sign_result ret =
+      optiga_sign(idx, (const uint8_t *)dig.buf, dig.len, ((uint8_t *)sig.buf),
+                  sig.alloc, &sig_size);
+  if (ret != OPTIGA_SIGN_SUCCESS) {
     vstr_clear(&sig);
-    if (ret == OPTIGA_ERR_ACCESS_COND_NOT_SAT) {
+    if (ret == OPTIGA_SIGN_INACCESSIBLE) {
       mp_raise_msg(&mp_type_SigningInaccessible, "Signing inaccessible.");
     } else {
       mp_raise_msg(&mp_type_OptigaError, "Signing failed.");
@@ -104,9 +105,35 @@ STATIC mp_obj_t mod_trezorcrypto_optiga_sign(mp_obj_t key_index,
   sig.len = sig_size;
   return mp_obj_new_str_from_vstr(&mp_type_bytes, &sig);
 }
-
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(mod_trezorcrypto_optiga_sign_obj,
                                  mod_trezorcrypto_optiga_sign);
+
+/// def get_sec() -> int | None:
+///     """
+///     Returns the value of Optiga's security event counter.
+///     """
+STATIC mp_obj_t mod_trezorcrypto_optiga_get_sec() {
+  uint8_t sec = 0;
+  if (optiga_read_sec(&sec)) {
+    return mp_obj_new_int_from_uint(sec);
+  }
+  return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_trezorcrypto_optiga_get_sec_obj,
+                                 mod_trezorcrypto_optiga_get_sec);
+
+#if PYOPT == 0
+/// def set_sec_max() -> None:
+///     """
+///     Set Optiga's security event counter to maximum.
+///     """
+STATIC mp_obj_t mod_trezorcrypto_optiga_set_sec_max() {
+  optiga_set_sec_max();
+  return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_trezorcrypto_optiga_set_sec_max_obj,
+                                 mod_trezorcrypto_optiga_set_sec_max);
+#endif
 
 /// DEVICE_CERT_INDEX: int
 /// DEVICE_ECC_KEY_INDEX: int
@@ -116,6 +143,12 @@ STATIC const mp_rom_map_elem_t mod_trezorcrypto_optiga_globals_table[] = {
     {MP_ROM_QSTR(MP_QSTR_get_certificate),
      MP_ROM_PTR(&mod_trezorcrypto_optiga_get_certificate_obj)},
     {MP_ROM_QSTR(MP_QSTR_sign), MP_ROM_PTR(&mod_trezorcrypto_optiga_sign_obj)},
+    {MP_ROM_QSTR(MP_QSTR_get_sec),
+     MP_ROM_PTR(&mod_trezorcrypto_optiga_get_sec_obj)},
+#if PYOPT == 0
+    {MP_ROM_QSTR(MP_QSTR_set_sec_max),
+     MP_ROM_PTR(&mod_trezorcrypto_optiga_set_sec_max_obj)},
+#endif
     {MP_ROM_QSTR(MP_QSTR_DEVICE_CERT_INDEX),
      MP_ROM_INT(OPTIGA_DEVICE_CERT_INDEX)},
     {MP_ROM_QSTR(MP_QSTR_DEVICE_ECC_KEY_INDEX),

@@ -21,3 +21,6 @@ if not utils.BITCOIN_ONLY:
 
 if utils.USE_OPTIGA:
     from trezorcrypto import optiga  # noqa: F401
+
+if utils.USE_THP:
+    from trezorcrypto import elligator2  # noqa: F401

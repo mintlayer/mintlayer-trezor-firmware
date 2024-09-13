@@ -1,7 +1,7 @@
 #include "secret.h"
 #include <string.h>
 #include "common.h"
-#include "display.h"
+#include "display_draw.h"
 #include "flash.h"
 #include "model.h"
 
@@ -98,21 +98,19 @@ secbool secret_optiga_get(uint8_t dest[SECRET_OPTIGA_KEY_LEN]) {
   return secret_read(dest, SECRET_OPTIGA_KEY_OFFSET, SECRET_OPTIGA_KEY_LEN);
 }
 
-void secret_show_install_restricted_screen(void) {
-#ifdef FANCY_FATAL_ERROR
-  display_clear();
-  screen_fatal_error_rust(
-      "INSTALL RESTRICTED",
-      "Installation of custom firmware is currently restricted.",
-      "Please visit\ntrezor.io/bootloader");
-#endif
+secbool secret_optiga_present(void) {
+  return (sectrue != secret_wiped()) * sectrue;
 }
+
+secbool secret_optiga_writable(void) { return secret_wiped(); }
+
+void secret_optiga_erase(void) { secret_erase(); }
 
 void secret_prepare_fw(secbool allow_run_with_secret, secbool _trust_all) {
 #ifdef USE_OPTIGA
   if (sectrue != allow_run_with_secret && sectrue != secret_wiped()) {
-    secret_show_install_restricted_screen();
-    trezor_shutdown();
+    // This function does not return
+    show_install_restricted_screen();
   }
 #endif
 }

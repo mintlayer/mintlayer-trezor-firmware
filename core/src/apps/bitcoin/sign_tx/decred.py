@@ -9,8 +9,8 @@ from trezor.wire import DataError, ProcessError
 from apps.bitcoin.sign_tx.tx_weight import TxWeightCalculator
 from apps.common.writers import write_compact_size
 
-from .. import scripts_decred, writers
-from ..common import ecdsa_hash_pubkey
+from .. import addresses, scripts_decred, writers
+from ..common import ecdsa_hash_pubkey, input_is_external
 from ..writers import write_uint32
 from . import helpers
 from .approvers import BasicApprover
@@ -92,7 +92,9 @@ class DecredApprover(BasicApprover):
     ) -> None:
         # NOTE: The following calls Approver.add_external_output(), not BasicApprover.add_external_output().
         # This is needed to skip calling helpers.confirm_output(), which is what BasicApprover would do.
-        await super(BasicApprover, self).add_external_output(txo, script_pubkey, None)
+        await super(BasicApprover, self).add_external_output(
+            txo, script_pubkey, None, None
+        )
         await helpers.confirm_decred_sstx_submission(txo, self.coin, self.amount_unit)
 
 
@@ -420,4 +422,22 @@ class Decred(Bitcoin):
             self.get_sighash_type(txi),
             pubkey,
             signature,
+        )
+
+    # scriptPubKey derivation
+    # ===
+
+    def input_derive_script(
+        self, txi: TxInput, node: bip32.HDNode | None = None
+    ) -> bytes:
+        if input_is_external(txi):
+            assert txi.script_pubkey is not None  # checked in _sanitize_tx_input
+            return txi.script_pubkey
+
+        if node is None:
+            node = self.keychain.derive(txi.address_n)
+
+        address = addresses.get_address(txi.script_type, self.coin, node, txi.multisig)
+        return scripts_decred.output_derive_script(
+            txi.decred_tree, txi.decred_staking_spend, address, self.coin
         )

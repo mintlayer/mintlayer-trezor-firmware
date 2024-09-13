@@ -2,6 +2,7 @@ use crate::ui::{
     component::{Component, ComponentExt, Event, EventCtx, Pad},
     display::{self, Color},
     geometry::Rect,
+    shape::Renderer,
 };
 
 pub struct Maybe<T> {
@@ -94,10 +95,11 @@ where
         }
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        sink(self.pad.area);
-        self.inner.bounds(sink);
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.pad.render(target);
+        if self.visible {
+            self.inner.render(target);
+        }
     }
 }
 

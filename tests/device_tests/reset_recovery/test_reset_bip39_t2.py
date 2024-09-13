@@ -17,7 +17,8 @@
 import pytest
 from mnemonic import Mnemonic
 
-from trezorlib import device, messages, models
+from trezorlib import device, messages
+from trezorlib.debuglink import LayoutType
 from trezorlib.debuglink import TrezorClientDebugLink as Client
 from trezorlib.exceptions import TrezorFailure
 
@@ -28,7 +29,7 @@ from ...input_flows import (
     InputFlowBip39ResetPIN,
 )
 
-pytestmark = [pytest.mark.skip_t1b1]
+pytestmark = pytest.mark.models("core")
 
 
 def reset_device(client: Client, strength: int):
@@ -39,7 +40,6 @@ def reset_device(client: Client, strength: int):
         # No PIN, no passphrase, don't display random
         device.reset(
             client,
-            display_random=False,
             strength=strength,
             passphrase_protection=False,
             pin_protection=False,
@@ -57,7 +57,7 @@ def reset_device(client: Client, strength: int):
     # Check if device is properly initialized
     resp = client.call_raw(messages.Initialize())
     assert resp.initialized is True
-    assert resp.needs_backup is False
+    assert resp.backup_availability == messages.BackupAvailability.NotAvailable
     assert resp.pin_protection is False
     assert resp.passphrase_protection is False
     assert resp.backup_type is messages.BackupType.Bip39
@@ -88,7 +88,6 @@ def test_reset_device_pin(client: Client):
         # PIN, passphrase, display random
         device.reset(
             client,
-            display_random=True,
             strength=strength,
             passphrase_protection=True,
             pin_protection=True,
@@ -106,7 +105,7 @@ def test_reset_device_pin(client: Client):
     # Check if device is properly initialized
     resp = client.call_raw(messages.Initialize())
     assert resp.initialized is True
-    assert resp.needs_backup is False
+    assert resp.backup_availability == messages.BackupAvailability.NotAvailable
     assert resp.pin_protection is True
     assert resp.passphrase_protection is True
 
@@ -122,7 +121,6 @@ def test_reset_failed_check(client: Client):
         # PIN, passphrase, display random
         device.reset(
             client,
-            display_random=False,
             strength=strength,
             passphrase_protection=False,
             pin_protection=False,
@@ -140,7 +138,7 @@ def test_reset_failed_check(client: Client):
     # Check if device is properly initialized
     resp = client.call_raw(messages.Initialize())
     assert resp.initialized is True
-    assert resp.needs_backup is False
+    assert resp.backup_availability == messages.BackupAvailability.NotAvailable
     assert resp.pin_protection is False
     assert resp.passphrase_protection is False
     assert resp.backup_type is messages.BackupType.Bip39
@@ -164,7 +162,7 @@ def test_failed_pin(client: Client):
     ret = client.call_raw(messages.ButtonAck())
 
     # Re-enter PIN for TR
-    if client.model is models.T2B1:
+    if client.layout_type is LayoutType.TR:
         assert isinstance(ret, messages.ButtonRequest)
         client.debug.press_yes()
         ret = client.call_raw(messages.ButtonAck())
@@ -185,4 +183,10 @@ def test_failed_pin(client: Client):
 @pytest.mark.setup_client(mnemonic=MNEMONIC12)
 def test_already_initialized(client: Client):
     with pytest.raises(Exception):
-        device.reset(client, False, 128, True, True, "label")
+        device.reset(
+            client,
+            strength=128,
+            passphrase_protection=True,
+            pin_protection=True,
+            label="label",
+        )

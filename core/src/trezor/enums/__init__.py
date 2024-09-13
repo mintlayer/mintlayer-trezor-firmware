@@ -70,6 +70,7 @@ if TYPE_CHECKING:
         ChangeLanguage = 990
         TranslationDataRequest = 991
         TranslationDataAck = 992
+        SetBrightness = 993
         SetU2FCounter = 63
         GetNextU2FCounter = 80
         NextU2FCounter = 81
@@ -101,10 +102,6 @@ if TYPE_CHECKING:
         SignedIdentity = 54
         GetECDHSessionKey = 61
         ECDHSessionKey = 62
-        CosiCommit = 71
-        CosiCommitment = 72
-        CosiSign = 73
-        CosiSignature = 74
         DebugLinkDecision = 100
         DebugLinkGetState = 101
         DebugLinkState = 102
@@ -120,6 +117,7 @@ if TYPE_CHECKING:
         DebugLinkEraseSdCard = 9005
         DebugLinkWatchLayout = 9006
         DebugLinkResetDebugEvents = 9007
+        DebugLinkOptigaSetSecMax = 9008
         EthereumGetPublicKey = 450
         EthereumPublicKey = 451
         EthereumGetAddress = 56
@@ -388,6 +386,15 @@ if TYPE_CHECKING:
         STAKE_DEREGISTRATION = 1
         STAKE_DELEGATION = 2
         STAKE_POOL_REGISTRATION = 3
+        STAKE_REGISTRATION_CONWAY = 7
+        STAKE_DEREGISTRATION_CONWAY = 8
+        VOTE_DELEGATION = 9
+
+    class CardanoDRepType(IntEnum):
+        KEY_HASH = 0
+        SCRIPT_HASH = 1
+        ABSTAIN = 2
+        NO_CONFIDENCE = 3
 
     class CardanoPoolRelayType(IntEnum):
         SINGLE_HOST_IP = 0
@@ -416,6 +423,9 @@ if TYPE_CHECKING:
         Bip39 = 0
         Slip39_Basic = 1
         Slip39_Advanced = 2
+        Slip39_Single_Extendable = 3
+        Slip39_Basic_Extendable = 4
+        Slip39_Advanced_Extendable = 5
 
     class SafetyCheckLevel(IntEnum):
         Strict = 0
@@ -426,6 +436,21 @@ if TYPE_CHECKING:
         Toif = 1
         Jpeg = 2
         ToiG = 3
+
+    class RecoveryType(IntEnum):
+        NormalRecovery = 0
+        DryRun = 1
+        UnlockRepeatedBackup = 2
+
+    class BackupAvailability(IntEnum):
+        NotAvailable = 0
+        Required = 1
+        Available = 2
+
+    class RecoveryStatus(IntEnum):
+        Nothing = 0
+        Recovery = 1
+        Backup = 2
 
     class Capability(IntEnum):
         Bitcoin = 1
@@ -447,13 +472,15 @@ if TYPE_CHECKING:
         PassphraseEntry = 17
         Solana = 18
         Translations = 19
+        Brightness = 20
+        Haptic = 21
 
     class SdProtectOperationType(IntEnum):
         DISABLE = 0
         ENABLE = 1
         REFRESH = 2
 
-    class RecoveryDeviceType(IntEnum):
+    class RecoveryDeviceInputMethod(IntEnum):
         ScrambledWords = 0
         Matrix = 1
 

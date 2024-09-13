@@ -22,7 +22,7 @@
 #include <string.h>
 #include TREZOR_BOARD
 #include "backlight_pwm.h"
-#include "display_interface.h"
+#include "display.h"
 #include "irq.h"
 #include "memzero.h"
 #include "st7789v.h"
@@ -34,6 +34,8 @@
 #include "displays/panels/lx154a2411.h"
 #include "displays/panels/lx154a2422.h"
 #include "displays/panels/tf15411a.h"
+#else
+#include "displays/panels/lx154a2482.h"
 #endif
 
 // using const volatile instead of #define results in binaries that change
@@ -70,7 +72,7 @@ __IO DISP_MEM_TYPE *const DISPLAY_DATA_ADDRESS =
 #endif
 
 #define DATA_TRANSFER(X) \
-  DATA((X)&0xFF);        \
+  DATA((X) & 0xFF);      \
   DATA((X) >> 8)
 
 __attribute__((section(".fb1")))
@@ -241,7 +243,7 @@ int display_orientation(int degrees) {
         lx154a2422_rotate(degrees, &DISPLAY_PADDING);
       }
 #else
-      DISPLAY_PANEL_ROTATE(degrees, &DISPLAY_PADDING);
+      lx154a2482_rotate(degrees, &DISPLAY_PADDING);
 #endif
       panel_set_window(0, 0, DISPLAY_RESX - 1, DISPLAY_RESY - 1);
     }
@@ -292,7 +294,7 @@ void display_init_seq(void) {
     _154a_init_seq();
   }
 #else
-  DISPLAY_PANEL_INIT_SEQ();
+  lx154a2482_init_seq();
 #endif
 
   display_unsleep();
@@ -395,7 +397,7 @@ void display_init(void) {
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_FMC_CLK_ENABLE();
 
-  backlight_pwm_init();
+  backlight_pwm_init(BACKLIGHT_RESET);
 
 #ifdef STM32F4
 #define DISPLAY_GPIO_SPEED GPIO_SPEED_FREQ_VERY_HIGH
@@ -472,10 +474,7 @@ void display_reinit(void) {
   // important for model T as this is not set in boardloader
   display_set_little_endian();
 
-  DISPLAY_ORIENTATION = 0;
-  panel_set_window(0, 0, DISPLAY_RESX - 1, DISPLAY_RESY - 1);
-
-  backlight_pwm_reinit();
+  backlight_pwm_init(BACKLIGHT_RETAIN);
 
 #ifdef TREZOR_MODEL_T
   uint32_t id = display_identify();
@@ -485,7 +484,12 @@ void display_reinit(void) {
   } else if (id == DISPLAY_ID_ST7789V) {
     lx154a2411_gamma();
   }
+#else
+  lx154a2482_init_seq();
 #endif
+
+  DISPLAY_ORIENTATION = 0;
+  panel_set_window(0, 0, DISPLAY_RESX - 1, DISPLAY_RESY - 1);
 
 #ifdef FRAMEBUFFER
   display_setup_te_interrupt();
@@ -565,12 +569,12 @@ void DISPLAY_TE_INTERRUPT_HANDLER(void) {
   if (act_frame_buffer == 1) {
     bg_copy_start_const_out_8((uint8_t *)PhysFrameBuffer1,
                               (uint8_t *)DISPLAY_DATA_ADDRESS,
-                              DISPLAY_RESX * DISPLAY_RESY * 2);
+                              DISPLAY_RESX * DISPLAY_RESY * 2, NULL);
 
   } else {
     bg_copy_start_const_out_8((uint8_t *)PhysFrameBuffer0,
                               (uint8_t *)DISPLAY_DATA_ADDRESS,
-                              DISPLAY_RESX * DISPLAY_RESY * 2);
+                              DISPLAY_RESX * DISPLAY_RESY * 2, NULL);
   }
 
   pending_fb_switch = false;

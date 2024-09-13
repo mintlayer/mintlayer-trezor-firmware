@@ -1,6 +1,6 @@
 from common import *  # isort:skip
 
-if not utils.MODEL_IS_T2B1:
+if utils.INTERNAL_MODEL in ("T1B1", "T2T1"):
     from trezor.crypto import bip39
     from trezor.enums import AmountUnit, OutputScriptType
     from trezor.enums.RequestType import TXFINISHED, TXINPUT, TXMETA, TXOUTPUT
@@ -112,7 +112,7 @@ class TestSignTxDecred(unittest.TestCase):
                 ),
             ),
             TxAckOutput(tx=TxAckOutputWrapper(output=out1)),
-            helpers.UiConfirmOutput(out1, coin_decred, AmountUnit.BITCOIN, 0, False),
+            helpers.UiConfirmOutput(out1, coin_decred, AmountUnit.BITCOIN, 0, False, [H_(44), H_(1), H_(0)]),
             True,
             helpers.UiConfirmTotal(
                 200_000_000,
@@ -405,5 +405,5 @@ class TestSignTxDecred(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    if not utils.MODEL_IS_T2B1:
+    if utils.INTERNAL_MODEL in ("T1B1", "T2T1"):
         unittest.main()

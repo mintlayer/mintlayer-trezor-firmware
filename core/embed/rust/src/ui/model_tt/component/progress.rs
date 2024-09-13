@@ -10,8 +10,10 @@ use crate::{
             Child, Component, Event, EventCtx, Label, Never, Pad,
         },
         display::{self, Font},
-        geometry::{Insets, Rect},
+        geometry::{Insets, Offset, Rect},
         model_tt::constant,
+        shape,
+        shape::Renderer,
         util::animation_disabled,
     },
 };
@@ -106,11 +108,45 @@ impl Component for Progress {
         self.description.paint();
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        sink(Self::AREA);
-        self.title.bounds(sink);
-        self.description.bounds(sink);
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.title.render(target);
+
+        let center = constant::screen().center() + Offset::y(self.loader_y_offset);
+        let active_color = theme::FG;
+        let background_color = theme::BG;
+        let inactive_color = background_color.blend(active_color, 85);
+
+        let (start, end) = if self.indeterminate {
+            let start = (self.value as i16 - 100) % 1000;
+            let end = (self.value as i16 + 100) % 1000;
+            let start = 360.0 * start as f32 / 1000.0;
+            let end = 360.0 * end as f32 / 1000.0;
+            (start, end)
+        } else {
+            let end = 360.0 * self.value as f32 / 1000.0;
+            (0.0, end)
+        };
+
+        shape::Circle::new(center, constant::LOADER_OUTER)
+            .with_bg(inactive_color)
+            .render(target);
+
+        shape::Circle::new(center, constant::LOADER_OUTER)
+            .with_bg(active_color)
+            .with_start_angle(start)
+            .with_end_angle(end)
+            .render(target);
+
+        shape::Circle::new(center, constant::LOADER_INNER + 2)
+            .with_bg(active_color)
+            .render(target);
+
+        shape::Circle::new(center, constant::LOADER_INNER)
+            .with_bg(background_color)
+            .render(target);
+
+        self.description_pad.render(target);
+        self.description.render(target);
     }
 }
 

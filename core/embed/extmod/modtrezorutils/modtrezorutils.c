@@ -136,9 +136,9 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_trezorutils_memcpy_obj, 4, 5,
 STATIC mp_obj_t mod_trezorutils_halt(size_t n_args, const mp_obj_t *args) {
   mp_buffer_info_t msg = {0};
   if (n_args > 0 && mp_get_buffer(args[0], &msg, MP_BUFFER_READ)) {
-    ensure(secfalse, msg.buf);
+    error_shutdown(msg.buf);
   } else {
-    ensure(secfalse, "halt");
+    error_shutdown("halt");
   }
   return mp_const_none;
 }
@@ -320,15 +320,15 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_trezorutils_reboot_to_bootloader);
 
 /// VersionTuple = Tuple[int, int, int, int]
-///
+
 /// class FirmwareHeaderInfo(NamedTuple):
 ///     version: VersionTuple
 ///     vendor: str
 ///     fingerprint: bytes
 ///     hash: bytes
-///
+
 /// mock:global
-///
+
 /// def check_firmware_header(header : bytes) -> FirmwareHeaderInfo:
 ///     """Parses incoming firmware header and returns information about it."""
 STATIC mp_obj_t mod_trezorutils_check_firmware_header(mp_obj_t header) {
@@ -390,6 +390,18 @@ STATIC mp_obj_str_t mod_trezorutils_full_name_obj = {
     sizeof(MODEL_FULL_NAME) - 1,
     (const byte *)MODEL_FULL_NAME};
 
+STATIC mp_obj_str_t mod_trezorutils_model_usb_manufacturer_obj = {
+    {&mp_type_str},
+    0,
+    sizeof(MODEL_USB_MANUFACTURER) - 1,
+    (const byte *)MODEL_USB_MANUFACTURER};
+
+STATIC mp_obj_str_t mod_trezorutils_model_usb_product_obj = {
+    {&mp_type_str},
+    0,
+    sizeof(MODEL_USB_PRODUCT) - 1,
+    (const byte *)MODEL_USB_PRODUCT};
+
 STATIC mp_obj_tuple_t mod_trezorutils_version_obj = {
     {&mp_type_tuple},
     4,
@@ -404,12 +416,18 @@ STATIC mp_obj_tuple_t mod_trezorutils_version_obj = {
 /// """Whether the hardware supports SD card."""
 /// USE_BACKLIGHT: bool
 /// """Whether the hardware supports backlight brightness control."""
+/// USE_HAPTIC: bool
+/// """Whether the hardware supports haptic feedback."""
 /// USE_OPTIGA: bool
 /// """Whether the hardware supports Optiga secure element."""
 /// MODEL: str
 /// """Model name."""
 /// MODEL_FULL_NAME: str
 /// """Full name including Trezor prefix."""
+/// MODEL_USB_MANUFACTURER: str
+/// """USB Manufacturer name."""
+/// MODEL_USB_PRODUCT: str
+/// """USB Product name."""
 /// INTERNAL_MODEL: str
 /// """Internal model code."""
 /// EMULATOR: bool
@@ -418,6 +436,8 @@ STATIC mp_obj_tuple_t mod_trezorutils_version_obj = {
 /// """Whether the firmware is Bitcoin-only."""
 /// UI_LAYOUT: str
 /// """UI layout identifier ("tt" for model T, "tr" for models One and R)."""
+/// USE_THP: bool
+/// """Whether the firmware supports Trezor-Host Protocol (version 3)."""
 
 STATIC const mp_rom_map_elem_t mp_module_trezorutils_globals_table[] = {
     {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_trezorutils)},
@@ -456,6 +476,11 @@ STATIC const mp_rom_map_elem_t mp_module_trezorutils_globals_table[] = {
 #else
     {MP_ROM_QSTR(MP_QSTR_USE_BACKLIGHT), mp_const_false},
 #endif
+#ifdef USE_HAPTIC
+    {MP_ROM_QSTR(MP_QSTR_USE_HAPTIC), mp_const_true},
+#else
+    {MP_ROM_QSTR(MP_QSTR_USE_HAPTIC), mp_const_false},
+#endif
 #ifdef USE_OPTIGA
     {MP_ROM_QSTR(MP_QSTR_USE_OPTIGA), mp_const_true},
 #else
@@ -464,6 +489,10 @@ STATIC const mp_rom_map_elem_t mp_module_trezorutils_globals_table[] = {
     {MP_ROM_QSTR(MP_QSTR_MODEL), MP_ROM_PTR(&mod_trezorutils_model_name_obj)},
     {MP_ROM_QSTR(MP_QSTR_MODEL_FULL_NAME),
      MP_ROM_PTR(&mod_trezorutils_full_name_obj)},
+    {MP_ROM_QSTR(MP_QSTR_MODEL_USB_MANUFACTURER),
+     MP_ROM_PTR(&mod_trezorutils_model_usb_manufacturer_obj)},
+    {MP_ROM_QSTR(MP_QSTR_MODEL_USB_PRODUCT),
+     MP_ROM_PTR(&mod_trezorutils_model_usb_product_obj)},
     {MP_ROM_QSTR(MP_QSTR_INTERNAL_MODEL),
      MP_ROM_QSTR(MODEL_INTERNAL_NAME_QSTR)},
 #ifdef TREZOR_EMULATOR
@@ -477,10 +506,17 @@ STATIC const mp_rom_map_elem_t mp_module_trezorutils_globals_table[] = {
 #else
     {MP_ROM_QSTR(MP_QSTR_BITCOIN_ONLY), mp_const_false},
 #endif
+#ifdef USE_THP
+    {MP_ROM_QSTR(MP_QSTR_USE_THP), mp_const_true},
+#else
+    {MP_ROM_QSTR(MP_QSTR_USE_THP), mp_const_false},
+#endif
 #ifdef UI_LAYOUT_TT
     {MP_ROM_QSTR(MP_QSTR_UI_LAYOUT), MP_ROM_QSTR(MP_QSTR_TT)},
 #elif UI_LAYOUT_TR
     {MP_ROM_QSTR(MP_QSTR_UI_LAYOUT), MP_ROM_QSTR(MP_QSTR_TR)},
+#elif UI_LAYOUT_MERCURY
+    {MP_ROM_QSTR(MP_QSTR_UI_LAYOUT), MP_ROM_QSTR(MP_QSTR_MERCURY)},
 #else
 #error Unknown layout
 #endif

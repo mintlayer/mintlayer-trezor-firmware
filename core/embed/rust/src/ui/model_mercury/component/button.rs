@@ -7,7 +7,9 @@ use crate::{
         component::{Component, Event, EventCtx, TimerToken},
         display::{self, toif::Icon, Color, Font},
         event::TouchEvent,
-        geometry::{Alignment2D, Insets, Offset, Point, Rect},
+        geometry::{Alignment, Alignment2D, Insets, Offset, Point, Rect},
+        shape,
+        shape::Renderer,
     },
 };
 
@@ -20,20 +22,25 @@ pub enum ButtonMsg {
     LongPressed,
 }
 
+#[derive(Clone)]
 pub struct Button {
     area: Rect,
     touch_expand: Option<Insets>,
     content: ButtonContent,
     styles: ButtonStyleSheet,
+    text_align: Alignment,
+    radius: Option<u8>,
     state: State,
     long_press: Option<Duration>,
     long_timer: Option<TimerToken>,
+    haptic: bool,
 }
 
 impl Button {
-    /// Offsets the baseline of the button text either up (negative) or down
-    /// (positive).
-    pub const BASELINE_OFFSET: i16 = -2;
+    /// Offsets the baseline of the button text
+    /// -x/+x => left/right
+    /// -y/+y => up/down
+    pub const BASELINE_OFFSET: Offset = Offset::new(2, 6);
 
     pub const fn new(content: ButtonContent) -> Self {
         Self {
@@ -41,9 +48,12 @@ impl Button {
             area: Rect::zero(),
             touch_expand: None,
             styles: theme::button_default(),
+            text_align: Alignment::Start,
+            radius: None,
             state: State::Initial,
             long_press: None,
             long_timer: None,
+            haptic: true,
         }
     }
 
@@ -59,16 +69,17 @@ impl Button {
         Self::new(ButtonContent::IconAndText(content))
     }
 
-    pub const fn with_icon_blend(bg: Icon, fg: Icon, fg_offset: Offset) -> Self {
-        Self::new(ButtonContent::IconBlend(bg, fg, fg_offset))
-    }
-
     pub const fn empty() -> Self {
         Self::new(ButtonContent::Empty)
     }
 
     pub const fn styled(mut self, styles: ButtonStyleSheet) -> Self {
         self.styles = styles;
+        self
+    }
+
+    pub const fn with_text_align(mut self, align: Alignment) -> Self {
+        self.text_align = align;
         self
     }
 
@@ -79,6 +90,16 @@ impl Button {
 
     pub fn with_long_press(mut self, duration: Duration) -> Self {
         self.long_press = Some(duration);
+        self
+    }
+
+    pub fn with_radius(mut self, radius: u8) -> Self {
+        self.radius = Some(radius);
+        self
+    }
+
+    pub fn without_haptics(mut self) -> Self {
+        self.haptic = false;
         self
     }
 
@@ -116,10 +137,9 @@ impl Button {
         matches!(self.state, State::Disabled)
     }
 
-    pub fn set_content(&mut self, ctx: &mut EventCtx, content: ButtonContent) {
+    pub fn set_content(&mut self, content: ButtonContent) {
         if self.content != content {
-            self.content = content;
-            ctx.request_paint();
+            self.content = content
         }
     }
 
@@ -154,34 +174,29 @@ impl Button {
     }
 
     pub fn paint_background(&self, style: &ButtonStyle) {
-        match &self.content {
-            ButtonContent::IconBlend(_, _, _) => {}
-            _ => {
-                if style.border_width > 0 {
-                    // Paint the border and a smaller background on top of it.
-                    display::rect_fill_rounded(
-                        self.area,
-                        style.border_color,
-                        style.background_color,
-                        style.border_radius,
-                    );
-                    display::rect_fill_rounded(
-                        self.area.inset(Insets::uniform(style.border_width)),
-                        style.button_color,
-                        style.border_color,
-                        style.border_radius,
-                    );
-                } else {
-                    // We do not need to draw an explicit border in this case, just a
-                    // bigger background.
-                    display::rect_fill_rounded(
-                        self.area,
-                        style.button_color,
-                        style.background_color,
-                        style.border_radius,
-                    );
-                }
-            }
+        display::rect_fill(self.area, style.button_color);
+    }
+
+    pub fn render_background<'s>(
+        &self,
+        target: &mut impl Renderer<'s>,
+        style: &ButtonStyle,
+        alpha: u8,
+    ) {
+        if self.radius.is_some() {
+            shape::Bar::new(self.area)
+                .with_bg(style.background_color)
+                .with_radius(self.radius.unwrap() as i16)
+                .with_thickness(2)
+                .with_fg(style.button_color)
+                .with_alpha(alpha)
+                .render(target);
+        } else {
+            shape::Bar::new(self.area)
+                .with_bg(style.button_color)
+                .with_fg(style.button_color)
+                .with_alpha(alpha)
+                .render(target);
         }
     }
 
@@ -189,11 +204,7 @@ impl Button {
         match &self.content {
             ButtonContent::Empty => {}
             ButtonContent::Text(text) => {
-                let width = text.map(|c| style.font.text_width(c));
-                let height = style.font.text_height();
-                let start_of_baseline = self.area.center()
-                    + Offset::new(-width / 2, height / 2)
-                    + Offset::y(Self::BASELINE_OFFSET);
+                let start_of_baseline = self.area.center() + Self::BASELINE_OFFSET;
                 text.map(|text| {
                     display::text_left(
                         start_of_baseline,
@@ -208,20 +219,65 @@ impl Button {
                 icon.draw(
                     self.area.center(),
                     Alignment2D::CENTER,
-                    style.text_color,
+                    style.icon_color,
                     style.button_color,
                 );
             }
             ButtonContent::IconAndText(child) => {
                 child.paint(self.area, self.style(), Self::BASELINE_OFFSET);
             }
-            ButtonContent::IconBlend(bg, fg, offset) => display::icon_over_icon(
-                Some(self.area),
-                (*bg, Offset::zero(), style.button_color),
-                (*fg, *offset, style.text_color),
-                style.background_color,
-            ),
         }
+    }
+
+    pub fn render_content<'s>(
+        &self,
+        target: &mut impl Renderer<'s>,
+        style: &ButtonStyle,
+        alpha: u8,
+    ) {
+        match &self.content {
+            ButtonContent::Empty => {}
+            ButtonContent::Text(text) => {
+                let y_offset = Offset::y(self.style().font.allcase_text_height() / 2);
+                let start_of_baseline = match self.text_align {
+                    Alignment::Start => {
+                        self.area.left_center() + Offset::x(Self::BASELINE_OFFSET.x)
+                    }
+                    Alignment::Center => self.area.center(),
+                    Alignment::End => self.area.right_center() - Offset::x(Self::BASELINE_OFFSET.x),
+                } + y_offset;
+                text.map(|text| {
+                    shape::Text::new(start_of_baseline, text)
+                        .with_font(style.font)
+                        .with_fg(style.text_color)
+                        .with_align(self.text_align)
+                        .with_alpha(alpha)
+                        .render(target);
+                });
+            }
+            ButtonContent::Icon(icon) => {
+                shape::ToifImage::new(self.area.center(), icon.toif)
+                    .with_align(Alignment2D::CENTER)
+                    .with_fg(style.icon_color)
+                    .with_alpha(alpha)
+                    .render(target);
+            }
+            ButtonContent::IconAndText(child) => {
+                child.render(
+                    target,
+                    self.area,
+                    self.style(),
+                    Self::BASELINE_OFFSET,
+                    alpha,
+                );
+            }
+        }
+    }
+
+    pub fn render_with_alpha<'s>(&self, target: &mut impl Renderer<'s>, alpha: u8) {
+        let style = self.style();
+        self.render_background(target, style, alpha);
+        self.render_content(target, style, alpha);
     }
 }
 
@@ -250,7 +306,9 @@ impl Component for Button {
                         // Touch started in our area, transform to `Pressed` state.
                         if touch_area.contains(pos) {
                             #[cfg(feature = "haptic")]
-                            play(HapticEffect::ButtonPress);
+                            if self.haptic {
+                                play(HapticEffect::ButtonPress);
+                            }
                             self.set(ctx, State::Pressed);
                             if let Some(duration) = self.long_press {
                                 self.long_timer = Some(ctx.request_timer(duration));
@@ -282,6 +340,12 @@ impl Component for Button {
                         self.set(ctx, State::Initial);
                         return Some(ButtonMsg::Clicked);
                     }
+                    State::Pressed => {
+                        // Touch finished outside our area.
+                        self.set(ctx, State::Initial);
+                        self.long_timer = None;
+                        return Some(ButtonMsg::Released);
+                    }
                     _ => {
                         // Touch finished outside our area.
                         self.set(ctx, State::Initial);
@@ -289,12 +353,33 @@ impl Component for Button {
                     }
                 }
             }
+            Event::Touch(TouchEvent::TouchAbort) => {
+                match self.state {
+                    State::Initial | State::Disabled => {
+                        // Do nothing.
+                    }
+                    State::Pressed => {
+                        // Touch aborted
+                        self.set(ctx, State::Initial);
+                        self.long_timer = None;
+                        return Some(ButtonMsg::Released);
+                    }
+                    _ => {
+                        // Irrelevant touch abort
+                        self.set(ctx, State::Initial);
+                        self.long_timer = None;
+                    }
+                }
+            }
+
             Event::Timer(token) => {
                 if self.long_timer == Some(token) {
                     self.long_timer = None;
                     if matches!(self.state, State::Pressed) {
                         #[cfg(feature = "haptic")]
-                        play(HapticEffect::ButtonPress);
+                        if self.haptic {
+                            play(HapticEffect::ButtonPress);
+                        }
                         self.set(ctx, State::Initial);
                         return Some(ButtonMsg::LongPressed);
                     }
@@ -311,9 +396,10 @@ impl Component for Button {
         self.paint_content(style);
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        sink(self.area);
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        let style = self.style();
+        self.render_background(target, style, 0xFF);
+        self.render_content(target, style, 0xFF);
     }
 }
 
@@ -326,15 +412,14 @@ impl crate::trace::Trace for Button {
             ButtonContent::Text(text) => t.string("text", *text),
             ButtonContent::Icon(_) => t.bool("icon", true),
             ButtonContent::IconAndText(content) => {
-                t.string("text", content.text.into());
+                t.string("text", content.text);
                 t.bool("icon", true);
             }
-            ButtonContent::IconBlend(_, _, _) => t.bool("icon", true),
         }
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 enum State {
     Initial,
     Pressed,
@@ -342,13 +427,12 @@ enum State {
     Disabled,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum ButtonContent {
     Empty,
     Text(TString<'static>),
     Icon(Icon),
     IconAndText(IconText),
-    IconBlend(Icon, Icon, Offset),
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -363,22 +447,13 @@ pub struct ButtonStyle {
     pub font: Font,
     pub text_color: Color,
     pub button_color: Color,
+    pub icon_color: Color,
     pub background_color: Color,
-    pub border_color: Color,
-    pub border_radius: u8,
-    pub border_width: i16,
 }
 
-#[derive(Clone, Copy)]
-pub enum CancelInfoConfirmMsg {
-    Cancelled,
-    Info,
-    Confirmed,
-}
-
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct IconText {
-    text: &'static str,
+    text: TString<'static>,
     icon: Icon,
 }
 
@@ -387,12 +462,15 @@ impl IconText {
     const ICON_MARGIN: i16 = 4;
     const TEXT_MARGIN: i16 = 6;
 
-    pub fn new(text: &'static str, icon: Icon) -> Self {
-        Self { text, icon }
+    pub fn new(text: impl Into<TString<'static>>, icon: Icon) -> Self {
+        Self {
+            text: text.into(),
+            icon,
+        }
     }
 
-    pub fn paint(&self, area: Rect, style: &ButtonStyle, baseline_offset: i16) {
-        let width = style.font.text_width(self.text);
+    pub fn paint(&self, area: Rect, style: &ButtonStyle, baseline_offset: Offset) {
+        let width = self.text.map(|t| style.font.text_width(t));
         let height = style.font.text_height();
 
         let mut use_icon = false;
@@ -402,8 +480,7 @@ impl IconText {
             area.top_left().x + ((Self::ICON_SPACE + Self::ICON_MARGIN) / 2),
             area.center().y,
         );
-        let mut text_pos =
-            area.center() + Offset::new(-width / 2, height / 2) + Offset::y(baseline_offset);
+        let mut text_pos = area.center() + Offset::new(-width / 2, height / 2) + baseline_offset;
 
         if area.width() > (Self::ICON_SPACE + Self::TEXT_MARGIN + width) {
             //display both icon and text
@@ -419,22 +496,74 @@ impl IconText {
         }
 
         if use_text {
-            display::text_left(
-                text_pos,
-                self.text,
-                style.font,
-                style.text_color,
-                style.button_color,
-            );
+            self.text.map(|t| {
+                display::text_left(
+                    text_pos,
+                    t,
+                    style.font,
+                    style.text_color,
+                    style.button_color,
+                )
+            });
         }
 
         if use_icon {
             self.icon.draw(
                 icon_pos,
                 Alignment2D::CENTER,
-                style.text_color,
+                style.icon_color,
                 style.button_color,
             );
+        }
+    }
+    pub fn render<'s>(
+        &self,
+        target: &mut impl Renderer<'s>,
+        area: Rect,
+        style: &ButtonStyle,
+        baseline_offset: Offset,
+        alpha: u8,
+    ) {
+        let width = self.text.map(|t| style.font.text_width(t));
+
+        let mut use_icon = false;
+        let mut use_text = false;
+
+        let mut icon_pos = Point::new(
+            area.top_left().x + ((Self::ICON_SPACE + Self::ICON_MARGIN) / 2),
+            area.center().y,
+        );
+        let mut text_pos = area.left_center() + baseline_offset;
+
+        if area.width() > (Self::ICON_SPACE + Self::TEXT_MARGIN + width) {
+            //display both icon and text
+            text_pos = Point::new(area.top_left().x + Self::ICON_SPACE, text_pos.y);
+            use_text = true;
+            use_icon = true;
+        } else if area.width() > (width + Self::TEXT_MARGIN) {
+            use_text = true;
+        } else {
+            //if we can't fit the text, retreat to centering the icon
+            icon_pos = area.center();
+            use_icon = true;
+        }
+
+        if use_text {
+            self.text.map(|t| {
+                shape::Text::new(text_pos, t)
+                    .with_font(style.font)
+                    .with_fg(style.text_color)
+                    .with_alpha(alpha)
+                    .render(target)
+            });
+        }
+
+        if use_icon {
+            shape::ToifImage::new(icon_pos, self.icon.toif)
+                .with_align(Alignment2D::CENTER)
+                .with_fg(style.icon_color)
+                .with_alpha(alpha)
+                .render(target);
         }
     }
 }

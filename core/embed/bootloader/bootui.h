@@ -34,10 +34,22 @@ typedef enum {
   SCREEN_WELCOME = 5,
 } screen_t;
 
+// Displays a warning screeen before jumping to the untrusted firmware
+//
+// Shows vendor image, vendor string and firmware version
+// and optional message to the user (see `wait` argument)
+//
+// `wait` argument specifies a message to the user
+//   0 do not show any message
+//   > 0 show a message like "starting in %d s"
+//   < 0 show a message like "press button to continue"
 void ui_screen_boot(const vendor_header* const vhdr,
-                    const image_header* const hdr);
-void ui_screen_boot_wait(int wait_seconds);
-void ui_screen_boot_click(void);
+                    const image_header* const hdr, int wait);
+
+// Waits until the user confirms the untrusted firmware
+//
+// Implementation is device specific - it wait's until
+// the user presses a button, touches the display
 void ui_click(void);
 
 void ui_screen_welcome(void);
@@ -50,7 +62,8 @@ uint32_t ui_screen_menu(secbool firmware_present);
 uint32_t ui_screen_install_confirm(const vendor_header* const vhdr,
                                    const image_header* const hdr,
                                    secbool shold_keep_seed,
-                                   secbool is_newvendor, int version_cmp);
+                                   secbool is_newvendor, secbool is_newinstall,
+                                   int version_cmp);
 void ui_screen_install_start();
 void ui_screen_install_progress_erase(int pos, int len);
 void ui_screen_install_progress_upload(int pos);

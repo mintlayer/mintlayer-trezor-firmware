@@ -22,7 +22,8 @@ __attribute__((noreturn)) static void _reboot_to_bootloader(
 __attribute__((noreturn)) static void _reboot_to_bootloader(
     boot_command_t boot_command) {
   mpu_config_bootloader();
-  jump_to_with_flag(BOOTLOADER_START + IMAGE_HEADER_SIZE, boot_command);
+  jump_to_with_flag(IMAGE_CODE_ALIGN(BOOTLOADER_START + IMAGE_HEADER_SIZE),
+                    boot_command);
   for (;;)
     ;
 }
@@ -38,6 +39,14 @@ void svc_reboot_to_bootloader(void) {
   } else {
     ensure_compatible_settings();
     _reboot_to_bootloader(boot_command);
+  }
+}
+
+void svc_reboot(void) {
+  if (is_mode_unprivileged() && !is_mode_handler()) {
+    __asm__ __volatile__("svc %0" ::"i"(SVC_REBOOT) : "memory");
+  } else {
+    NVIC_SystemReset();
   }
 }
 
@@ -84,6 +93,9 @@ void SVC_C_Handler(uint32_t *stack) {
       return;
     case SVC_GET_SYSTICK_VAL:
       systick_val_copy = SysTick->VAL;
+      break;
+    case SVC_REBOOT:
+      NVIC_SystemReset();
       break;
     default:
       stack[0] = 0xffffffff;

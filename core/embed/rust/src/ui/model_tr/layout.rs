@@ -2,14 +2,24 @@ use core::{cmp::Ordering, convert::TryInto};
 
 use heapless::Vec;
 
+use super::{
+    component::{
+        AddressDetails, ButtonActions, ButtonDetails, ButtonLayout, ButtonPage, CancelConfirmMsg,
+        CancelInfoConfirmMsg, CoinJoinProgress, ConfirmHomescreen, Flow, FlowPages, Frame,
+        Homescreen, Lockscreen, NumberInput, Page, PassphraseEntry, PinEntry, Progress,
+        ScrollableContent, ScrollableFrame, ShareWords, ShowMore, SimpleChoice, WordlistEntry,
+        WordlistType,
+    },
+    constant, theme,
+};
 use crate::{
     error::Error,
     maybe_trace::MaybeTrace,
     micropython::{
-        buffer::{get_buffer, StrBuffer},
         gc::Gc,
         iter::IterBuf,
         list::List,
+        macros::{obj_fn_0, obj_fn_1, obj_fn_kw, obj_module},
         map::Map,
         module::Module,
         obj::Obj,
@@ -20,6 +30,7 @@ use crate::{
     translations::TR,
     trezorhal::model,
     ui::{
+        backlight::BACKLIGHT_LEVELS_OBJ,
         component::{
             base::Component,
             connect::Connect,
@@ -34,25 +45,14 @@ use crate::{
             },
             ComponentExt, FormattedText, Label, LineBreaking, Timeout,
         },
-        display, geometry,
+        geometry,
         layout::{
-            obj::{ComponentMsgObj, LayoutObj},
+            obj::{ComponentMsgObj, LayoutObj, ATTACH_TYPE_OBJ},
             result::{CANCELLED, CONFIRMED, INFO},
-            util::{upy_disable_animation, ConfirmBlob},
+            util::{upy_disable_animation, ConfirmBlob, RecoveryType},
         },
         model_tr::component::check_homescreen_format,
     },
-};
-
-use super::{
-    component::{
-        AddressDetails, ButtonActions, ButtonDetails, ButtonLayout, ButtonPage, CancelConfirmMsg,
-        CancelInfoConfirmMsg, CoinJoinProgress, ConfirmHomescreen, Flow, FlowPages, Frame,
-        Homescreen, Lockscreen, NumberInput, Page, PassphraseEntry, PinEntry, Progress,
-        ScrollableContent, ScrollableFrame, ShareWords, ShowMore, SimpleChoice, WordlistEntry,
-        WordlistType,
-    },
-    constant, theme,
 };
 
 impl From<CancelConfirmMsg> for Obj {
@@ -216,10 +216,7 @@ impl<'a> ComponentMsgObj for Lockscreen<'a> {
     }
 }
 
-impl<'a, F> ComponentMsgObj for ConfirmHomescreen<F>
-where
-    F: Fn() -> &'a [u8],
-{
+impl ComponentMsgObj for ConfirmHomescreen {
     fn msg_try_into_obj(&self, msg: Self::Msg) -> Result<Obj, Error> {
         match msg {
             CancelConfirmMsg::Confirmed => Ok(CONFIRMED.as_obj()),
@@ -400,15 +397,8 @@ extern "C" fn new_confirm_properties(n_args: usize, args: *const Obj, kwargs: *m
 extern "C" fn new_confirm_homescreen(n_args: usize, args: *const Obj, kwargs: *mut Map) -> Obj {
     let block = move |_args: &[Obj], kwargs: &Map| {
         let title: TString = kwargs.get(Qstr::MP_QSTR_title)?.try_into()?;
-        let data: Obj = kwargs.get(Qstr::MP_QSTR_image)?;
-
-        // Layout needs to hold the Obj to play nice with GC. Obj is resolved to &[u8]
-        // in every paint pass.
-        // SAFETY: We expect no existing mutable reference. Resulting reference is
-        //         discarded before returning to micropython.
-        let buffer_func = move || unsafe { unwrap!(get_buffer(data)) };
-
-        let obj = LayoutObj::new(ConfirmHomescreen::new(title, buffer_func))?;
+        let image: Obj = kwargs.get(Qstr::MP_QSTR_image)?;
+        let obj = LayoutObj::new(ConfirmHomescreen::new(title, image.try_into()?))?;
         Ok(obj.into())
     };
 
@@ -529,7 +519,7 @@ extern "C" fn new_confirm_joint_total(n_args: usize, args: *const Obj, kwargs: *
         ]);
 
         content_in_button_page(
-            TR::joint__title.try_into()?,
+            TR::joint__title.into(),
             paragraphs,
             TR::buttons__hold_to_confirm.into(),
             Some("".into()),
@@ -559,7 +549,7 @@ extern "C" fn new_confirm_modify_output(n_args: usize, args: *const Obj, kwargs:
         ]);
 
         content_in_button_page(
-            TR::modify_amount__title.try_into()?,
+            TR::modify_amount__title.into(),
             paragraphs,
             TR::buttons__confirm.into(),
             Some("".into()),
@@ -671,11 +661,11 @@ extern "C" fn new_confirm_total(n_args: usize, args: *const Obj, kwargs: *mut Ma
                     let fee_rate_amount = fee_rate_amount.unwrap_or("".into());
 
                     let ops = OpTextLayout::new(theme::TEXT_MONO)
-                        .text_bold(TR::confirm_total__title_fee)
+                        .text_bold_upper(TR::confirm_total__title_fee)
                         .newline()
                         .newline()
                         .newline_half()
-                        .text_bold(TR::confirm_total__fee_rate)
+                        .text_bold(TR::confirm_total__fee_rate_colon)
                         .newline()
                         .text_mono(fee_rate_amount);
 
@@ -692,7 +682,7 @@ extern "C" fn new_confirm_total(n_args: usize, args: *const Obj, kwargs: *mut Ma
                     // TODO: include wallet info when available
 
                     let ops = OpTextLayout::new(theme::TEXT_MONO)
-                        .text_bold(TR::confirm_total__title_sending_from)
+                        .text_bold_upper(TR::confirm_total__title_sending_from)
                         .newline()
                         .newline()
                         .newline_half()
@@ -735,6 +725,8 @@ extern "C" fn new_altcoin_tx_summary(n_args: usize, args: *const Obj, kwargs: *m
                     let btn_actions = ButtonActions::cancel_confirm_next();
 
                     let ops = OpTextLayout::new(theme::TEXT_MONO)
+                        .text_bold(amount_title)
+                        .newline()
                         .text_mono(amount_value)
                         .newline()
                         .newline_half()
@@ -743,7 +735,7 @@ extern "C" fn new_altcoin_tx_summary(n_args: usize, args: *const Obj, kwargs: *m
                         .text_mono(fee_value);
 
                     let formatted = FormattedText::new(ops);
-                    Page::new(btn_layout, btn_actions, formatted).with_title(amount_title)
+                    Page::new(btn_layout, btn_actions, formatted)
                 }
                 1 => {
                     // Other information
@@ -929,7 +921,7 @@ extern "C" fn new_confirm_modify_fee(n_args: usize, args: *const Obj, kwargs: *m
         }
 
         content_in_button_page(
-            TR::modify_fee__title.try_into()?,
+            TR::modify_fee__title.into(),
             paragraphs_vec.into_paragraphs(),
             TR::buttons__confirm.into(),
             Some("".into()),
@@ -1072,7 +1064,7 @@ extern "C" fn new_show_warning(n_args: usize, args: *const Obj, kwargs: *mut Map
             let mut ops = OpTextLayout::new(theme::TEXT_NORMAL);
             ops = ops.alignment(geometry::Alignment::Center);
             if !warning.is_empty() {
-                ops = ops.text_bold(warning).newline();
+                ops = ops.text_bold_upper(warning).newline();
             }
             if !description.is_empty() {
                 ops = ops.text_normal(description);
@@ -1114,7 +1106,7 @@ extern "C" fn new_show_info(n_args: usize, args: *const Obj, kwargs: *mut Map) -
 
 extern "C" fn new_show_passphrase() -> Obj {
     let block = move || {
-        let text: TString = TR::passphrase__please_enter.try_into()?;
+        let text: TString = TR::passphrase__please_enter.into();
         let paragraph = Paragraph::new(&theme::TEXT_NORMAL, text).centered();
         let content = Paragraphs::new([paragraph]);
         let obj = LayoutObj::new(content)?;
@@ -1144,7 +1136,7 @@ extern "C" fn new_show_mismatch(n_args: usize, args: *const Obj, kwargs: *mut Ma
             let btn_layout = ButtonLayout::arrow_none_text(TR::buttons__quit.into());
             let btn_actions = ButtonActions::cancel_none_confirm();
             let ops = OpTextLayout::new(theme::TEXT_NORMAL)
-                .text_bold(title)
+                .text_bold_upper(title)
                 .newline()
                 .newline_half()
                 .text_normal(TR::addr_mismatch__contact_support_at)
@@ -1238,7 +1230,7 @@ extern "C" fn new_confirm_coinjoin(n_args: usize, args: *const Obj, kwargs: *mut
         ]);
 
         content_in_button_page(
-            TR::coinjoin__title.try_into()?,
+            TR::coinjoin__title.into(),
             paragraphs,
             TR::buttons__hold_to_confirm.into(),
             None,
@@ -1334,7 +1326,7 @@ extern "C" fn new_select_word(n_args: usize, args: *const Obj, kwargs: *mut Map)
 extern "C" fn new_show_share_words(n_args: usize, args: *const Obj, kwargs: *mut Map) -> Obj {
     let block = |_args: &[Obj], kwargs: &Map| {
         let share_words_obj: Obj = kwargs.get(Qstr::MP_QSTR_share_words)?;
-        let share_words: Vec<StrBuffer, 33> = util::iter_into_vec(share_words_obj)?;
+        let share_words: Vec<TString, 33> = util::iter_into_vec(share_words_obj)?;
 
         let cancel_btn = Some(ButtonDetails::up_arrow_icon());
         let confirm_btn =
@@ -1409,7 +1401,7 @@ extern "C" fn new_confirm_recovery(n_args: usize, args: *const Obj, kwargs: *mut
     let block = move |_args: &[Obj], kwargs: &Map| {
         let description: TString = kwargs.get(Qstr::MP_QSTR_description)?.try_into()?;
         let button: TString<'static> = kwargs.get(Qstr::MP_QSTR_button)?.try_into()?;
-        let dry_run: bool = kwargs.get(Qstr::MP_QSTR_dry_run)?.try_into()?;
+        let recovery_type: RecoveryType = kwargs.get(Qstr::MP_QSTR_recovery_type)?.try_into()?;
         let show_info: bool = kwargs.get(Qstr::MP_QSTR_show_info)?.try_into()?;
 
         let mut paragraphs = ParagraphVecShort::new();
@@ -1418,7 +1410,7 @@ extern "C" fn new_confirm_recovery(n_args: usize, args: *const Obj, kwargs: *mut
             paragraphs
                 .add(Paragraph::new(
                     &theme::TEXT_NORMAL,
-                    TR::recovery__only_first_n_letters,
+                    TR::recovery__enter_each_word,
                 ))
                 .add(Paragraph::new(
                     &theme::TEXT_NORMAL,
@@ -1426,14 +1418,14 @@ extern "C" fn new_confirm_recovery(n_args: usize, args: *const Obj, kwargs: *mut
                 ));
         }
 
-        let title = if dry_run {
-            TR::recovery__title_dry_run
-        } else {
-            TR::recovery__title
+        let title = match recovery_type {
+            RecoveryType::DryRun => TR::recovery__title_dry_run,
+            RecoveryType::UnlockRepeatedBackup => TR::recovery__title_dry_run,
+            _ => TR::recovery__title,
         };
 
         content_in_button_page(
-            title.try_into()?,
+            title.into(),
             paragraphs.into_paragraphs(),
             button,
             Some("".into()),
@@ -1444,13 +1436,19 @@ extern "C" fn new_confirm_recovery(n_args: usize, args: *const Obj, kwargs: *mut
 }
 
 extern "C" fn new_select_word_count(n_args: usize, args: *const Obj, kwargs: *mut Map) -> Obj {
-    let block = |_args: &[Obj], _kwargs: &Map| {
-        let title: TString = TR::word_count__title.try_into()?;
+    let block = |_args: &[Obj], kwargs: &Map| {
+        let title: TString = TR::word_count__title.into();
+        let recovery_type: RecoveryType = kwargs.get(Qstr::MP_QSTR_recovery_type)?.try_into()?;
 
-        let choices: Vec<TString<'static>, 5> = ["12", "18", "20", "24", "33"]
-            .map(|num| num.into())
-            .into_iter()
-            .collect();
+        let choices: Vec<TString<'static>, 5> = {
+            let nums: &[&str] = if matches!(recovery_type, RecoveryType::UnlockRepeatedBackup) {
+                &["20", "33"]
+            } else {
+                &["12", "18", "20", "24", "33"]
+            };
+
+            nums.iter().map(|&num| num.into()).collect()
+        };
 
         let obj = LayoutObj::new(
             Frame::new(title, SimpleChoice::new(choices, false)).with_title_centered(),
@@ -1613,13 +1611,8 @@ extern "C" fn new_confirm_firmware_update(
 
 pub extern "C" fn upy_check_homescreen_format(data: Obj) -> Obj {
     let block = || {
-        // SAFETY: buffer does not outlive this function
-        let buffer = unsafe { get_buffer(data) }?;
-
-        Ok(display::toif::Toif::new(buffer)
-            .map(|toif| check_homescreen_format(&toif))
-            .unwrap_or(false)
-            .into())
+        let image = data.try_into()?;
+        Ok(check_homescreen_format(image).into())
     };
 
     unsafe { util::try_or_raise(block) }
@@ -1661,11 +1654,14 @@ pub static mp_module_trezorui2: Module = obj_module! {
     ///     title: str,
     ///     action: str | None,
     ///     description: str | None,
+    ///     subtitle: str | None = None,
     ///     verb: str = "CONFIRM",
     ///     verb_cancel: str | None = None,
     ///     hold: bool = False,
     ///     hold_danger: bool = False,  # unused on TR
     ///     reverse: bool = False,
+    ///     prompt_screen: bool = False,
+    ///     prompt_title: str | None = None,
     /// ) -> LayoutObj[UiResult]:
     ///     """Confirm action."""
     Qstr::MP_QSTR_confirm_action => obj_fn_kw!(0, new_confirm_action).as_obj(),
@@ -1688,6 +1684,7 @@ pub static mp_module_trezorui2: Module = obj_module! {
     ///     verb_cancel: str | None = None,
     ///     hold: bool = False,
     ///     chunkify: bool = False,
+    ///     prompt_screen: bool = False,
     /// ) -> LayoutObj[UiResult]:
     ///     """Confirm byte sequence data."""
     Qstr::MP_QSTR_confirm_blob => obj_fn_kw!(0, new_confirm_blob).as_obj(),
@@ -1877,7 +1874,7 @@ pub static mp_module_trezorui2: Module = obj_module! {
     ///     title: str,
     ///     button: str,
     ///     info_button: str,  # unused on TR
-    ///     items: Iterable[Tuple[int, str]],
+    ///     items: Iterable[Tuple[int, str | bytes]],
     ///     verb_cancel: str | None = None,
     /// ) -> LayoutObj[UiResult]:
     ///     """Confirm given items but with third button. Always single page
@@ -1888,7 +1885,7 @@ pub static mp_module_trezorui2: Module = obj_module! {
     ///     *,
     ///     title: str,
     ///     button: str,
-    ///     items: Iterable[tuple[int, str]],
+    ///     items: Iterable[tuple[int, str | bytes]],
     /// ) -> object:
     ///     """Confirm long content with the possibility to go back from any page.
     ///     Meant to be used with confirm_with_info."""
@@ -1982,7 +1979,7 @@ pub static mp_module_trezorui2: Module = obj_module! {
     ///     title: str,  # unused on TR
     ///     description: str,
     ///     button: str,
-    ///     dry_run: bool,
+    ///     recovery_type: RecoveryType,
     ///     info_button: bool,  # unused on TR
     ///     show_info: bool,
     /// ) -> LayoutObj[UiResult]:
@@ -1991,9 +1988,10 @@ pub static mp_module_trezorui2: Module = obj_module! {
 
     /// def select_word_count(
     ///     *,
-    ///     dry_run: bool,  # unused on TR
-    /// ) -> LayoutObj[int | str]:
-    ///    """Select mnemonic word count from (12, 18, 20, 24, 33)."""
+    ///     recovery_type: RecoveryType,
+    /// ) -> LayoutObj[int | str]:  # TR returns str
+    ///     """Select a mnemonic word count from the options: 12, 18, 20, 24, or 33.
+    ///     For unlocking a repeated backup, select from 20 or 33."""
     Qstr::MP_QSTR_select_word_count => obj_fn_kw!(0, new_select_word_count).as_obj(),
 
     /// def show_group_share_success(
@@ -2050,11 +2048,31 @@ pub static mp_module_trezorui2: Module = obj_module! {
     ///     *,
     ///     description: str,
     ///     fingerprint: str,
-    /// ) -> None:
+    /// ) -> LayoutObj[UiResult]:
     ///     """Ask whether to update firmware, optionally show fingerprint. Shared with bootloader."""
     Qstr::MP_QSTR_confirm_firmware_update => obj_fn_kw!(0, new_confirm_firmware_update).as_obj(),
 
     /// def show_wait_text(message: str, /) -> None:
     ///     """Show single-line text in the middle of the screen."""
     Qstr::MP_QSTR_show_wait_text => obj_fn_1!(new_show_wait_text).as_obj(),
+
+    /// class BacklightLevels:
+    ///     """Backlight levels. Values dynamically update based on user settings."""
+    ///     MAX: ClassVar[int]
+    ///     NORMAL: ClassVar[int]
+    ///     LOW: ClassVar[int]
+    ///     DIM: ClassVar[int]
+    ///     NONE: ClassVar[int]
+    ///
+    /// mock:global
+    Qstr::MP_QSTR_BacklightLevels => BACKLIGHT_LEVELS_OBJ.as_obj(),
+
+    /// class AttachType:
+    ///     INITIAL: ClassVar[int]
+    ///     RESUME: ClassVar[int]
+    ///     SWIPE_UP: ClassVar[int]
+    ///     SWIPE_DOWN: ClassVar[int]
+    ///     SWIPE_LEFT: ClassVar[int]
+    ///     SWIPE_RIGHT: ClassVar[int]
+    Qstr::MP_QSTR_AttachType => ATTACH_TYPE_OBJ.as_obj(),
 };

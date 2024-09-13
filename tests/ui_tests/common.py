@@ -19,8 +19,6 @@ from typing_extensions import Self
 
 from trezorlib.debuglink import TrezorClientDebugLink as Client
 
-LANGUAGES = ["cs", "de", "en", "es", "fr"]
-
 UI_TESTS_DIR = Path(__file__).resolve().parent
 SCREENS_DIR = UI_TESTS_DIR / "screens"
 IMAGES_DIR = SCREENS_DIR / "all_images"
@@ -325,7 +323,8 @@ class TestResult:
             json.dumps(metadata, indent=2, sort_keys=True) + "\n"
         )
 
-    def succeeded_in_ui_comparison(self) -> bool:
+    @property
+    def ui_passed(self) -> bool:
         return self.actual_hash == self.expected_hash
 
     @classmethod
@@ -357,7 +356,7 @@ class TestResult:
     def recent_ui_failures(cls) -> t.Iterator[Self]:
         """Returning just the results that resulted in UI failure."""
         for result in cls.recent_results():
-            if not result.succeeded_in_ui_comparison():
+            if not result.ui_passed:
                 yield result
 
     def store_recorded(self) -> None:

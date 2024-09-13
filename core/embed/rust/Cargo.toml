@@ -15,10 +15,21 @@ micropython = []
 protobuf = ["micropython"]
 ui = []
 dma2d = []
+xframebuffer = []
+display_mono = []
+display_rgb565 = ["ui_antialiasing"]
+display_rgba8888 = ["ui_antialiasing"]
 framebuffer = []
 framebuffer32bit = []
 ui_debug = []
-ui_bounds = []
+ui_antialiasing = []
+ui_blurring = []
+ui_jpeg_decoder = ["jpeg"]
+ui_image_buffer = []
+ui_color_32bit = []
+ui_overlay = []
+ui_empty_lock = []
+new_rendering = []
 bootloader = []
 button = []
 touch = []
@@ -36,19 +47,25 @@ usb = []
 optiga = []
 translations = ["crypto"]
 test = [
+    "backlight",
     "button",
     "cc",
     "crypto",
+    "dma2d",
     "debug",
     "glob",
     "micropython",
-    "protobuf",
-    "ui",
-    "dma2d",
-    "touch",
-    "backlight",
+    "new_rendering",
     "optiga",
+    "protobuf",
+    "touch",
     "translations",
+    "ui",
+    "ui_jpeg_decoder",
+    "ui_blurring",
+    "ui_image_buffer",
+    "ui_overlay",
+    "ui_empty_lock",
     "universal_fw",
 ]
 universal_fw = []
@@ -94,21 +111,38 @@ features = ["ufmt"]
 default_features = false
 
 [dependencies.num-traits]
-version = "0.2.15"
+version = "0.2.18"
 default_features = false
+features = ["libm"]
 
 [dependencies.num-derive]
 version = "0.3.3"
 
-[dependencies.cstr_core]
-version = "0.2.6"
+[dependencies.static-alloc]
+version = "0.2.4"
+
+[dependencies.without-alloc]
+version = "0.2.2"
+
+[dependencies.unsize]
+version = "1.1.0"
+
+[dependencies.pareen]
+version = "0.3.3"
+path = "../../../rust/pareen"
 default-features = false
-features = ["nightly"]
+features = ["libm", "easer"]
+
+[dependencies.easer]
+version = "0.3.0"
+default-features = false
+features = ["libm"]
+
 
 # Build dependencies
 
 [build-dependencies.bindgen]
-version = "0.60.1"
+version = "0.62.0"
 default_features = false
 features = ["runtime"]
 

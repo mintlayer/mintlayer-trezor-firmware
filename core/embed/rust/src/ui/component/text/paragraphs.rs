@@ -4,10 +4,12 @@ use crate::{
     strutil::TString,
     ui::{
         component::{Component, Event, EventCtx, Never, Paginate},
-        display::toif::Icon,
+        display::{toif::Icon, Color, Font},
         geometry::{
             Alignment, Alignment2D, Dimensions, Insets, LinearPlacement, Offset, Point, Rect,
         },
+        shape,
+        shape::Renderer,
     },
 };
 
@@ -45,6 +47,7 @@ pub trait ParagraphSource<'a> {
     }
 }
 
+#[derive(Clone)]
 pub struct Paragraphs<T> {
     area: Rect,
     placement: LinearPlacement,
@@ -85,6 +88,19 @@ where
 
     pub fn inner_mut(&mut self) -> &mut T {
         &mut self.source
+    }
+
+    pub fn area(&self) -> Rect {
+        let mut result: Option<Rect> = None;
+        Self::foreach_visible(
+            &self.source,
+            &self.visible,
+            self.offset,
+            &mut |layout, _content| {
+                result = result.map_or(Some(layout.bounds), |r| Some(r.union(layout.bounds)));
+            },
+        );
+        result.unwrap_or(self.area)
     }
 
     /// Update bounding boxes of paragraphs on the current page. First determine
@@ -185,12 +201,15 @@ where
         )
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        sink(self.area);
-        for layout in &self.visible {
-            sink(layout.bounds)
-        }
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        Self::foreach_visible(
+            &self.source,
+            &self.visible,
+            self.offset,
+            &mut |layout, content| {
+                layout.render_text2(content, target);
+            },
+        )
     }
 }
 
@@ -322,6 +341,7 @@ impl<'a> Paragraph<'a> {
     }
 }
 
+#[derive(Clone)]
 struct TextLayoutProxy {
     offset: PageOffset,
     bounds: Rect,
@@ -542,6 +562,8 @@ pub struct Checklist<T> {
     current: usize,
     icon_current: Icon,
     icon_done: Icon,
+    icon_done_color: Option<Color>,
+    show_numerals: bool,
     /// How wide will the left icon column be
     check_width: i16,
     /// Offset of the icon representing DONE
@@ -550,7 +572,10 @@ pub struct Checklist<T> {
     current_offset: Offset,
 }
 
-impl<T> Checklist<T> {
+impl<'a, T> Checklist<T>
+where
+    T: ParagraphSource<'a>,
+{
     pub fn from_paragraphs(
         icon_current: Icon,
         icon_done: Icon,
@@ -563,6 +588,8 @@ impl<T> Checklist<T> {
             current,
             icon_current,
             icon_done,
+            icon_done_color: None,
+            show_numerals: false,
             check_width: 0,
             done_offset: Offset::zero(),
             current_offset: Offset::zero(),
@@ -584,6 +611,38 @@ impl<T> Checklist<T> {
         self
     }
 
+    pub fn with_icon_done_color(mut self, col: Color) -> Self {
+        self.icon_done_color = Some(col);
+        self
+    }
+
+    pub fn with_numerals(mut self) -> Self {
+        self.show_numerals = true;
+        self
+    }
+
+    fn render_left_column<'s>(&self, target: &mut impl Renderer<'s>) {
+        let current_visible = self.current.saturating_sub(self.paragraphs.offset.par);
+        for (i, layout) in self.paragraphs.visible.iter().enumerate() {
+            let l = &layout.layout(&self.paragraphs.source);
+            let base = Point::new(self.area.x0, l.bounds.y0);
+            if i < current_visible {
+                // finished tasks - labeled with icon "done"
+                let color = self.icon_done_color.unwrap_or(l.style.text_color);
+                self.render_icon(base + self.done_offset, self.icon_done, color, target)
+            } else {
+                // current and future tasks - ordinal numbers or icon on current task
+                if self.show_numerals {
+                    let num_offset = Offset::new(4, Font::NORMAL.visible_text_height("1"));
+                    self.render_numeral(base + num_offset, i, l.style.text_color, target);
+                } else if i == current_visible {
+                    let color = l.style.text_color;
+                    self.render_icon(base + self.current_offset, self.icon_current, color, target);
+                }
+            }
+        }
+    }
+
     fn paint_icon(&self, layout: &TextLayout, icon: Icon, offset: Offset) {
         let top_left = Point::new(self.area.x0, layout.bounds.y0);
         icon.draw(
@@ -592,6 +651,32 @@ impl<T> Checklist<T> {
             layout.style.text_color,
             layout.style.background_color,
         );
+    }
+
+    fn render_numeral<'s>(
+        &self,
+        base_point: Point,
+        n: usize,
+        color: Color,
+        target: &mut impl Renderer<'s>,
+    ) {
+        let numeral = uformat!("{}.", n + 1);
+        shape::Text::new(base_point, numeral.as_str())
+            .with_font(Font::SUB)
+            .with_fg(color)
+            .render(target);
+    }
+
+    fn render_icon<'s>(
+        &self,
+        base_point: Point,
+        icon: Icon,
+        color: Color,
+        target: &mut impl Renderer<'s>,
+    ) {
+        shape::ToifImage::new(base_point, icon.toif)
+            .with_fg(color)
+            .render(target);
     }
 }
 
@@ -632,10 +717,9 @@ where
         }
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        sink(self.area);
-        self.paragraphs.bounds(sink);
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.paragraphs.render(target);
+        self.render_left_column(target);
     }
 }
 
@@ -659,6 +743,16 @@ impl<'a, T: ParagraphSource<'a>> crate::trace::Trace for Checklist<T> {
     }
 }
 
+#[cfg(feature = "micropython")]
+mod micropython {
+    use crate::{error::Error, micropython::obj::Obj, ui::layout::obj::ComponentMsgObj};
+    impl<'a, T: super::ParagraphSource<'a>> ComponentMsgObj for super::Checklist<T> {
+        fn msg_try_into_obj(&self, _msg: Self::Msg) -> Result<Obj, Error> {
+            unreachable!();
+        }
+    }
+}
+
 pub trait VecExt<'a> {
     fn add(&mut self, paragraph: Paragraph<'a>) -> &mut Self;
 }
@@ -670,7 +764,7 @@ impl<'a, const N: usize> VecExt<'a> for Vec<Paragraph<'a>, N> {
         }
         if self.push(paragraph).is_err() {
             #[cfg(feature = "ui_debug")]
-            panic!("paragraph list is full");
+            fatal_error!("Paragraph list is full");
         }
         self
     }

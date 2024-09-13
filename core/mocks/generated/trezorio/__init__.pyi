@@ -72,13 +72,16 @@ class HID:
 def poll(ifaces: Iterable[int], list_ref: list, timeout_ms: int) -> bool:
     """
     Wait until one of `ifaces` is ready to read or write (using masks
+    `io.POLL_READ` and `io.POLL_WRITE`) and assign the result into
     `list_ref`:
-    `list_ref[0]` - the interface number, including the mask
-    `list_ref[1]` - for touch event, tuple of:
+
+    - `list_ref[0]` - the interface number, including the mask
+    - `list_ref[1]` - for touch event, tuple of:
                     (event_type, x_position, y_position)
                   - for button event (T1), tuple of:
                     (event type, button number)
                   - for USB read event, received bytes
+
     If timeout occurs, False is returned, True otherwise.
     """
 
@@ -190,9 +193,10 @@ class WebUSB:
         """
         Sends message using USB WebUSB (device) or UDP (emulator).
         """
-from . import fatfs, sdcard
+from . import fatfs, haptic, sdcard
 POLL_READ: int  # wait until interface is readable and return read data
 POLL_WRITE: int  # wait until interface is writable
+
 TOUCH: int  # interface id of the touch events
 TOUCH_START: int  # event id of touch start event
 TOUCH_MOVE: int  # event id of touch move event

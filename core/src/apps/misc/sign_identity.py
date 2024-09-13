@@ -46,8 +46,6 @@ async def sign_identity(msg: SignIdentity) -> SignedIdentity:
     else:
         address = None
     pubkey = node.public_key()
-    if pubkey[0] == 0x01:
-        pubkey = b"\x00" + pubkey[1:]
     seckey = node.private_key()
 
     if msg_identity_proto in ("gpg", "signify", "ssh"):
@@ -63,6 +61,7 @@ async def sign_identity(msg: SignIdentity) -> SignedIdentity:
         curve_name,
     )
 
+    # For ed25519, the public key has the prefix 0x00, as specified by SLIP-10. However, since this prefix is non-standard, it may be removed in the future.
     return SignedIdentity(address=address, public_key=pubkey, signature=signature)
 
 

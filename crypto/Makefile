@@ -59,13 +59,18 @@ CFLAGS   += $(OPTFLAGS) \
             -Wno-missing-braces \
             -Werror
 
+ifneq ($(FUZZER),1) # This can be removed once the fuzzer machine uses at least clang 16
+	CFLAGS += -ftrivial-auto-var-init=zero
+endif
+
 ZKP_CFLAGS = \
 	-DECMULT_GEN_PREC_BITS=4 \
-	-DECMULT_WINDOW_SIZE=8 \
+	-DECMULT_WINDOW_SIZE=2 \
 	-DENABLE_MODULE_GENERATOR \
 	-DENABLE_MODULE_RECOVERY \
 	-DENABLE_MODULE_SCHNORRSIG \
-	-DENABLE_MODULE_EXTRAKEYS
+	-DENABLE_MODULE_EXTRAKEYS \
+	-DENABLE_MODULE_ECDH
 ZKP_PATH = ../vendor/secp256k1-zkp
 # this is specific for 64-bit builds
 CFLAGS += -DSECP256K1_CONTEXT_SIZE=208
@@ -128,6 +133,7 @@ SRCS  += cardano.c
 SRCS  += tls_prf.c
 SRCS  += hash_to_curve.c
 SRCS  += buffer.c der.c
+SRCS  += elligator2.c
 
 OBJS   = $(SRCS:.c=.o)
 OBJS  += secp256k1-zkp.o

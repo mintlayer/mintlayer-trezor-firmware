@@ -23,14 +23,13 @@ from trezorlib.tools import parse_path
 
 from ...common import EXTERNAL_ENTROPY, generate_entropy
 
-pytestmark = [pytest.mark.skip_t2t1, pytest.mark.skip_t2b1, pytest.mark.skip_t3t1]
+pytestmark = pytest.mark.models("legacy")
 
 
 def reset_device(client: Client, strength: int):
     # No PIN, no passphrase
     ret = client.call_raw(
         messages.ResetDevice(
-            display_random=False,
             strength=strength,
             passphrase_protection=False,
             pin_protection=False,
@@ -80,7 +79,7 @@ def reset_device(client: Client, strength: int):
     # Check if device is properly initialized
     resp = client.call_raw(messages.Initialize())
     assert resp.initialized is True
-    assert resp.needs_backup is False
+    assert resp.backup_availability == messages.BackupAvailability.NotAvailable
     assert resp.pin_protection is False
     assert resp.passphrase_protection is False
 
@@ -105,7 +104,6 @@ def test_reset_device_256_pin(client: Client):
 
     ret = client.call_raw(
         messages.ResetDevice(
-            display_random=True,
             strength=strength,
             passphrase_protection=True,
             pin_protection=True,
@@ -114,16 +112,6 @@ def test_reset_device_256_pin(client: Client):
     )
 
     # Do you want ... ?
-    assert isinstance(ret, messages.ButtonRequest)
-    client.debug.press_yes()
-    ret = client.call_raw(messages.ButtonAck())
-
-    # Entropy screen #1
-    assert isinstance(ret, messages.ButtonRequest)
-    client.debug.press_yes()
-    ret = client.call_raw(messages.ButtonAck())
-
-    # Entropy screen #2
     assert isinstance(ret, messages.ButtonRequest)
     client.debug.press_yes()
     ret = client.call_raw(messages.ButtonAck())
@@ -177,7 +165,7 @@ def test_reset_device_256_pin(client: Client):
     # Check if device is properly initialized
     resp = client.call_raw(messages.Initialize())
     assert resp.initialized is True
-    assert resp.needs_backup is False
+    assert resp.backup_availability == messages.BackupAvailability.NotAvailable
     assert resp.pin_protection is True
     assert resp.passphrase_protection is True
 
@@ -193,7 +181,6 @@ def test_failed_pin(client: Client):
 
     ret = client.call_raw(
         messages.ResetDevice(
-            display_random=True,
             strength=strength,
             passphrase_protection=True,
             pin_protection=True,
@@ -202,16 +189,6 @@ def test_failed_pin(client: Client):
     )
 
     # Do you want ... ?
-    assert isinstance(ret, messages.ButtonRequest)
-    client.debug.press_yes()
-    ret = client.call_raw(messages.ButtonAck())
-
-    # Entropy screen #1
-    assert isinstance(ret, messages.ButtonRequest)
-    client.debug.press_yes()
-    ret = client.call_raw(messages.ButtonAck())
-
-    # Entropy screen #2
     assert isinstance(ret, messages.ButtonRequest)
     client.debug.press_yes()
     ret = client.call_raw(messages.ButtonAck())
@@ -232,4 +209,10 @@ def test_failed_pin(client: Client):
 
 def test_already_initialized(client: Client):
     with pytest.raises(Exception):
-        device.reset(client, False, 128, True, True, "label")
+        device.reset(
+            client,
+            strength=128,
+            passphrase_protection=True,
+            pin_protection=True,
+            label="label",
+        )

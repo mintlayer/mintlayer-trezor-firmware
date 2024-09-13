@@ -1,16 +1,20 @@
 use crate::{
-    strutil::StringType,
+    strutil::{ShortString, TString},
     translations::TR,
     ui::{
         component::{
-            text::util::text_multiline, Child, Component, Event, EventCtx, Never, Paginate,
+            text::util::{text_multiline, text_multiline2},
+            Child, Component, Event, EventCtx, Never, Paginate,
         },
         display::Font,
         geometry::{Alignment, Offset, Rect},
+        shape::{self, Renderer},
     },
 };
 
-use heapless::{String, Vec};
+use heapless::Vec;
+#[cfg(feature = "ui_debug")]
+use ufmt::uwrite;
 
 use super::{common::display_left, scrollbar::SCROLLBAR_SPACE, theme, ScrollBar};
 
@@ -24,21 +28,15 @@ const INFO_TOP_OFFSET: i16 = 20;
 const MAX_WORDS: usize = 33; // super-shamir has 33 words, all other have less
 
 /// Showing the given share words.
-pub struct ShareWords<T>
-where
-    T: StringType,
-{
+pub struct ShareWords<'a> {
     area: Rect,
     scrollbar: Child<ScrollBar>,
-    share_words: Vec<T, MAX_WORDS>,
+    share_words: Vec<TString<'a>, MAX_WORDS>,
     page_index: usize,
 }
 
-impl<T> ShareWords<T>
-where
-    T: StringType + Clone,
-{
-    pub fn new(share_words: Vec<T, MAX_WORDS>) -> Self {
+impl<'a> ShareWords<'a> {
+    pub fn new(share_words: Vec<TString<'a>, MAX_WORDS>) -> Self {
         let mut instance = Self {
             area: Rect::zero(),
             scrollbar: Child::new(ScrollBar::to_be_filled_later()),
@@ -69,15 +67,10 @@ where
         word_screens + 1
     }
 
-    fn get_final_text(&self) -> String<50> {
+    fn get_final_text(&self) -> ShortString {
         TR::share_words__wrote_down_all.map_translated(|wrote_down_all| {
             TR::share_words__words_in_order.map_translated(|in_order| {
-                build_string!(
-                    50,
-                    wrote_down_all,
-                    inttostr!(self.share_words.len() as u8),
-                    in_order
-                )
+                uformat!("{}{}{}", wrote_down_all, self.share_words.len(), in_order)
             })
         })
     }
@@ -86,6 +79,20 @@ where
     fn paint_final_page(&mut self) {
         let final_text = self.get_final_text();
         text_multiline(
+            self.area.split_top(INFO_TOP_OFFSET).1,
+            final_text.as_str().into(),
+            Font::NORMAL,
+            theme::FG,
+            theme::BG,
+            Alignment::Start,
+        );
+    }
+
+    /// Display the final page with user confirmation.
+    fn render_final_page<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        let final_text = self.get_final_text();
+        text_multiline2(
+            target,
             self.area.split_top(INFO_TOP_OFFSET).1,
             final_text.as_str().into(),
             Font::NORMAL,
@@ -105,19 +112,46 @@ where
             if index >= self.share_words.len() {
                 break;
             }
+            let baseline = self.area.top_left() + Offset::y(y_offset);
+            let ordinal = uformat!("{}.", index + 1);
+            display_left(baseline + Offset::x(NUMBER_X_OFFSET), &ordinal, NUMBER_FONT);
+            let word = &self.share_words[index];
+            word.map(|w| {
+                display_left(baseline + Offset::x(WORD_X_OFFSET), w, WORD_FONT);
+            });
+        }
+    }
+
+    /// Display current set of recovery words.
+    fn render_words<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        let mut y_offset = 0;
+        // Showing the word index and the words itself
+        for i in 0..WORDS_PER_PAGE {
+            y_offset += NUMBER_FONT.line_height() + EXTRA_LINE_HEIGHT;
+            let index = self.word_index() + i;
+            if index >= self.share_words.len() {
+                break;
+            }
             let word = &self.share_words[index];
             let baseline = self.area.top_left() + Offset::y(y_offset);
-            let ordinal = build_string!(5, inttostr!(index as u8 + 1), ".");
-            display_left(baseline + Offset::x(NUMBER_X_OFFSET), &ordinal, NUMBER_FONT);
-            display_left(baseline + Offset::x(WORD_X_OFFSET), word, WORD_FONT);
+            let ordinal = uformat!("{}.", index + 1);
+
+            shape::Text::new(baseline + Offset::x(NUMBER_X_OFFSET), &ordinal)
+                .with_font(NUMBER_FONT)
+                .with_fg(theme::FG)
+                .render(target);
+
+            word.map(|w| {
+                shape::Text::new(baseline + Offset::x(WORD_X_OFFSET), w)
+                    .with_font(WORD_FONT)
+                    .with_fg(theme::FG)
+                    .render(target);
+            });
         }
     }
 }
 
-impl<T> Component for ShareWords<T>
-where
-    T: StringType + Clone,
-{
+impl<'a> Component for ShareWords<'a> {
     type Msg = Never;
 
     fn place(&mut self, bounds: Rect) -> Rect {
@@ -147,12 +181,20 @@ where
             self.paint_words();
         }
     }
+
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        // Showing scrollbar in all cases
+        // Individual pages are responsible for not colliding with it
+        self.scrollbar.render(target);
+        if self.is_final_page() {
+            self.render_final_page(target);
+        } else {
+            self.render_words(target);
+        }
+    }
 }
 
-impl<T> Paginate for ShareWords<T>
-where
-    T: StringType + Clone,
-{
+impl<'a> Paginate for ShareWords<'a> {
     fn page_count(&mut self) -> usize {
         // Not defining the logic here, as we do not want it to be `&mut`.
         self.total_page_count()
@@ -167,25 +209,20 @@ where
 // DEBUG-ONLY SECTION BELOW
 
 #[cfg(feature = "ui_debug")]
-impl<T> crate::trace::Trace for ShareWords<T>
-where
-    T: StringType + Clone,
-{
+impl<'a> crate::trace::Trace for ShareWords<'a> {
     fn trace(&self, t: &mut dyn crate::trace::Tracer) {
         t.component("ShareWords");
         let content = if self.is_final_page() {
             self.get_final_text()
         } else {
-            let mut content = String::<50>::new();
+            let mut content = ShortString::new();
             for i in 0..WORDS_PER_PAGE {
                 let index = self.word_index() + i;
                 if index >= self.share_words.len() {
                     break;
                 }
-                let word = &self.share_words[index];
-                let current_line =
-                    build_string!(50, inttostr!(index as u8 + 1), ". ", word.as_ref(), "\n");
-                unwrap!(content.push_str(&current_line));
+                self.share_words[index]
+                    .map(|word| unwrap!(uwrite!(content, "{}. {}\n", index + 1, word)));
             }
             content
         };

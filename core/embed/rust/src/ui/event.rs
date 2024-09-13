@@ -1,13 +1,18 @@
 use crate::{error, ui::geometry::Point};
 use core::convert::TryInto;
 
+#[cfg(feature = "touch")]
+use crate::ui::component::SwipeDirection;
+
 #[derive(Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(ufmt::derive::uDebug))]
 pub enum PhysicalButton {
     Left,
     Right,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(ufmt::derive::uDebug))]
 pub enum ButtonEvent {
     /// Button pressed down.
     /// ▼ * | * ▼
@@ -36,6 +41,7 @@ impl ButtonEvent {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(ufmt::derive::uDebug))]
 pub enum TouchEvent {
     /// A person has started touching the screen at given absolute coordinates.
     /// `TouchMove` will usually follow, and `TouchEnd` should finish the
@@ -45,6 +51,8 @@ pub enum TouchEvent {
     TouchMove(Point),
     /// Touch has ended at a point on the screen.
     TouchEnd(Point),
+    /// Touch event has been suppressed by more important event - i.e. Swipe.
+    TouchAbort,
 }
 
 impl TouchEvent {
@@ -61,7 +69,16 @@ impl TouchEvent {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(ufmt::derive::uDebug))]
 pub enum USBEvent {
     /// USB host has connected/disconnected.
     Connected(bool),
+}
+
+#[cfg(feature = "touch")]
+#[derive(Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(ufmt::derive::uDebug))]
+pub enum SwipeEvent {
+    Move(SwipeDirection, i16),
+    End(SwipeDirection),
 }

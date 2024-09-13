@@ -1,5 +1,6 @@
 use crate::{
-    error::Error,
+    error::{value_error, Error},
+    io::BinaryData,
     micropython::{
         buffer::{hexlify_bytes, StrBuffer},
         gc::Gc,
@@ -24,6 +25,7 @@ use crate::{
 /// consumption and conversion time.
 pub const MAX_HEX_CHARS_ON_SCREEN: usize = 256;
 
+#[derive(Clone)]
 pub enum StrOrBytes {
     Str(TString<'static>),
     Bytes(Obj),
@@ -54,6 +56,7 @@ impl TryFrom<Obj> for StrOrBytes {
     }
 }
 
+#[derive(Clone)]
 pub struct ConfirmBlob {
     pub description: TString<'static>,
     pub extra: TString<'static>,
@@ -159,6 +162,41 @@ impl ParagraphSource<'static> for PropsList {
     }
 }
 
+/// RecoveryType as defined in `common/protob/messages-management.proto`,
+/// used as arguments coming from micropython into rust world for layouts or
+/// flows.
+pub enum RecoveryType {
+    Normal = 0,
+    DryRun = 1,
+    UnlockRepeatedBackup = 2,
+}
+
+// Converting `Obj` into `RecoveryType` enum
+#[cfg(feature = "micropython")]
+impl TryFrom<Obj> for RecoveryType {
+    type Error = Error;
+
+    fn try_from(obj: Obj) -> Result<Self, Self::Error> {
+        let val = u32::try_from(obj)?;
+        let this = Self::try_from(val)?;
+        Ok(this)
+    }
+}
+
+// Converting `u32` to `RecoveryType`
+impl TryFrom<u32> for RecoveryType {
+    type Error = Error;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(RecoveryType::Normal),
+            1 => Ok(RecoveryType::DryRun),
+            2 => Ok(RecoveryType::UnlockRepeatedBackup),
+            _ => Err(value_error!(c"Invalid RecoveryType")),
+        }
+    }
+}
+
 pub extern "C" fn upy_disable_animation(disable: Obj) -> Obj {
     let block = || {
         set_animation_disabled(disable.try_into()?);
@@ -167,10 +205,10 @@ pub extern "C" fn upy_disable_animation(disable: Obj) -> Obj {
     unsafe { try_or_raise(block) }
 }
 
-pub fn get_user_custom_image() -> Result<Gc<[u8]>, Error> {
+pub fn get_user_custom_image() -> Result<BinaryData<'static>, Error> {
     let len = get_avatar_len()?;
     let mut data = Gc::<[u8]>::new_slice(len)?;
     // SAFETY: buffer is freshly allocated so nobody else has it.
     load_avatar(unsafe { Gc::<[u8]>::as_mut(&mut data) })?;
-    Ok(data)
+    Ok(data.into())
 }

@@ -8,6 +8,7 @@ use crate::{
         constant,
         display::{self, Color},
         geometry::{Insets, Rect},
+        shape::Renderer,
         util::animation_disabled,
     },
 };
@@ -16,6 +17,8 @@ use super::{
     theme, Button, ButtonContent, ButtonMsg, ButtonStyleSheet, Loader, LoaderMsg, ScrollBar, Swipe,
     SwipeDirection,
 };
+
+use core::cell::Cell;
 
 /// Allows pagination of inner component. Shows scroll bar, confirm & cancel
 /// buttons. Optionally handles hold-to-confirm with loader.
@@ -40,7 +43,7 @@ pub struct ButtonPage<T> {
     /// Whether to pass-through right swipe to parent component.
     swipe_right: bool,
     /// Fade to given backlight level on next paint().
-    fade: Option<u16>,
+    fade: Cell<Option<u8>>,
 }
 
 impl<T> ButtonPage<T>
@@ -49,8 +52,9 @@ where
     T: Component,
 {
     pub fn with_hold(mut self) -> Result<Self, Error> {
-        self.button_confirm =
-            Button::with_text(TR::buttons__hold_to_confirm.into()).styled(theme::button_confirm());
+        self.button_confirm = Button::with_text(TR::buttons__hold_to_confirm.into())
+            .styled(theme::button_confirm())
+            .without_haptics();
         self.loader = Some(Loader::new());
         Ok(self)
     }
@@ -75,7 +79,7 @@ where
             cancel_from_any_page: false,
             swipe_left: false,
             swipe_right: false,
-            fade: None,
+            fade: Cell::new(None),
         }
     }
 
@@ -159,7 +163,8 @@ where
 
         // Swipe has dimmed the screen, so fade back to normal backlight after the next
         // paint.
-        self.fade = Some(theme::BACKLIGHT_NORMAL);
+        self.fade
+            .set(Some(theme::backlight::get_backlight_normal()));
     }
 
     fn is_cancel_visible(&self) -> bool {
@@ -414,15 +419,31 @@ where
         }
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        sink(self.pad.area);
-        self.scrollbar.bounds(sink);
-        self.content.bounds(sink);
-        self.button_cancel.bounds(sink);
-        self.button_confirm.bounds(sink);
-        self.button_prev.bounds(sink);
-        self.button_next.bounds(sink);
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.pad.render(target);
+        match &self.loader {
+            Some(l) if l.is_animating() => self.loader.render(target),
+            _ => {
+                self.content.render(target);
+                if self.scrollbar.has_pages() {
+                    self.scrollbar.render(target);
+                }
+            }
+        }
+        if self.button_cancel.is_some() && self.is_cancel_visible() {
+            self.button_cancel.render(target);
+        } else {
+            self.button_prev.render(target);
+        }
+        if self.scrollbar.has_next_page() {
+            self.button_next.render(target);
+        } else {
+            self.button_confirm.render(target);
+        }
+        if let Some(val) = self.fade.take() {
+            // Note that this is blocking and takes some time.
+            display::fade_backlight(val);
+        }
     }
 }
 
@@ -561,7 +582,7 @@ mod tests {
                 ),
                 Paragraph::new(
                     &theme::TEXT_BOLD,
-                    "Second, bold, paragraph should also fit on the screen whole I think.",
+                    "Second, bold, paragraph should also fit.",
                 ),
             ]),
             theme::BG,
@@ -576,7 +597,7 @@ mod tests {
                 "component": "Paragraphs",
                 "paragraphs": [
                     ["This is the first", "\n", "paragraph and it should", "\n", "fit on the screen", "\n", "entirely."],
-                    ["Second, bold, paragraph", "\n", "should also fit on the", "\n", "screen whole I think."],
+                    ["Second, bold,", "\n", "paragraph should", "\n", "also fit."],
                 ],
             },
             "hold": false,
@@ -594,7 +615,7 @@ mod tests {
         let mut page = ButtonPage::new(
             Paragraphs::new(
                 Paragraph::new(
-                    &theme::TEXT_BOLD,
+                    &theme::TEXT_NORMAL,
                     "This is somewhat long paragraph that goes on and on and on and on and on and will definitely not fit on just a single screen. You have to swipe a bit to see all the text it contains I guess. There's just so much letters in it.",
                 )
             ),
@@ -611,18 +632,18 @@ mod tests {
                 "paragraphs": [
                     [
                         "This is somewhat long", "\n",
-                        "paragraph that goes on", "\n",
-                        "and on and on and on and", "\n",
-                        "on and will definitely not", "\n",
-                        "fit on just a single", "\n",
-                        "screen. You have to", "\n",
-                        "swipe a bit to see all the", "\n",
-                        "text it contains I guess.", "...",
+                        "paragraph that goes", "\n",
+                        "on and on and on and", "\n",
+                        "on and on and will", "\n",
+                        "definitely not fit on", "\n",
+                        "just a single screen.", "\n",
+                        "You have to swipe a", "..."
                     ],
                 ],
             },
             "hold": false,
         });
+
         let second_page = serde_json::json!({
             "component": "ButtonPage",
             "active_page": 1,
@@ -630,7 +651,12 @@ mod tests {
             "content": {
                 "component": "Paragraphs",
                 "paragraphs": [
-                    ["There's just so much", "\n", "letters in it."],
+                    [
+                        "bit to see all the text it", "\n",
+                        "contains I guess.", "\n",
+                        "There's just so much", "\n",
+                        "letters in it."
+                    ],
                 ],
             },
             "hold": false,
@@ -676,20 +702,21 @@ mod tests {
                 "component": "Paragraphs",
                 "paragraphs": [
                     [
-                        "This paragraph is using a", "\n",
-                        "bold font. It doesn't need", "\n",
-                        "to be all that long.",
+                        "This paragraph is", "\n",
+                        "using a bold font. It", "\n",
+                        "doesn't need to be all", "\n",
+                        "that long.",
                     ],
                     [
                         "And this one is u", "\n",
                         "sing MONO. Monosp", "\n",
-                        "ace is nice for n", "\n",
-                        "umbers, they", "...",
+                        "ace is nice f", "...",
                     ],
                 ],
             },
             "hold": false,
         });
+
         let second_page = serde_json::json!({
             "component": "ButtonPage",
             "active_page": 1,
@@ -698,20 +725,19 @@ mod tests {
                 "component": "Paragraphs",
                 "paragraphs": [
                     [
-                        "...", "have the same", "\n",
+                        "...", "or numbers, t", "\n",
+                        "hey have the same", "\n",
                         "width and can be", "\n",
                         "scanned quickly.", "\n",
                         "Even if they span", "\n",
                         "several pages or", "\n",
                         "something.",
                     ],
-                    [
-                        "Let's add another one", "...",
-                    ],
                 ],
             },
             "hold": false,
         });
+
         let third_page = serde_json::json!({
             "component": "ButtonPage",
             "active_page": 2,
@@ -720,10 +746,13 @@ mod tests {
                 "component": "Paragraphs",
                 "paragraphs": [
                     [
-                        "for a good measure. This", "\n",
-                        "one should overflow all", "\n",
-                        "the way to the third page", "\n",
-                        "with a bit of luck.",
+                        "Let's add another", "\n",
+                        "one for a good", "\n",
+                        "measure. This one", "\n",
+                        "should overflow all", "\n",
+                        "the way to the third", "\n",
+                        "page with a bit of", "\n",
+                        "luck.",
                     ],
                 ],
             },

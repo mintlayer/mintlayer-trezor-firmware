@@ -5,6 +5,7 @@ use crate::{
         component::{Component, Event, EventCtx},
         event::ButtonEvent,
         geometry::Rect,
+        shape::Renderer,
     },
 };
 
@@ -48,7 +49,7 @@ impl HoldToConfirm {
             ButtonContent::Text(text) => {
                 Self::text(pos, text, LoaderStyleSheet::default_loader(), duration)
             }
-            ButtonContent::Icon(_) => panic!("Icon is not supported"),
+            ButtonContent::Icon(_) => fatal_error!("Icon is not supported"),
         }
     }
 
@@ -121,6 +122,10 @@ impl Component for HoldToConfirm {
 
     fn paint(&mut self) {
         self.loader.paint();
+    }
+
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.loader.render(target);
     }
 }
 

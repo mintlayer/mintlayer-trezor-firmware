@@ -8,10 +8,12 @@ use crate::{
         geometry::{Grid, Offset, Rect},
         model_tt::component::{
             button::{Button, ButtonContent, ButtonMsg},
-            keyboard::common::{paint_pending_marker, MultiTapKeyboard},
+            keyboard::common::{paint_pending_marker, render_pending_marker, MultiTapKeyboard},
             swipe::{Swipe, SwipeDirection},
             theme, ScrollBar,
         },
+        shape,
+        shape::Renderer,
         util::long_line_content_with_ellipsis,
     },
 };
@@ -161,7 +163,7 @@ impl PassphraseKeyboard {
     /// We should disable the input when the passphrase has reached maximum
     /// length and we are not cycling through the characters.
     fn is_button_active(&self, key: usize) -> bool {
-        let textbox_not_full = !self.input.inner().textbox.is_full();
+        let textbox_not_full = self.input.inner().textbox.len() < MAX_LENGTH;
         let key_is_pending = {
             if let Some(pending) = self.input.inner().multi_tap.pending_key() {
                 pending == key
@@ -295,25 +297,28 @@ impl Component for PassphraseKeyboard {
         }
         if self.fade.take() {
             // Note that this is blocking and takes some time.
-            display::fade_backlight(theme::BACKLIGHT_NORMAL);
+            display::fade_backlight(theme::backlight::get_backlight_normal());
         }
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        self.input.bounds(sink);
-        self.scrollbar.bounds(sink);
-        self.confirm.bounds(sink);
-        self.back.bounds(sink);
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.input.render(target);
+        self.scrollbar.render(target);
+        self.confirm.render(target);
+        self.back.render(target);
         for btn in &self.keys {
-            btn.bounds(sink)
+            btn.render(target);
+        }
+        if self.fade.take() {
+            // Note that this is blocking and takes some time.
+            display::fade_backlight(theme::backlight::get_backlight_normal());
         }
     }
 }
 
 struct Input {
     area: Rect,
-    textbox: TextBox<MAX_LENGTH>,
+    textbox: TextBox,
     multi_tap: MultiTapKeyboard,
 }
 
@@ -321,7 +326,7 @@ impl Input {
     fn new() -> Self {
         Self {
             area: Rect::zero(),
-            textbox: TextBox::empty(),
+            textbox: TextBox::empty(MAX_LENGTH),
             multi_tap: MultiTapKeyboard::new(),
         }
     }
@@ -379,9 +384,38 @@ impl Component for Input {
         }
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        sink(self.area)
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        let style = theme::label_keyboard();
+
+        let text_baseline = self.area.top_left() + Offset::y(style.text_font.text_height())
+            - Offset::y(style.text_font.text_baseline());
+
+        let text = self.textbox.content();
+
+        shape::Bar::new(self.area).with_bg(theme::BG).render(target);
+
+        // Find out how much text can fit into the textbox.
+        // Accounting for the pending marker, which draws itself one pixel longer than
+        // the last character
+        let available_area_width = self.area.width() - 1;
+        let text_to_display =
+            long_line_content_with_ellipsis(text, "...", style.text_font, available_area_width);
+
+        shape::Text::new(text_baseline, &text_to_display)
+            .with_font(style.text_font)
+            .with_fg(style.text_color)
+            .render(target);
+
+        // Paint the pending marker.
+        if self.multi_tap.pending_key().is_some() {
+            render_pending_marker(
+                target,
+                text_baseline,
+                &text_to_display,
+                style.text_font,
+                style.text_color,
+            );
+        }
     }
 }
 

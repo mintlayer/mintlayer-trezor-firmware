@@ -1,6 +1,10 @@
 from micropython import const
+from typing import TYPE_CHECKING
 
 from storage import common
+
+if TYPE_CHECKING:
+    from trezor.enums import RecoveryType
 
 # Namespace:
 _NAMESPACE = common.APP_RECOVERY
@@ -8,11 +12,12 @@ _NAMESPACE = common.APP_RECOVERY
 # fmt: off
 # Keys:
 _IN_PROGRESS               = const(0x00)  # bool
-_DRY_RUN                   = const(0x01)  # bool
+_TYPE                      = const(0x01)  # int
 _SLIP39_IDENTIFIER         = const(0x03)  # bytes
 _REMAINING                 = const(0x05)  # int
 _SLIP39_ITERATION_EXPONENT = const(0x06)  # int
 _SLIP39_GROUP_COUNT        = const(0x07)  # int
+_SLIP39_EXTENDABLE         = const(0x08)  # bool
 
 # Deprecated Keys:
 # _WORD_COUNT                = const(0x02)  # int
@@ -36,14 +41,27 @@ def is_in_progress() -> bool:
     return common.get_bool(_NAMESPACE, _IN_PROGRESS)
 
 
-def set_dry_run(val: bool) -> None:
+def set_type(val: int) -> None:
     _require_progress()
-    common.set_bool(_NAMESPACE, _DRY_RUN, val)
+    common.set_uint8(_NAMESPACE, _TYPE, val)
 
 
-def is_dry_run() -> bool:
+def get_type() -> RecoveryType:
+    from trezor.enums import RecoveryType
+
     _require_progress()
-    return common.get_bool(_NAMESPACE, _DRY_RUN)
+    recovery_type = common.get_uint8(_NAMESPACE, _TYPE)
+    if recovery_type is None:
+        recovery_type = RecoveryType.NormalRecovery
+
+    if recovery_type not in (
+        RecoveryType.NormalRecovery,
+        RecoveryType.DryRun,
+        RecoveryType.UnlockRepeatedBackup,
+    ):
+        # Invalid recovery type
+        raise RuntimeError
+    return recovery_type
 
 
 def set_slip39_identifier(identifier: int) -> None:
@@ -128,7 +146,7 @@ def end_progress() -> None:
     _require_progress()
     for key in (
         _IN_PROGRESS,
-        _DRY_RUN,
+        _TYPE,
         _SLIP39_IDENTIFIER,
         _REMAINING,
         _SLIP39_ITERATION_EXPONENT,

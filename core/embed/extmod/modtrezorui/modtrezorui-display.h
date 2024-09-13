@@ -18,19 +18,20 @@
  */
 
 #include "display.h"
+#include "display_draw.h"
+#include "fonts/fonts.h"
 
 /// class Display:
 ///     """
 ///     Provide access to device display.
 ///     """
-///
 ///     WIDTH: int  # display width in pixels
 ///     HEIGHT: int  # display height in pixels
 ///     FONT_MONO: int  # id of monospace font
 ///     FONT_NORMAL: int  # id of normal-width font
-///     FONT_BOLD: int  # id of bold-width font
 ///     FONT_DEMIBOLD: int  # id of demibold font
-///
+///     FONT_BOLD_UPPER: int # id of bold-width-uppercased font
+
 typedef struct _mp_obj_Display_t {
   mp_obj_base_t base;
 } mp_obj_Display_t;
@@ -128,11 +129,13 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_trezorui_Display_backlight_obj,
 ///     Saves current display contents to PNG file with given prefix.
 ///     """
 STATIC mp_obj_t mod_trezorui_Display_save(mp_obj_t self, mp_obj_t prefix) {
+#ifdef TREZOR_EMULATOR
   mp_buffer_info_t pfx = {0};
   mp_get_buffer_raise(prefix, &pfx, MP_BUFFER_READ);
   if (pfx.len > 0) {
     display_save(pfx.buf);
   }
+#endif
   return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(mod_trezorui_Display_save_obj,
@@ -143,7 +146,9 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(mod_trezorui_Display_save_obj,
 ///     Clears buffers in display saving.
 ///     """
 STATIC mp_obj_t mod_trezorui_Display_clear_save(mp_obj_t self) {
+#ifdef TREZOR_EMULATOR
   display_clear_save();
+#endif
   return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mod_trezorui_Display_clear_save_obj,
@@ -163,9 +168,13 @@ STATIC const mp_rom_map_elem_t mod_trezorui_Display_locals_dict_table[] = {
     {MP_ROM_QSTR(MP_QSTR_WIDTH), MP_ROM_INT(DISPLAY_RESX)},
     {MP_ROM_QSTR(MP_QSTR_HEIGHT), MP_ROM_INT(DISPLAY_RESY)},
     {MP_ROM_QSTR(MP_QSTR_FONT_NORMAL), MP_ROM_INT(FONT_NORMAL)},
-    {MP_ROM_QSTR(MP_QSTR_FONT_BOLD), MP_ROM_INT(FONT_BOLD)},
     {MP_ROM_QSTR(MP_QSTR_FONT_DEMIBOLD), MP_ROM_INT(FONT_DEMIBOLD)},
     {MP_ROM_QSTR(MP_QSTR_FONT_MONO), MP_ROM_INT(FONT_MONO)},
+#ifdef FONT_BOLD_UPPER
+    {MP_ROM_QSTR(MP_QSTR_FONT_BOLD_UPPER), MP_ROM_INT(FONT_BOLD_UPPER)},
+#else
+    {MP_ROM_QSTR(MP_QSTR_FONT_BOLD_UPPER), MP_ROM_INT(FONT_BOLD)},
+#endif
 };
 STATIC MP_DEFINE_CONST_DICT(mod_trezorui_Display_locals_dict,
                             mod_trezorui_Display_locals_dict_table);

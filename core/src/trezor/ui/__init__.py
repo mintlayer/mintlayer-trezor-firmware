@@ -4,6 +4,7 @@ from trezorui import Display
 from typing import TYPE_CHECKING, Any, Awaitable, Generator
 
 from trezor import loop, utils
+from trezorui2 import AttachType, BacklightLevels
 
 if TYPE_CHECKING:
     from typing import Generic, TypeVar
@@ -21,8 +22,8 @@ display = Display()
 
 # re-export constants from modtrezorui
 NORMAL: int = Display.FONT_NORMAL
-BOLD: int = Display.FONT_BOLD
 DEMIBOLD: int = Display.FONT_DEMIBOLD
+BOLD_UPPER: int = Display.FONT_BOLD_UPPER
 MONO: int = Display.FONT_MONO
 WIDTH: int = Display.WIDTH
 HEIGHT: int = Display.HEIGHT
@@ -32,6 +33,9 @@ layout_chan = loop.chan()
 
 # allow only one alert at a time to avoid alerts overlapping
 _alert_in_progress = False
+
+# storing last transition type, so that next layout can continue nicely
+LAST_TRANSITION_OUT: AttachType | None = None
 
 # in debug mode, display an indicator in top right corner
 if __debug__:
@@ -45,16 +49,17 @@ if __debug__:
         display.refresh()
 
 else:
-    refresh = display.refresh  # type: ignore [obscured-by-same-name]
+    refresh = display.refresh
 
 
 # in both debug and production, emulator needs to draw the screen explicitly
-if utils.EMULATOR or utils.INTERNAL_MODEL in ("T1B1", "T2B1"):
+if (
+    utils.EMULATOR
+    or utils.INTERNAL_MODEL == "T1B1"
+    or utils.INTERNAL_MODEL == "T2B1"
+    or utils.INTERNAL_MODEL == "T3B1"
+):
     loop.after_step_hook = refresh
-
-
-# import style later to avoid circular dep
-from trezor.ui import style  # isort:skip
 
 
 async def _alert(count: int) -> None:
@@ -62,12 +67,12 @@ async def _alert(count: int) -> None:
     long_sleep = loop.sleep(80)
     for i in range(count * 2):
         if i % 2 == 0:
-            display.backlight(style.BACKLIGHT_MAX)
+            display.backlight(BacklightLevels.MAX)
             await short_sleep
         else:
-            display.backlight(style.BACKLIGHT_DIM)
+            display.backlight(BacklightLevels.DIM)
             await long_sleep
-    display.backlight(style.BACKLIGHT_NORMAL)
+    display.backlight(BacklightLevels.NORMAL)
     global _alert_in_progress
     _alert_in_progress = False
 
@@ -134,6 +139,12 @@ class Layout(Generic[T]):
     raised, usually from some of the child components.
     """
 
+    def finalize(self) -> None:
+        """
+        Called when the layout is done. Usually overridden to allow cleanup or storing context.
+        """
+        pass
+
     async def __iter__(self) -> T:
         """
         Run the layout and wait until it completes.  Returns the result value.
@@ -162,6 +173,8 @@ class Layout(Generic[T]):
         except Result as result:
             # Result exception was raised, this means this layout is complete.
             value = result.value
+        finally:
+            self.finalize()
         return value
 
     if TYPE_CHECKING:
@@ -188,6 +201,6 @@ class Layout(Generic[T]):
             content_store.append(self.__class__.__name__)
 
 
-def wait_until_layout_is_running() -> Awaitable[None]:  # type: ignore [awaitable-is-generator]
+def wait_until_layout_is_running() -> Awaitable[None]:  # type: ignore [awaitable-return-type]
     while not layout_chan.takers:
-        yield
+        yield  # type: ignore [awaitable-return-type]

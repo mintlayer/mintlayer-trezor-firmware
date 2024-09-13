@@ -28,7 +28,7 @@ from ...input_flows import (
 )
 
 
-@pytest.mark.skip_t1b1
+@pytest.mark.models("core")
 @pytest.mark.setup_client(uninitialized=True)
 def test_reset_recovery(client: Client):
     mnemonics = reset(client)
@@ -65,7 +65,6 @@ def reset(client: Client, strength: int = 128) -> list[str]:
         # No PIN, no passphrase, don't display random
         device.reset(
             client,
-            display_random=False,
             strength=strength,
             passphrase_protection=False,
             pin_protection=False,
@@ -75,9 +74,12 @@ def reset(client: Client, strength: int = 128) -> list[str]:
 
     # Check if device is properly initialized
     assert client.features.initialized is True
-    assert client.features.needs_backup is False
+    assert (
+        client.features.backup_availability == messages.BackupAvailability.NotAvailable
+    )
     assert client.features.pin_protection is False
     assert client.features.passphrase_protection is False
+    assert client.features.backup_type is BackupType.Slip39_Advanced_Extendable
 
     return IF.mnemonics
 
@@ -92,3 +94,4 @@ def recover(client: Client, shares: list[str]):
     assert ret == messages.Success(message="Device recovered")
     assert client.features.pin_protection is False
     assert client.features.passphrase_protection is False
+    assert client.features.backup_type is BackupType.Slip39_Advanced_Extendable

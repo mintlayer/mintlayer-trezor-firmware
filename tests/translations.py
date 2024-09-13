@@ -70,7 +70,11 @@ def set_language(client: Client, lang: str):
 
 def get_lang_json(lang: str) -> translations.JsonDef:
     assert lang in LANGUAGES
-    return json.loads((TRANSLATIONS / f"{lang}.json").read_text())
+    lang_json = json.loads((TRANSLATIONS / f"{lang}.json").read_text())
+    if (fonts_safe3 := lang_json.get("fonts", {}).get("##Safe3")) is not None:
+        lang_json["fonts"]["T2B1"] = fonts_safe3
+        lang_json["fonts"]["T3B1"] = fonts_safe3
+    return lang_json
 
 
 def _get_all_language_data() -> list[dict[str, str]]:
@@ -90,10 +94,16 @@ def _resolve_path_to_texts(
     texts: list[str] = []
     lookups = path.split(".")
     for language_data in all_language_data:
+        language_data_missing = False
         data: dict[str, t.Any] | str = language_data
         for lookup in lookups:
             assert isinstance(data, dict), f"{lookup} is not a dict"
+            if lookup not in data:
+                language_data_missing = True
+                break
             data = data[lookup]
+        if language_data_missing:
+            continue
         assert isinstance(data, str), f"{path} is not a string"
         if template:
             data = data.format(*template)
@@ -101,7 +111,7 @@ def _resolve_path_to_texts(
 
     if lower:
         texts = [t.lower() for t in texts]
-    texts = [t.strip() for t in texts]
+    texts = [t.replace("\xa0", " ").strip() for t in texts]
     return texts
 
 

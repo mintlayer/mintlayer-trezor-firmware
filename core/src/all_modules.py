@@ -91,6 +91,8 @@ trezor.crypto.slip39
 import trezor.crypto.slip39
 trezor.enums.AmountUnit
 import trezor.enums.AmountUnit
+trezor.enums.BackupAvailability
+import trezor.enums.BackupAvailability
 trezor.enums.BackupType
 import trezor.enums.BackupType
 trezor.enums.BootCommand
@@ -119,8 +121,12 @@ trezor.enums.OutputScriptType
 import trezor.enums.OutputScriptType
 trezor.enums.PinMatrixRequestType
 import trezor.enums.PinMatrixRequestType
-trezor.enums.RecoveryDeviceType
-import trezor.enums.RecoveryDeviceType
+trezor.enums.RecoveryDeviceInputMethod
+import trezor.enums.RecoveryDeviceInputMethod
+trezor.enums.RecoveryStatus
+import trezor.enums.RecoveryStatus
+trezor.enums.RecoveryType
+import trezor.enums.RecoveryType
 trezor.enums.RequestType
 import trezor.enums.RequestType
 trezor.enums.SafetyCheckLevel
@@ -157,6 +163,16 @@ trezor.ui.layouts.fido
 import trezor.ui.layouts.fido
 trezor.ui.layouts.homescreen
 import trezor.ui.layouts.homescreen
+trezor.ui.layouts.mercury
+import trezor.ui.layouts.mercury
+trezor.ui.layouts.mercury.fido
+import trezor.ui.layouts.mercury.fido
+trezor.ui.layouts.mercury.homescreen
+import trezor.ui.layouts.mercury.homescreen
+trezor.ui.layouts.mercury.recovery
+import trezor.ui.layouts.mercury.recovery
+trezor.ui.layouts.mercury.reset
+import trezor.ui.layouts.mercury.reset
 trezor.ui.layouts.progress
 import trezor.ui.layouts.progress
 trezor.ui.layouts.recovery
@@ -183,8 +199,6 @@ trezor.ui.layouts.tt.recovery
 import trezor.ui.layouts.tt.recovery
 trezor.ui.layouts.tt.reset
 import trezor.ui.layouts.tt.reset
-trezor.ui.style
-import trezor.ui.style
 trezor.utils
 import trezor.utils
 trezor.wire
@@ -275,6 +289,10 @@ apps.common.address_type
 import apps.common.address_type
 apps.common.authorization
 import apps.common.authorization
+apps.common.backup
+import apps.common.backup
+apps.common.backup_types
+import apps.common.backup_types
 apps.common.cbor
 import apps.common.cbor
 apps.common.coininfo
@@ -315,8 +333,6 @@ apps.management.authenticate_device
 import apps.management.authenticate_device
 apps.management.backup_device
 import apps.management.backup_device
-apps.management.backup_types
-import apps.management.backup_types
 apps.management.change_language
 import apps.management.change_language
 apps.management.change_pin
@@ -345,6 +361,8 @@ apps.management.reset_device.layout
 import apps.management.reset_device.layout
 apps.management.sd_protect
 import apps.management.sd_protect
+apps.management.set_brightness
+import apps.management.set_brightness
 apps.management.set_u2f_counter
 import apps.management.set_u2f_counter
 apps.management.show_tutorial
@@ -355,8 +373,6 @@ apps.misc
 import apps.misc
 apps.misc.cipher_key_value
 import apps.misc.cipher_key_value
-apps.misc.cosi_commit
-import apps.misc.cosi_commit
 apps.misc.get_ecdh_session_key
 import apps.misc.get_ecdh_session_key
 apps.misc.get_entropy
@@ -381,6 +397,8 @@ if not utils.BITCOIN_ONLY:
     import trezor.enums.CardanoCVoteRegistrationFormat
     trezor.enums.CardanoCertificateType
     import trezor.enums.CardanoCertificateType
+    trezor.enums.CardanoDRepType
+    import trezor.enums.CardanoDRepType
     trezor.enums.CardanoDerivationType
     import trezor.enums.CardanoDerivationType
     trezor.enums.CardanoNativeScriptHashDisplayFormat

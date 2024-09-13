@@ -35,13 +35,14 @@ from ..translations import (
     sign_blob,
 )
 
-pytestmark = pytest.mark.skip_t1b1
+pytestmark = pytest.mark.models("core")
 
 
 MAX_DATA_LENGTH = {
     models.T2T1: 48 * 1024,
     models.T2B1: 32 * 1024,
     models.T3T1: 256 * 1024,
+    models.T3B1: 256 * 1024,
 }
 
 
@@ -70,7 +71,7 @@ def _check_ping_screen_texts(client: Client, title: str, right_button: str) -> N
         yield
         layout = client.debug.wait_layout()
         assert layout.title().upper() == title.upper()
-        assert layout.button_contents()[-1] == right_button.upper()
+        assert layout.button_contents()[-1].upper() == right_button.upper()
         client.debug.press_yes()
 
     # TT does not have a right button text (but a green OK tick)

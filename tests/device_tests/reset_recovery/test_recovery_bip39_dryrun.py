@@ -28,7 +28,7 @@ from ...input_flows import (
 )
 
 
-def do_recover_legacy(client: Client, mnemonic: list[str], **kwargs: Any):
+def do_recover_legacy(client: Client, mnemonic: list[str]):
     def input_callback(_):
         word, pos = client.debug.read_recovery_word()
         if pos != 0 and pos is not None:
@@ -40,11 +40,10 @@ def do_recover_legacy(client: Client, mnemonic: list[str], **kwargs: Any):
 
     ret = device.recover(
         client,
-        dry_run=True,
+        type=messages.RecoveryType.DryRun,
         word_count=len(mnemonic),
-        type=messages.RecoveryDeviceType.ScrambledWords,
+        input_method=messages.RecoveryDeviceInputMethod.ScrambledWords,
         input_callback=input_callback,
-        **kwargs
     )
     # if the call succeeded, check that all words have been used
     assert all(m is None for m in mnemonic)
@@ -56,7 +55,7 @@ def do_recover_core(client: Client, mnemonic: list[str], mismatch: bool = False)
         client.watch_layout()
         IF = InputFlowBip39RecoveryDryRun(client, mnemonic, mismatch=mismatch)
         client.set_input_flow(IF.get())
-        return device.recover(client, dry_run=True)
+        return device.recover(client, type=messages.RecoveryType.DryRun)
 
 
 def do_recover(client: Client, mnemonic: list[str], mismatch: bool = False):
@@ -80,15 +79,13 @@ def test_seed_mismatch(client: Client):
         do_recover(client, ["all"] * 12, mismatch=True)
 
 
-@pytest.mark.skip_t2t1
-@pytest.mark.skip_t2b1
-@pytest.mark.skip_t3t1
+@pytest.mark.models("legacy")
 def test_invalid_seed_t1(client: Client):
     with pytest.raises(exceptions.TrezorFailure, match="Invalid seed"):
         do_recover(client, ["stick"] * 12)
 
 
-@pytest.mark.skip_t1b1
+@pytest.mark.models("core")
 def test_invalid_seed_core(client: Client):
     with client:
         client.watch_layout()
@@ -105,10 +102,10 @@ def test_uninitialized(client: Client):
 
 
 DRY_RUN_ALLOWED_FIELDS = (
-    "dry_run",
+    "type",
     "word_count",
     "enforce_wordlist",
-    "type",
+    "input_method",
     "show_tutorial",
 )
 
@@ -125,12 +122,14 @@ def _make_bad_params():
         if field.name in DRY_RUN_ALLOWED_FIELDS:
             continue
 
-        if "int" in field.type:
+        if field.py_type is int:
             yield field.name, 1
-        elif field.type == "bool":
+        elif field.py_type is bool:
             yield field.name, True
-        elif field.type == "string":
+        elif field.py_type is str:
             yield field.name, "test"
+        elif field.py_type is messages.RecoveryType:
+            yield field.name, 1
         else:
             # Someone added a field to RecoveryDevice of a type that has no assigned
             # default value. This test must be fixed.
@@ -140,13 +139,14 @@ def _make_bad_params():
 @pytest.mark.parametrize("field_name, field_value", _make_bad_params())
 def test_bad_parameters(client: Client, field_name: str, field_value: Any):
     msg = messages.RecoveryDevice(
-        dry_run=True,
+        type=messages.RecoveryType.DryRun,
         word_count=12,
         enforce_wordlist=True,
-        type=messages.RecoveryDeviceType.ScrambledWords,
+        input_method=messages.RecoveryDeviceInputMethod.ScrambledWords,
     )
     setattr(msg, field_name, field_value)
     with pytest.raises(
-        exceptions.TrezorFailure, match="Forbidden field set in dry-run"
+        exceptions.TrezorFailure,
+        match="Forbidden field set in dry-run",
     ):
         client.call(msg)

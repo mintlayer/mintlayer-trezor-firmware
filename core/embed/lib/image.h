@@ -27,6 +27,7 @@
 #include "model.h"
 #include "secbool.h"
 
+#define VENDOR_HEADER_MAX_SIZE (64 * 1024)
 #define IMAGE_HEADER_SIZE 0x400  // size of the bootloader or firmware header
 #define IMAGE_SIG_SIZE 65
 #define IMAGE_INIT_CHUNK_SIZE (16 * 1024)
@@ -34,6 +35,9 @@
 #define BOOTLOADER_IMAGE_MAGIC 0x425A5254  // TRZB
 
 #define FIRMWARE_IMAGE_MAGIC 0x465A5254  // TRZF
+
+#define IMAGE_CODE_ALIGN(addr) \
+  ((((uint32_t)(uintptr_t)addr) + (CODE_ALIGNMENT - 1)) & ~(CODE_ALIGNMENT - 1))
 
 typedef struct {
   uint32_t magic;
@@ -54,19 +58,28 @@ typedef struct {
 
 #define MAX_VENDOR_PUBLIC_KEYS 8
 
-#define VTRUST_WAIT 0x000F
-#define VTRUST_RED 0x0010
-#define VTRUST_CLICK 0x0020
-#define VTRUST_STRING 0x0040
+// The mask of the vendor screen wait time in seconds, encoded in bitwise
+// complement form.
+#define VTRUST_WAIT_MASK 0x000F
+
+// Use black background instead of red one in the vendor screen.
+#define VTRUST_NO_RED 0x0010
+
+// Do not require user click to leave the vendor screen.
+#define VTRUST_NO_CLICK 0x0020
+
+// Do not show vendor string in the vendor screen.
+#define VTRUST_NO_STRING 0x0040
 
 // Two bits for historical reasons. On T2B1, only the lower bit was used with
 // inverted logic (due to late inclusion of the secret handling during
 // development process). On T3T1, we decided to remedy the situation by
 // including the upper bit as well.
-#define VTRUST_SECRET 0x0180
+#define VTRUST_SECRET_MASK 0x0180
 #define VTRUST_SECRET_ALLOW 0x0100
 
-#define VTRUST_ALL (VTRUST_WAIT | VTRUST_RED | VTRUST_CLICK | VTRUST_STRING)
+#define VTRUST_NO_WARNING \
+  (VTRUST_WAIT_MASK | VTRUST_NO_RED | VTRUST_NO_CLICK | VTRUST_NO_STRING)
 
 typedef struct {
   uint32_t magic;
@@ -76,7 +89,8 @@ typedef struct {
   uint8_t vsig_m;
   uint8_t vsig_n;
   uint16_t vtrust;
-  // uint8_t reserved[14];
+  uint32_t hw_model;
+  // uint8_t reserved[10];
   const uint8_t *vpub[MAX_VENDOR_PUBLIC_KEYS];
   uint8_t vstr_len;
   const char *vstr;
@@ -114,6 +128,8 @@ secbool __wur check_image_header_sig(const image_header *const hdr,
 
 secbool __wur read_vendor_header(const uint8_t *const data,
                                  vendor_header *const vhdr);
+
+secbool __wur check_vendor_header_model(const vendor_header *const vhdr);
 
 secbool __wur check_vendor_header_sig(const vendor_header *const vhdr,
                                       uint8_t key_m, uint8_t key_n,

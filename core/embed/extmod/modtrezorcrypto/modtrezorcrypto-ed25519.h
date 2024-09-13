@@ -34,10 +34,6 @@ STATIC mp_obj_t mod_trezorcrypto_ed25519_generate_secret() {
   vstr_t sk = {0};
   vstr_init_len(&sk, 32);
   random_buffer((uint8_t *)sk.buf, sk.len);
-  // taken from https://cr.yp.to/ecdh.html
-  sk.buf[0] &= 248;
-  sk.buf[31] &= 127;
-  sk.buf[31] |= 64;
   return mp_obj_new_str_from_vstr(&mp_type_bytes, &sk);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(mod_trezorcrypto_ed25519_generate_secret_obj,
@@ -104,16 +100,16 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_trezorcrypto_ed25519_sign_obj, 2,
 #if !BITCOIN_ONLY
 
 /// def sign_ext(
-///     secret_key: bytes, secret_extension: bytes, message: bytes
+///     secret_scalar: bytes, secret_extension: bytes, message: bytes
 /// ) -> bytes:
 ///     """
-///     Uses secret key to produce the cardano signature of message.
+///     Uses extended secret key to produce the cardano signature of message.
 ///     """
-STATIC mp_obj_t mod_trezorcrypto_ed25519_sign_ext(mp_obj_t secret_key,
+STATIC mp_obj_t mod_trezorcrypto_ed25519_sign_ext(mp_obj_t secret_scalar,
                                                   mp_obj_t secret_extension,
                                                   mp_obj_t message) {
   mp_buffer_info_t sk = {0}, skext = {0}, msg = {0};
-  mp_get_buffer_raise(secret_key, &sk, MP_BUFFER_READ);
+  mp_get_buffer_raise(secret_scalar, &sk, MP_BUFFER_READ);
   mp_get_buffer_raise(secret_extension, &skext, MP_BUFFER_READ);
   mp_get_buffer_raise(message, &msg, MP_BUFFER_READ);
   if (sk.len != 32) {

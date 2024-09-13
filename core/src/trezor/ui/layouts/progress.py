@@ -34,11 +34,11 @@ class RustProgress:
         layout: Any,
     ):
         self.layout = layout
-        ui.backlight_fade(ui.style.BACKLIGHT_DIM)
-        self.layout.attach_timer_fn(self.set_timer)
-        self.layout.paint()
-        ui.refresh()
-        ui.backlight_fade(ui.style.BACKLIGHT_NORMAL)
+        ui.backlight_fade(ui.BacklightLevels.DIM)
+        self.layout.attach_timer_fn(self.set_timer, None)
+        if self.layout.paint():
+            ui.refresh()
+        ui.backlight_fade(ui.BacklightLevels.NORMAL)
 
     def set_timer(self, token: int, deadline: int) -> None:
         raise RuntimeError  # progress layouts should not set timers
@@ -46,8 +46,8 @@ class RustProgress:
     def report(self, value: int, description: str | None = None):
         msg = self.layout.progress_event(value, description or "")
         assert msg is None
-        self.layout.paint()
-        ui.refresh()
+        if self.layout.paint():
+            ui.refresh()
 
 
 def progress(
@@ -57,13 +57,6 @@ def progress(
 ) -> ProgressLayout:
     if description is None:
         description = TR.progress__please_wait  # def_arg
-
-    if title is not None:
-        title = title.upper()
-    elif not utils.MODEL_IS_T2B1:
-        # on TT, uppercase the description which ends up on top of the screen
-        # when no title is set
-        description = description.upper()
 
     return RustProgress(
         layout=trezorui2.show_progress(

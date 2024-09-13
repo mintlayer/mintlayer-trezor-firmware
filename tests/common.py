@@ -24,6 +24,9 @@ from unittest import mock
 import pytest
 
 from trezorlib import btc, messages, models, tools
+from trezorlib.debuglink import LayoutType
+
+from . import buttons
 
 if TYPE_CHECKING:
     from _pytest.mark.structures import MarkDecorator
@@ -46,6 +49,11 @@ MNEMONIC_SLIP39_BASIC_20_3of6 = [
     "extra extend academic arcade born dive legal hush gross briefing talent drug much home firefly toxic analysis idea umbrella slice",
 ]
 MNEMONIC_SLIP39_BASIC_20_3of6_SECRET = "491b795b80fc21ccdf466c0fbc98c8fc"
+MNEMONIC_SLIP39_BASIC_EXT_20_2of3 = [
+    "enemy favorite academic acid cowboy phrase havoc level response walnut budget painting inside trash adjust froth kitchen learn tidy punish",
+    "enemy favorite academic always academic sniff script carpet romp kind promise scatter center unfair training emphasis evening belong fake enforce",
+]
+MNEMONIC_SLIP39_BASIC_EXT_20_2of3_SECRET = "644c905b0c4da21692f06fff3ed8b3e1"
 # Shamir shares (128 bits, 2 groups from 1 of 1, 1 of 1, 3 of 5, 2 of 6)
 MNEMONIC_SLIP39_ADVANCED_20 = [
     "eraser senior beard romp adorn nuclear spill corner cradle style ancient family general leader ambition exchange unusual garlic promise voice",
@@ -60,6 +68,9 @@ MNEMONIC_SLIP39_ADVANCED_33 = [
 ]
 MNEMONIC_SLIP39_CUSTOM_1of1 = ["tolerate flexible academic academic average dwarf square home promise aspect temple cluster roster forward hand unfair tenant emperor ceramic element forget perfect knit adapt review usual formal receiver typical pleasure duke yield party"]
 MNEMONIC_SLIP39_CUSTOM_SECRET = "3439316237393562383066633231636364663436366330666263393863386663"
+
+MNEMONIC_SLIP39_SINGLE_EXT_20 = ["academic again academic academic academic academic academic academic academic academic academic academic academic academic academic academic academic pecan provide remember"]
+
 # External entropy mocked as received from trezorlib.
 EXTERNAL_ENTROPY = b"zlutoucky kun upel divoke ody" * 2
 # fmt: on
@@ -89,16 +100,22 @@ def parametrize_using_common_fixtures(*paths: str) -> "MarkDecorator":
                     test_id = test_id.lower().replace(" ", "_")
 
             skip_models = test.get("skip_models", [])
-            skip_marks = []
+            skiplist = []
+            # TODO: genericify this
             for skip_model in skip_models:
                 if skip_model in ("t1", "t1b1"):
-                    skip_marks.append(pytest.mark.skip_t1b1)
+                    skiplist.append(models.T1B1)
                 if skip_model in ("t2", "t2t1"):
-                    skip_marks.append(pytest.mark.skip_t2t1)
+                    skiplist.append(models.T2T1)
                 if skip_model in ("tr", "t2b1"):
-                    skip_marks.append(pytest.mark.skip_t2b1)
+                    skiplist.append(models.T2B1)
+                    skiplist.append(models.T3B1)
                 if skip_model == "t3t1":
-                    skip_marks.append(pytest.mark.skip_t3t1)
+                    skiplist.append(models.T3T1)
+            if skiplist:
+                skip_marks = [pytest.mark.models(skip=skiplist)]
+            else:
+                skip_marks = []
 
             tests.append(
                 pytest.param(
@@ -176,24 +193,9 @@ def click_through(
 def read_and_confirm_mnemonic(
     debug: "DebugLink", choose_wrong: bool = False
 ) -> Generator[None, "ButtonRequest", Optional[str]]:
-    # TODO: these are very similar, reuse some code
-    if debug.model is models.T2T1:
-        mnemonic = yield from read_and_confirm_mnemonic_tt(debug, choose_wrong)
-    elif debug.model is models.T2B1:
-        mnemonic = yield from read_and_confirm_mnemonic_tr(debug, choose_wrong)
-    elif debug.model is models.T3T1:
-        mnemonic = yield from read_and_confirm_mnemonic_tt(debug, choose_wrong)
-    else:
-        raise ValueError(f"Unknown model: {debug.model}")
-
-    return mnemonic
-
-
-def read_and_confirm_mnemonic_tt(
-    debug: "DebugLink", choose_wrong: bool = False
-) -> Generator[None, "ButtonRequest", Optional[str]]:
-    """Read a given number of mnemonic words from Trezor T screen and correctly
-    answer confirmation questions. Return the full mnemonic.
+    """Read a given number of mnemonic words from the screen and answer
+    confirmation questions.
+    Return the full mnemonic or None if `choose_wrong` is True.
 
     For use in an input flow function.
     Example:
@@ -203,6 +205,23 @@ def read_and_confirm_mnemonic_tt(
 
         mnemonic = yield from read_and_confirm_mnemonic(client.debug)
     """
+    if debug.layout_type is LayoutType.TT:
+        mnemonic = yield from read_mnemonic_from_screen_tt(debug)
+    elif debug.layout_type is LayoutType.TR:
+        mnemonic = yield from read_mnemonic_from_screen_tr(debug)
+    elif debug.layout_type is LayoutType.Mercury:
+        mnemonic = yield from read_mnemonic_from_screen_mercury(debug)
+    else:
+        raise ValueError(f"Unknown model: {debug.layout_type}")
+
+    if not check_share(debug, mnemonic, choose_wrong):
+        return None
+    return " ".join(mnemonic)
+
+
+def read_mnemonic_from_screen_tt(
+    debug: "DebugLink",
+) -> Generator[None, "ButtonRequest", list[str]]:
     mnemonic: list[str] = []
     br = yield
     assert br.pages is not None
@@ -217,27 +236,12 @@ def read_and_confirm_mnemonic_tt(
             debug.swipe_up()
 
     debug.press_yes()
-
-    # check share
-    for _ in range(3):
-        # Word position is the first number in the text
-        word_pos_match = re.search(r"\d+", debug.wait_layout().text_content())
-        assert word_pos_match is not None
-        word_pos = int(word_pos_match.group(0))
-
-        index = word_pos - 1
-        if choose_wrong:
-            debug.input(mnemonic[(index + 1) % len(mnemonic)])
-            return None
-        else:
-            debug.input(mnemonic[index])
-
-    return " ".join(mnemonic)
+    return mnemonic
 
 
-def read_and_confirm_mnemonic_tr(
-    debug: "DebugLink", choose_wrong: bool = False
-) -> Generator[None, "ButtonRequest", Optional[str]]:
+def read_mnemonic_from_screen_tr(
+    debug: "DebugLink",
+) -> Generator[None, "ButtonRequest", list[str]]:
     mnemonic: list[str] = []
     yield  # write down all 12 words in order
     debug.press_yes()
@@ -252,20 +256,63 @@ def read_and_confirm_mnemonic_tr(
 
     yield  # Select correct words...
     debug.press_right()
+    return mnemonic
 
-    # check share
+
+def read_mnemonic_from_screen_mercury(
+    debug: "DebugLink",
+) -> Generator[None, "ButtonRequest", list[str]]:
+    mnemonic: list[str] = []
+    br = yield
+    assert br.pages is not None
+
+    debug.wait_layout()
+    debug.swipe_up()
+
+    for _ in range(br.pages - 2):
+        words = debug.wait_layout().seed_words()
+        mnemonic.extend(words)
+        debug.swipe_up()
+
+    debug.wait_layout()
+    debug.press_yes()
+
+    return mnemonic
+
+
+def check_share(
+    debug: "DebugLink", mnemonic: list[str], choose_wrong: bool = False
+) -> bool:
+    """
+    Given the mnemonic word list, proceed with the backup check:
+    three rounds of `Select word X of Y` choices.
+    """
+    re_num_of_word = r"\d+"
     for _ in range(3):
-        word_pos_match = re.search(r"\d+", debug.wait_layout().title())
+        if debug.layout_type is LayoutType.TT:
+            # T2T1 has position as the first number in the text
+            word_pos_match = re.search(
+                re_num_of_word, debug.wait_layout().text_content()
+            )
+        elif debug.layout_type is LayoutType.TR:
+            # other models have the instruction in the title/subtitle
+            word_pos_match = re.search(re_num_of_word, debug.wait_layout().title())
+        elif debug.layout_type is LayoutType.Mercury:
+            word_pos_match = re.search(re_num_of_word, debug.wait_layout().subtitle())
+        else:
+            word_pos_match = None
+
         assert word_pos_match is not None
         word_pos = int(word_pos_match.group(0))
+
         index = word_pos - 1
         if choose_wrong:
             debug.input(mnemonic[(index + 1) % len(mnemonic)])
-            return None
+            return False
         else:
             debug.input(mnemonic[index])
 
-    return " ".join(mnemonic)
+    return True
 
 
 def click_info_button_tt(debug: "DebugLink"):
@@ -273,6 +320,15 @@ def click_info_button_tt(debug: "DebugLink"):
     debug.press_info()
     yield  # Info screen with text
     debug.press_yes()
+
+
+def click_info_button_mercury(debug: "DebugLink"):
+    """Click Shamir backup info button and return back."""
+    debug.click(buttons.CORNER_BUTTON, wait=True)
+    debug.synchronize_at("VerticalMenu")
+    debug.click(buttons.VERTICAL_MENU[0], wait=True)
+    debug.click(buttons.CORNER_BUTTON, wait=True)
+    debug.click(buttons.CORNER_BUTTON)
 
 
 def check_pin_backoff_time(attempts: int, start: float) -> None:
@@ -325,4 +381,4 @@ def swipe_till_the_end(debug: "DebugLink", br: messages.ButtonRequest) -> None:
 
 
 def is_core(client: "Client") -> bool:
-    return client.model in (models.T2T1, models.T2B1, models.T3T1)
+    return client.model is not models.T1B1

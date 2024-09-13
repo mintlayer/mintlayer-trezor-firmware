@@ -10,7 +10,8 @@ use crate::{
             Child, Component, Event, EventCtx, Pad,
         },
         display::{self, Font},
-        geometry::{Grid, Insets, Offset, Rect},
+        geometry::{Alignment, Grid, Insets, Offset, Rect},
+        shape::{self, Renderer},
     },
 };
 
@@ -120,13 +121,12 @@ where
         self.confirm_button.paint();
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        sink(self.area);
-        self.input.bounds(sink);
-        self.paragraphs.bounds(sink);
-        self.info_button.bounds(sink);
-        self.confirm_button.bounds(sink);
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.input.render(target);
+        self.paragraphs_pad.render(target);
+        self.paragraphs.render(target);
+        self.info_button.render(target);
+        self.confirm_button.render(target);
     }
 }
 
@@ -227,11 +227,23 @@ impl Component for NumberInput {
         self.inc.paint();
     }
 
-    #[cfg(feature = "ui_bounds")]
-    fn bounds(&self, sink: &mut dyn FnMut(Rect)) {
-        self.dec.bounds(sink);
-        self.inc.bounds(sink);
-        sink(self.area)
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        let mut buf = [0u8; 10];
+
+        if let Some(text) = strutil::format_i64(self.value as i64, &mut buf) {
+            let digit_font = Font::DEMIBOLD;
+            let y_offset = digit_font.text_height() / 2 + Button::BASELINE_OFFSET;
+
+            shape::Bar::new(self.area).with_bg(theme::BG).render(target);
+            shape::Text::new(self.area.center() + Offset::y(y_offset), text)
+                .with_align(Alignment::Center)
+                .with_fg(theme::FG)
+                .with_font(digit_font)
+                .render(target);
+        }
+
+        self.dec.render(target);
+        self.inc.render(target);
     }
 }
 

@@ -5,6 +5,7 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 <%
 import json
+import re
 
 ALTCOIN_PREFIXES = (
     "binance",
@@ -35,7 +36,8 @@ en_data = json.loads(en_file.read_text())["translations"]
 #[cfg(feature = "micropython")]
 use crate::micropython::qstr::Qstr;
 
-#[derive(Debug, Copy, Clone, FromPrimitive, PartialEq, Eq)]
+#[derive(Copy, Clone, FromPrimitive, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(ufmt::derive::uDebug))]
 #[repr(u16)]
 #[allow(non_camel_case_types)]
 pub enum TranslatedString {
@@ -54,7 +56,7 @@ impl TranslatedString {
             %if any(name.startswith(prefix + "__") for prefix in ALTCOIN_PREFIXES):
             #[cfg(feature = "universal_fw")]
             %endif
-            Self::${name} => ${json.dumps(en_data.get(name, '""'))},
+            Self::${name} => ${re.sub(r'\\u([0-9a-f]{4})', r'\\u{\g<1>}', json.dumps(en_data.get(name, '""')))},
 % endfor
         }
     }

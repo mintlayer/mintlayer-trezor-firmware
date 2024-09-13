@@ -7,6 +7,8 @@ use crate::{
         display::{self, Color, Font, Icon},
         event::PhysicalButton,
         geometry::{Alignment2D, Offset, Point, Rect},
+        shape,
+        shape::Renderer,
     },
 };
 
@@ -85,11 +87,6 @@ impl Button {
     /// Changing the text content of the button.
     pub fn set_text(&mut self, text: TString<'static>) {
         self.content = ButtonContent::Text(text);
-    }
-
-    /// Changing the style of the button.
-    pub fn set_style(&mut self, styles: ButtonStyleSheet) {
-        self.styles = styles;
     }
 
     // Setting the visual state of the button.
@@ -265,6 +262,88 @@ impl Component for Button {
             }
         }
     }
+
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        let style = self.style();
+        let fg_color = style.text_color;
+        let bg_color = fg_color.negate();
+        let area = self.get_current_area();
+        let inversed_colors = bg_color != theme::BG;
+
+        // Filling the background (with 2-pixel rounding when applicable)
+        if inversed_colors {
+            shape::Bar::new(area)
+                .with_radius(3)
+                .with_bg(bg_color)
+                .render(target);
+        } else if style.with_outline {
+            shape::Bar::new(area)
+                .with_radius(3)
+                .with_fg(fg_color)
+                .render(target);
+        } else {
+            shape::Bar::new(area).with_bg(bg_color).render(target);
+        }
+
+        // Optionally display "arms" at both sides of content - always in FG and BG
+        // colors (they are not inverted).
+        if style.with_arms {
+            shape::ToifImage::new(area.left_center(), theme::ICON_ARM_LEFT.toif)
+                .with_align(Alignment2D::TOP_RIGHT)
+                .with_fg(theme::FG)
+                .render(target);
+
+            shape::ToifImage::new(area.right_center(), theme::ICON_ARM_RIGHT.toif)
+                .with_align(Alignment2D::TOP_LEFT)
+                .with_fg(theme::FG)
+                .render(target);
+        }
+
+        // Painting the content
+        match &self.content {
+            ButtonContent::Text(text) => text.map(|t| {
+                shape::Text::new(
+                    self.get_text_baseline(style) - Offset::x(style.font.start_x_bearing(t)),
+                    t,
+                )
+                .with_font(style.font)
+                .with_fg(fg_color)
+                .render(target);
+            }),
+            ButtonContent::Icon(icon) => {
+                // Allowing for possible offset of the area from current style
+                let icon_area = area.translate(style.offset);
+                if style.with_outline {
+                    shape::ToifImage::new(icon_area.center(), icon.toif)
+                        .with_align(Alignment2D::CENTER)
+                        .with_fg(fg_color)
+                        .render(target);
+                } else {
+                    // Positioning the icon in the corresponding corner/center
+                    match self.pos {
+                        ButtonPos::Left => {
+                            shape::ToifImage::new(icon_area.bottom_left(), icon.toif)
+                                .with_align(Alignment2D::BOTTOM_LEFT)
+                                .with_fg(fg_color)
+                                .render(target)
+                        }
+
+                        ButtonPos::Right => {
+                            shape::ToifImage::new(icon_area.bottom_right(), icon.toif)
+                                .with_align(Alignment2D::BOTTOM_RIGHT)
+                                .with_fg(fg_color)
+                                .render(target)
+                        }
+
+                        ButtonPos::Middle => shape::ToifImage::new(icon_area.center(), icon.toif)
+                            .with_align(Alignment2D::CENTER)
+                            .with_fg(fg_color)
+                            .render(target),
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(PartialEq, Eq)]
@@ -295,6 +374,7 @@ pub struct ButtonStyle {
 
 impl ButtonStyleSheet {
     pub fn new(
+        font: Font,
         normal_color: Color,
         active_color: Color,
         with_outline: bool,
@@ -304,7 +384,7 @@ impl ButtonStyleSheet {
     ) -> Self {
         Self {
             normal: ButtonStyle {
-                font: theme::FONT_BUTTON,
+                font,
                 text_color: normal_color,
                 with_outline,
                 with_arms,
@@ -312,7 +392,7 @@ impl ButtonStyleSheet {
                 offset,
             },
             active: ButtonStyle {
-                font: theme::FONT_BUTTON,
+                font,
                 text_color: active_color,
                 with_outline,
                 with_arms,
@@ -324,12 +404,14 @@ impl ButtonStyleSheet {
 
     // White text in normal mode.
     pub fn default(
+        font: Font,
         with_outline: bool,
         with_arms: bool,
         fixed_width: Option<i16>,
         offset: Offset,
     ) -> Self {
         Self::new(
+            font,
             theme::FG,
             theme::BG,
             with_outline,
@@ -344,6 +426,7 @@ impl ButtonStyleSheet {
 #[derive(Clone)]
 pub struct ButtonDetails {
     pub content: ButtonContent,
+    font: Font,
     pub duration: Option<Duration>,
     with_outline: bool,
     with_arms: bool,
@@ -357,6 +440,7 @@ impl ButtonDetails {
     pub fn text(text: TString<'static>) -> Self {
         Self {
             content: ButtonContent::Text(text),
+            font: Font::NORMAL_UPPER,
             duration: None,
             with_outline: true,
             with_arms: false,
@@ -370,6 +454,7 @@ impl ButtonDetails {
     pub fn icon(icon: Icon) -> Self {
         Self {
             content: ButtonContent::Icon(icon),
+            font: Font::NORMAL_UPPER,
             duration: None,
             with_outline: false,
             with_arms: false,
@@ -469,9 +554,16 @@ impl ButtonDetails {
         self
     }
 
+    /// Specifying the font of the button.
+    pub fn with_font(mut self, font: Font) -> Self {
+        self.font = font;
+        self
+    }
+
     /// Button style that should be applied.
     pub fn style(&self) -> ButtonStyleSheet {
         ButtonStyleSheet::default(
+            self.font,
             self.with_outline,
             self.with_arms,
             self.fixed_width,
@@ -539,7 +631,11 @@ impl ButtonLayout {
         Self::new(
             Some(ButtonDetails::from_text_possible_icon(left)),
             Some(ButtonDetails::armed_text(middle)),
-            Some(ButtonDetails::text("i".into()).with_fixed_width(theme::BUTTON_ICON_WIDTH)),
+            Some(
+                ButtonDetails::text("i".into())
+                    .with_fixed_width(theme::BUTTON_ICON_WIDTH)
+                    .with_font(Font::NORMAL),
+            ),
         )
     }
 
@@ -548,7 +644,11 @@ impl ButtonLayout {
         Self::new(
             Some(ButtonDetails::cancel_icon()),
             Some(ButtonDetails::armed_text(middle)),
-            Some(ButtonDetails::text("i".into()).with_fixed_width(theme::BUTTON_ICON_WIDTH)),
+            Some(
+                ButtonDetails::text("i".into())
+                    .with_fixed_width(theme::BUTTON_ICON_WIDTH)
+                    .with_font(Font::NORMAL),
+            ),
         )
     }
 
@@ -665,7 +765,11 @@ impl ButtonLayout {
         Self::new(
             Some(ButtonDetails::up_arrow_icon()),
             Some(ButtonDetails::armed_text(text)),
-            Some(ButtonDetails::text("i".into()).with_fixed_width(theme::BUTTON_ICON_WIDTH)),
+            Some(
+                ButtonDetails::text("i".into())
+                    .with_fixed_width(theme::BUTTON_ICON_WIDTH)
+                    .with_font(Font::NORMAL),
+            ),
         )
     }
 

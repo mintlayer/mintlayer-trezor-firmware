@@ -1,11 +1,12 @@
 use crate::{
-    strutil::TString,
+    strutil::{ShortString, TString},
     translations::TR,
     trezorhal::random,
     ui::{
         component::{text::common::TextBox, Child, Component, ComponentExt, Event, EventCtx},
         display::{Font, Icon},
         geometry::Rect,
+        shape::Renderer,
     },
 };
 
@@ -13,7 +14,6 @@ use super::super::{
     theme, ButtonDetails, ButtonLayout, CancelConfirmMsg, ChangingTextLine, ChoiceFactory,
     ChoiceItem, ChoicePage,
 };
-use heapless::String;
 
 #[derive(Clone, Copy)]
 enum PinAction {
@@ -131,15 +131,15 @@ impl ChoiceFactory for ChoiceFactoryPIN {
 /// Component for entering a PIN.
 pub struct PinEntry<'a> {
     choice_page: ChoicePage<ChoiceFactoryPIN, PinAction>,
-    header_line: Child<ChangingTextLine<String<MAX_PIN_LENGTH>>>,
-    pin_line: Child<ChangingTextLine<String<MAX_PIN_LENGTH>>>,
+    header_line: Child<ChangingTextLine>,
+    pin_line: Child<ChangingTextLine>,
     prompt: TString<'a>,
     subprompt: TString<'a>,
     /// Whether we already show the "real" prompt (not the warning).
     showing_real_prompt: bool,
     show_real_pin: bool,
     show_last_digit: bool,
-    textbox: TextBox<MAX_PIN_LENGTH>,
+    textbox: TextBox,
 }
 
 impl<'a> PinEntry<'a> {
@@ -150,20 +150,13 @@ impl<'a> PinEntry<'a> {
         // any button click.)
         let show_subprompt = !subprompt.is_empty();
         let (showing_real_prompt, header_line_content, pin_line_content) = if show_subprompt {
-            (
-                false,
-                TR::pin__title_wrong_pin.map_translated(|t| unwrap!(String::try_from(t))),
-                subprompt.map(|s| unwrap!(String::try_from(s))),
-            )
+            (false, TR::pin__title_wrong_pin.into(), subprompt)
         } else {
-            (
-                true,
-                prompt.map(|s| unwrap!(String::try_from(s))),
-                unwrap!(String::try_from(EMPTY_PIN_STR)),
-            )
+            (true, prompt, EMPTY_PIN_STR.into())
         };
 
-        let mut pin_line = ChangingTextLine::center_bold(pin_line_content).without_ellipsis();
+        let mut pin_line = pin_line_content
+            .map(|s| ChangingTextLine::center_bold(s, MAX_PIN_LENGTH).without_ellipsis());
         if show_subprompt {
             pin_line.update_font(Font::NORMAL);
         }
@@ -174,7 +167,8 @@ impl<'a> PinEntry<'a> {
                 .with_initial_page_counter(get_random_digit_position())
                 .with_carousel(true),
             header_line: Child::new(
-                ChangingTextLine::center_bold(header_line_content)
+                header_line_content
+                    .map(|s| ChangingTextLine::center_bold(s, MAX_PIN_LENGTH))
                     .without_ellipsis()
                     .with_text_at_the_top(),
             ),
@@ -184,7 +178,7 @@ impl<'a> PinEntry<'a> {
             showing_real_prompt,
             show_real_pin: false,
             show_last_digit: false,
-            textbox: TextBox::empty(),
+            textbox: TextBox::empty(MAX_PIN_LENGTH),
         }
     }
 
@@ -197,18 +191,22 @@ impl<'a> PinEntry<'a> {
     /// Show updated content in the changing line.
     /// Many possibilities, according to the PIN state.
     fn update_pin_line(&mut self, ctx: &mut EventCtx) {
+        debug_assert!({
+            let s = ShortString::new();
+            s.capacity() >= MAX_PIN_LENGTH
+        });
         let mut used_font = Font::BOLD;
         let pin_line_text = if self.is_empty() && !self.subprompt.is_empty() {
             // Showing the subprompt in NORMAL font
             used_font = Font::NORMAL;
-            self.subprompt.map(|s| unwrap!(String::try_from(s)))
+            self.subprompt.map(|s| unwrap!(ShortString::try_from(s)))
         } else if self.is_empty() {
-            unwrap!(String::try_from(EMPTY_PIN_STR))
+            unwrap!(ShortString::try_from(EMPTY_PIN_STR))
         } else if self.show_real_pin {
-            unwrap!(String::try_from(self.pin()))
+            unwrap!(ShortString::try_from(self.pin()))
         } else {
             // Showing asterisks and possibly the last digit.
-            let mut dots: String<MAX_PIN_LENGTH> = String::new();
+            let mut dots = ShortString::new();
             for _ in 0..self.textbox.len() - 1 {
                 unwrap!(dots.push('*'));
             }
@@ -223,7 +221,7 @@ impl<'a> PinEntry<'a> {
 
         self.pin_line.mutate(ctx, |ctx, pin_line| {
             pin_line.update_font(used_font);
-            pin_line.update_text(pin_line_text);
+            pin_line.update_text(&pin_line_text);
             pin_line.request_complete_repaint(ctx);
         });
     }
@@ -231,7 +229,7 @@ impl<'a> PinEntry<'a> {
     /// Showing the real prompt instead of WRONG PIN
     fn show_prompt(&mut self, ctx: &mut EventCtx) {
         self.header_line.mutate(ctx, |ctx, header_line| {
-            header_line.update_text(self.prompt.map(|s| unwrap!(String::try_from(s))));
+            self.prompt.map(|s| header_line.update_text(s));
             header_line.request_complete_repaint(ctx);
         });
     }
@@ -241,7 +239,7 @@ impl<'a> PinEntry<'a> {
     }
 
     fn is_full(&self) -> bool {
-        self.textbox.is_full()
+        self.textbox.len() >= MAX_PIN_LENGTH
     }
 
     fn is_empty(&self) -> bool {
@@ -322,6 +320,12 @@ impl Component for PinEntry<'_> {
         self.header_line.paint();
         self.pin_line.paint();
         self.choice_page.paint();
+    }
+
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.header_line.render(target);
+        self.pin_line.render(target);
+        self.choice_page.render(target);
     }
 }
 
