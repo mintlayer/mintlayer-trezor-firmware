@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.7-Mintlayer] (7th February 2025)
+
+### Added
+- Added new messages and handles for Mintlayer coin  [#noissue]
+
 ## [2.8.7] (22th January 2025)
 
 ### Added
@@ -93,7 +98,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Fixed title sometimes not fitting into result screen.  [#4023]
 - Adjusted detection of swipes: vertical swipes are preferred over horizontal swipes.  [#4060]
 - Solana: added support for deprecated AToken Create `rent_sysvar` argument.  [#3976]
-
 
 ## [2.8.0] (9th July 2024)
 

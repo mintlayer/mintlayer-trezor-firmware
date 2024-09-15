@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.7-Mintlayer] (7th February 2025)
+
+### Added
+- Added new messages and handles for Mintlayer coin  [#noissue]
+
 ## [2.8.7] (22th January 2025)
 
 ### Added
@@ -57,18 +62,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 - Improve precision of PIN timeout countdown.  [#4000]
 
+### Changed
+
 ### Fixed
 - Added a progress indicator for the formatting operation.  [#3035]
 - Solana: added support for deprecated AToken Create `rent_sysvar` argument.  [#3976]
 
-
 ## [2.8.0] (9th July 2024)
+
+### Added
 
 ### Changed
 - Reworked PIN processing.
 
 ### Removed
 - CoSi functionality.  [#3442]
+
+### Fixed
 
 
 ## [2.7.2] (14th June 2024)

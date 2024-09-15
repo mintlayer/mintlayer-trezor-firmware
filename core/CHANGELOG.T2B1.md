@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.7-Mintlayer] (7th February 2025)
+
+### Added
+- Added new messages and handles for Mintlayer coin  [#noissue]
+
 ## [2.8.7] (22th January 2025)
 
 ### Added
@@ -54,14 +59,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Fix display orientation _south_.  [#3990]
 - Fixed SLIP-10 fingerprints for ed25519 and curve25519.  [#4093]
 
-## [2.8.1] (unreleased)
+## [2.8.1] (21st August 2024)
 
 ### Added
 - Improve precision of PIN timeout countdown.  [#4000]
 
+### Changed
+
 ### Fixed
 - Solana: added support for deprecated AToken Create `rent_sysvar` argument.  [#3976]
-
 
 ## [2.8.0] (9th July 2024)
 
