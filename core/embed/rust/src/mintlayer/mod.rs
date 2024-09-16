@@ -123,7 +123,7 @@ extern "C" fn mintlayer_encode_account_spending_input(
 }
 
 #[no_mangle]
-extern "C" fn mintlayer_encode_account_command_input(
+extern "C" fn mintlayer_encode_token_account_command_input(
     nonce: u64,
     command: u32,
     token_id_data: *const u8,
@@ -164,7 +164,7 @@ extern "C" fn mintlayer_encode_account_command_input(
             };
             AccountCommand::ChangeTokenAuthority(token_id, destination)
         }
-        7 => AccountCommand::ChangeTokenMetadataUri(token_id, data.to_vec()),
+        8 => AccountCommand::ChangeTokenMetadataUri(token_id, data.to_vec()),
         _ => return MintlayerErrorCode::InvalidAccountCommand.into(),
     };
 
@@ -185,7 +185,40 @@ extern "C" fn mintlayer_encode_account_command_input(
 }
 
 #[no_mangle]
-extern "C" fn mintlayer_encode_transfer_output(
+extern "C" fn mintlayer_encode_conclude_order_account_command_input(
+    nonce: u64,
+    order_id_data: *const u8,
+    order_id_data_len: u32,
+) -> ByteArray {
+    let order_id =
+        unsafe { core::slice::from_raw_parts(order_id_data, order_id_data_len as usize) };
+    let order_id = H256(match order_id.try_into() {
+        Ok(hash) => hash,
+        Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+    });
+    let account_command = AccountCommand::ConcludeOrder(order_id);
+
+    let tx_input = TxInput::AccountCommand(nonce, account_command);
+    let vec_data = tx_input.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len_or_err: LenOrError { len },
+    }
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_fill_order_account_command_input(
+    nonce: u64,
+    order_id_data: *const u8,
+    order_id_data_len: u32,
     amount_data: *const u8,
     amount_data_len: u32,
     token_id_data: *const u8,
@@ -193,21 +226,20 @@ extern "C" fn mintlayer_encode_transfer_output(
     destination_data: *const u8,
     destination_data_len: u32,
 ) -> ByteArray {
-    let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
-    let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
-        Some(amount) => amount,
-        None => return MintlayerErrorCode::InvalidAmount.into(),
-    };
-    let value = if token_id_data_len == 32 {
-        let token_id =
-            unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
-        let token_id = H256(match token_id.try_into() {
-            Ok(hash) => hash,
-            Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
-        });
-        OutputValue::TokenV1(token_id, amount)
-    } else {
-        OutputValue::Coin(amount)
+    let order_id =
+        unsafe { core::slice::from_raw_parts(order_id_data, order_id_data_len as usize) };
+    let order_id = H256(match order_id.try_into() {
+        Ok(hash) => hash,
+        Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+    });
+    let value = match parse_output_value(
+        amount_data,
+        amount_data_len,
+        token_id_data_len,
+        token_id_data,
+    ) {
+        Ok(value) => value,
+        Err(value) => return value,
     };
 
     let destination_bytes =
@@ -216,12 +248,74 @@ extern "C" fn mintlayer_encode_transfer_output(
         Ok(destination) => destination,
         Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
     };
+    let account_command = AccountCommand::FillOrder(order_id, value, destination);
 
-    // match &destination {
-    //     Destination::AnyoneCanSpend => println!("anyone can spend dest"),
-    //     Destination::PublicKey(_) => println!("pk dest"),
-    //     Destination::PublicKeyHash(_) => println!("pkh dest"),
-    // };
+    let tx_input = TxInput::AccountCommand(nonce, account_command);
+    let vec_data = tx_input.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len_or_err: LenOrError { len },
+    }
+}
+
+fn parse_output_value(
+    amount_data: *const u8,
+    amount_data_len: u32,
+    token_id_data_len: u32,
+    token_id_data: *const u8,
+) -> Result<OutputValue, ByteArray> {
+    let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
+    let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
+        Some(amount) => amount,
+        None => return Err(MintlayerErrorCode::InvalidAmount.into()),
+    };
+    let value = if token_id_data_len == 32 {
+        let token_id =
+            unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
+        let token_id = H256(match token_id.try_into() {
+            Ok(hash) => hash,
+            Err(_) => return Err(MintlayerErrorCode::WrongHashSize.into()),
+        });
+        OutputValue::TokenV1(token_id, amount)
+    } else {
+        OutputValue::Coin(amount)
+    };
+    Ok(value)
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_transfer_output(
+    amount_data: *const u8,
+    amount_data_len: u32,
+    token_id_data: *const u8,
+    token_id_data_len: u32,
+    destination_data: *const u8,
+    destination_data_len: u32,
+) -> ByteArray {
+    let value = match parse_output_value(
+        amount_data,
+        amount_data_len,
+        token_id_data_len,
+        token_id_data,
+    ) {
+        Ok(value) => value,
+        Err(value) => return value,
+    };
+
+    let destination_bytes =
+        unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
+    let destination = match Destination::decode_all(&mut destination_bytes.as_ref()) {
+        Ok(destination) => destination,
+        Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
+    };
 
     let txo = TxOutput::Transfer(value, destination);
 
@@ -251,22 +345,14 @@ extern "C" fn mintlayer_encode_lock_then_transfer_output(
     destination_data: *const u8,
     destination_data_len: u32,
 ) -> ByteArray {
-    let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
-
-    let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
-        Some(amount) => amount,
-        None => return MintlayerErrorCode::InvalidAmount.into(),
-    };
-    let value = if token_id_data_len == 32 {
-        let token_id =
-            unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
-        let token_id = H256(match token_id.try_into() {
-            Ok(hash) => hash,
-            Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
-        });
-        OutputValue::TokenV1(token_id, amount)
-    } else {
-        OutputValue::Coin(amount)
+    let value = match parse_output_value(
+        amount_data,
+        amount_data_len,
+        token_id_data_len,
+        token_id_data,
+    ) {
+        Ok(value) => value,
+        Err(value) => return value,
     };
 
     let destination_bytes =
@@ -308,22 +394,14 @@ extern "C" fn mintlayer_encode_burn_output(
     token_id_data: *const u8,
     token_id_data_len: u32,
 ) -> ByteArray {
-    let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
-
-    let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
-        Some(amount) => amount,
-        None => return MintlayerErrorCode::InvalidAmount.into(),
-    };
-    let value = if token_id_data_len == 32 {
-        let token_id =
-            unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
-        let token_id = H256(match token_id.try_into() {
-            Ok(hash) => hash,
-            Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
-        });
-        OutputValue::TokenV1(token_id, amount)
-    } else {
-        OutputValue::Coin(amount)
+    let value = match parse_output_value(
+        amount_data,
+        amount_data_len,
+        token_id_data_len,
+        token_id_data,
+    ) {
+        Ok(value) => value,
+        Err(value) => return value,
     };
 
     let txo = TxOutput::Burn(value);
@@ -775,22 +853,14 @@ extern "C" fn mintlayer_encode_htlc_output(
     secret_hash_data: *const u8,
     secret_hash_data_len: u32,
 ) -> ByteArray {
-    let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
-
-    let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
-        Some(amount) => amount,
-        None => return MintlayerErrorCode::InvalidAmount.into(),
-    };
-    let value = if token_id_data_len == 32 {
-        let token_id =
-            unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
-        let token_id = H256(match token_id.try_into() {
-            Ok(hash) => hash,
-            Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
-        });
-        OutputValue::TokenV1(token_id, amount)
-    } else {
-        OutputValue::Coin(amount)
+    let value = match parse_output_value(
+        amount_data,
+        amount_data_len,
+        token_id_data_len,
+        token_id_data,
+    ) {
+        Ok(value) => value,
+        Err(value) => return value,
     };
 
     let refund_destination_bytes = unsafe {
@@ -835,6 +905,67 @@ extern "C" fn mintlayer_encode_htlc_output(
             refund_key,
         },
     );
+
+    let vec_data = txo.encode();
+    // Extracting the raw pointer and length from the Vec<u8>
+    let ptr_data = vec_data.as_ptr();
+    let len = vec_data.len() as cty::c_uint;
+
+    // Prevent Rust from freeing the memory associated with vec_data
+    core::mem::forget(vec_data);
+
+    // Construct and return the ByteArray struct
+    ByteArray {
+        data: ptr_data,
+        len_or_err: LenOrError { len },
+    }
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_anyone_can_take_output(
+    destination_data: *const u8,
+    destination_data_len: u32,
+    ask_amount_data: *const u8,
+    ask_amount_data_len: u32,
+    ask_token_id_data: *const u8,
+    ask_token_id_data_len: u32,
+    give_amount_data: *const u8,
+    give_amount_data_len: u32,
+    give_token_id_data: *const u8,
+    give_token_id_data_len: u32,
+) -> ByteArray {
+    let ask_value = match parse_output_value(
+        ask_amount_data,
+        ask_amount_data_len,
+        ask_token_id_data_len,
+        ask_token_id_data,
+    ) {
+        Ok(value) => value,
+        Err(value) => return value,
+    };
+
+    let give_value = match parse_output_value(
+        give_amount_data,
+        give_amount_data_len,
+        give_token_id_data_len,
+        give_token_id_data,
+    ) {
+        Ok(value) => value,
+        Err(value) => return value,
+    };
+
+    let destination_bytes =
+        unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
+    let destination = match Destination::decode_all(&mut destination_bytes.as_ref()) {
+        Ok(destination) => destination,
+        Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
+    };
+
+    let txo = TxOutput::AnyoneCanTake(OrderData {
+        conclude_key: destination,
+        ask: ask_value,
+        give: give_value,
+    });
 
     let vec_data = txo.encode();
     // Extracting the raw pointer and length from the Vec<u8>
@@ -1213,6 +1344,18 @@ struct NftIssuanceV0 {
 }
 
 #[derive(Encode)]
+pub struct OrderData {
+    /// The key that can authorize conclusion of an order
+    conclude_key: Destination,
+    /// `Ask` and `give` fields represent amounts of currencies
+    /// that an order maker wants to exchange.
+    /// E.g. Creator of an order asks for 5 coins and gives 10 tokens in
+    /// exchange.
+    ask: OutputValue,
+    give: OutputValue,
+}
+
+#[derive(Encode)]
 enum TxOutput {
     /// Transfer an output, giving the provided Destination the authority to
     /// spend it (no conditions)
@@ -1248,6 +1391,8 @@ enum TxOutput {
     DataDeposit(parity_scale_codec::alloc::vec::Vec<u8>),
     #[codec(index = 10)]
     Htlc(OutputValue, HashedTimelockContract),
+    #[codec(index = 11)]
+    AnyoneCanTake(OrderData),
 }
 
 #[derive(Encode)]

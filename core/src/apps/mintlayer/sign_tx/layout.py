@@ -172,9 +172,23 @@ async def confirm_output(
     elif output.htlc:
         x = output.htlc
         lock = lock_to_string(x.refund_timelock)
-        address_short = f"Secret Hash: {x.secret_hash.hex()}, Spend Key: {x.spend_key}, Refund Key: {x.refund_key}, Refund Time Lock: {lock}"
+        address_short = f"""Secret Hash: {x.secret_hash.hex()}
+        Spend Key: {x.spend_key}
+        Refund Key: {x.refund_key}
+        Refund Time Lock: {lock}
+        """
         amount = format_coin_amount(x.value.amount, x.value.token)
         address_label = "HTLC"
+    elif output.anyone_can_take:
+        x = output.anyone_can_take
+        ask_amount = format_coin_amount(x.ask.amount, x.ask.token)
+        give_amount = format_coin_amount(x.give.amount, x.give.token)
+        address_short = f"""Conclude Key: {x.conclude_key}
+        Ask: {ask_amount}
+        Give: {give_amount}"
+        """
+        amount = ""
+        address_label = "Anyone can take"
     else:
         raise Exception("unhandled output type")
 

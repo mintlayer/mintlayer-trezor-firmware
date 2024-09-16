@@ -36,9 +36,20 @@ ByteArray mintlayer_encode_account_spending_input(
     uint32_t delegation_id_data_len, const unsigned char* amount_data,
     uint32_t amount_data_len);
 
-ByteArray mintlayer_encode_account_command_input(
+ByteArray mintlayer_encode_token_account_command_input(
     uint64_t nonce, uint32_t command, const unsigned char* token_id_data,
     uint32_t token_id_data_len, const unsigned char* data, uint32_t data_len);
+
+ByteArray mintlayer_encode_conclude_order_account_command_input(
+    uint64_t nonce, const unsigned char* order_id_data,
+    uint32_t order_id_data_len);
+
+ByteArray mintlayer_encode_fill_order_account_command_input(
+    uint64_t nonce, const unsigned char* order_id_data,
+    uint32_t order_id_data_len, const unsigned char* coin_amount_data,
+    uint32_t coin_amount_data_len, const unsigned char* token_id_data,
+    uint32_t token_id_data_len, const unsigned char* destination_data,
+    uint32_t destination_data_len);
 
 ByteArray mintlayer_encode_transfer_output(
     const unsigned char* coin_amount_data, uint32_t coin_amount_data_len,
@@ -111,5 +122,13 @@ ByteArray mintlayer_encode_htlc_output(
     const unsigned char* refund_key_data, uint32_t refund_key_data_len,
     const unsigned char* spend_key_data, uint32_t spend_key_data_len,
     const unsigned char* secret_hash_data, uint32_t secret_hash_data_len);
+
+ByteArray mintlayer_encode_anyone_can_take_output(
+    const unsigned char* conclude_key_data, uint32_t conclude_key_data_len,
+    const unsigned char* ask_coin_amount_data,
+    uint32_t ask_coin_amount_data_len, const unsigned char* ask_token_id_data,
+    uint32_t ask_token_id_data_len, const unsigned char* give_coin_amount_data,
+    uint32_t give_coin_amount_data_len, const unsigned char* give_token_id_data,
+    uint32_t give_token_id_data_len);
 
 ByteArray mintlayer_encode_compact_length(uint32_t length);

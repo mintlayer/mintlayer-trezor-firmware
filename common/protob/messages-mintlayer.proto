@@ -196,10 +196,12 @@ message MintlayerAccountCommandTxInput {
     optional MintlayerFreezeToken freeze_token = 8;                          // freeze supply
     optional MintlayerUnfreezeToken unfreeze_token = 9;                      // unfreeze supply
     optional MintlayerChangeTokenAuhtority change_token_authority = 10;      // change token authority
-    optional MintlayerChangeTokenMetadataUri change_token_metadata_uri = 11; // change token metadata uri
+    optional MintlayerConcludeOrder conclude_order = 11;                     // conclude an order
+    optional MintlayerFillOrder fill_order = 12;                             // fill an order
+    optional MintlayerChangeTokenMetadataUri change_token_metadata_uri = 13; // change token metadata uri
 }
 
-/** Data type for output value coins or token
+/** Data type for account command
  * @embed
  */
 message MintlayerMintTokens {
@@ -207,21 +209,21 @@ message MintlayerMintTokens {
     required bytes amount = 2;                     // amoun of tokens to mint
 }
 
-/** Data type for output value coins or token
+/** Data type for account command
  * @embed
  */
 message MintlayerUnmintTokens {
     required bytes token_id = 1;                   // token id
 }
 
-/** Data type for output value coins or token
+/** Data type for account command
  * @embed
  */
 message MintlayerLockTokenSupply {
     required bytes token_id = 1;                   // token id
 }
 
-/** Data type for output value coins or token
+/** Data type for account command
  * @embed
  */
 message MintlayerFreezeToken {
@@ -229,14 +231,14 @@ message MintlayerFreezeToken {
     required bool is_token_unfreezabe = 2;         // is unfreezeable after freezing it
 }
 
-/** Data type for output value coins or token
+/** Data type for account command
  * @embed
  */
 message MintlayerUnfreezeToken {
     required bytes token_id = 1;                   // token id
 }
 
-/** Data type for output value coins or token
+/** Data type for account command
  * @embed
  */
 message MintlayerChangeTokenAuhtority {
@@ -244,7 +246,24 @@ message MintlayerChangeTokenAuhtority {
     required string destination = 2;               // destination for the new authority
 }
 
-/** Data type for output value coins or token
+/** Data type for account command
+ * @embed
+ */
+message MintlayerConcludeOrder {
+    required bytes order_id = 1;                   // order id
+}
+
+/** Data type for account command
+ * @embed
+ */
+message MintlayerFillOrder {
+    required bytes order_id = 1;                   // order id
+    required bytes amount = 2;                     // value
+    optional bytes token_id = 3;                   // value
+    required string destination = 4;               // the destination
+}
+
+/** Data type for account command
  * @embed
  */
 message MintlayerChangeTokenMetadataUri {
@@ -267,6 +286,7 @@ message MintlayerTxOutput {
     optional MintlayerIssueNftTxOutput issue_nft = 9;                                // issue NFT output
     optional MintlayerDataDepositTxOutput data_deposit = 10;                         // data deposit output
     optional MintlayerHtlcTxOutput htlc = 11;                                        // HTLC output
+    optional MintlayerAnyoneCanTakeTxOutput anyone_can_take = 12;                    // Anyone can take output
 }
 
 /** Data type for output value information for the token
@@ -418,6 +438,15 @@ message MintlayerHtlcTxOutput {
     required string spend_key = 3;                             // the key that can spend the HTLC given the secret
     required MintlayerOutputTimeLock refund_timelock = 4;      // time lock
     required string refund_key = 5;                            // the key for a refund after the time lock has expired
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerAnyoneCanTakeTxOutput {
+    required string conclude_key = 1;                          // The key that can authorize conclusion of an order
+    required MintlayerOutputValue ask = 2;                     // ask value of the order
+    required MintlayerOutputValue give = 3;                    // give value of the order
 }
 
 /** Data type for metadata about previous transaction which contains the UTXO being spent.

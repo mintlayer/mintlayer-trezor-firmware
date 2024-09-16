@@ -251,19 +251,19 @@ class Mintlayer:
         for inp in self.tx_info.inputs:
             progress.advance()
             if inp.input.utxo and inp.utxo:
-                x = inp.input.utxo
+                u = inp.input.utxo
                 encoded_inp = mintlayer_utils.encode_utxo_input(
-                    x.prev_hash, x.prev_index, int(x.type)
+                    u.prev_hash, u.prev_index, int(u.type)
                 )
                 encoded_inputs.append(encoded_inp)
-                data = mintlayer_decode_address_to_bytes(x.address)
+                data = mintlayer_decode_address_to_bytes(u.address)
 
                 encoded_inp_utxo = self.serialize_output(inp.utxo)
                 encoded_input_utxos.append(b"\x01" + encoded_inp_utxo)
             elif inp.input.account:
-                x = inp.input.account
+                a = inp.input.account
                 encoded_inp = mintlayer_utils.encode_account_spending_input(
-                    x.nonce, x.delegation_id, x.value.amount
+                    a.nonce, a.delegation_id, a.value.amount
                 )
                 encoded_inputs.append(encoded_inp)
                 encoded_input_utxos.append(b"\x00")
@@ -299,10 +299,35 @@ class Mintlayer:
                     command = 5
                     token_id = x.change_token_metadata_uri.token_id
                     data = x.change_token_metadata_uri.metadata_uri
+                elif x.conclude_order:
+                    ord = x.conclude_order
+                    encoded_inp = (
+                        mintlayer_utils.encode_conclude_order_account_command_input(
+                            x.nonce, ord.order_id
+                        )
+                    )
+                    encoded_inputs.append(encoded_inp)
+                    encoded_input_utxos.append(b"\x00")
+                    continue
+                elif x.fill_order:
+                    ord = x.fill_order
+                    token_id = b"" if not ord.token_id else ord.token_id
+                    encoded_inp = (
+                        mintlayer_utils.encode_fill_order_account_command_input(
+                            x.nonce,
+                            ord.order_id,
+                            ord.amount,
+                            token_id,
+                            ord.destination,
+                        )
+                    )
+                    encoded_inputs.append(encoded_inp)
+                    encoded_input_utxos.append(b"\x00")
+                    continue
                 else:
                     raise Exception("unknown account command")
 
-                encoded_inp = mintlayer_utils.encode_account_command_input(
+                encoded_inp = mintlayer_utils.encode_token_account_command_input(
                     x.nonce, command, token_id, data
                 )
                 encoded_inputs.append(encoded_inp)
@@ -406,6 +431,13 @@ class Mintlayer:
                 refund_key,
                 spend_key,
                 x.secret_hash,
+            )
+        elif out.anyone_can_take:
+            x = out.anyone_can_take
+            ask_token_id = b"" if not x.ask.token else x.ask.token.token_id
+            give_token_id = b"" if not x.give.token else x.give.token.token_id
+            encoded_out = mintlayer_utils.encode_anyone_can_take_output(
+                x.conclude_key, x.ask.amount, ask_token_id, x.give.amount, give_token_id
             )
         else:
             raise Exception("unhandled tx output type")
