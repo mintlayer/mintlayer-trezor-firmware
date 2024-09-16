@@ -17,11 +17,29 @@ bytes) -> bytes:
 
 
 # extmod/modtrezormintlayer/modtrezormintlayer.h
-def encode_account_command_input(nonce: int, command: int, token_id: bytes,
-data: bytes) -> bytes:
+def encode_token_account_command_input(nonce: int, command: int, token_id:
+bytes, data: bytes) -> bytes:
     """
     encodes an account command from the nonce, command, token id and
     additional command data
+    """
+
+
+# extmod/modtrezormintlayer/modtrezormintlayer.h
+def encode_conclude_order_account_command_input(nonce: int, order_id: bytes)
+-> bytes:
+    """
+    encodes an conclude order account command from the nonce and order id
+    """
+
+
+# extmod/modtrezormintlayer/modtrezormintlayer.h
+def encode_fill_order_account_command_input(nonce: int, order_id: bytes,
+amount: bytes, token_id: bytes, destination: bytes)
+-> bytes:
+    """
+    encodes an fill order account command from the nonce, order id, output
+    value and destination
     """
 
 
@@ -116,6 +134,15 @@ int, lock_amount:int, refund_key: bytes, spend_key: bytes, secret_has:
 bytes) -> bytes:
     """
     encodes an htlc output with given amount and lock
+    """
+
+
+# extmod/modtrezormintlayer/modtrezormintlayer.h
+def encode_anyone_can_take_output(destination: bytes, ask_amount: bytes,
+ask_token_id: bytes, give_amount: bytes, give_token_id: bytes) -> bytes:
+    """
+    encodes an anyone can take output with given the conclude key, give and
+    take amounts
     """
 
 

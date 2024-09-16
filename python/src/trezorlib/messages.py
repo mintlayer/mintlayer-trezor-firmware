@@ -5597,7 +5597,9 @@ class MintlayerAccountCommandTxInput(protobuf.MessageType):
         8: protobuf.Field("freeze_token", "MintlayerFreezeToken", repeated=False, required=False, default=None),
         9: protobuf.Field("unfreeze_token", "MintlayerUnfreezeToken", repeated=False, required=False, default=None),
         10: protobuf.Field("change_token_authority", "MintlayerChangeTokenAuhtority", repeated=False, required=False, default=None),
-        11: protobuf.Field("change_token_metadata_uri", "MintlayerChangeTokenMetadataUri", repeated=False, required=False, default=None),
+        11: protobuf.Field("conclude_order", "MintlayerConcludeOrder", repeated=False, required=False, default=None),
+        12: protobuf.Field("fill_order", "MintlayerFillOrder", repeated=False, required=False, default=None),
+        13: protobuf.Field("change_token_metadata_uri", "MintlayerChangeTokenMetadataUri", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -5613,6 +5615,8 @@ class MintlayerAccountCommandTxInput(protobuf.MessageType):
         freeze_token: Optional["MintlayerFreezeToken"] = None,
         unfreeze_token: Optional["MintlayerUnfreezeToken"] = None,
         change_token_authority: Optional["MintlayerChangeTokenAuhtority"] = None,
+        conclude_order: Optional["MintlayerConcludeOrder"] = None,
+        fill_order: Optional["MintlayerFillOrder"] = None,
         change_token_metadata_uri: Optional["MintlayerChangeTokenMetadataUri"] = None,
     ) -> None:
         self.address_n: Sequence["MintlayerAddressPath"] = address_n if address_n is not None else []
@@ -5625,6 +5629,8 @@ class MintlayerAccountCommandTxInput(protobuf.MessageType):
         self.freeze_token = freeze_token
         self.unfreeze_token = unfreeze_token
         self.change_token_authority = change_token_authority
+        self.conclude_order = conclude_order
+        self.fill_order = fill_order
         self.change_token_metadata_uri = change_token_metadata_uri
 
 
@@ -5721,6 +5727,43 @@ class MintlayerChangeTokenAuhtority(protobuf.MessageType):
         self.destination = destination
 
 
+class MintlayerConcludeOrder(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("order_id", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        order_id: "bytes",
+    ) -> None:
+        self.order_id = order_id
+
+
+class MintlayerFillOrder(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("order_id", "bytes", repeated=False, required=True),
+        2: protobuf.Field("amount", "bytes", repeated=False, required=True),
+        3: protobuf.Field("token_id", "bytes", repeated=False, required=False, default=None),
+        4: protobuf.Field("destination", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        order_id: "bytes",
+        amount: "bytes",
+        destination: "str",
+        token_id: Optional["bytes"] = None,
+    ) -> None:
+        self.order_id = order_id
+        self.amount = amount
+        self.destination = destination
+        self.token_id = token_id
+
+
 class MintlayerChangeTokenMetadataUri(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
@@ -5752,6 +5795,7 @@ class MintlayerTxOutput(protobuf.MessageType):
         9: protobuf.Field("issue_nft", "MintlayerIssueNftTxOutput", repeated=False, required=False, default=None),
         10: protobuf.Field("data_deposit", "MintlayerDataDepositTxOutput", repeated=False, required=False, default=None),
         11: protobuf.Field("htlc", "MintlayerHtlcTxOutput", repeated=False, required=False, default=None),
+        12: protobuf.Field("anyone_can_take", "MintlayerAnyoneCanTakeTxOutput", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -5768,6 +5812,7 @@ class MintlayerTxOutput(protobuf.MessageType):
         issue_nft: Optional["MintlayerIssueNftTxOutput"] = None,
         data_deposit: Optional["MintlayerDataDepositTxOutput"] = None,
         htlc: Optional["MintlayerHtlcTxOutput"] = None,
+        anyone_can_take: Optional["MintlayerAnyoneCanTakeTxOutput"] = None,
     ) -> None:
         self.transfer = transfer
         self.lock_then_transfer = lock_then_transfer
@@ -5780,6 +5825,7 @@ class MintlayerTxOutput(protobuf.MessageType):
         self.issue_nft = issue_nft
         self.data_deposit = data_deposit
         self.htlc = htlc
+        self.anyone_can_take = anyone_can_take
 
 
 class MintlayerTokenOutputValue(protobuf.MessageType):
@@ -6101,6 +6147,26 @@ class MintlayerHtlcTxOutput(protobuf.MessageType):
         self.spend_key = spend_key
         self.refund_timelock = refund_timelock
         self.refund_key = refund_key
+
+
+class MintlayerAnyoneCanTakeTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("conclude_key", "string", repeated=False, required=True),
+        2: protobuf.Field("ask", "MintlayerOutputValue", repeated=False, required=True),
+        3: protobuf.Field("give", "MintlayerOutputValue", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        conclude_key: "str",
+        ask: "MintlayerOutputValue",
+        give: "MintlayerOutputValue",
+    ) -> None:
+        self.conclude_key = conclude_key
+        self.ask = ask
+        self.give = give
 
 
 class MintlayerPrevTx(protobuf.MessageType):

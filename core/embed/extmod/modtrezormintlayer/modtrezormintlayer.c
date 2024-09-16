@@ -18,8 +18,6 @@
  */
 
 #include <stdint.h>
-#include <stdio.h>
-#include <string.h>
 
 #include "common.h"
 
@@ -38,9 +36,15 @@ STATIC const mp_rom_map_elem_t mod_trezormintlayer_globals_table[] = {
     {MP_ROM_QSTR(MP_QSTR_encode_account_spending_input),
      MP_ROM_PTR(
          &mod_trezormintlayer_utils_mintlayer_encode_account_spending_input_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_account_command_input),
+    {MP_ROM_QSTR(MP_QSTR_encode_token_account_command_input),
      MP_ROM_PTR(
-         &mod_trezormintlayer_utils_mintlayer_encode_account_command_input_obj)},
+         &mod_trezormintlayer_utils_mintlayer_encode_token_account_command_input_obj)},
+    {MP_ROM_QSTR(MP_QSTR_encode_conclude_order_account_command_input),
+     MP_ROM_PTR(
+         &mod_trezormintlayer_utils_mintlayer_encode_conclude_order_account_command_input_obj)},
+    {MP_ROM_QSTR(MP_QSTR_encode_fill_order_account_command_input),
+     MP_ROM_PTR(
+         &mod_trezormintlayer_utils_mintlayer_encode_fill_order_account_command_input_obj)},
     {MP_ROM_QSTR(MP_QSTR_encode_transfer_output),
      MP_ROM_PTR(
          &mod_trezormintlayer_utils_mintlayer_encode_transfer_output_obj)},
@@ -72,6 +76,9 @@ STATIC const mp_rom_map_elem_t mod_trezormintlayer_globals_table[] = {
          &mod_trezormintlayer_utils_mintlayer_encode_data_deposit_output_obj)},
     {MP_ROM_QSTR(MP_QSTR_encode_htlc_output),
      MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_htlc_output_obj)},
+    {MP_ROM_QSTR(MP_QSTR_encode_anyone_can_take_output),
+     MP_ROM_PTR(
+         &mod_trezormintlayer_utils_mintlayer_encode_anyone_can_take_output_obj)},
     {MP_ROM_QSTR(MP_QSTR_encode_compact_length),
      MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_comact_length_obj)},
 };
