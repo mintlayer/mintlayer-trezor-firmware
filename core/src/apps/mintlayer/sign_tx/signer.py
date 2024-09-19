@@ -296,7 +296,7 @@ class Mintlayer:
                         x.change_token_authority.destination
                     )
                 elif x.change_token_metadata_uri:
-                    command = 5
+                    command = 8
                     token_id = x.change_token_metadata_uri.token_id
                     data = x.change_token_metadata_uri.metadata_uri
                 elif x.conclude_order:
@@ -312,13 +312,14 @@ class Mintlayer:
                 elif x.fill_order:
                     ord = x.fill_order
                     token_id = b"" if not ord.token_id else ord.token_id
+                    destination = mintlayer_decode_address_to_bytes(ord.destination)
                     encoded_inp = (
                         mintlayer_utils.encode_fill_order_account_command_input(
                             x.nonce,
                             ord.order_id,
                             ord.amount,
                             token_id,
-                            ord.destination,
+                            destination,
                         )
                     )
                     encoded_inputs.append(encoded_inp)
@@ -393,8 +394,8 @@ class Mintlayer:
                 x.token_ticker,
                 x.number_of_decimals,
                 x.metadata_uri,
-                x.total_supply.type,
-                x.total_supply.fixed_amount,
+                int(x.total_supply.type),
+                x.total_supply.fixed_amount or b"",
                 authority,
                 int(x.is_freezable),
             )
@@ -406,7 +407,7 @@ class Mintlayer:
                 x.token_id,
                 creator,
                 x.name,
-                x.destination,
+                x.description,
                 x.ticker,
                 x.icon_uri,
                 x.additional_metadata_uri,
@@ -434,10 +435,11 @@ class Mintlayer:
             )
         elif out.anyone_can_take:
             x = out.anyone_can_take
+            conclude_key = mintlayer_decode_address_to_bytes(x.conclude_key)
             ask_token_id = b"" if not x.ask.token else x.ask.token.token_id
             give_token_id = b"" if not x.give.token else x.give.token.token_id
             encoded_out = mintlayer_utils.encode_anyone_can_take_output(
-                x.conclude_key, x.ask.amount, ask_token_id, x.give.amount, give_token_id
+                conclude_key, x.ask.amount, ask_token_id, x.give.amount, give_token_id
             )
         else:
             raise Exception("unhandled tx output type")
@@ -525,6 +527,9 @@ def update_totals(totals: Dict[str, int], txo: MintlayerTxOutput):
         else:
             totals[token_or_coin] = amount
 
+    if ML_COIN not in totals:
+        totals[ML_COIN] = 0
+
     if txo.transfer:
         update(txo.transfer.value)
     elif txo.lock_then_transfer:
@@ -532,7 +537,11 @@ def update_totals(totals: Dict[str, int], txo: MintlayerTxOutput):
     elif txo.burn:
         update(txo.burn.value)
     elif txo.issue_nft:
-        totals[txo.issue_nft.ticker.decode("utf-8")] += 1
+        token_or_coin = txo.issue_nft.ticker.decode("utf-8")
+        if token_or_coin in totals:
+            totals[token_or_coin] += 1
+        else:
+            totals[token_or_coin] = 1
     elif txo.create_stake_pool:
         amount = int.from_bytes(txo.create_stake_pool.pledge, "big")
         totals[ML_COIN] += amount

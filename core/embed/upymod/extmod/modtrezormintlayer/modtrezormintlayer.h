@@ -625,7 +625,7 @@ STATIC mp_obj_t mod_trezormintlayer_utils_mintlayer_encode_htlc_output(
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
-    mod_trezormintlayer_utils_mintlayer_encode_htlc_output_obj, 5, 5,
+    mod_trezormintlayer_utils_mintlayer_encode_htlc_output_obj, 7, 7,
     mod_trezormintlayer_utils_mintlayer_encode_htlc_output);
 
 /// def encode_anyone_can_take_output(destination: bytes, ask_amount: bytes,
