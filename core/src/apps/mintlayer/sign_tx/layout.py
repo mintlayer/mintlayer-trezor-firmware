@@ -92,7 +92,15 @@ async def confirm_output(
     elif output.create_stake_pool:
         x = output.create_stake_pool
         assert x.staker is not None and x.decommission_key is not None
-        address_short = f"staker: {x.staker}, decommission_key: {x.decommission_key}"
+        data = convertbits(x.pool_id, 8, 5)
+        pool_id_address = bech32_encode(POOL_HRP, data, Encoding.BECH32M)
+        address_short = f"""Pool ID: {pool_id_address}
+staker: {x.staker}
+decommission_key: {x.decommission_key}"
+VFT public key: {x.vrf_public_key}
+Margin ratio per thousand: {x.margin_ratio_per_thousand}
+Cost per block: {int.from_bytes(x.cost_per_block, "big")}
+"""
         amount = format_coin_amount(x.pledge, None)
         address_label = "Create stake pool"
     elif output.produce_block_from_stake:
@@ -128,20 +136,19 @@ async def confirm_output(
         elif x.total_supply.type == MintlayerTokenTotalSupplyType.FIXED:
             if not x.total_supply.fixed_amount:
                 raise ValueError("Token Fixed supply without amount")
-            amount = int.from_bytes(x.total_supply.fixed_amount, "big")
-            formated_amount = format_amount(amount, x.number_of_decimals)
+            fixed_amount = int.from_bytes(x.total_supply.fixed_amount, "big")
+            formated_amount = format_amount(fixed_amount, x.number_of_decimals)
             total_supply = f"FIXED {formated_amount}"
         else:
             raise ValueError("Unhandled Token total supply type")
         is_freezable = "Yes" if x.is_freezable else "No"
         address_short = f"""Ticker: {ticker}
-        Authority: {x.authority}
-        Metadata URI: {metadata_uri}
-        Total token supply: {total_supply}
-        Number of Decimals: {x.number_of_decimals}
-        Is Freezable: {is_freezable}
-        """
-        amount = "amount"
+Authority: {x.authority}
+Metadata URI: {metadata_uri}
+Total token supply: {total_supply}
+Number of Decimals: {x.number_of_decimals}
+Is Freezable: {is_freezable}"""
+        amount = ""
         address_label = "Issue fungible token"
     elif output.issue_nft:
         x = output.issue_nft
@@ -155,13 +162,12 @@ async def confirm_output(
         )
         media_uri = x.media_uri.decode("utf-8") if x.media_uri else None
         address_short = f"""Name: {name}
-        Creator: {x.creator}
-        ticker: {ticker}
-        Address: {x.destination}
-        Icon URI: {icon_uri}
-        Additional medatada URI: {additional_metadata_uri}
-        Media URI: {media_uri}
-        """
+Creator: {x.creator}
+ticker: {ticker}
+Address: {x.destination}
+Icon URI: {icon_uri}
+Additional medatada URI: {additional_metadata_uri}
+Media URI: {media_uri}"""
         amount = ""
         address_label = "Issue NFT token"
     elif output.data_deposit:
@@ -172,11 +178,11 @@ async def confirm_output(
     elif output.htlc:
         x = output.htlc
         lock = lock_to_string(x.refund_timelock)
-        address_short = f"""Secret Hash: {x.secret_hash.hex()}
-        Spend Key: {x.spend_key}
-        Refund Key: {x.refund_key}
-        Refund Time Lock: {lock}
-        """
+        hexidied_secret_hash = hexlify(x.secret_hash).decode()
+        address_short = f"""Secret Hash: {hexidied_secret_hash}
+Spend Key: {x.spend_key}
+Refund Key: {x.refund_key}
+Refund Time Lock: {lock}"""
         amount = format_coin_amount(x.value.amount, x.value.token)
         address_label = "HTLC"
     elif output.anyone_can_take:
@@ -184,9 +190,8 @@ async def confirm_output(
         ask_amount = format_coin_amount(x.ask.amount, x.ask.token)
         give_amount = format_coin_amount(x.give.amount, x.give.token)
         address_short = f"""Conclude Key: {x.conclude_key}
-        Ask: {ask_amount}
-        Give: {give_amount}"
-        """
+Ask: {ask_amount}
+Give: {give_amount}"""
         amount = ""
         address_label = "Anyone can take"
     else:

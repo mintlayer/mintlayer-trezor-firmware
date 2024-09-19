@@ -463,11 +463,10 @@ extern "C" fn mintlayer_encode_create_stake_pool_output(
     let vrf_public_key = unsafe {
         core::slice::from_raw_parts(vrf_public_key_data, vrf_public_key_data_len as usize)
     };
-    let vrf_public_key =
-        VRFPublicKeyHolder::Schnorrkel(VRFPublicKey(match vrf_public_key.try_into() {
-            Ok(res) => res,
-            Err(_) => return MintlayerErrorCode::InvalidVrfPublicKey.into(),
-        }));
+    let vrf_public_key = match VRFPublicKeyHolder::decode_all(&mut vrf_public_key.as_ref()) {
+        Ok(res) => res,
+        Err(_) => return MintlayerErrorCode::InvalidVrfPublicKey.into(),
+    };
 
     let destination_bytes = unsafe {
         core::slice::from_raw_parts(
@@ -786,14 +785,16 @@ extern "C" fn mintlayer_encode_issue_nft_output(
     };
 
     let issuance = NftIssuance::V0(NftIssuanceV0 {
-        creator,
-        name,
-        description,
-        ticker,
-        icon_uri,
-        additional_metadata_uri,
-        media_uri,
-        media_hash,
+        metadata: Metadata {
+            creator,
+            name,
+            description,
+            ticker,
+            icon_uri,
+            additional_metadata_uri,
+            media_uri,
+            media_hash,
+        },
     });
 
     let txo = TxOutput::IssueNft(token_id, issuance, destination);
@@ -883,7 +884,7 @@ extern "C" fn mintlayer_encode_htlc_output(
 
     let hash =
         unsafe { core::slice::from_raw_parts(secret_hash_data, secret_hash_data_len as usize) };
-    let secret_hash = H256(match hash.try_into() {
+    let secret_hash = HtlcSecretHash(match hash.try_into() {
         Ok(hash) => hash,
         Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
     });
@@ -1333,6 +1334,11 @@ enum NftIssuance {
 
 #[derive(Encode)]
 struct NftIssuanceV0 {
+    pub metadata: Metadata,
+}
+
+#[derive(Encode)]
+struct Metadata {
     pub creator: Option<PublicKeyHolder>,
     pub name: parity_scale_codec::alloc::vec::Vec<u8>,
     pub description: parity_scale_codec::alloc::vec::Vec<u8>,
@@ -1398,7 +1404,7 @@ enum TxOutput {
 #[derive(Encode)]
 pub struct HashedTimelockContract {
     // can be spent either by a specific address that knows the secret
-    secret_hash: H256,
+    secret_hash: HtlcSecretHash,
     spend_key: Destination,
 
     // or by a multisig after timelock expires making it possible to refund
@@ -1408,6 +1414,9 @@ pub struct HashedTimelockContract {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Encode, Decode)]
 struct H256(pub [u8; 32]);
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Encode, Decode)]
+struct HtlcSecretHash(pub [u8; 20]);
 
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, Ord, PartialOrd)]
 enum OutPointSourceId {
