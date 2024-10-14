@@ -375,4 +375,15 @@ enum MessageType {
     MessageType_SolanaAddress = 903 [(wire_out) = true];
     MessageType_SolanaSignTx = 904 [(wire_in) = true];
     MessageType_SolanaTxSignature = 905 [(wire_out) = true];
+
+    // Mintlayer
+    MessageType_MintlayerGetAddress = 1000 [(wire_in) = true];
+    MessageType_MintlayerAddress = 1001 [(wire_out) = true];
+    MessageType_MintlayerGetPublicKey = 1002 [(wire_in) = true];
+    MessageType_MintlayerPublicKey = 1003 [(wire_out) = true];
+    MessageType_MintlayerSignMessage = 1004 [(wire_in) = true];
+    MessageType_MintlayerSignTx = 1005 [(wire_in) = true];
+    MessageType_MintlayerTxRequest = 1006 [(wire_out) = true];
+    MessageType_MintlayerTxAckUtxoInput = 1007 [(wire_in) = true];
+    MessageType_MintlayerTxAckOutput = 1008 [(wire_in) = true];
 }

@@ -419,6 +419,12 @@ if not utils.BITCOIN_ONLY:
     import trezor.enums.EthereumDataType
     trezor.enums.EthereumDefinitionType
     import trezor.enums.EthereumDefinitionType
+    trezor.enums.MintlayerRequestType
+    import trezor.enums.MintlayerRequestType
+    trezor.enums.MintlayerTokenTotalSupplyType
+    import trezor.enums.MintlayerTokenTotalSupplyType
+    trezor.enums.MintlayerUtxoType
+    import trezor.enums.MintlayerUtxoType
     trezor.enums.MoneroNetworkType
     import trezor.enums.MoneroNetworkType
     trezor.enums.NEMImportanceTransferMode
@@ -555,6 +561,24 @@ if not utils.BITCOIN_ONLY:
     import apps.ethereum.tokens
     apps.ethereum.verify_message
     import apps.ethereum.verify_message
+    apps.mintlayer
+    import apps.mintlayer
+    apps.mintlayer.get_address
+    import apps.mintlayer.get_address
+    apps.mintlayer.get_public_key
+    import apps.mintlayer.get_public_key
+    apps.mintlayer.sign_message
+    import apps.mintlayer.sign_message
+    apps.mintlayer.sign_tx
+    import apps.mintlayer.sign_tx
+    apps.mintlayer.sign_tx.helpers
+    import apps.mintlayer.sign_tx.helpers
+    apps.mintlayer.sign_tx.layout
+    import apps.mintlayer.sign_tx.layout
+    apps.mintlayer.sign_tx.progress
+    import apps.mintlayer.sign_tx.progress
+    apps.mintlayer.sign_tx.signer
+    import apps.mintlayer.sign_tx.signer
     apps.monero
     import apps.monero
     apps.monero.diag

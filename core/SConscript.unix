@@ -107,6 +107,7 @@ CPPDEFINES_MOD += [
 ]
 SOURCE_MOD += [
     'embed/extmod/trezorobj.c',
+    'embed/extmod/modtrezormintlayer/modtrezormintlayer.c',
     'embed/extmod/modtrezorcrypto/crc.c',
     'embed/extmod/modtrezorcrypto/modtrezorcrypto.c',
 ]
@@ -752,6 +753,8 @@ if FROZEN:
     if EVERYTHING:
         SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'apps/binance/*.py'))
         SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'trezor/enums/Binance*.py'))
+
+        SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'apps/mintlayer/*.py'))
 
         SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'apps/cardano/*.py'))
         SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'apps/cardano/*/*.py'))

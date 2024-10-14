@@ -19,6 +19,8 @@ from trezor import utils
 if not utils.BITCOIN_ONLY:
     from trezorcrypto import cardano, monero, nem  # noqa: F401
 
+    import trezormintlayer as mintlayer_utils  # noqa: F401
+
 if utils.USE_OPTIGA:
     from trezorcrypto import optiga  # noqa: F401
 

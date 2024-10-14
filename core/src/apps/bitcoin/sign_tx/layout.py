@@ -43,6 +43,7 @@ def format_coin_amount(amount: int, coin: CoinInfo, amount_unit: AmountUnit) -> 
     elif amount_unit == AmountUnit.MILLIBITCOIN and decimals >= 3:
         decimals -= 3
         shortcut = "m" + shortcut
+
     # we don't need to do anything for AmountUnit.BITCOIN
     return f"{format_amount(amount, decimals)} {shortcut}"
 

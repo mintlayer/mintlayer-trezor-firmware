@@ -1,0 +1,511 @@
+syntax = "proto2";
+package hw.trezor.messages.mintlayer;
+
+// Sugar for easier handling in Java
+option java_package = "com.satoshilabs.trezor.lib.protobuf";
+option java_outer_classname = "TrezorMessageMintlayer";
+
+/** XXX
+
+Most likely, ALL fields in this file should be `required`. We are leaving some optionals
+in place, in cases where the field value continues to the JSON as a string -- on the off
+chance that somebody is relying on the behavior.
+
+*/
+
+/**
+ * Request: Ask the device for a Mintlayer address.
+ * @start
+ * @next MintlayerAddress
+ * @next Failure
+ */
+message MintlayerGetAddress {
+    repeated uint32 address_n = 1;  // BIP-32-style path to derive the key from master node
+    optional bool show_display = 2; // optionally prompt for confirmation on trezor display
+    optional bool chunkify = 3;     // display the address in chunks of 4 characters
+}
+
+/**
+ * Response: A Mintlayer address.
+ * @end
+ */
+message MintlayerAddress {
+    required string address = 1;    // prefixed bech32 Mintlayer address
+}
+
+/**
+ * Request: Ask device for a public key corresponding to address_n path.
+ * @start
+ * @next MintlayerPublicKey
+ */
+message MintlayerGetPublicKey {
+    repeated uint32 address_n = 1;  // BIP-32 path to derive the key from master node
+    optional bool show_display = 2; // optionally show on display before sending the result
+}
+
+/**
+ * Response: A public key corresponding to address_n path.
+ * @end
+ */
+message MintlayerPublicKey {
+    required bytes public_key = 1;
+    required bytes chain_code = 2;
+}
+
+/**
+ * Request: Ask device to sign a message
+ * @start
+ * @next Success
+ * @next Failure
+ */
+message MintlayerSignMessage {
+    repeated uint32 address_n = 1;  // BIP-32 path to derive the key from master node
+    required string address = 2;    // destination address in Base58 encoding; script_type must be PAYTOADDRESS
+    required bytes message = 3;     // message to verify
+}
+
+/**
+ * Request: Ask device to sign transaction
+ * @start
+ * @next MintlayerTxRequest
+ * @next Failure
+ */
+message MintlayerSignTx {
+    required uint32 outputs_count = 1;                         // number of transaction outputs
+    required uint32 inputs_count = 2;                          // number of transaction inputs
+    optional uint32 version = 3 [default=1];                   // transaction version
+    optional bool serialize = 4 [default=true];               // serialize the full transaction, as opposed to only outputting the signatures
+    optional bool chunkify = 5;                               // display the address in chunks of 4 characters
+}
+
+/**
+ * Response: Device asks for information for signing transaction or returns the last result
+ * If request_index is set, device awaits TxAck<any> matching the request type.
+ * If signature_index is set, 'signature' contains signed input of signature_index's input
+ * @end
+ * @next TxAckInput
+ * @next TxAckOutput
+ * @next TxAckPrevMeta
+ * @next TxAckPrevInput
+ * @next TxAckPrevOutput
+ * @next TxAckPrevExtraData
+ * @next TxAckPaymentRequest
+ */
+message MintlayerTxRequest {
+    optional MintlayerRequestType request_type = 1;              // what should be filled in TxAck message?
+    optional MintlayerTxRequestDetailsType details = 2;          // request for tx details
+    repeated MintlayerTxRequestSerializedType serialized = 3;    // serialized data and request for next
+    /**
+    * Type of information required by transaction signing process
+    */
+    enum MintlayerRequestType {
+        TXINPUT = 0;
+        TXOUTPUT = 1;
+        TXMETA = 2;
+        TXFINISHED = 3;
+    }
+    /**
+    * Structure representing request details
+    */
+    message MintlayerTxRequestDetailsType {
+        optional uint32 request_index = 1;      // device expects TxAck message from the computer
+        optional bytes tx_hash = 2;             // tx_hash of requested transaction
+    }
+    /**
+    * Structure representing request details
+    */
+    message MintlayerSignature {
+        required bytes signature = 1;             // a single signature
+        optional uint32 multisig_idx = 2;         // in case of multisig the index of the key
+    }
+    /**
+    * Structure representing serialized data
+    */
+    message MintlayerTxRequestSerializedType {
+        optional uint32 signature_index = 1;                  // 'signature' field contains signed input of this index
+        repeated MintlayerSignature signatures = 2;           // signature of the signature_index input
+        optional bytes serialized_tx = 3;                     // part of serialized and signed transaction
+    }
+}
+
+/** Data type for transaction input to be signed.
+ *
+ * @embed
+ */
+message MintlayerTxInput {
+    optional MintlayerUtxoTxInput utxo = 1;                       // UTXO input
+    optional MintlayerAccountTxInput account = 2;                 // account spending input
+    optional MintlayerAccountCommandTxInput account_command = 3;  // account command input
+}
+
+/**
+* Type of information required by transaction signing process
+*/
+enum MintlayerUtxoType {
+    TRANSACTION = 0;
+    BLOCK = 1;
+}
+
+/** Data type for output value coins or token
+ * @embed
+ */
+message MintlayerAddressPath {
+    repeated uint32 address_n = 1;                                      // BIP-32 path to derive the key from master node
+    optional uint32 multisig_idx = 2;                                   // in case of a multisig the key index
+}
+
+/** Data type for transaction input to be signed.
+ *
+ * @embed
+ */
+message MintlayerUtxoTxInput {
+    repeated MintlayerAddressPath address_n = 1;                        // BIP-32 path to derive the key from master node
+    required string address = 2;                                        // destination address in Base58 encoding; script_type must be PAYTOADDRESS
+    required bytes prev_hash = 3;                                       // hash of previous transaction output to spend by this input
+    required uint32 prev_index = 4;                                     // index of previous output to spend
+    required MintlayerUtxoType type = 5;                                // source type of the utxo (Transaction or BlockReward)
+    optional uint32 sequence = 6 [default=0xffffffff];                  // sequence
+    required MintlayerOutputValue value = 7;                            // amount of previous transaction output
+}
+
+/** Data type for transaction input to be signed.
+ *
+ * @embed
+ */
+message MintlayerAccountTxInput {
+    repeated MintlayerAddressPath address_n = 1;                        // BIP-32 path to derive the key from master node
+    required string address = 2;                                        // destination address in Base58 encoding; script_type must be PAYTOADDRESS
+    optional uint32 sequence = 3 [default=0xffffffff];                  // sequence
+    required MintlayerOutputValue value = 4;                            // amount of previous transaction output
+    required uint64 nonce = 5;                                          // incrementing account nonce
+    required bytes delegation_id = 6;                                   // the delegation id of the account
+}
+
+/** Data type for transaction input to be signed.
+ *
+ * @embed
+ */
+message MintlayerAccountCommandTxInput {
+    repeated MintlayerAddressPath address_n = 1;                             // BIP-32 path to derive the key from master node
+    required string address = 2;                                             // destination address in Base58 encoding; script_type must be PAYTOADDRESS
+    optional uint32 sequence = 3 [default=0xffffffff];                       // sequence
+    required uint64 nonce = 4;                                               // incrementing account nonce
+    optional MintlayerMintTokens mint = 5;                                   // mint tokens
+    optional MintlayerUnmintTokens unmint = 6;                               // unmint tokens
+    optional MintlayerLockTokenSupply lock_token_supply = 7;                 // lock token supply
+    optional MintlayerFreezeToken freeze_token = 8;                          // freeze supply
+    optional MintlayerUnfreezeToken unfreeze_token = 9;                      // unfreeze supply
+    optional MintlayerChangeTokenAuhtority change_token_authority = 10;      // change token authority
+    optional MintlayerConcludeOrder conclude_order = 11;                     // conclude an order
+    optional MintlayerFillOrder fill_order = 12;                             // fill an order
+    optional MintlayerChangeTokenMetadataUri change_token_metadata_uri = 13; // change token metadata uri
+}
+
+/** Data type for account command
+ * @embed
+ */
+message MintlayerMintTokens {
+    required bytes token_id = 1;                   // token id
+    required bytes amount = 2;                     // amoun of tokens to mint
+}
+
+/** Data type for account command
+ * @embed
+ */
+message MintlayerUnmintTokens {
+    required bytes token_id = 1;                   // token id
+}
+
+/** Data type for account command
+ * @embed
+ */
+message MintlayerLockTokenSupply {
+    required bytes token_id = 1;                   // token id
+}
+
+/** Data type for account command
+ * @embed
+ */
+message MintlayerFreezeToken {
+    required bytes token_id = 1;                   // token id
+    required bool is_token_unfreezabe = 2;         // is unfreezeable after freezing it
+}
+
+/** Data type for account command
+ * @embed
+ */
+message MintlayerUnfreezeToken {
+    required bytes token_id = 1;                   // token id
+}
+
+/** Data type for account command
+ * @embed
+ */
+message MintlayerChangeTokenAuhtority {
+    required bytes token_id = 1;                   // token id
+    required string destination = 2;               // destination for the new authority
+}
+
+/** Data type for account command
+ * @embed
+ */
+message MintlayerConcludeOrder {
+    required bytes order_id = 1;                   // order id
+}
+
+/** Data type for account command
+ * @embed
+ */
+message MintlayerFillOrder {
+    required bytes order_id = 1;                   // order id
+    required bytes amount = 2;                     // value
+    required string destination = 3;               // the destination
+}
+
+/** Data type for account command
+ * @embed
+ */
+message MintlayerChangeTokenMetadataUri {
+    required bytes token_id = 1;                   // token id
+    required bytes metadata_uri = 2;               // new metadata uri
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerTxOutput {
+    optional MintlayerTransferTxOutput transfer = 1;                                 // transfer output
+    optional MintlayerLockThenTransferTxOutput lock_then_transfer = 2;               // lock then transfer output
+    optional MintlayerBurnTxOutput burn = 3;                                         // burn output
+    optional MintlayerCreateStakePoolTxOutput create_stake_pool = 4;                 // create stake pool output
+    optional MintlayerProduceBlockFromStakeTxOutput produce_block_from_stake = 5;    // create block from stake output
+    optional MintlayerCreateDelegationIdTxOutput create_delegation_id = 6;           // create delegation Id output
+    optional MintlayerDelegateStakingTxOutput delegate_staking = 7;                  // delegate staking output
+    optional MintlayerIssueFungibleTokenTxOutput issue_fungible_token = 8;           // issue fungible token output
+    optional MintlayerIssueNftTxOutput issue_nft = 9;                                // issue NFT output
+    optional MintlayerDataDepositTxOutput data_deposit = 10;                         // data deposit output
+    optional MintlayerHtlcTxOutput htlc = 11;                                        // HTLC output
+    optional MintlayerAnyoneCanTakeTxOutput anyone_can_take = 12;                    // Anyone can take output
+}
+
+/** Data type for output value information for the token
+ * @embed
+ */
+message MintlayerTokenOutputValue {
+    required bytes token_id = 1;                   // token id
+    required bytes token_ticker = 2;               // the token ticker
+    required uint32 number_of_decimals = 3;        // the number of decimals for the token
+}
+
+/** Data type for output value coins or token
+ * @embed
+ */
+message MintlayerOutputValue {
+    required bytes amount = 1;                     // lock until block height
+    optional MintlayerTokenOutputValue token = 2;  // optional token info
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerTransferTxOutput {
+    required string address = 1;                    // destination address in Base58 encoding; script_type must be PAYTOADDRESS
+    required MintlayerOutputValue value = 2;        // amount to spend in atoms for coin or token
+}
+
+/** Data type for time lock of an output
+ * @embed
+ */
+message MintlayerOutputTimeLock {
+    optional uint64 until_height = 1;                    // lock until block height
+    optional uint64 until_time = 2;                      // lock until time
+    optional uint64 for_block_count = 3;                 // lock for number of blocks
+    optional uint64 for_seconds = 4;                     // lock for number of seconds
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerLockThenTransferTxOutput {
+    optional string address = 1;                    // destination address in Base58 encoding; script_type must be PAYTOADDRESS
+    required MintlayerOutputValue value = 2;        // amount to spend in atoms
+    required MintlayerOutputTimeLock lock = 3;      // output lock
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerBurnTxOutput {
+    required MintlayerOutputValue value = 1;        // amount to burn in atoms
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerCreateStakePoolTxOutput {
+    required bytes pool_id = 1;                   // the pool id
+    required bytes pledge = 2;                    // the pledge amount
+    required string staker = 3;                    // the staker destination address
+    required string vrf_public_key = 4;            // the VRF public key address
+    required string decommission_key = 5;          // the decommission key
+    required uint32 margin_ratio_per_thousand = 6;// the margin ratio per thousand
+    required bytes cost_per_block = 7;            // the cost per block
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerProduceBlockFromStakeTxOutput {
+    required string destination = 1;               // the staker destination address
+    required bytes pool_id = 2;                   // the pool id
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerCreateDelegationIdTxOutput {
+    required string destination = 1;               // the delegation owner destination address
+    required bytes pool_id = 2;                   // the pool id
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerDelegateStakingTxOutput {
+    required bytes amount = 1;               // the amount to stake
+    required bytes delegation_id = 2;        // the delegation id
+}
+
+/**
+* Type of information required by transaction signing process
+*/
+enum MintlayerTokenTotalSupplyType {
+    FIXED = 0;
+    LOCKABLE = 1;
+    UNLIMITED = 2;
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerTokenTotalSupply {
+    required MintlayerTokenTotalSupplyType type = 1;    // the amount to stake
+    optional bytes fixed_amount = 2;                    // the amount to stake
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerIssueFungibleTokenTxOutput {
+    required bytes token_ticker = 1;                             // the token ticker
+    required uint32 number_of_decimals = 2;                       // the number of decimals for the token
+    required bytes metadata_uri = 3;                             // the metadata uri
+    required MintlayerTokenTotalSupply total_supply = 4;         // the total supply limit
+    required string authority = 5;                                // the token authority destination address
+    required bool is_freezable = 6;                              // if the token freezable or not
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerIssueNftTxOutput {
+    required bytes token_id = 1;                                 // the token id
+    required string destination = 2;                              // the NFT authority destination address
+    optional string creator = 3;                                  // the NFT creator destination address
+    required bytes name = 4;                                     // the NFT name
+    required bytes description = 5;                              // the NFT description
+    required bytes ticker = 6;                                   // the NFT ticker
+    optional bytes icon_uri = 7;                                 // the NFT icon uri
+    optional bytes additional_metadata_uri = 8;                  // the NFT additional metadata uri
+    optional bytes media_uri = 9;                                // the NFT media uri
+    required bytes media_hash = 10;                              // the NFT media hash
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerDataDepositTxOutput {
+    required bytes data = 1;    // the data to be deposited
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerHtlcTxOutput {
+    required MintlayerOutputValue value = 1;                   // amount to transfer
+    required bytes secret_hash = 2;                            // the hash of the exchanged secret
+    required string spend_key = 3;                             // the key that can spend the HTLC given the secret
+    required MintlayerOutputTimeLock refund_timelock = 4;      // time lock
+    required string refund_key = 5;                            // the key for a refund after the time lock has expired
+}
+
+/** Data type for transaction output to be signed.
+ * @embed
+ */
+message MintlayerAnyoneCanTakeTxOutput {
+    required string conclude_key = 1;                          // The key that can authorize conclusion of an order
+    required MintlayerOutputValue ask = 2;                     // ask value of the order
+    required MintlayerOutputValue give = 3;                    // give value of the order
+}
+
+/** Data type for metadata about previous transaction which contains the UTXO being spent.
+ * @embed
+ */
+message MintlayerPrevTx {
+    required uint32 version = 1;
+    required uint32 inputs_count = 6;
+    required uint32 outputs_count = 7;
+}
+
+/** Data type for inputs of previous transactions.
+ *
+ * When adding fields, take care to not conflict with TxInput
+ * @embed
+ */
+message MintlayerPrevInput {
+    required bytes prev_hash = 2;                                       // hash of previous transaction output to spend by this input
+    required uint32 prev_index = 3;                                     // index of previous output to spend
+
+    // fields that are in use, or have been in the past, in MintlayerUtxoTxInput
+    reserved 1, 4, 5;
+}
+
+/** Data type for outputs of previous transactions.
+ * @embed
+ */
+message MintlayerPrevTransferOutput {
+    required MintlayerOutputValue value = 1;                     // amount sent to this output
+}
+
+/**
+ * Request: Data about input to be signed.
+ *
+ * Do not edit this type without considering compatibility with TxAck.
+ * Prefer to modify the inner TxInput type.
+ *
+ * @next TxRequest
+ */
+message MintlayerTxAckUtxoInput {
+    required MintlayerTxAckInputWrapper tx = 1;
+
+    message MintlayerTxAckInputWrapper {
+        required MintlayerTxInput input = 2;
+    }
+}
+
+/**
+ * Request: Data about output to be signed.
+ * Wire-alias of TxAck.
+ *
+ * Do not edit this type without considering compatibility with TxAck.
+ * Prefer to modify the inner TxOutput type.
+ *
+ * @next TxRequest
+ */
+message MintlayerTxAckOutput {
+    required MintlayerTxAckOutputWrapper tx = 1;
+
+    message MintlayerTxAckOutputWrapper {
+        required MintlayerTxOutput output = 5;
+    }
+}

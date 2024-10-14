@@ -47,6 +47,9 @@ if TYPE_CHECKING:
     from trezor.enums import HomescreenFormat  # noqa: F401
     from trezor.enums import InputScriptType  # noqa: F401
     from trezor.enums import MessageType  # noqa: F401
+    from trezor.enums import MintlayerRequestType  # noqa: F401
+    from trezor.enums import MintlayerTokenTotalSupplyType  # noqa: F401
+    from trezor.enums import MintlayerUtxoType  # noqa: F401
     from trezor.enums import MoneroNetworkType  # noqa: F401
     from trezor.enums import NEMImportanceTransferMode  # noqa: F401
     from trezor.enums import NEMModificationType  # noqa: F401
@@ -3985,6 +3988,880 @@ if TYPE_CHECKING:
 
         @classmethod
         def is_type_of(cls, msg: Any) -> TypeGuard["EthereumAccessList"]:
+            return isinstance(msg, cls)
+
+    class MintlayerGetAddress(protobuf.MessageType):
+        address_n: "list[int]"
+        show_display: "bool | None"
+        chunkify: "bool | None"
+
+        def __init__(
+            self,
+            *,
+            address_n: "list[int] | None" = None,
+            show_display: "bool | None" = None,
+            chunkify: "bool | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerGetAddress"]:
+            return isinstance(msg, cls)
+
+    class MintlayerAddress(protobuf.MessageType):
+        address: "str"
+
+        def __init__(
+            self,
+            *,
+            address: "str",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerAddress"]:
+            return isinstance(msg, cls)
+
+    class MintlayerGetPublicKey(protobuf.MessageType):
+        address_n: "list[int]"
+        show_display: "bool | None"
+
+        def __init__(
+            self,
+            *,
+            address_n: "list[int] | None" = None,
+            show_display: "bool | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerGetPublicKey"]:
+            return isinstance(msg, cls)
+
+    class MintlayerPublicKey(protobuf.MessageType):
+        public_key: "bytes"
+        chain_code: "bytes"
+
+        def __init__(
+            self,
+            *,
+            public_key: "bytes",
+            chain_code: "bytes",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerPublicKey"]:
+            return isinstance(msg, cls)
+
+    class MintlayerSignMessage(protobuf.MessageType):
+        address_n: "list[int]"
+        address: "str"
+        message: "bytes"
+
+        def __init__(
+            self,
+            *,
+            address: "str",
+            message: "bytes",
+            address_n: "list[int] | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerSignMessage"]:
+            return isinstance(msg, cls)
+
+    class MintlayerSignTx(protobuf.MessageType):
+        outputs_count: "int"
+        inputs_count: "int"
+        version: "int"
+        serialize: "bool"
+        chunkify: "bool | None"
+
+        def __init__(
+            self,
+            *,
+            outputs_count: "int",
+            inputs_count: "int",
+            version: "int | None" = None,
+            serialize: "bool | None" = None,
+            chunkify: "bool | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerSignTx"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxRequest(protobuf.MessageType):
+        request_type: "MintlayerRequestType | None"
+        details: "MintlayerTxRequestDetailsType | None"
+        serialized: "list[MintlayerTxRequestSerializedType]"
+
+        def __init__(
+            self,
+            *,
+            serialized: "list[MintlayerTxRequestSerializedType] | None" = None,
+            request_type: "MintlayerRequestType | None" = None,
+            details: "MintlayerTxRequestDetailsType | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxRequest"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxInput(protobuf.MessageType):
+        utxo: "MintlayerUtxoTxInput | None"
+        account: "MintlayerAccountTxInput | None"
+        account_command: "MintlayerAccountCommandTxInput | None"
+
+        def __init__(
+            self,
+            *,
+            utxo: "MintlayerUtxoTxInput | None" = None,
+            account: "MintlayerAccountTxInput | None" = None,
+            account_command: "MintlayerAccountCommandTxInput | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxInput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerAddressPath(protobuf.MessageType):
+        address_n: "list[int]"
+        multisig_idx: "int | None"
+
+        def __init__(
+            self,
+            *,
+            address_n: "list[int] | None" = None,
+            multisig_idx: "int | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerAddressPath"]:
+            return isinstance(msg, cls)
+
+    class MintlayerUtxoTxInput(protobuf.MessageType):
+        address_n: "list[MintlayerAddressPath]"
+        address: "str"
+        prev_hash: "bytes"
+        prev_index: "int"
+        type: "MintlayerUtxoType"
+        sequence: "int"
+        value: "MintlayerOutputValue"
+
+        def __init__(
+            self,
+            *,
+            address: "str",
+            prev_hash: "bytes",
+            prev_index: "int",
+            type: "MintlayerUtxoType",
+            value: "MintlayerOutputValue",
+            address_n: "list[MintlayerAddressPath] | None" = None,
+            sequence: "int | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerUtxoTxInput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerAccountTxInput(protobuf.MessageType):
+        address_n: "list[MintlayerAddressPath]"
+        address: "str"
+        sequence: "int"
+        value: "MintlayerOutputValue"
+        nonce: "int"
+        delegation_id: "bytes"
+
+        def __init__(
+            self,
+            *,
+            address: "str",
+            value: "MintlayerOutputValue",
+            nonce: "int",
+            delegation_id: "bytes",
+            address_n: "list[MintlayerAddressPath] | None" = None,
+            sequence: "int | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerAccountTxInput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerAccountCommandTxInput(protobuf.MessageType):
+        address_n: "list[MintlayerAddressPath]"
+        address: "str"
+        sequence: "int"
+        nonce: "int"
+        mint: "MintlayerMintTokens | None"
+        unmint: "MintlayerUnmintTokens | None"
+        lock_token_supply: "MintlayerLockTokenSupply | None"
+        freeze_token: "MintlayerFreezeToken | None"
+        unfreeze_token: "MintlayerUnfreezeToken | None"
+        change_token_authority: "MintlayerChangeTokenAuhtority | None"
+        conclude_order: "MintlayerConcludeOrder | None"
+        fill_order: "MintlayerFillOrder | None"
+        change_token_metadata_uri: "MintlayerChangeTokenMetadataUri | None"
+
+        def __init__(
+            self,
+            *,
+            address: "str",
+            nonce: "int",
+            address_n: "list[MintlayerAddressPath] | None" = None,
+            sequence: "int | None" = None,
+            mint: "MintlayerMintTokens | None" = None,
+            unmint: "MintlayerUnmintTokens | None" = None,
+            lock_token_supply: "MintlayerLockTokenSupply | None" = None,
+            freeze_token: "MintlayerFreezeToken | None" = None,
+            unfreeze_token: "MintlayerUnfreezeToken | None" = None,
+            change_token_authority: "MintlayerChangeTokenAuhtority | None" = None,
+            conclude_order: "MintlayerConcludeOrder | None" = None,
+            fill_order: "MintlayerFillOrder | None" = None,
+            change_token_metadata_uri: "MintlayerChangeTokenMetadataUri | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerAccountCommandTxInput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerMintTokens(protobuf.MessageType):
+        token_id: "bytes"
+        amount: "bytes"
+
+        def __init__(
+            self,
+            *,
+            token_id: "bytes",
+            amount: "bytes",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerMintTokens"]:
+            return isinstance(msg, cls)
+
+    class MintlayerUnmintTokens(protobuf.MessageType):
+        token_id: "bytes"
+
+        def __init__(
+            self,
+            *,
+            token_id: "bytes",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerUnmintTokens"]:
+            return isinstance(msg, cls)
+
+    class MintlayerLockTokenSupply(protobuf.MessageType):
+        token_id: "bytes"
+
+        def __init__(
+            self,
+            *,
+            token_id: "bytes",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerLockTokenSupply"]:
+            return isinstance(msg, cls)
+
+    class MintlayerFreezeToken(protobuf.MessageType):
+        token_id: "bytes"
+        is_token_unfreezabe: "bool"
+
+        def __init__(
+            self,
+            *,
+            token_id: "bytes",
+            is_token_unfreezabe: "bool",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerFreezeToken"]:
+            return isinstance(msg, cls)
+
+    class MintlayerUnfreezeToken(protobuf.MessageType):
+        token_id: "bytes"
+
+        def __init__(
+            self,
+            *,
+            token_id: "bytes",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerUnfreezeToken"]:
+            return isinstance(msg, cls)
+
+    class MintlayerChangeTokenAuhtority(protobuf.MessageType):
+        token_id: "bytes"
+        destination: "str"
+
+        def __init__(
+            self,
+            *,
+            token_id: "bytes",
+            destination: "str",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerChangeTokenAuhtority"]:
+            return isinstance(msg, cls)
+
+    class MintlayerConcludeOrder(protobuf.MessageType):
+        order_id: "bytes"
+
+        def __init__(
+            self,
+            *,
+            order_id: "bytes",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerConcludeOrder"]:
+            return isinstance(msg, cls)
+
+    class MintlayerFillOrder(protobuf.MessageType):
+        order_id: "bytes"
+        amount: "bytes"
+        destination: "str"
+
+        def __init__(
+            self,
+            *,
+            order_id: "bytes",
+            amount: "bytes",
+            destination: "str",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerFillOrder"]:
+            return isinstance(msg, cls)
+
+    class MintlayerChangeTokenMetadataUri(protobuf.MessageType):
+        token_id: "bytes"
+        metadata_uri: "bytes"
+
+        def __init__(
+            self,
+            *,
+            token_id: "bytes",
+            metadata_uri: "bytes",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerChangeTokenMetadataUri"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxOutput(protobuf.MessageType):
+        transfer: "MintlayerTransferTxOutput | None"
+        lock_then_transfer: "MintlayerLockThenTransferTxOutput | None"
+        burn: "MintlayerBurnTxOutput | None"
+        create_stake_pool: "MintlayerCreateStakePoolTxOutput | None"
+        produce_block_from_stake: "MintlayerProduceBlockFromStakeTxOutput | None"
+        create_delegation_id: "MintlayerCreateDelegationIdTxOutput | None"
+        delegate_staking: "MintlayerDelegateStakingTxOutput | None"
+        issue_fungible_token: "MintlayerIssueFungibleTokenTxOutput | None"
+        issue_nft: "MintlayerIssueNftTxOutput | None"
+        data_deposit: "MintlayerDataDepositTxOutput | None"
+        htlc: "MintlayerHtlcTxOutput | None"
+        anyone_can_take: "MintlayerAnyoneCanTakeTxOutput | None"
+
+        def __init__(
+            self,
+            *,
+            transfer: "MintlayerTransferTxOutput | None" = None,
+            lock_then_transfer: "MintlayerLockThenTransferTxOutput | None" = None,
+            burn: "MintlayerBurnTxOutput | None" = None,
+            create_stake_pool: "MintlayerCreateStakePoolTxOutput | None" = None,
+            produce_block_from_stake: "MintlayerProduceBlockFromStakeTxOutput | None" = None,
+            create_delegation_id: "MintlayerCreateDelegationIdTxOutput | None" = None,
+            delegate_staking: "MintlayerDelegateStakingTxOutput | None" = None,
+            issue_fungible_token: "MintlayerIssueFungibleTokenTxOutput | None" = None,
+            issue_nft: "MintlayerIssueNftTxOutput | None" = None,
+            data_deposit: "MintlayerDataDepositTxOutput | None" = None,
+            htlc: "MintlayerHtlcTxOutput | None" = None,
+            anyone_can_take: "MintlayerAnyoneCanTakeTxOutput | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTokenOutputValue(protobuf.MessageType):
+        token_id: "bytes"
+        token_ticker: "bytes"
+        number_of_decimals: "int"
+
+        def __init__(
+            self,
+            *,
+            token_id: "bytes",
+            token_ticker: "bytes",
+            number_of_decimals: "int",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTokenOutputValue"]:
+            return isinstance(msg, cls)
+
+    class MintlayerOutputValue(protobuf.MessageType):
+        amount: "bytes"
+        token: "MintlayerTokenOutputValue | None"
+
+        def __init__(
+            self,
+            *,
+            amount: "bytes",
+            token: "MintlayerTokenOutputValue | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerOutputValue"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTransferTxOutput(protobuf.MessageType):
+        address: "str"
+        value: "MintlayerOutputValue"
+
+        def __init__(
+            self,
+            *,
+            address: "str",
+            value: "MintlayerOutputValue",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTransferTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerOutputTimeLock(protobuf.MessageType):
+        until_height: "int | None"
+        until_time: "int | None"
+        for_block_count: "int | None"
+        for_seconds: "int | None"
+
+        def __init__(
+            self,
+            *,
+            until_height: "int | None" = None,
+            until_time: "int | None" = None,
+            for_block_count: "int | None" = None,
+            for_seconds: "int | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerOutputTimeLock"]:
+            return isinstance(msg, cls)
+
+    class MintlayerLockThenTransferTxOutput(protobuf.MessageType):
+        address: "str | None"
+        value: "MintlayerOutputValue"
+        lock: "MintlayerOutputTimeLock"
+
+        def __init__(
+            self,
+            *,
+            value: "MintlayerOutputValue",
+            lock: "MintlayerOutputTimeLock",
+            address: "str | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerLockThenTransferTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerBurnTxOutput(protobuf.MessageType):
+        value: "MintlayerOutputValue"
+
+        def __init__(
+            self,
+            *,
+            value: "MintlayerOutputValue",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerBurnTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerCreateStakePoolTxOutput(protobuf.MessageType):
+        pool_id: "bytes"
+        pledge: "bytes"
+        staker: "str"
+        vrf_public_key: "str"
+        decommission_key: "str"
+        margin_ratio_per_thousand: "int"
+        cost_per_block: "bytes"
+
+        def __init__(
+            self,
+            *,
+            pool_id: "bytes",
+            pledge: "bytes",
+            staker: "str",
+            vrf_public_key: "str",
+            decommission_key: "str",
+            margin_ratio_per_thousand: "int",
+            cost_per_block: "bytes",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerCreateStakePoolTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerProduceBlockFromStakeTxOutput(protobuf.MessageType):
+        destination: "str"
+        pool_id: "bytes"
+
+        def __init__(
+            self,
+            *,
+            destination: "str",
+            pool_id: "bytes",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerProduceBlockFromStakeTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerCreateDelegationIdTxOutput(protobuf.MessageType):
+        destination: "str"
+        pool_id: "bytes"
+
+        def __init__(
+            self,
+            *,
+            destination: "str",
+            pool_id: "bytes",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerCreateDelegationIdTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerDelegateStakingTxOutput(protobuf.MessageType):
+        amount: "bytes"
+        delegation_id: "bytes"
+
+        def __init__(
+            self,
+            *,
+            amount: "bytes",
+            delegation_id: "bytes",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerDelegateStakingTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTokenTotalSupply(protobuf.MessageType):
+        type: "MintlayerTokenTotalSupplyType"
+        fixed_amount: "bytes | None"
+
+        def __init__(
+            self,
+            *,
+            type: "MintlayerTokenTotalSupplyType",
+            fixed_amount: "bytes | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTokenTotalSupply"]:
+            return isinstance(msg, cls)
+
+    class MintlayerIssueFungibleTokenTxOutput(protobuf.MessageType):
+        token_ticker: "bytes"
+        number_of_decimals: "int"
+        metadata_uri: "bytes"
+        total_supply: "MintlayerTokenTotalSupply"
+        authority: "str"
+        is_freezable: "bool"
+
+        def __init__(
+            self,
+            *,
+            token_ticker: "bytes",
+            number_of_decimals: "int",
+            metadata_uri: "bytes",
+            total_supply: "MintlayerTokenTotalSupply",
+            authority: "str",
+            is_freezable: "bool",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerIssueFungibleTokenTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerIssueNftTxOutput(protobuf.MessageType):
+        token_id: "bytes"
+        destination: "str"
+        creator: "str | None"
+        name: "bytes"
+        description: "bytes"
+        ticker: "bytes"
+        icon_uri: "bytes | None"
+        additional_metadata_uri: "bytes | None"
+        media_uri: "bytes | None"
+        media_hash: "bytes"
+
+        def __init__(
+            self,
+            *,
+            token_id: "bytes",
+            destination: "str",
+            name: "bytes",
+            description: "bytes",
+            ticker: "bytes",
+            media_hash: "bytes",
+            creator: "str | None" = None,
+            icon_uri: "bytes | None" = None,
+            additional_metadata_uri: "bytes | None" = None,
+            media_uri: "bytes | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerIssueNftTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerDataDepositTxOutput(protobuf.MessageType):
+        data: "bytes"
+
+        def __init__(
+            self,
+            *,
+            data: "bytes",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerDataDepositTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerHtlcTxOutput(protobuf.MessageType):
+        value: "MintlayerOutputValue"
+        secret_hash: "bytes"
+        spend_key: "str"
+        refund_timelock: "MintlayerOutputTimeLock"
+        refund_key: "str"
+
+        def __init__(
+            self,
+            *,
+            value: "MintlayerOutputValue",
+            secret_hash: "bytes",
+            spend_key: "str",
+            refund_timelock: "MintlayerOutputTimeLock",
+            refund_key: "str",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerHtlcTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerAnyoneCanTakeTxOutput(protobuf.MessageType):
+        conclude_key: "str"
+        ask: "MintlayerOutputValue"
+        give: "MintlayerOutputValue"
+
+        def __init__(
+            self,
+            *,
+            conclude_key: "str",
+            ask: "MintlayerOutputValue",
+            give: "MintlayerOutputValue",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerAnyoneCanTakeTxOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerPrevTx(protobuf.MessageType):
+        version: "int"
+        inputs_count: "int"
+        outputs_count: "int"
+
+        def __init__(
+            self,
+            *,
+            version: "int",
+            inputs_count: "int",
+            outputs_count: "int",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerPrevTx"]:
+            return isinstance(msg, cls)
+
+    class MintlayerPrevInput(protobuf.MessageType):
+        prev_hash: "bytes"
+        prev_index: "int"
+
+        def __init__(
+            self,
+            *,
+            prev_hash: "bytes",
+            prev_index: "int",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerPrevInput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerPrevTransferOutput(protobuf.MessageType):
+        value: "MintlayerOutputValue"
+
+        def __init__(
+            self,
+            *,
+            value: "MintlayerOutputValue",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerPrevTransferOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxAckUtxoInput(protobuf.MessageType):
+        tx: "MintlayerTxAckInputWrapper"
+
+        def __init__(
+            self,
+            *,
+            tx: "MintlayerTxAckInputWrapper",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxAckUtxoInput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxAckOutput(protobuf.MessageType):
+        tx: "MintlayerTxAckOutputWrapper"
+
+        def __init__(
+            self,
+            *,
+            tx: "MintlayerTxAckOutputWrapper",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxAckOutput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxRequestDetailsType(protobuf.MessageType):
+        request_index: "int | None"
+        tx_hash: "bytes | None"
+
+        def __init__(
+            self,
+            *,
+            request_index: "int | None" = None,
+            tx_hash: "bytes | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxRequestDetailsType"]:
+            return isinstance(msg, cls)
+
+    class MintlayerSignature(protobuf.MessageType):
+        signature: "bytes"
+        multisig_idx: "int | None"
+
+        def __init__(
+            self,
+            *,
+            signature: "bytes",
+            multisig_idx: "int | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerSignature"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxRequestSerializedType(protobuf.MessageType):
+        signature_index: "int | None"
+        signatures: "list[MintlayerSignature]"
+        serialized_tx: "bytes | None"
+
+        def __init__(
+            self,
+            *,
+            signatures: "list[MintlayerSignature] | None" = None,
+            signature_index: "int | None" = None,
+            serialized_tx: "bytes | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxRequestSerializedType"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxAckInputWrapper(protobuf.MessageType):
+        input: "MintlayerTxInput"
+
+        def __init__(
+            self,
+            *,
+            input: "MintlayerTxInput",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxAckInputWrapper"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxAckOutputWrapper(protobuf.MessageType):
+        output: "MintlayerTxOutput"
+
+        def __init__(
+            self,
+            *,
+            output: "MintlayerTxOutput",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerTxAckOutputWrapper"]:
             return isinstance(msg, cls)
 
     class MoneroTransactionSourceEntry(protobuf.MessageType):

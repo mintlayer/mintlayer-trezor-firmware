@@ -129,6 +129,7 @@ def get_features() -> Features:
             Capability.PassphraseEntry,
             Capability.Solana,
             Capability.Translations,
+            Capability.Mintlayer,
         ]
 
         # We don't support some currencies on later models (see #2793)

@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 0.12.1 [16th September 2024]
+
+### Added
+- Signed Ethereum network and token definitions from host  [#15]
+
+### Changed
+- Changed prefix of public key returned by `get_ecdh_session_key` for curve25519.  [#4093]
+- Reworked PIN processing.
+
+### Removed
+- CoSi functionality  [#2675]
+- MUE support  [#3216]
+- Removed display_random feature.  [#4119]
+
+### Fixed
+- Mintlayer support  [#noissue]
+- Stellar: resolves the issue of incorrect signature generation when the transaction source account differs from the signing account.  [#3691]
+- Fixed SLIP-10 fingerprints for ed25519 and curve25519.  [#4093]
+
 ## 1.12.1 [15th March 2023]
 
 ### Added
@@ -536,6 +555,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 - Removed all current limits on size of signed transaction.
 
+[#15]: https://github.com/trezor/trezor-firmware/pull/15
 [#131]: https://github.com/trezor/trezor-firmware/pull/131
 [#965]: https://github.com/trezor/trezor-firmware/pull/965
 [#1018]: https://github.com/trezor/trezor-firmware/pull/1018
@@ -603,6 +623,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 [#2486]: https://github.com/trezor/trezor-firmware/pull/2486
 [#2487]: https://github.com/trezor/trezor-firmware/pull/2487
 [#2568]: https://github.com/trezor/trezor-firmware/pull/2568
+[#2675]: https://github.com/trezor/trezor-firmware/pull/2675
 [#2682]: https://github.com/trezor/trezor-firmware/pull/2682
 [#2718]: https://github.com/trezor/trezor-firmware/pull/2718
 [#2743]: https://github.com/trezor/trezor-firmware/pull/2743
+[#3216]: https://github.com/trezor/trezor-firmware/pull/3216
+[#3691]: https://github.com/trezor/trezor-firmware/pull/3691
+[#4093]: https://github.com/trezor/trezor-firmware/pull/4093
+[#4119]: https://github.com/trezor/trezor-firmware/pull/4119

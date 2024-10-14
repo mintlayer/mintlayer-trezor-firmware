@@ -181,6 +181,19 @@ trezor_message_impl! {
     EthereumSignTypedHash => MessageType_EthereumSignTypedHash,
 }
 
+#[cfg(feature = "mintlayer")]
+trezor_message_impl! {
+    MintlayerGetAddress => MessageType_MintlayerGetAddress,
+    MintlayerAddress => MessageType_MintlayerAddress,
+    MintlayerGetPublicKey => MessageType_MintlayerGetPublicKey,
+    MintlayerPublicKey => MessageType_MintlayerPublicKey,
+    MintlayerSignMessage => MessageType_MintlayerSignMessage,
+    MintlayerSignTx => MessageType_MintlayerSignTx,
+    MintlayerTxRequest => MessageType_MintlayerTxRequest,
+    MintlayerTxAckUtxoInput => MessageType_MintlayerTxAckUtxoInput,
+    MintlayerTxAckOutput => MessageType_MintlayerTxAckOutput,
+}
+
 #[cfg(feature = "monero")]
 trezor_message_impl! {
     MoneroTransactionInitRequest => MessageType_MoneroTransactionInitRequest,

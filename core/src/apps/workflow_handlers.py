@@ -24,7 +24,7 @@ def _find_message_handler_module(msg_type: int) -> str:
     - collecting everything as strings instead of importing directly means that we don't
       need to load any of the modules into memory until we actually need them
     """
-    from trezor import utils
+    from trezor import log, utils
     from trezor.enums import MessageType
 
     # debug
@@ -206,6 +206,21 @@ def _find_message_handler_module(msg_type: int) -> str:
         if msg_type == MessageType.SolanaSignTx:
             return "apps.solana.sign_tx"
 
+        # mintlayer
+        if msg_type == MessageType.MintlayerGetAddress:
+            return "apps.mintlayer.get_address"
+        if msg_type == MessageType.MintlayerGetPublicKey:
+            return "apps.mintlayer.get_public_key"
+        if msg_type == MessageType.MintlayerSignMessage:
+            return "apps.mintlayer.sign_message"
+        if msg_type == MessageType.MintlayerSignTx:
+            return "apps.mintlayer.sign_tx"
+
+    if __debug__:
+        log.debug(
+            __name__,
+            f"msg type not found {msg_type}, {MessageType.MintlayerGetPublicKey}",
+        )
     raise ValueError
 
 

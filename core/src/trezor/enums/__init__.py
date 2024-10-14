@@ -262,6 +262,15 @@ if TYPE_CHECKING:
         SolanaAddress = 903
         SolanaSignTx = 904
         SolanaTxSignature = 905
+        MintlayerGetAddress = 1000
+        MintlayerAddress = 1001
+        MintlayerGetPublicKey = 1002
+        MintlayerPublicKey = 1003
+        MintlayerSignMessage = 1004
+        MintlayerSignTx = 1005
+        MintlayerTxRequest = 1006
+        MintlayerTxAckUtxoInput = 1007
+        MintlayerTxAckOutput = 1008
 
     class FailureType(IntEnum):
         UnexpectedMessage = 1
@@ -474,6 +483,7 @@ if TYPE_CHECKING:
         Translations = 19
         Brightness = 20
         Haptic = 21
+        Mintlayer = 22
 
     class SdProtectOperationType(IntEnum):
         DISABLE = 0
@@ -522,6 +532,21 @@ if TYPE_CHECKING:
         ADDRESS = 6
         ARRAY = 7
         STRUCT = 8
+
+    class MintlayerUtxoType(IntEnum):
+        TRANSACTION = 0
+        BLOCK = 1
+
+    class MintlayerTokenTotalSupplyType(IntEnum):
+        FIXED = 0
+        LOCKABLE = 1
+        UNLIMITED = 2
+
+    class MintlayerRequestType(IntEnum):
+        TXINPUT = 0
+        TXOUTPUT = 1
+        TXMETA = 2
+        TXFINISHED = 3
 
     class MoneroNetworkType(IntEnum):
         MAINNET = 0
