@@ -221,8 +221,6 @@ extern "C" fn mintlayer_encode_fill_order_account_command_input(
     order_id_data_len: u32,
     amount_data: *const u8,
     amount_data_len: u32,
-    token_id_data: *const u8,
-    token_id_data_len: u32,
     destination_data: *const u8,
     destination_data_len: u32,
 ) -> ByteArray {
@@ -232,14 +230,10 @@ extern "C" fn mintlayer_encode_fill_order_account_command_input(
         Ok(hash) => hash,
         Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
     });
-    let value = match parse_output_value(
-        amount_data,
-        amount_data_len,
-        token_id_data_len,
-        token_id_data,
-    ) {
-        Ok(value) => value,
-        Err(value) => return value,
+    let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
+    let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
+        Some(amount) => amount,
+        None => return MintlayerErrorCode::InvalidAmount.into(),
     };
 
     let destination_bytes =
@@ -248,7 +242,7 @@ extern "C" fn mintlayer_encode_fill_order_account_command_input(
         Ok(destination) => destination,
         Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
     };
-    let account_command = AccountCommand::FillOrder(order_id, value, destination);
+    let account_command = AccountCommand::FillOrder(order_id, amount, destination);
 
     let tx_input = TxInput::AccountCommand(nonce, account_command);
     let vec_data = tx_input.encode();
@@ -1508,7 +1502,7 @@ enum AccountCommand {
     #[codec(index = 6)]
     ConcludeOrder(OrderId),
     #[codec(index = 7)]
-    FillOrder(OrderId, OutputValue, Destination),
+    FillOrder(OrderId, Amount, Destination),
     // Change token metadata uri
     #[codec(index = 8)]
     ChangeTokenMetadataUri(TokenId, parity_scale_codec::alloc::vec::Vec<u8>),

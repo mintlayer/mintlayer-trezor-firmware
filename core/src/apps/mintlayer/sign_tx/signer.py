@@ -193,18 +193,20 @@ class Mintlayer:
                 )
                 node = []
                 for address in txi.utxo.address_n:
-                    node.append(
-                        (self.keychain.derive(address.address_n), address.multisig_idx)
-                    )
+                    node.append((
+                        self.keychain.derive(address.address_n),
+                        address.multisig_idx,
+                    ))
 
                 update_totals(totals, txo)
                 self.tx_info.add_input(txi, txo, node)
             elif txi.account:
                 node = []
                 for address in txi.account.address_n:
-                    node.append(
-                        (self.keychain.derive(address.address_n), address.multisig_idx)
-                    )
+                    node.append((
+                        self.keychain.derive(address.address_n),
+                        address.multisig_idx,
+                    ))
                 value = txi.account.value
                 amount = int.from_bytes(value.amount, "big")
                 token_or_coin = (
@@ -220,9 +222,10 @@ class Mintlayer:
             elif txi.account_command:
                 node = []
                 for address in txi.account_command.address_n:
-                    node.append(
-                        (self.keychain.derive(address.address_n), address.multisig_idx)
-                    )
+                    node.append((
+                        self.keychain.derive(address.address_n),
+                        address.multisig_idx,
+                    ))
                 self.tx_info.add_input(txi, None, node)
             else:
                 raise Exception("Unhandled tx input type")
@@ -311,14 +314,12 @@ class Mintlayer:
                     continue
                 elif x.fill_order:
                     ord = x.fill_order
-                    token_id = b"" if not ord.token_id else ord.token_id
                     destination = mintlayer_decode_address_to_bytes(ord.destination)
                     encoded_inp = (
                         mintlayer_utils.encode_fill_order_account_command_input(
                             x.nonce,
                             ord.order_id,
                             ord.amount,
-                            token_id,
                             destination,
                         )
                     )

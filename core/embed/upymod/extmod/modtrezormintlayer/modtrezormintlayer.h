@@ -197,11 +197,11 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
     mod_trezormintlayer_utils_mintlayer_encode_conclude_order_account_command_input);
 
 /// def encode_fill_order_account_command_input(nonce: int, order_id: bytes,
-/// amount: bytes, token_id: bytes, destination: bytes)
+/// amount: bytes, destination: bytes)
 /// -> bytes:
 ///     """
 ///     encodes an fill order account command from the nonce, order id, output
-///     value and destination
+///     amount and destination
 ///     """
 STATIC mp_obj_t
 mod_trezormintlayer_utils_mintlayer_encode_fill_order_account_command_input(
@@ -211,14 +211,12 @@ mod_trezormintlayer_utils_mintlayer_encode_fill_order_account_command_input(
   mp_get_buffer_raise(args[1], &order_id, MP_BUFFER_READ);
   mp_buffer_info_t amount = {0};
   mp_get_buffer_raise(args[2], &amount, MP_BUFFER_READ);
-  mp_buffer_info_t token_id = {0};
-  mp_get_buffer_raise(args[3], &token_id, MP_BUFFER_READ);
   mp_buffer_info_t destination = {0};
-  mp_get_buffer_raise(args[4], &destination, MP_BUFFER_READ);
+  mp_get_buffer_raise(args[3], &destination, MP_BUFFER_READ);
 
   ByteArray arr = mintlayer_encode_fill_order_account_command_input(
-      nonce, order_id.buf, order_id.len, amount.buf, amount.len, token_id.buf,
-      token_id.len, destination.buf, destination.len);
+      nonce, order_id.buf, order_id.len, amount.buf, amount.len,
+      destination.buf, destination.len);
   handle_err(&arr);
 
   vstr_t pkh = {0};
@@ -233,7 +231,7 @@ mod_trezormintlayer_utils_mintlayer_encode_fill_order_account_command_input(
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_trezormintlayer_utils_mintlayer_encode_fill_order_account_command_input_obj,
-    5, 5,
+    4, 4,
     mod_trezormintlayer_utils_mintlayer_encode_fill_order_account_command_input);
 
 /// def encode_transfer_output(amount: bytes, token_id: bytes, address: bytes)
