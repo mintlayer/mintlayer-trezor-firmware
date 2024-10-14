@@ -106,7 +106,9 @@ class UiConfirmMultipleAccounts(UiConfirm):
         return layout.confirm_multiple_accounts()
 
 
-def confirm_output(output: MintlayerTxOutput, coin: CoinInfo, output_index: int, chunkify: bool) -> Awaitable[None]:  # type: ignore [awaitable-return-type]
+def confirm_output(
+    output: MintlayerTxOutput, coin: CoinInfo, output_index: int, chunkify: bool
+) -> Awaitable[None]:  # type: ignore [awaitable-return-type]
     return (
         yield UiConfirmOutput(  # type: ignore [awaitable-return-type]
             output, coin, output_index, chunkify
@@ -114,7 +116,9 @@ def confirm_output(output: MintlayerTxOutput, coin: CoinInfo, output_index: int,
     )
 
 
-def confirm_total(spending: int, fee: int, fee_rate: float, coin: CoinInfo) -> Awaitable[None]:  # type: ignore [awaitable-return-type]
+def confirm_total(
+    spending: int, fee: int, fee_rate: float, coin: CoinInfo
+) -> Awaitable[None]:  # type: ignore [awaitable-return-type]
     return (yield UiConfirmTotal(spending, fee, fee_rate, coin))  # type: ignore [awaitable-return-type]
 
 
@@ -145,7 +149,9 @@ def request_tx_input(tx_req: MintlayerTxRequest, i: int) -> Awaitable[MintlayerT
     return _sanitize_tx_input(ack.tx.input)
 
 
-def request_tx_output(tx_req: MintlayerTxRequest, i: int, tx_hash: bytes | None = None) -> Awaitable[MintlayerTxOutput]:  # type: ignore [awaitable-return-type]
+def request_tx_output(
+    tx_req: MintlayerTxRequest, i: int, tx_hash: bytes | None = None
+) -> Awaitable[MintlayerTxOutput]:  # type: ignore [awaitable-return-type]
     from trezor.messages import MintlayerTxAckOutput
 
     assert tx_req.details is not None
@@ -242,7 +248,7 @@ def _sanitize_tx_input(txi: MintlayerTxInput) -> MintlayerTxInput:
         if txi.utxo.prev_index < 0:
             raise DataError("Invalid UTXO previous index.")
 
-        if not txi.utxo.address_n:
+        if txi.utxo.address_n is None:
             raise DataError("Input's address_n must be present for signing.")
     elif txi.account_command:
         cmd = txi.account_command
@@ -260,10 +266,10 @@ def _sanitize_tx_input(txi: MintlayerTxInput) -> MintlayerTxInput:
         if no_cmd:
             raise DataError("No account command present")
 
-        if not txi.account_command.address_n:
+        if txi.account_command.address_n is None:
             raise DataError("Input's address_n must be present for signing.")
     elif txi.account:
-        if not txi.account.address_n:
+        if txi.account.address_n is None:
             raise DataError("Input's address_n must be present for signing.")
     else:
         raise DataError(

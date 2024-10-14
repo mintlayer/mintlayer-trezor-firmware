@@ -5746,8 +5746,7 @@ class MintlayerFillOrder(protobuf.MessageType):
     FIELDS = {
         1: protobuf.Field("order_id", "bytes", repeated=False, required=True),
         2: protobuf.Field("amount", "bytes", repeated=False, required=True),
-        3: protobuf.Field("token_id", "bytes", repeated=False, required=False, default=None),
-        4: protobuf.Field("destination", "string", repeated=False, required=True),
+        3: protobuf.Field("destination", "string", repeated=False, required=True),
     }
 
     def __init__(
@@ -5756,12 +5755,10 @@ class MintlayerFillOrder(protobuf.MessageType):
         order_id: "bytes",
         amount: "bytes",
         destination: "str",
-        token_id: Optional["bytes"] = None,
     ) -> None:
         self.order_id = order_id
         self.amount = amount
         self.destination = destination
-        self.token_id = token_id
 
 
 class MintlayerChangeTokenMetadataUri(protobuf.MessageType):

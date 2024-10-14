@@ -47,8 +47,7 @@ ByteArray mintlayer_encode_conclude_order_account_command_input(
 ByteArray mintlayer_encode_fill_order_account_command_input(
     uint64_t nonce, const unsigned char* order_id_data,
     uint32_t order_id_data_len, const unsigned char* coin_amount_data,
-    uint32_t coin_amount_data_len, const unsigned char* token_id_data,
-    uint32_t token_id_data_len, const unsigned char* destination_data,
+    uint32_t coin_amount_data_len, const unsigned char* destination_data,
     uint32_t destination_data_len);
 
 ByteArray mintlayer_encode_transfer_output(

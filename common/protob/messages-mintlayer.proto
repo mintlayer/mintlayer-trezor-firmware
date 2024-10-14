@@ -259,8 +259,7 @@ message MintlayerConcludeOrder {
 message MintlayerFillOrder {
     required bytes order_id = 1;                   // order id
     required bytes amount = 2;                     // value
-    optional bytes token_id = 3;                   // value
-    required string destination = 4;               // the destination
+    required string destination = 3;               // the destination
 }
 
 /** Data type for account command

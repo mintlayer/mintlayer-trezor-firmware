@@ -4341,7 +4341,6 @@ if TYPE_CHECKING:
     class MintlayerFillOrder(protobuf.MessageType):
         order_id: "bytes"
         amount: "bytes"
-        token_id: "bytes | None"
         destination: "str"
 
         def __init__(
@@ -4350,7 +4349,6 @@ if TYPE_CHECKING:
             order_id: "bytes",
             amount: "bytes",
             destination: "str",
-            token_id: "bytes | None" = None,
         ) -> None:
             pass
 

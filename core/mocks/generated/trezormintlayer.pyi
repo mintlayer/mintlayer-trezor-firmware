@@ -35,11 +35,11 @@ def encode_conclude_order_account_command_input(nonce: int, order_id: bytes)
 
 # extmod/modtrezormintlayer/modtrezormintlayer.h
 def encode_fill_order_account_command_input(nonce: int, order_id: bytes,
-amount: bytes, token_id: bytes, destination: bytes)
+amount: bytes, destination: bytes)
 -> bytes:
     """
     encodes an fill order account command from the nonce, order id, output
-    value and destination
+    amount and destination
     """
 
 
