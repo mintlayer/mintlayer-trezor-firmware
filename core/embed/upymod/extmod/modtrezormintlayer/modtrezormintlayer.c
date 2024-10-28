@@ -29,6 +29,51 @@
 
 #include "modtrezormintlayer.h"
 
+void handle_err(ByteArray *res) {
+  if (res->data != NULL) {
+    return;
+  }
+
+  switch (res->len_or_err.err) {
+    case WrongHashSize:
+      mp_raise_ValueError("Invalid hash size");
+      break;
+    case InvalidUtxoType:
+      mp_raise_ValueError("Invalid UTXO type");
+      break;
+    case InvalidAmount:
+      mp_raise_ValueError("Invalid amount");
+      break;
+    case InvalidAccountCommand:
+      mp_raise_ValueError("Invalid account command");
+      break;
+    case InvalidDestination:
+      mp_raise_ValueError("Invalid destination");
+      break;
+    case InvalidIsTokenUnfreezable:
+      mp_raise_ValueError("Invalid token unfreezable flag");
+      break;
+    case InvalidIsTokenFreezable:
+      mp_raise_ValueError("Invalid token freezable flag");
+      break;
+    case InvalidVrfPublicKey:
+      mp_raise_ValueError("Invalid VRF public key");
+      break;
+    case InvalidPublicKey:
+      mp_raise_ValueError("Invalid public key");
+      break;
+    case InvalidOutputTimeLock:
+      mp_raise_ValueError("Invalid output time lock");
+      break;
+    case InvalidTokenTotalSupply:
+      mp_raise_ValueError("Invalid token total supply");
+      break;
+    default:
+      mp_raise_ValueError("Unknown error");
+      break;
+  }
+}
+
 STATIC const mp_rom_map_elem_t mod_trezormintlayer_globals_table[] = {
     {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_trezormintlayer)},
     {MP_ROM_QSTR(MP_QSTR_encode_utxo_input),
@@ -76,9 +121,9 @@ STATIC const mp_rom_map_elem_t mod_trezormintlayer_globals_table[] = {
          &mod_trezormintlayer_utils_mintlayer_encode_data_deposit_output_obj)},
     {MP_ROM_QSTR(MP_QSTR_encode_htlc_output),
      MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_htlc_output_obj)},
-    {MP_ROM_QSTR(MP_QSTR_encode_anyone_can_take_output),
+    {MP_ROM_QSTR(MP_QSTR_encode_create_order_output),
      MP_ROM_PTR(
-         &mod_trezormintlayer_utils_mintlayer_encode_anyone_can_take_output_obj)},
+         &mod_trezormintlayer_utils_mintlayer_encode_create_order_output_obj)},
     {MP_ROM_QSTR(MP_QSTR_encode_compact_length),
      MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_comact_length_obj)},
 };

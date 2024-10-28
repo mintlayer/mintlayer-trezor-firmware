@@ -10,50 +10,7 @@
 #include "curves.h"
 #include "memzero.h"
 
-void handle_err(ByteArray *res) {
-  if (res->data != NULL) {
-    return;
-  }
-
-  switch (res->len_or_err.err) {
-    case WrongHashSize:
-      mp_raise_ValueError("Invalid hash size");
-      break;
-    case InvalidUtxoType:
-      mp_raise_ValueError("Invalid UTXO type");
-      break;
-    case InvalidAmount:
-      mp_raise_ValueError("Invalid amount");
-      break;
-    case InvalidAccountCommand:
-      mp_raise_ValueError("Invalid account command");
-      break;
-    case InvalidDestination:
-      mp_raise_ValueError("Invalid destination");
-      break;
-    case InvalidIsTokenUnfreezable:
-      mp_raise_ValueError("Invalid token unfreezable flag");
-      break;
-    case InvalidIsTokenFreezable:
-      mp_raise_ValueError("Invalid token freezable flag");
-      break;
-    case InvalidVrfPublicKey:
-      mp_raise_ValueError("Invalid VRF public key");
-      break;
-    case InvalidPublicKey:
-      mp_raise_ValueError("Invalid public key");
-      break;
-    case InvalidOutputTimeLock:
-      mp_raise_ValueError("Invalid output time lock");
-      break;
-    case InvalidTokenTotalSupply:
-      mp_raise_ValueError("Invalid token total supply");
-      break;
-    default:
-      mp_raise_ValueError("Unknown error");
-      break;
-  }
-}
+void handle_err(ByteArray *res);
 
 /// def encode_utxo_input(tx_hash: bytes, index: int, utxo_type: int) -> bytes:
 ///     """
@@ -63,24 +20,13 @@ STATIC mp_obj_t mod_trezormintlayer_utils_mintlayer_encode_utxo_input(
     mp_obj_t tx_hash, mp_obj_t index, mp_obj_t utxo_type_obj) {
   mp_buffer_info_t hash = {0};
   mp_get_buffer_raise(tx_hash, &hash, MP_BUFFER_READ);
-  if (hash.len != 32) {
-    printf("invalid hash len: %ld", (long int)hash.len);
-    mp_raise_ValueError("Invalid hash");
-  }
   uint32_t idx = trezor_obj_get_uint(index);
   uint32_t utxo_type = trezor_obj_get_uint(utxo_type_obj);
   ByteArray arr =
       mintlayer_encode_utxo_input(hash.buf, hash.len, idx, utxo_type);
   handle_err(&arr);
 
-  vstr_t pkh = {0};
-  vstr_init_len(&pkh, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)pkh.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &pkh);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(
@@ -99,11 +45,6 @@ mod_trezormintlayer_utils_mintlayer_encode_account_spending_input(
 
   mp_buffer_info_t hash = {0};
   mp_get_buffer_raise(delegation_id, &hash, MP_BUFFER_READ);
-  if (hash.len != 32) {
-    printf("invalid hash len: %ld", (long int)hash.len);
-    mp_raise_ValueError("Invalid hash");
-  }
-
   mp_buffer_info_t amount = {0};
   mp_get_buffer_raise(amount_obj, &amount, MP_BUFFER_READ);
 
@@ -111,14 +52,7 @@ mod_trezormintlayer_utils_mintlayer_encode_account_spending_input(
       nonce, hash.buf, hash.len, amount.buf, amount.len);
   handle_err(&arr);
 
-  vstr_t pkh = {0};
-  vstr_init_len(&pkh, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)pkh.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &pkh);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(
@@ -139,11 +73,6 @@ mod_trezormintlayer_utils_mintlayer_encode_token_account_command_input(
 
   mp_buffer_info_t hash = {0};
   mp_get_buffer_raise(args[2], &hash, MP_BUFFER_READ);
-  if (hash.len != 32) {
-    printf("invalid hash len: %ld", (long int)hash.len);
-    mp_raise_ValueError("Invalid hash");
-  }
-
   mp_buffer_info_t data = {0};
   mp_get_buffer_raise(args[3], &data, MP_BUFFER_READ);
 
@@ -151,14 +80,7 @@ mod_trezormintlayer_utils_mintlayer_encode_token_account_command_input(
       nonce, command, hash.buf, hash.len, data.buf, data.len);
   handle_err(&arr);
 
-  vstr_t pkh = {0};
-  vstr_init_len(&pkh, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)pkh.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &pkh);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
@@ -182,14 +104,7 @@ mod_trezormintlayer_utils_mintlayer_encode_conclude_order_account_command_input(
       nonce, order_id.buf, order_id.len);
   handle_err(&arr);
 
-  vstr_t pkh = {0};
-  vstr_init_len(&pkh, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)pkh.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &pkh);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(
@@ -219,14 +134,7 @@ mod_trezormintlayer_utils_mintlayer_encode_fill_order_account_command_input(
       destination.buf, destination.len);
   handle_err(&arr);
 
-  vstr_t pkh = {0};
-  vstr_init_len(&pkh, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)pkh.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &pkh);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
@@ -252,14 +160,7 @@ STATIC mp_obj_t mod_trezormintlayer_utils_mintlayer_encode_transfer_output(
                                        token_id.len, address.buf, address.len);
   handle_err(&arr);
 
-  vstr_t encoding = {0};
-  vstr_init_len(&encoding, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)encoding.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &encoding);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(
@@ -288,14 +189,7 @@ mod_trezormintlayer_utils_mintlayer_encode_lock_then_transfer_output(
       lock_amount, address.buf, address.len);
   handle_err(&arr);
 
-  vstr_t encoding = {0};
-  vstr_init_len(&encoding, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)encoding.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &encoding);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
@@ -317,14 +211,7 @@ STATIC mp_obj_t mod_trezormintlayer_utils_mintlayer_encode_burn_output(
                                                token_id.buf, token_id.len);
   handle_err(&arr);
 
-  vstr_t encoding = {0};
-  vstr_init_len(&encoding, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)encoding.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &encoding);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(
@@ -361,14 +248,7 @@ mod_trezormintlayer_utils_mintlayer_encode_create_stake_pool_output(
       cost_per_block.buf, cost_per_block.len);
   handle_err(&arr);
 
-  vstr_t encoding = {0};
-  vstr_init_len(&encoding, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)encoding.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &encoding);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
@@ -391,14 +271,7 @@ mod_trezormintlayer_utils_mintlayer_encode_produce_from_stake_output(
       destination.buf, destination.len, pool_id.buf, pool_id.len);
   handle_err(&arr);
 
-  vstr_t encoding = {0};
-  vstr_init_len(&encoding, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)encoding.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &encoding);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(
@@ -421,14 +294,7 @@ mod_trezormintlayer_utils_mintlayer_encode_create_delegation_id_output(
       destination.buf, destination.len, pool_id.buf, pool_id.len);
   handle_err(&arr);
 
-  vstr_t encoding = {0};
-  vstr_init_len(&encoding, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)encoding.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &encoding);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(
@@ -451,14 +317,7 @@ mod_trezormintlayer_utils_mintlayer_encode_delegate_staking_output(
       amount.buf, amount.len, delegation_id.buf, delegation_id.len);
   handle_err(&arr);
 
-  vstr_t encoding = {0};
-  vstr_init_len(&encoding, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)encoding.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &encoding);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(
@@ -492,14 +351,7 @@ mod_trezormintlayer_utils_mintlayer_encode_issue_fungible_token_output(
       authority.buf, authority.len, is_freezable);
   handle_err(&arr);
 
-  vstr_t encoding = {0};
-  vstr_init_len(&encoding, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)encoding.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &encoding);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
@@ -545,14 +397,7 @@ STATIC mp_obj_t mod_trezormintlayer_utils_mintlayer_encode_issue_nft_output(
       destination.buf, destination.len);
   handle_err(&arr);
 
-  vstr_t encoding = {0};
-  vstr_init_len(&encoding, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)encoding.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &encoding);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
@@ -572,14 +417,7 @@ STATIC mp_obj_t mod_trezormintlayer_utils_mintlayer_encode_data_deposit_output(
       mintlayer_encode_data_deposit_output(deposit.buf, deposit.len);
   handle_err(&arr);
 
-  vstr_t encoding = {0};
-  vstr_init_len(&encoding, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)encoding.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &encoding);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(
@@ -612,28 +450,20 @@ STATIC mp_obj_t mod_trezormintlayer_utils_mintlayer_encode_htlc_output(
       secret_hash.buf, secret_hash.len);
   handle_err(&arr);
 
-  vstr_t encoding = {0};
-  vstr_init_len(&encoding, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)encoding.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &encoding);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_trezormintlayer_utils_mintlayer_encode_htlc_output_obj, 7, 7,
     mod_trezormintlayer_utils_mintlayer_encode_htlc_output);
 
-/// def encode_anyone_can_take_output(destination: bytes, ask_amount: bytes,
+/// def encode_create_order_output(destination: bytes, ask_amount: bytes,
 /// ask_token_id: bytes, give_amount: bytes, give_token_id: bytes) -> bytes:
 ///     """
-///     encodes an anyone can take output with given the conclude key, give and
+///     encodes a create order output with given the conclude key, give and
 ///     take amounts
 ///     """
-STATIC mp_obj_t
-mod_trezormintlayer_utils_mintlayer_encode_anyone_can_take_output(
+STATIC mp_obj_t mod_trezormintlayer_utils_mintlayer_encode_create_order_output(
     size_t n_args, const mp_obj_t *args) {
   mp_buffer_info_t conclude_key = {0};
   mp_get_buffer_raise(args[0], &conclude_key, MP_BUFFER_READ);
@@ -646,25 +476,18 @@ mod_trezormintlayer_utils_mintlayer_encode_anyone_can_take_output(
   mp_buffer_info_t give_token_id = {0};
   mp_get_buffer_raise(args[4], &give_token_id, MP_BUFFER_READ);
 
-  ByteArray arr = mintlayer_encode_anyone_can_take_output(
+  ByteArray arr = mintlayer_encode_create_order_output(
       conclude_key.buf, conclude_key.len, ask_amount.buf, ask_amount.len,
       ask_token_id.buf, ask_token_id.len, give_amount.buf, give_amount.len,
       give_token_id.buf, give_token_id.len);
   handle_err(&arr);
 
-  vstr_t encoding = {0};
-  vstr_init_len(&encoding, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)encoding.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &encoding);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
-    mod_trezormintlayer_utils_mintlayer_encode_anyone_can_take_output_obj, 5, 5,
-    mod_trezormintlayer_utils_mintlayer_encode_anyone_can_take_output);
+    mod_trezormintlayer_utils_mintlayer_encode_create_order_output_obj, 5, 5,
+    mod_trezormintlayer_utils_mintlayer_encode_create_order_output);
 
 /// def encode_compact_length(length: int) -> bytes:
 ///     """
@@ -676,14 +499,7 @@ mod_trezormintlayer_utils_mintlayer_encode_comact_length(mp_obj_t length) {
   ByteArray arr = mintlayer_encode_compact_length(len);
   handle_err(&arr);
 
-  vstr_t encoding = {0};
-  vstr_init_len(&encoding, arr.len_or_err.len);
-  int i = 0;
-  for (; i < arr.len_or_err.len; i++) {
-    ((uint8_t *)encoding.buf)[i] = (uint8_t)arr.data[i];
-  }
-
-  return mp_obj_new_str_from_vstr(&mp_type_bytes, &encoding);
+  return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(

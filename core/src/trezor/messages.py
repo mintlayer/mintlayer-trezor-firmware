@@ -4200,7 +4200,6 @@ if TYPE_CHECKING:
         prev_index: "int"
         type: "MintlayerUtxoType"
         sequence: "int"
-        value: "MintlayerOutputValue"
 
         def __init__(
             self,
@@ -4209,7 +4208,6 @@ if TYPE_CHECKING:
             prev_hash: "bytes",
             prev_index: "int",
             type: "MintlayerUtxoType",
-            value: "MintlayerOutputValue",
             address_n: "list[MintlayerAddressPath] | None" = None,
             sequence: "int | None" = None,
         ) -> None:
@@ -4225,7 +4223,7 @@ if TYPE_CHECKING:
         sequence: "int"
         value: "MintlayerOutputValue"
         nonce: "int"
-        delegation_id: "bytes"
+        delegation_id: "str"
 
         def __init__(
             self,
@@ -4233,7 +4231,7 @@ if TYPE_CHECKING:
             address: "str",
             value: "MintlayerOutputValue",
             nonce: "int",
-            delegation_id: "bytes",
+            delegation_id: "str",
             address_n: "list[MintlayerAddressPath] | None" = None,
             sequence: "int | None" = None,
         ) -> None:
@@ -4282,13 +4280,13 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerMintTokens(protobuf.MessageType):
-        token_id: "bytes"
+        token_id: "str"
         amount: "bytes"
 
         def __init__(
             self,
             *,
-            token_id: "bytes",
+            token_id: "str",
             amount: "bytes",
         ) -> None:
             pass
@@ -4298,12 +4296,12 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerUnmintTokens(protobuf.MessageType):
-        token_id: "bytes"
+        token_id: "str"
 
         def __init__(
             self,
             *,
-            token_id: "bytes",
+            token_id: "str",
         ) -> None:
             pass
 
@@ -4312,12 +4310,12 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerLockTokenSupply(protobuf.MessageType):
-        token_id: "bytes"
+        token_id: "str"
 
         def __init__(
             self,
             *,
-            token_id: "bytes",
+            token_id: "str",
         ) -> None:
             pass
 
@@ -4326,13 +4324,13 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerFreezeToken(protobuf.MessageType):
-        token_id: "bytes"
+        token_id: "str"
         is_token_unfreezabe: "bool"
 
         def __init__(
             self,
             *,
-            token_id: "bytes",
+            token_id: "str",
             is_token_unfreezabe: "bool",
         ) -> None:
             pass
@@ -4342,12 +4340,12 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerUnfreezeToken(protobuf.MessageType):
-        token_id: "bytes"
+        token_id: "str"
 
         def __init__(
             self,
             *,
-            token_id: "bytes",
+            token_id: "str",
         ) -> None:
             pass
 
@@ -4356,13 +4354,13 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerChangeTokenAuhtority(protobuf.MessageType):
-        token_id: "bytes"
+        token_id: "str"
         destination: "str"
 
         def __init__(
             self,
             *,
-            token_id: "bytes",
+            token_id: "str",
             destination: "str",
         ) -> None:
             pass
@@ -4372,12 +4370,12 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerConcludeOrder(protobuf.MessageType):
-        order_id: "bytes"
+        order_id: "str"
 
         def __init__(
             self,
             *,
-            order_id: "bytes",
+            order_id: "str",
         ) -> None:
             pass
 
@@ -4386,14 +4384,14 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerFillOrder(protobuf.MessageType):
-        order_id: "bytes"
+        order_id: "str"
         amount: "bytes"
         destination: "str"
 
         def __init__(
             self,
             *,
-            order_id: "bytes",
+            order_id: "str",
             amount: "bytes",
             destination: "str",
         ) -> None:
@@ -4404,13 +4402,13 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerChangeTokenMetadataUri(protobuf.MessageType):
-        token_id: "bytes"
+        token_id: "str"
         metadata_uri: "bytes"
 
         def __init__(
             self,
             *,
-            token_id: "bytes",
+            token_id: "str",
             metadata_uri: "bytes",
         ) -> None:
             pass
@@ -4431,7 +4429,7 @@ if TYPE_CHECKING:
         issue_nft: "MintlayerIssueNftTxOutput | None"
         data_deposit: "MintlayerDataDepositTxOutput | None"
         htlc: "MintlayerHtlcTxOutput | None"
-        anyone_can_take: "MintlayerAnyoneCanTakeTxOutput | None"
+        create_order: "MintlayerCreateOrderTxOutput | None"
 
         def __init__(
             self,
@@ -4447,7 +4445,7 @@ if TYPE_CHECKING:
             issue_nft: "MintlayerIssueNftTxOutput | None" = None,
             data_deposit: "MintlayerDataDepositTxOutput | None" = None,
             htlc: "MintlayerHtlcTxOutput | None" = None,
-            anyone_can_take: "MintlayerAnyoneCanTakeTxOutput | None" = None,
+            create_order: "MintlayerCreateOrderTxOutput | None" = None,
         ) -> None:
             pass
 
@@ -4456,14 +4454,14 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerTokenOutputValue(protobuf.MessageType):
-        token_id: "bytes"
+        token_id: "str"
         token_ticker: "bytes"
         number_of_decimals: "int"
 
         def __init__(
             self,
             *,
-            token_id: "bytes",
+            token_id: "str",
             token_ticker: "bytes",
             number_of_decimals: "int",
         ) -> None:
@@ -4526,16 +4524,16 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerLockThenTransferTxOutput(protobuf.MessageType):
-        address: "str | None"
+        address: "str"
         value: "MintlayerOutputValue"
         lock: "MintlayerOutputTimeLock"
 
         def __init__(
             self,
             *,
+            address: "str",
             value: "MintlayerOutputValue",
             lock: "MintlayerOutputTimeLock",
-            address: "str | None" = None,
         ) -> None:
             pass
 
@@ -4558,7 +4556,7 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerCreateStakePoolTxOutput(protobuf.MessageType):
-        pool_id: "bytes"
+        pool_id: "str"
         pledge: "bytes"
         staker: "str"
         vrf_public_key: "str"
@@ -4569,7 +4567,7 @@ if TYPE_CHECKING:
         def __init__(
             self,
             *,
-            pool_id: "bytes",
+            pool_id: "str",
             pledge: "bytes",
             staker: "str",
             vrf_public_key: "str",
@@ -4585,13 +4583,13 @@ if TYPE_CHECKING:
 
     class MintlayerProduceBlockFromStakeTxOutput(protobuf.MessageType):
         destination: "str"
-        pool_id: "bytes"
+        pool_id: "str"
 
         def __init__(
             self,
             *,
             destination: "str",
-            pool_id: "bytes",
+            pool_id: "str",
         ) -> None:
             pass
 
@@ -4601,13 +4599,13 @@ if TYPE_CHECKING:
 
     class MintlayerCreateDelegationIdTxOutput(protobuf.MessageType):
         destination: "str"
-        pool_id: "bytes"
+        pool_id: "str"
 
         def __init__(
             self,
             *,
             destination: "str",
-            pool_id: "bytes",
+            pool_id: "str",
         ) -> None:
             pass
 
@@ -4617,13 +4615,13 @@ if TYPE_CHECKING:
 
     class MintlayerDelegateStakingTxOutput(protobuf.MessageType):
         amount: "bytes"
-        delegation_id: "bytes"
+        delegation_id: "str"
 
         def __init__(
             self,
             *,
             amount: "bytes",
-            delegation_id: "bytes",
+            delegation_id: "str",
         ) -> None:
             pass
 
@@ -4672,7 +4670,7 @@ if TYPE_CHECKING:
             return isinstance(msg, cls)
 
     class MintlayerIssueNftTxOutput(protobuf.MessageType):
-        token_id: "bytes"
+        token_id: "str"
         destination: "str"
         creator: "str | None"
         name: "bytes"
@@ -4686,7 +4684,7 @@ if TYPE_CHECKING:
         def __init__(
             self,
             *,
-            token_id: "bytes",
+            token_id: "str",
             destination: "str",
             name: "bytes",
             description: "bytes",
@@ -4739,7 +4737,7 @@ if TYPE_CHECKING:
         def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerHtlcTxOutput"]:
             return isinstance(msg, cls)
 
-    class MintlayerAnyoneCanTakeTxOutput(protobuf.MessageType):
+    class MintlayerCreateOrderTxOutput(protobuf.MessageType):
         conclude_key: "str"
         ask: "MintlayerOutputValue"
         give: "MintlayerOutputValue"
@@ -4754,55 +4752,7 @@ if TYPE_CHECKING:
             pass
 
         @classmethod
-        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerAnyoneCanTakeTxOutput"]:
-            return isinstance(msg, cls)
-
-    class MintlayerPrevTx(protobuf.MessageType):
-        version: "int"
-        inputs_count: "int"
-        outputs_count: "int"
-
-        def __init__(
-            self,
-            *,
-            version: "int",
-            inputs_count: "int",
-            outputs_count: "int",
-        ) -> None:
-            pass
-
-        @classmethod
-        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerPrevTx"]:
-            return isinstance(msg, cls)
-
-    class MintlayerPrevInput(protobuf.MessageType):
-        prev_hash: "bytes"
-        prev_index: "int"
-
-        def __init__(
-            self,
-            *,
-            prev_hash: "bytes",
-            prev_index: "int",
-        ) -> None:
-            pass
-
-        @classmethod
-        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerPrevInput"]:
-            return isinstance(msg, cls)
-
-    class MintlayerPrevTransferOutput(protobuf.MessageType):
-        value: "MintlayerOutputValue"
-
-        def __init__(
-            self,
-            *,
-            value: "MintlayerOutputValue",
-        ) -> None:
-            pass
-
-        @classmethod
-        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerPrevTransferOutput"]:
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerCreateOrderTxOutput"]:
             return isinstance(msg, cls)
 
     class MintlayerTxAckUtxoInput(protobuf.MessageType):

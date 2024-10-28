@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from trezor import log, workflow
 from trezor.crypto import mintlayer_utils
-from trezor.crypto.bech32 import mintlayer_decode_address_to_bytes
+from trezor.crypto.bech32 import mintlayer_decode
 from trezor.crypto.curve import bip340
 from trezor.crypto.hashlib import blake2b
 from trezor.messages import (
@@ -14,8 +14,6 @@ from trezor.messages import (
     MintlayerTxRequestSerializedType,
 )
 from trezor.utils import empty_bytearray
-
-from apps.common.coininfo import by_name
 
 from . import helpers
 from .progress import progress
@@ -33,6 +31,13 @@ ML_COIN = "ML"
 # the number of bytes to preallocate for serialized transaction chunks
 _MAX_SERIALIZED_CHUNK_SIZE = const(2048)
 _SERIALIZED_TX_BUFFER = empty_bytearray(_MAX_SERIALIZED_CHUNK_SIZE)
+
+
+def decode_nullable_address(address: str | None) -> bytes:
+    if address is None:
+        return bytes()
+
+    return mintlayer_decode(address)
 
 
 class TxUtxoInput:
@@ -90,13 +95,9 @@ class Mintlayer:
         output_totals = await self.step2_approve_outputs()
 
         fee = input_totals[ML_COIN] - output_totals[ML_COIN]
-        fee_rate = 0
-        coin = by_name("Bitcoin")
         await helpers.confirm_total(
             output_totals[ML_COIN],
             fee,
-            fee_rate,
-            coin,
         )
 
         # Make sure proper progress is shown, in case dialog was not required
@@ -109,35 +110,29 @@ class Mintlayer:
         # This is set to True again after workflow is finished in start_default().
         workflow.autolock_interrupts_workflow = False
 
-        # Verify the transaction input amounts by requesting each previous transaction
-        # and checking its output amount. Verify external inputs which have already
-        # been signed or which come with a proof of non-ownership.
-        await self.step3_verify_inputs()
-
         # Check that inputs are unchanged. Serialize inputs and sign the non-segwit ones.
-        encoded_inputs, encoded_input_utxos = await self.step4_serialize_inputs()
+        encoded_inputs, encoded_input_utxos = await self.step3_serialize_inputs()
         if __debug__:
             log.debug(__name__, "encoded inputs: %s", str(encoded_inputs))
             log.debug(__name__, "encoded utxos: %s", str(encoded_input_utxos))
 
         # Serialize outputs.
-        encoded_outputs = await self.step5_serialize_outputs()
+        encoded_outputs = await self.step4_serialize_outputs()
         if __debug__:
             log.debug(__name__, "encoded outputs: %s", str(encoded_outputs))
 
         # Sign segwit inputs and serialize witness data.
-        signatures = await self.step6_sign_inputs(
+        signatures = await self.step5_sign_inputs(
             encoded_inputs, encoded_input_utxos, encoded_outputs
         )
 
         # Write footer and send remaining data.
-        await self.step7_finish(signatures)
+        await self.step6_finish(signatures)
 
     def __init__(
         self,
         tx: MintlayerSignTx,
         keychain: Keychain,
-        # approver: approvers.Approver | None,
     ) -> None:
         from trezor.messages import MintlayerTxRequest, MintlayerTxRequestDetailsType
 
@@ -145,8 +140,6 @@ class Mintlayer:
 
         self.tx_info = TxInfo(tx=tx, inputs=[], outputs=[])
         self.keychain = keychain
-
-        # self.approver = approvers.BasicApprover(tx, coin)
 
         # set of indices of inputs which are external
         self.external: set[int] = set()
@@ -161,6 +154,7 @@ class Mintlayer:
         _SERIALIZED_TX_BUFFER[:] = bytes()
         self.serialized_tx = _SERIALIZED_TX_BUFFER
         self.serialize = tx.serialize
+        self.chunkify = tx.chunkify or False
         self.tx_req = MintlayerTxRequest()
         self.tx_req.details = MintlayerTxRequestDetailsType()
         self.tx_req.serialized = []
@@ -178,7 +172,6 @@ class Mintlayer:
 
     async def step1_process_inputs(self) -> Dict[str, int]:
         tx_info = self.tx_info  # local_cache_attribute
-        # h_presigned_inputs_check = HashWriter(sha256())
         totals = {}
 
         for i in range(tx_info.tx.inputs_count):
@@ -193,20 +186,24 @@ class Mintlayer:
                 )
                 node = []
                 for address in txi.utxo.address_n:
-                    node.append((
-                        self.keychain.derive(address.address_n),
-                        address.multisig_idx,
-                    ))
+                    node.append(
+                        (
+                            self.keychain.derive(address.address_n),
+                            address.multisig_idx,
+                        )
+                    )
 
                 update_totals(totals, txo)
                 self.tx_info.add_input(txi, txo, node)
             elif txi.account:
                 node = []
                 for address in txi.account.address_n:
-                    node.append((
-                        self.keychain.derive(address.address_n),
-                        address.multisig_idx,
-                    ))
+                    node.append(
+                        (
+                            self.keychain.derive(address.address_n),
+                            address.multisig_idx,
+                        )
+                    )
                 value = txi.account.value
                 amount = int.from_bytes(value.amount, "big")
                 token_or_coin = (
@@ -222,10 +219,12 @@ class Mintlayer:
             elif txi.account_command:
                 node = []
                 for address in txi.account_command.address_n:
-                    node.append((
-                        self.keychain.derive(address.address_n),
-                        address.multisig_idx,
-                    ))
+                    node.append(
+                        (
+                            self.keychain.derive(address.address_n),
+                            address.multisig_idx,
+                        )
+                    )
                 self.tx_info.add_input(txi, None, node)
             else:
                 raise Exception("Unhandled tx input type")
@@ -236,19 +235,14 @@ class Mintlayer:
         totals = {}
 
         for i in range(self.tx_info.tx.outputs_count):
-            # STAGE_REQUEST_2_OUTPUT in legacy
             progress.advance()
             txo = await helpers.request_tx_output(self.tx_req, i)
-            coin = by_name("Bitcoin")
-            await helpers.confirm_output(txo, coin, i, False)
+            await helpers.confirm_output(txo, i, self.chunkify)
             update_totals(totals, txo)
             self.tx_info.add_output(txo)
         return totals
 
-    async def step3_verify_inputs(self) -> None:
-        return
-
-    async def step4_serialize_inputs(self) -> Tuple[List[bytes], List[bytes]]:
+    async def step3_serialize_inputs(self) -> Tuple[List[bytes], List[bytes]]:
         encoded_inputs = []
         encoded_input_utxos = []
         for inp in self.tx_info.inputs:
@@ -259,14 +253,15 @@ class Mintlayer:
                     u.prev_hash, u.prev_index, int(u.type)
                 )
                 encoded_inputs.append(encoded_inp)
-                data = mintlayer_decode_address_to_bytes(u.address)
+                data = decode_nullable_address(u.address)
 
                 encoded_inp_utxo = self.serialize_output(inp.utxo)
                 encoded_input_utxos.append(b"\x01" + encoded_inp_utxo)
             elif inp.input.account:
                 a = inp.input.account
+                delegation_id = mintlayer_decode(a.delegation_id)
                 encoded_inp = mintlayer_utils.encode_account_spending_input(
-                    a.nonce, a.delegation_id, a.value.amount
+                    a.nonce, delegation_id, a.value.amount
                 )
                 encoded_inputs.append(encoded_inp)
                 encoded_input_utxos.append(b"\x00")
@@ -295,9 +290,7 @@ class Mintlayer:
                 elif x.change_token_authority:
                     command = 5
                     token_id = x.change_token_authority.token_id
-                    data = mintlayer_decode_address_to_bytes(
-                        x.change_token_authority.destination
-                    )
+                    data = decode_nullable_address(x.change_token_authority.destination)
                 elif x.change_token_metadata_uri:
                     command = 8
                     token_id = x.change_token_metadata_uri.token_id
@@ -306,7 +299,7 @@ class Mintlayer:
                     ord = x.conclude_order
                     encoded_inp = (
                         mintlayer_utils.encode_conclude_order_account_command_input(
-                            x.nonce, ord.order_id
+                            x.nonce, mintlayer_decode(ord.order_id)
                         )
                     )
                     encoded_inputs.append(encoded_inp)
@@ -314,11 +307,11 @@ class Mintlayer:
                     continue
                 elif x.fill_order:
                     ord = x.fill_order
-                    destination = mintlayer_decode_address_to_bytes(ord.destination)
+                    destination = decode_nullable_address(ord.destination)
                     encoded_inp = (
                         mintlayer_utils.encode_fill_order_account_command_input(
                             x.nonce,
-                            ord.order_id,
+                            mintlayer_decode(ord.order_id),
                             ord.amount,
                             destination,
                         )
@@ -330,7 +323,7 @@ class Mintlayer:
                     raise Exception("unknown account command")
 
                 encoded_inp = mintlayer_utils.encode_token_account_command_input(
-                    x.nonce, command, token_id, data
+                    x.nonce, command, mintlayer_decode(token_id), data
                 )
                 encoded_inputs.append(encoded_inp)
                 encoded_input_utxos.append(b"\x00")
@@ -340,30 +333,36 @@ class Mintlayer:
     def serialize_output(self, out: MintlayerTxOutput) -> bytes:
         if out.transfer:
             x = out.transfer
-            data = mintlayer_decode_address_to_bytes(x.address)
-            token_id = b"" if not x.value.token else x.value.token.token_id
+            data = decode_nullable_address(x.address)
+            token_id = (
+                b"" if not x.value.token else mintlayer_decode(x.value.token.token_id)
+            )
             encoded_out = mintlayer_utils.encode_transfer_output(
                 x.value.amount, token_id, data
             )
         elif out.lock_then_transfer:
             x = out.lock_then_transfer
-            data = mintlayer_decode_address_to_bytes(x.address)
+            data = decode_nullable_address(x.address)
             lock_type, lock_amount = helpers.get_lock(x.lock)
-            token_id = b"" if not x.value.token else x.value.token.token_id
+            token_id = (
+                b"" if not x.value.token else mintlayer_decode(x.value.token.token_id)
+            )
             encoded_out = mintlayer_utils.encode_lock_then_transfer_output(
                 x.value.amount, token_id, lock_type, lock_amount, data
             )
         elif out.burn:
             x = out.burn
-            token_id = b"" if not x.value.token else x.value.token.token_id
+            token_id = (
+                b"" if not x.value.token else mintlayer_decode(x.value.token.token_id)
+            )
             encoded_out = mintlayer_utils.encode_burn_output(x.value.amount, token_id)
         elif out.create_stake_pool:
             x = out.create_stake_pool
-            staker = mintlayer_decode_address_to_bytes(x.staker)
-            vrf_public_key = mintlayer_decode_address_to_bytes(x.vrf_public_key)
-            decommission_key = mintlayer_decode_address_to_bytes(x.decommission_key)
+            staker = decode_nullable_address(x.staker)
+            vrf_public_key = decode_nullable_address(x.vrf_public_key)
+            decommission_key = decode_nullable_address(x.decommission_key)
             encoded_out = mintlayer_utils.encode_create_stake_pool_output(
-                x.pool_id,
+                mintlayer_decode(x.pool_id),
                 x.pledge,
                 staker,
                 vrf_public_key,
@@ -373,24 +372,24 @@ class Mintlayer:
             )
         elif out.create_delegation_id:
             x = out.create_delegation_id
-            destination = mintlayer_decode_address_to_bytes(x.destination)
+            destination = decode_nullable_address(x.destination)
             encoded_out = mintlayer_utils.encode_create_delegation_id_output(
-                destination, x.pool_id
+                destination, mintlayer_decode(x.pool_id)
             )
         elif out.delegate_staking:
             x = out.delegate_staking
             encoded_out = mintlayer_utils.encode_delegate_staking_output(
-                x.amount, x.delegation_id
+                x.amount, mintlayer_decode(x.delegation_id)
             )
         elif out.produce_block_from_stake:
             x = out.produce_block_from_stake
-            destination = mintlayer_decode_address_to_bytes(x.destination)
+            destination = decode_nullable_address(x.destination)
             encoded_out = mintlayer_utils.encode_produce_from_stake_output(
-                destination, x.pool_id
+                destination, mintlayer_decode(x.pool_id)
             )
         elif out.issue_fungible_token:
             x = out.issue_fungible_token
-            authority = mintlayer_decode_address_to_bytes(x.authority)
+            authority = decode_nullable_address(x.authority)
             encoded_out = mintlayer_utils.encode_issue_fungible_token_output(
                 x.token_ticker,
                 x.number_of_decimals,
@@ -402,10 +401,10 @@ class Mintlayer:
             )
         elif out.issue_nft:
             x = out.issue_nft
-            creator = mintlayer_decode_address_to_bytes(x.creator)
-            destination = mintlayer_decode_address_to_bytes(x.destination)
+            creator = decode_nullable_address(x.creator)
+            destination = decode_nullable_address(x.destination)
             encoded_out = mintlayer_utils.encode_issue_nft_output(
-                x.token_id,
+                mintlayer_decode(x.token_id),
                 creator,
                 x.name,
                 x.description,
@@ -421,9 +420,11 @@ class Mintlayer:
             encoded_out = mintlayer_utils.encode_data_deposit_output(x.data)
         elif out.htlc:
             x = out.htlc
-            token_id = b"" if not x.value.token else x.value.token.token_id
-            spend_key = mintlayer_decode_address_to_bytes(x.spend_key)
-            refund_key = mintlayer_decode_address_to_bytes(x.refund_key)
+            token_id = (
+                b"" if not x.value.token else mintlayer_decode(x.value.token.token_id)
+            )
+            spend_key = decode_nullable_address(x.spend_key)
+            refund_key = decode_nullable_address(x.refund_key)
             lock_type, lock_amount = helpers.get_lock(x.refund_timelock)
             encoded_out = mintlayer_utils.encode_htlc_output(
                 x.value.amount,
@@ -434,19 +435,23 @@ class Mintlayer:
                 spend_key,
                 x.secret_hash,
             )
-        elif out.anyone_can_take:
-            x = out.anyone_can_take
-            conclude_key = mintlayer_decode_address_to_bytes(x.conclude_key)
-            ask_token_id = b"" if not x.ask.token else x.ask.token.token_id
-            give_token_id = b"" if not x.give.token else x.give.token.token_id
-            encoded_out = mintlayer_utils.encode_anyone_can_take_output(
+        elif out.create_order:
+            x = out.create_order
+            conclude_key = decode_nullable_address(x.conclude_key)
+            ask_token_id = (
+                b"" if not x.ask.token else mintlayer_decode(x.ask.token.token_id)
+            )
+            give_token_id = (
+                b"" if not x.give.token else mintlayer_decode(x.give.token.token_id)
+            )
+            encoded_out = mintlayer_utils.encode_create_order_output(
                 conclude_key, x.ask.amount, ask_token_id, x.give.amount, give_token_id
             )
         else:
             raise Exception("unhandled tx output type")
         return encoded_out
 
-    async def step5_serialize_outputs(self) -> List[bytes]:
+    async def step4_serialize_outputs(self) -> List[bytes]:
         encoded_outputs = []
         for out in self.tx_info.outputs:
             progress.advance()
@@ -455,7 +460,7 @@ class Mintlayer:
 
         return encoded_outputs
 
-    async def step6_sign_inputs(
+    async def step5_sign_inputs(
         self,
         encoded_inputs: List[bytes],
         encoded_input_utxos: List[bytes],
@@ -501,7 +506,7 @@ class Mintlayer:
 
         return signatures
 
-    async def step7_finish(
+    async def step6_finish(
         self, signatures: List[List[Tuple[bytes, int | None]]]
     ) -> None:
         sigs = [

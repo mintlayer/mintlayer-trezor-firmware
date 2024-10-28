@@ -1,14 +1,13 @@
 from typing import TYPE_CHECKING
 
 from trezor import TR
-from trezor.crypto.bech32 import Encoding, bech32_encode, convertbits
 from trezor.enums import ButtonRequestType, MintlayerTokenTotalSupplyType
 from trezor.strings import format_amount
 from trezor.ui import layouts
 
 from apps.common.paths import address_n_to_str
 
-from ...bitcoin.common import BIP32_WALLET_DEPTH, format_fee_rate
+from ...bitcoin.common import BIP32_WALLET_DEPTH
 from ...bitcoin.keychain import address_n_to_name
 
 if TYPE_CHECKING:
@@ -22,8 +21,6 @@ if TYPE_CHECKING:
     from apps.common.paths import Bip32Path
 
 ML_COIN = "ML"
-POOL_HRP = "mpool"
-DELEGATION_HRP = "mdeleg"
 
 
 def format_coin_amount(amount: bytes, token: MintlayerTokenOutputValue | None) -> str:
@@ -64,7 +61,6 @@ def lock_to_string(lock: MintlayerOutputTimeLock) -> str:
 
 async def confirm_output(
     output: MintlayerTxOutput,
-    coin: CoinInfo,
     output_index: int,
     chunkify: bool,
 ) -> None:
@@ -92,9 +88,7 @@ async def confirm_output(
     elif output.create_stake_pool:
         x = output.create_stake_pool
         assert x.staker is not None and x.decommission_key is not None
-        data = convertbits(x.pool_id, 8, 5)
-        pool_id_address = bech32_encode(POOL_HRP, data, Encoding.BECH32M)
-        address_short = f"""Pool ID: {pool_id_address}
+        address_short = f"""Pool ID: {x.pool_id}
 staker: {x.staker}
 decommission_key: {x.decommission_key}"
 VFT public key: {x.vrf_public_key}
@@ -110,19 +104,12 @@ Cost per block: {int.from_bytes(x.cost_per_block, "big")}
         address_label = "Produce block from stake"
     elif output.create_delegation_id:
         x = output.create_delegation_id
-        assert x.destination is not None
         amount = ""
-        # FIXME: extract those 2 into 1 helper function
-        data = convertbits(x.pool_id, 8, 5)
-        pool_id_address = bech32_encode(POOL_HRP, data, Encoding.BECH32M)
-        address_short = f"Address: {x.destination}\nPoolId: {pool_id_address}"
+        address_short = f"Address: {x.destination}\nPoolId: {x.pool_id}"
         address_label = "Create delegation ID"
     elif output.delegate_staking:
         x = output.delegate_staking
-        assert x.delegation_id is not None
-        data = convertbits(x.delegation_id, 8, 5)
-        address = bech32_encode(DELEGATION_HRP, data, Encoding.BECH32M)
-        address_short = address
+        address_short = x.delegation_id
         amount = format_coin_amount(x.amount, None)
         address_label = "Delegation staking"
     elif output.issue_fungible_token:
@@ -185,15 +172,15 @@ Refund Key: {x.refund_key}
 Refund Time Lock: {lock}"""
         amount = format_coin_amount(x.value.amount, x.value.token)
         address_label = "HTLC"
-    elif output.anyone_can_take:
-        x = output.anyone_can_take
+    elif output.create_order:
+        x = output.create_order
         ask_amount = format_coin_amount(x.ask.amount, x.ask.token)
         give_amount = format_coin_amount(x.give.amount, x.give.token)
         address_short = f"""Conclude Key: {x.conclude_key}
 Ask: {ask_amount}
 Give: {give_amount}"""
         amount = ""
-        address_label = "Anyone can take"
+        address_label = "Create Order"
     else:
         raise Exception("unhandled output type")
 
@@ -221,14 +208,11 @@ Give: {give_amount}"""
 async def confirm_total(
     spending: int,
     fee: int,
-    fee_rate: float,
-    coin: CoinInfo,
 ) -> None:
-
     await layouts.confirm_total(
         format_coin_amount(spending.to_bytes(16, "big"), None),
         format_coin_amount(fee.to_bytes(16, "big"), None),
-        fee_rate_amount=format_fee_rate(fee_rate, coin) if fee_rate >= 0 else None,
+        fee_rate_amount=None,
     )
 
 

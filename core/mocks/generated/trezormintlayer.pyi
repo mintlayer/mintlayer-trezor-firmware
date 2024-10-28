@@ -138,10 +138,10 @@ bytes) -> bytes:
 
 
 # upymod/extmod/modtrezormintlayer/modtrezormintlayer.h
-def encode_anyone_can_take_output(destination: bytes, ask_amount: bytes,
+def encode_create_order_output(destination: bytes, ask_amount: bytes,
 ask_token_id: bytes, give_amount: bytes, give_token_id: bytes) -> bytes:
     """
-    encodes an anyone can take output with given the conclude key, give and
+    encodes a create order output with given the conclude key, give and
     take amounts
     """
 

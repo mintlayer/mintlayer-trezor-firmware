@@ -38,19 +38,16 @@ class UiConfirmOutput(UiConfirm):
     def __init__(
         self,
         output: MintlayerTxOutput,
-        coin: CoinInfo,
         output_index: int,
         chunkify: bool,
     ):
         self.output = output
-        self.coin = coin
         self.output_index = output_index
         self.chunkify = chunkify
 
     def confirm_dialog(self) -> Awaitable[Any]:
         return layout.confirm_output(
             self.output,
-            self.coin,
             self.output_index,
             self.chunkify,
         )
@@ -61,20 +58,14 @@ class UiConfirmTotal(UiConfirm):
         self,
         spending: int,
         fee: int,
-        fee_rate: float,
-        coin: CoinInfo,
     ):
         self.spending = spending
         self.fee = fee
-        self.fee_rate = fee_rate
-        self.coin = coin
 
     def confirm_dialog(self) -> Awaitable[Any]:
         return layout.confirm_total(
             self.spending,
             self.fee,
-            self.fee_rate,
-            self.coin,
         )
 
 
@@ -107,19 +98,19 @@ class UiConfirmMultipleAccounts(UiConfirm):
 
 
 def confirm_output(
-    output: MintlayerTxOutput, coin: CoinInfo, output_index: int, chunkify: bool
+    output: MintlayerTxOutput, output_index: int, chunkify: bool
 ) -> Awaitable[None]:  # type: ignore [awaitable-return-type]
     return (
         yield UiConfirmOutput(  # type: ignore [awaitable-return-type]
-            output, coin, output_index, chunkify
+            output, output_index, chunkify
         )
     )
 
 
 def confirm_total(
-    spending: int, fee: int, fee_rate: float, coin: CoinInfo
+    spending: int, fee: int
 ) -> Awaitable[None]:  # type: ignore [awaitable-return-type]
-    return (yield UiConfirmTotal(spending, fee, fee_rate, coin))  # type: ignore [awaitable-return-type]
+    return (yield UiConfirmTotal(spending, fee))  # type: ignore [awaitable-return-type]
 
 
 def confirm_change_count_over_threshold(change_count: int) -> Awaitable[Any]:  # type: ignore [awaitable-return-type]

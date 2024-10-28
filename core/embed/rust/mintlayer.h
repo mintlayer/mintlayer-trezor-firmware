@@ -122,7 +122,7 @@ ByteArray mintlayer_encode_htlc_output(
     const unsigned char* spend_key_data, uint32_t spend_key_data_len,
     const unsigned char* secret_hash_data, uint32_t secret_hash_data_len);
 
-ByteArray mintlayer_encode_anyone_can_take_output(
+ByteArray mintlayer_encode_create_order_output(
     const unsigned char* conclude_key_data, uint32_t conclude_key_data_len,
     const unsigned char* ask_coin_amount_data,
     uint32_t ask_coin_amount_data_len, const unsigned char* ask_token_id_data,
