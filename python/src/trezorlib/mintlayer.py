@@ -40,7 +40,6 @@ def get_address(
     )
 
 
-@expect(messages.MintlayerPublicKey, field="public_key", ret_type=bytes)
 def get_public_key(
     client: "TrezorClient", address_n: "Address", show_display: bool = False
 ) -> "MessageType":
@@ -54,21 +53,12 @@ def sign_message(
     address_n: "Address",
     address: str,
     message: bytes,
-) -> bytes:
-    try:
-        resp = client.call(
-            messages.MintlayerSignMessage(
-                address=address, address_n=address_n, message=message
-            )
+) -> "MessageType":
+    return client.call(
+        messages.MintlayerSignMessage(
+            address=address, address_n=address_n, message=message
         )
-
-        if isinstance(resp, messages.MessageSignature):
-            return resp.signature
-
-        return b""
-    except Exception:
-        print("got exception in verify sig Mintlayer")
-        return b""
+    )
 
 
 Input = messages.MintlayerTxInput
@@ -87,11 +77,11 @@ def sign_tx(
     client: "TrezorClient",
     inputs: List[Input],
     outputs: List[Output],
-    prev_txs: Dict[TxHash, Tx],
+    prev_txs: Dict[TxHash, Dict[int, Output]],
     version: Optional["int"] = 1,
     serialize: Optional["bool"] = True,
     chunkify: Optional["bool"] = None,
-):
+) -> List[messages.MintlayerTxRequestSerializedType]:
     res = client.call(
         messages.MintlayerSignTx(
             outputs_count=len(outputs),
@@ -105,10 +95,10 @@ def sign_tx(
     R = messages.MintlayerRequestType
     while isinstance(res, messages.MintlayerTxRequest):
         if res.request_type == R.TXFINISHED:
-            return res
+            return list(res.serialized)
 
         if res.request_type == R.TXINPUT and res.details is not None:
-            assert res.details.request_index
+            assert res.details.request_index is not None
             msg = messages.MintlayerTxAckInputWrapper(
                 input=inputs[res.details.request_index]
             )
@@ -116,14 +106,12 @@ def sign_tx(
             res = client.call(msg)
         elif res.request_type == R.TXOUTPUT and res.details is not None:
             assert res.details is not None
+            assert res.details.request_index is not None
             if res.details.tx_hash:
-                outs = prev_txs[res.details.tx_hash].outputs
+                out = prev_txs[res.details.tx_hash][res.details.request_index]
             else:
-                outs = outputs
-            assert res.details.request_index
-            msg = messages.MintlayerTxAckOutputWrapper(
-                output=outs[res.details.request_index]
-            )
+                out = outputs[res.details.request_index]
+            msg = messages.MintlayerTxAckOutputWrapper(output=out)
             msg = messages.MintlayerTxAckOutput(tx=msg)
             res = client.call(msg)
 

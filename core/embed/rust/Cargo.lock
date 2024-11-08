@@ -262,6 +262,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-derive"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed3955f1a9c7c0c15e092f9c887db08b1fc683305fdf6eb6684f22555355e202"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.61",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -473,6 +484,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "trezor-common"
+version = "0.7.0"
+source = "git+https://github.com/mintlayer/mintlayer-core?branch=feature/trezor-common#3164f8230c1c3f549703f07df6027fdb5a7037db"
+dependencies = [
+ "num-derive 0.4.2",
+ "num-traits",
+ "parity-scale-codec",
+]
+
+[[package]]
 name = "trezor-tjpgdec"
 version = "0.1.0"
 
@@ -486,7 +507,7 @@ dependencies = [
  "easer",
  "glob",
  "heapless",
- "num-derive",
+ "num-derive 0.3.3",
  "num-traits",
  "pareen",
  "parity-scale-codec",
@@ -494,6 +515,7 @@ dependencies = [
  "serde_json",
  "spin",
  "static-alloc",
+ "trezor-common",
  "trezor-tjpgdec",
  "ufmt",
  "unsize",
