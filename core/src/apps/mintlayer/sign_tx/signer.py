@@ -172,7 +172,7 @@ class Mintlayer:
 
     async def step1_process_inputs(self) -> Dict[str, int]:
         tx_info = self.tx_info  # local_cache_attribute
-        totals = {}
+        totals = {ML_COIN: 0}
 
         for i in range(tx_info.tx.inputs_count):
             # STAGE_REQUEST_1_INPUT in legacy
@@ -232,7 +232,7 @@ class Mintlayer:
         return totals
 
     async def step2_approve_outputs(self) -> Dict[str, int]:
-        totals = {}
+        totals = {ML_COIN: 0}
 
         for i in range(self.tx_info.tx.outputs_count):
             progress.advance()
@@ -409,9 +409,9 @@ class Mintlayer:
                 x.name,
                 x.description,
                 x.ticker,
-                x.icon_uri,
-                x.additional_metadata_uri,
-                x.media_uri,
+                x.icon_uri or b"",
+                x.additional_metadata_uri or b"",
+                x.media_uri or b"",
                 x.media_hash,
                 destination,
             )
