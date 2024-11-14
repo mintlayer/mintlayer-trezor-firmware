@@ -5581,19 +5581,19 @@ class MintlayerTxRequest(protobuf.MessageType):
     FIELDS = {
         1: protobuf.Field("request_type", "MintlayerRequestType", repeated=False, required=False, default=None),
         2: protobuf.Field("details", "MintlayerTxRequestDetailsType", repeated=False, required=False, default=None),
-        3: protobuf.Field("serialized", "MintlayerTxRequestSerializedType", repeated=True, required=False, default=None),
+        3: protobuf.Field("serialized", "MintlayerTxRequestSerializedType", repeated=False, required=False, default=None),
     }
 
     def __init__(
         self,
         *,
-        serialized: Optional[Sequence["MintlayerTxRequestSerializedType"]] = None,
         request_type: Optional["MintlayerRequestType"] = None,
         details: Optional["MintlayerTxRequestDetailsType"] = None,
+        serialized: Optional["MintlayerTxRequestSerializedType"] = None,
     ) -> None:
-        self.serialized: Sequence["MintlayerTxRequestSerializedType"] = serialized if serialized is not None else []
         self.request_type = request_type
         self.details = details
+        self.serialized = serialized
 
 
 class MintlayerTxInput(protobuf.MessageType):
@@ -6335,12 +6335,11 @@ class MintlayerSignature(protobuf.MessageType):
         self.multisig_idx = multisig_idx
 
 
-class MintlayerTxRequestSerializedType(protobuf.MessageType):
+class MintlayerSignatures(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
         1: protobuf.Field("signature_index", "uint32", repeated=False, required=False, default=None),
         2: protobuf.Field("signatures", "MintlayerSignature", repeated=True, required=False, default=None),
-        3: protobuf.Field("serialized_tx", "bytes", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -6348,10 +6347,25 @@ class MintlayerTxRequestSerializedType(protobuf.MessageType):
         *,
         signatures: Optional[Sequence["MintlayerSignature"]] = None,
         signature_index: Optional["int"] = None,
-        serialized_tx: Optional["bytes"] = None,
     ) -> None:
         self.signatures: Sequence["MintlayerSignature"] = signatures if signatures is not None else []
         self.signature_index = signature_index
+
+
+class MintlayerTxRequestSerializedType(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("signatures", "MintlayerSignatures", repeated=True, required=False, default=None),
+        2: protobuf.Field("serialized_tx", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        signatures: Optional[Sequence["MintlayerSignatures"]] = None,
+        serialized_tx: Optional["bytes"] = None,
+    ) -> None:
+        self.signatures: Sequence["MintlayerSignatures"] = signatures if signatures is not None else []
         self.serialized_tx = serialized_tx
 
 

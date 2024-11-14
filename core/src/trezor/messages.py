@@ -4144,14 +4144,14 @@ if TYPE_CHECKING:
     class MintlayerTxRequest(protobuf.MessageType):
         request_type: "MintlayerRequestType | None"
         details: "MintlayerTxRequestDetailsType | None"
-        serialized: "list[MintlayerTxRequestSerializedType]"
+        serialized: "MintlayerTxRequestSerializedType | None"
 
         def __init__(
             self,
             *,
-            serialized: "list[MintlayerTxRequestSerializedType] | None" = None,
             request_type: "MintlayerRequestType | None" = None,
             details: "MintlayerTxRequestDetailsType | None" = None,
+            serialized: "MintlayerTxRequestSerializedType | None" = None,
         ) -> None:
             pass
 
@@ -4815,16 +4815,30 @@ if TYPE_CHECKING:
         def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerSignature"]:
             return isinstance(msg, cls)
 
-    class MintlayerTxRequestSerializedType(protobuf.MessageType):
+    class MintlayerSignatures(protobuf.MessageType):
         signature_index: "int | None"
         signatures: "list[MintlayerSignature]"
-        serialized_tx: "bytes | None"
 
         def __init__(
             self,
             *,
             signatures: "list[MintlayerSignature] | None" = None,
             signature_index: "int | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerSignatures"]:
+            return isinstance(msg, cls)
+
+    class MintlayerTxRequestSerializedType(protobuf.MessageType):
+        signatures: "list[MintlayerSignatures]"
+        serialized_tx: "bytes | None"
+
+        def __init__(
+            self,
+            *,
+            signatures: "list[MintlayerSignatures] | None" = None,
             serialized_tx: "bytes | None" = None,
         ) -> None:
             pass

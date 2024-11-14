@@ -81,7 +81,7 @@ def sign_tx(
     version: Optional["int"] = 1,
     serialize: Optional["bool"] = True,
     chunkify: Optional["bool"] = None,
-) -> List[messages.MintlayerTxRequestSerializedType]:
+) -> List[messages.MintlayerSignatures]:
     res = client.call(
         messages.MintlayerSignTx(
             outputs_count=len(outputs),
@@ -95,7 +95,10 @@ def sign_tx(
     R = messages.MintlayerRequestType
     while isinstance(res, messages.MintlayerTxRequest):
         if res.request_type == R.TXFINISHED:
-            return list(res.serialized)
+            if res.serialized:
+                return list(res.serialized.signatures)
+            else:
+                return []
 
         if res.request_type == R.TXINPUT and res.details is not None:
             assert res.details.request_index is not None

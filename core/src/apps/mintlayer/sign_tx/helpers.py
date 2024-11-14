@@ -165,17 +165,12 @@ def request_tx_finish(tx_req: MintlayerTxRequest) -> Awaitable[None]:  # type: i
 
 def _clear_tx_request(tx_req: MintlayerTxRequest) -> None:
     details = tx_req.details  # local_cache_attribute
-    serialized = tx_req.serialized  # local_cache_attribute
 
     assert details is not None
-    assert serialized is not None
-    # assert serialized.serialized_tx is not None
     tx_req.request_type = None
     details.request_index = None
     details.tx_hash = None
-    serialized = []
-    # serialized.signature = None
-    # serialized.signature_index = None
+    tx_req.serialized = None
 
 
 # Data sanitizers

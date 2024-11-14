@@ -8,6 +8,7 @@ from trezor.crypto.curve import bip340
 from trezor.crypto.hashlib import blake2b
 from trezor.messages import (
     MintlayerSignature,
+    MintlayerSignatures,
     MintlayerSignTx,
     MintlayerTxInput,
     MintlayerTxOutput,
@@ -510,7 +511,7 @@ class Mintlayer:
         self, signatures: List[List[Tuple[bytes, int | None]]]
     ) -> None:
         sigs = [
-            MintlayerTxRequestSerializedType(
+            MintlayerSignatures(
                 signature_index=i,
                 signatures=[
                     MintlayerSignature(signature=s[0], multisig_idx=s[1]) for s in sigs
@@ -518,7 +519,7 @@ class Mintlayer:
             )
             for i, sigs in enumerate(signatures)
         ]
-        self.tx_req.serialized = sigs
+        self.tx_req.serialized = MintlayerTxRequestSerializedType(signatures=sigs)
         await helpers.request_tx_finish(self.tx_req)
 
 

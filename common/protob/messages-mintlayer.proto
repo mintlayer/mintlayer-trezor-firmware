@@ -86,7 +86,7 @@ message MintlayerSignTx {
 message MintlayerTxRequest {
     optional MintlayerRequestType request_type = 1;              // what should be filled in TxAck message?
     optional MintlayerTxRequestDetailsType details = 2;          // request for tx details
-    repeated MintlayerTxRequestSerializedType serialized = 3;    // serialized data and request for next
+    optional MintlayerTxRequestSerializedType serialized = 3;    // serialized data and request for next
     /**
     * Type of information required by transaction signing process
     */
@@ -104,19 +104,25 @@ message MintlayerTxRequest {
         optional bytes tx_hash = 2;             // tx_hash of requested transaction
     }
     /**
-    * Structure representing request details
+    * Structure representing a single signature
     */
     message MintlayerSignature {
         required bytes signature = 1;             // a single signature
         optional uint32 multisig_idx = 2;         // in case of multisig the index of the key
     }
     /**
+    * Structure representing all of the signatures for a single input, can be multiple for a multisig address
+    */
+    message MintlayerSignatures {
+        optional uint32 signature_index = 1;                  // 'signature' field contains signed input of this index
+        repeated MintlayerSignature signatures = 2;           // all signatures for an input
+    }
+    /**
     * Structure representing serialized data
     */
     message MintlayerTxRequestSerializedType {
-        optional uint32 signature_index = 1;                  // 'signature' field contains signed input of this index
-        repeated MintlayerSignature signatures = 2;           // signature of the signature_index input
-        optional bytes serialized_tx = 3;                     // part of serialized and signed transaction
+        repeated MintlayerSignatures signatures = 1;          // signature of the signature_index input
+        optional bytes serialized_tx = 2;                     // the serialized tx
     }
 }
 

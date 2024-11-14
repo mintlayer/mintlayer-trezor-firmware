@@ -152,6 +152,7 @@ impl Trezor {
                 MintlayerRequestType::TXFINISHED => {
                     return Ok(response
                         .serialized
+                        .signatures
                         .iter()
                         .map(|s| {
                             s.signatures
