@@ -158,7 +158,7 @@ class Mintlayer:
         self.chunkify = tx.chunkify or False
         self.tx_req = MintlayerTxRequest()
         self.tx_req.details = MintlayerTxRequestDetailsType()
-        self.tx_req.serialized = []
+        self.tx_req.serialized = None
 
         # The digest of the presigned external inputs streamed for approval in Step 1. This is
         # used to ensure that the inputs streamed for verification in Step 3 are the same as

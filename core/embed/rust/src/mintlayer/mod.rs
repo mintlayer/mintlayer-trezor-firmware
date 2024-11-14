@@ -9,8 +9,8 @@ use ml_common::{
     HashedTimelockContract, HtlcSecretHash, IsTokenFreezable, IsTokenUnfreezable, Metadata,
     NftIssuance, NftIssuanceV0, OrderData, OutPointSourceId, OutPointSourceIdIndex, OutputTimeLock,
     OutputTimeLockIndex, OutputValue, PublicKey, PublicKeyHolder, StakePoolData, TokenIssuance,
-    TokenIssuanceV1, TokenTotalSupply, TokenTotalSupplyIndex, TxInput, TxOutput,
-    UtxoOutPoint, VRFPublicKeyHolder, H256,
+    TokenIssuanceV1, TokenTotalSupply, TokenTotalSupplyIndex, TxInput, TxOutput, UtxoOutPoint,
+    VRFPublicKeyHolder, H256,
 };
 use num_traits::FromPrimitive;
 use parity_scale_codec::{DecodeAll, Encode};
