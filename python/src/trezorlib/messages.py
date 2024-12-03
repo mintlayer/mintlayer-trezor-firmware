@@ -6080,6 +6080,7 @@ class MintlayerProduceBlockFromStakeTxOutput(protobuf.MessageType):
     FIELDS = {
         1: protobuf.Field("destination", "string", repeated=False, required=True),
         2: protobuf.Field("pool_id", "string", repeated=False, required=True),
+        3: protobuf.Field("staker_balance", "bytes", repeated=False, required=True),
     }
 
     def __init__(
@@ -6087,9 +6088,11 @@ class MintlayerProduceBlockFromStakeTxOutput(protobuf.MessageType):
         *,
         destination: "str",
         pool_id: "str",
+        staker_balance: "bytes",
     ) -> None:
         self.destination = destination
         self.pool_id = pool_id
+        self.staker_balance = staker_balance
 
 
 class MintlayerCreateDelegationIdTxOutput(protobuf.MessageType):

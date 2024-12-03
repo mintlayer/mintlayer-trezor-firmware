@@ -7719,6 +7719,8 @@ pub struct MintlayerProduceBlockFromStakeTxOutput {
     pub destination: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerProduceBlockFromStakeTxOutput.pool_id)
     pub pool_id: ::std::option::Option<::std::string::String>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerProduceBlockFromStakeTxOutput.staker_balance)
+    pub staker_balance: ::std::option::Option<::std::vec::Vec<u8>>,
     // special fields
     // @@protoc_insertion_point(special_field:hw.trezor.messages.mintlayer.MintlayerProduceBlockFromStakeTxOutput.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -7807,8 +7809,44 @@ impl MintlayerProduceBlockFromStakeTxOutput {
         self.pool_id.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
+    // required bytes staker_balance = 3;
+
+    pub fn staker_balance(&self) -> &[u8] {
+        match self.staker_balance.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_staker_balance(&mut self) {
+        self.staker_balance = ::std::option::Option::None;
+    }
+
+    pub fn has_staker_balance(&self) -> bool {
+        self.staker_balance.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_staker_balance(&mut self, v: ::std::vec::Vec<u8>) {
+        self.staker_balance = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_staker_balance(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.staker_balance.is_none() {
+            self.staker_balance = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.staker_balance.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_staker_balance(&mut self) -> ::std::vec::Vec<u8> {
+        self.staker_balance.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(2);
+        let mut fields = ::std::vec::Vec::with_capacity(3);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "destination",
@@ -7819,6 +7857,11 @@ impl MintlayerProduceBlockFromStakeTxOutput {
             "pool_id",
             |m: &MintlayerProduceBlockFromStakeTxOutput| { &m.pool_id },
             |m: &mut MintlayerProduceBlockFromStakeTxOutput| { &mut m.pool_id },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "staker_balance",
+            |m: &MintlayerProduceBlockFromStakeTxOutput| { &m.staker_balance },
+            |m: &mut MintlayerProduceBlockFromStakeTxOutput| { &mut m.staker_balance },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<MintlayerProduceBlockFromStakeTxOutput>(
             "MintlayerProduceBlockFromStakeTxOutput",
@@ -7838,6 +7881,9 @@ impl ::protobuf::Message for MintlayerProduceBlockFromStakeTxOutput {
         if self.pool_id.is_none() {
             return false;
         }
+        if self.staker_balance.is_none() {
+            return false;
+        }
         true
     }
 
@@ -7849,6 +7895,9 @@ impl ::protobuf::Message for MintlayerProduceBlockFromStakeTxOutput {
                 },
                 18 => {
                     self.pool_id = ::std::option::Option::Some(is.read_string()?);
+                },
+                26 => {
+                    self.staker_balance = ::std::option::Option::Some(is.read_bytes()?);
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -7868,6 +7917,9 @@ impl ::protobuf::Message for MintlayerProduceBlockFromStakeTxOutput {
         if let Some(v) = self.pool_id.as_ref() {
             my_size += ::protobuf::rt::string_size(2, &v);
         }
+        if let Some(v) = self.staker_balance.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(3, &v);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -7879,6 +7931,9 @@ impl ::protobuf::Message for MintlayerProduceBlockFromStakeTxOutput {
         }
         if let Some(v) = self.pool_id.as_ref() {
             os.write_string(2, v)?;
+        }
+        if let Some(v) = self.staker_balance.as_ref() {
+            os.write_bytes(3, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -7899,6 +7954,7 @@ impl ::protobuf::Message for MintlayerProduceBlockFromStakeTxOutput {
     fn clear(&mut self) {
         self.destination = ::std::option::Option::None;
         self.pool_id = ::std::option::Option::None;
+        self.staker_balance = ::std::option::Option::None;
         self.special_fields.clear();
     }
 
@@ -7906,6 +7962,7 @@ impl ::protobuf::Message for MintlayerProduceBlockFromStakeTxOutput {
         static instance: MintlayerProduceBlockFromStakeTxOutput = MintlayerProduceBlockFromStakeTxOutput {
             destination: ::std::option::Option::None,
             pool_id: ::std::option::Option::None,
+            staker_balance: ::std::option::Option::None,
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -11110,18 +11167,19 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \tR\x0cvrfPublicKey\x12)\n\x10decommission_key\x18\x05\x20\x02(\tR\x0fde\
     commissionKey\x129\n\x19margin_ratio_per_thousand\x18\x06\x20\x02(\rR\
     \x16marginRatioPerThousand\x12$\n\x0ecost_per_block\x18\x07\x20\x02(\x0c\
-    R\x0ccostPerBlock\"c\n&MintlayerProduceBlockFromStakeTxOutput\x12\x20\n\
-    \x0bdestination\x18\x01\x20\x02(\tR\x0bdestination\x12\x17\n\x07pool_id\
-    \x18\x02\x20\x02(\tR\x06poolId\"`\n#MintlayerCreateDelegationIdTxOutput\
-    \x12\x20\n\x0bdestination\x18\x01\x20\x02(\tR\x0bdestination\x12\x17\n\
-    \x07pool_id\x18\x02\x20\x02(\tR\x06poolId\"_\n\x20MintlayerDelegateStaki\
-    ngTxOutput\x12\x16\n\x06amount\x18\x01\x20\x02(\x0cR\x06amount\x12#\n\rd\
-    elegation_id\x18\x02\x20\x02(\tR\x0cdelegationId\"\x8f\x01\n\x19Mintlaye\
-    rTokenTotalSupply\x12O\n\x04type\x18\x01\x20\x02(\x0e2;.hw.trezor.messag\
-    es.mintlayer.MintlayerTokenTotalSupplyTypeR\x04type\x12!\n\x0cfixed_amou\
-    nt\x18\x02\x20\x01(\x0cR\x0bfixedAmount\"\xb6\x02\n#MintlayerIssueFungib\
-    leTokenTxOutput\x12!\n\x0ctoken_ticker\x18\x01\x20\x02(\x0cR\x0btokenTic\
-    ker\x12,\n\x12number_of_decimals\x18\x02\x20\x02(\rR\x10numberOfDecimals\
+    R\x0ccostPerBlock\"\x8a\x01\n&MintlayerProduceBlockFromStakeTxOutput\x12\
+    \x20\n\x0bdestination\x18\x01\x20\x02(\tR\x0bdestination\x12\x17\n\x07po\
+    ol_id\x18\x02\x20\x02(\tR\x06poolId\x12%\n\x0estaker_balance\x18\x03\x20\
+    \x02(\x0cR\rstakerBalance\"`\n#MintlayerCreateDelegationIdTxOutput\x12\
+    \x20\n\x0bdestination\x18\x01\x20\x02(\tR\x0bdestination\x12\x17\n\x07po\
+    ol_id\x18\x02\x20\x02(\tR\x06poolId\"_\n\x20MintlayerDelegateStakingTxOu\
+    tput\x12\x16\n\x06amount\x18\x01\x20\x02(\x0cR\x06amount\x12#\n\rdelegat\
+    ion_id\x18\x02\x20\x02(\tR\x0cdelegationId\"\x8f\x01\n\x19MintlayerToken\
+    TotalSupply\x12O\n\x04type\x18\x01\x20\x02(\x0e2;.hw.trezor.messages.min\
+    tlayer.MintlayerTokenTotalSupplyTypeR\x04type\x12!\n\x0cfixed_amount\x18\
+    \x02\x20\x01(\x0cR\x0bfixedAmount\"\xb6\x02\n#MintlayerIssueFungibleToke\
+    nTxOutput\x12!\n\x0ctoken_ticker\x18\x01\x20\x02(\x0cR\x0btokenTicker\
+    \x12,\n\x12number_of_decimals\x18\x02\x20\x02(\rR\x10numberOfDecimals\
     \x12!\n\x0cmetadata_uri\x18\x03\x20\x02(\x0cR\x0bmetadataUri\x12Z\n\x0ct\
     otal_supply\x18\x04\x20\x02(\x0b27.hw.trezor.messages.mintlayer.Mintlaye\
     rTokenTotalSupplyR\x0btotalSupply\x12\x1c\n\tauthority\x18\x05\x20\x02(\

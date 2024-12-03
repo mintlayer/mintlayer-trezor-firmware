@@ -194,7 +194,7 @@ class Mintlayer:
                         )
                     )
 
-                update_totals(totals, txo)
+                update_input_totals(totals, txo)
                 self.tx_info.add_input(txi, txo, node)
             elif txi.account:
                 node = []
@@ -239,7 +239,7 @@ class Mintlayer:
             progress.advance()
             txo = await helpers.request_tx_output(self.tx_req, i)
             await helpers.confirm_output(txo, i, self.chunkify)
-            update_totals(totals, txo)
+            update_output_totals(totals, txo)
             self.tx_info.add_output(txo)
         return totals
 
@@ -523,7 +523,43 @@ class Mintlayer:
         await helpers.request_tx_finish(self.tx_req)
 
 
-def update_totals(totals: Dict[str, int], txo: MintlayerTxOutput):
+def update_input_totals(totals: Dict[str, int], txo: MintlayerTxOutput):
+    def update(value: MintlayerOutputValue):
+        amount = int.from_bytes(value.amount, "big")
+        token_or_coin = (
+            str(value.token.token_ticker.decode("utf-8")) if value.token else ML_COIN
+        )
+        if token_or_coin in totals:
+            totals[token_or_coin] += amount
+        else:
+            totals[token_or_coin] = amount
+
+    if ML_COIN not in totals:
+        totals[ML_COIN] = 0
+
+    if txo.transfer:
+        update(txo.transfer.value)
+    elif txo.lock_then_transfer:
+        update(txo.lock_then_transfer.value)
+    elif txo.issue_nft:
+        token_or_coin = txo.issue_nft.ticker.decode("utf-8")
+        if token_or_coin in totals:
+            totals[token_or_coin] += 1
+        else:
+            totals[token_or_coin] = 1
+    elif txo.create_stake_pool:
+        amount = int.from_bytes(txo.create_stake_pool.pledge, "big")
+        totals[ML_COIN] += amount
+    elif txo.produce_block_from_stake:
+        amount = int.from_bytes(txo.produce_block_from_stake.staker_balance, "big")
+        totals[ML_COIN] += amount
+    elif txo.htlc:
+        update(txo.htlc.value)
+    else:
+        raise Exception("Unhandled TX output type as UTXO")
+
+
+def update_output_totals(totals: Dict[str, int], txo: MintlayerTxOutput):
     def update(value: MintlayerOutputValue):
         amount = int.from_bytes(value.amount, "big")
         token_or_coin = (

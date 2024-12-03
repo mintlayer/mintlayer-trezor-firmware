@@ -355,6 +355,7 @@ message MintlayerCreateStakePoolTxOutput {
 message MintlayerProduceBlockFromStakeTxOutput {
     required string destination = 1;              // the staker destination address in bech32 encoding
     required string pool_id = 2;                  // the pool id in bech32 encoding
+    required bytes staker_balance = 3;            // the current staker balance of the pool
 }
 
 /** Data type for transaction Create delegation id output to be signed.

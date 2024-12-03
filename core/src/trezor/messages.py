@@ -4584,12 +4584,14 @@ if TYPE_CHECKING:
     class MintlayerProduceBlockFromStakeTxOutput(protobuf.MessageType):
         destination: "str"
         pool_id: "str"
+        staker_balance: "bytes"
 
         def __init__(
             self,
             *,
             destination: "str",
             pool_id: "str",
+            staker_balance: "bytes",
         ) -> None:
             pass
 
