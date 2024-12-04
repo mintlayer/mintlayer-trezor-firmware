@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use bitcoin::secp256k1;
 use protobuf::MessageField;
 
-use super::Trezor;
+use super::{handle_interaction, InteractionType, Trezor, TrezorResponse};
 use crate::{
     error::Result,
     protos::{
@@ -41,7 +41,7 @@ impl Trezor {
     pub fn mintlayer_get_public_key(&mut self, path: Vec<u32>) -> Result<XPub> {
         let mut req = protos::MintlayerGetPublicKey::new();
         req.address_n = path;
-        self.call::<_, _, protos::MintlayerPublicKey>(
+        let msg = self.call::<_, _, protos::MintlayerPublicKey>(
             req,
             Box::new(|_, m| {
                 Ok(XPub {
@@ -51,8 +51,9 @@ impl Trezor {
                     ),
                 })
             }),
-        )?
-        .ok()
+        )?;
+
+        handle_interaction(msg)
     }
 
     pub fn mintlayer_sign_message(
@@ -69,7 +70,8 @@ impl Trezor {
             req,
             Box::new(|_, m| Ok(m.signature().to_vec())),
         )?;
-        msg.button_request()?.ack()?.button_request()?.ack()?.ok()
+
+        handle_interaction(msg)
     }
 
     pub fn mintlayer_sign_tx(
@@ -84,15 +86,9 @@ impl Trezor {
         req.set_outputs_count(outputs.len() as u32);
 
         let mut msg = self.call::<_, _, protos::MintlayerTxRequest>(req, Box::new(|_, m| Ok(m)))?;
-        let mut should_ack_button = 0;
         loop {
-            if should_ack_button > 0 {
-                msg = msg.button_request()?.ack()?;
-                should_ack_button -= 1;
-                continue;
-            }
+            let response = handle_interaction(msg)?;
 
-            let response = msg.ok()?;
             match response.request_type() {
                 MintlayerRequestType::TXINPUT => {
                     let mut req = MintlayerTxAckInputWrapper::new();
@@ -120,26 +116,6 @@ impl Trezor {
                         req.output = MessageField::from_option(
                             outputs.get(response.details.request_index() as usize).cloned(),
                         );
-                        should_ack_button += 1;
-
-                        let confirm_amount = req.output.htlc.is_some() ||
-                            req.output.transfer.is_some() ||
-                            req.output.lock_then_transfer.is_some() ||
-                            req.output.burn.is_some() ||
-                            req.output.delegate_staking.is_some() ||
-                            req.output.create_stake_pool.is_some();
-
-                        if confirm_amount {
-                            should_ack_button += 1;
-                        }
-
-                        let is_last_output =
-                            response.details.request_index() as usize == outputs.len() - 1;
-
-                        // confirm total
-                        if is_last_output {
-                            should_ack_button += 1;
-                        }
                     }
                     let mut req2 = MintlayerTxAckOutput::new();
                     req2.tx = MessageField::some(req);
