@@ -130,7 +130,7 @@ STATIC const mp_rom_map_elem_t mod_trezormintlayer_globals_table[] = {
 STATIC MP_DEFINE_CONST_DICT(mod_trezormintlayer_globals,
                             mod_trezormintlayer_globals_table);
 
-STATIC const mp_obj_module_t mp_module_trezormintlayer = {
+const mp_obj_module_t mp_module_trezormintlayer = {
     .base = {&mp_type_module},
     .globals = (mp_obj_dict_t *)&mod_trezormintlayer_globals,
 };
