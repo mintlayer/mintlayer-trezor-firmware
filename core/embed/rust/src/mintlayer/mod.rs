@@ -5,11 +5,11 @@ use core::{
 };
 
 use ml_common::{
-    AccountCommand, AccountCommandIndex, AccountOutPoint, AccountSpending, Amount, Destination,
+    AccountCommand, AccountCommandTag, AccountOutPoint, AccountSpending, Amount, Destination,
     HashedTimelockContract, HtlcSecretHash, IsTokenFreezable, IsTokenUnfreezable, Metadata,
-    NftIssuance, NftIssuanceV0, OrderData, OutPointSourceId, OutPointSourceIdIndex, OutputTimeLock,
-    OutputTimeLockIndex, OutputValue, PublicKey, PublicKeyHolder, StakePoolData, TokenIssuance,
-    TokenIssuanceV1, TokenTotalSupply, TokenTotalSupplyIndex, TxInput, TxOutput, UtxoOutPoint,
+    NftIssuance, NftIssuanceV0, OrderData, OutPointSourceId, OutPointSourceIdTag, OutputTimeLock,
+    OutputTimeLockTag, OutputValue, PublicKey, PublicKeyHolder, StakePoolData, TokenIssuance,
+    TokenIssuanceV1, TokenTotalSupply, TokenTotalSupplyTag, TxInput, TxOutput, UtxoOutPoint,
     VRFPublicKeyHolder, H256,
 };
 use num_traits::FromPrimitive;
@@ -73,11 +73,11 @@ fn mintlayer_encode_utxo_input_impl(
         hash.try_into()
             .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
     );
-    let outpoint = match OutPointSourceIdIndex::from_u32(utxo_type)
+    let outpoint = match OutPointSourceIdTag::from_u32(utxo_type)
         .ok_or(MintlayerErrorCode::InvalidUtxoType)?
     {
-        OutPointSourceIdIndex::Transaction => OutPointSourceId::Transaction(hash),
-        OutPointSourceIdIndex::BlockReward => OutPointSourceId::BlockReward(hash),
+        OutPointSourceIdTag::Transaction => OutPointSourceId::Transaction(hash),
+        OutPointSourceIdTag::BlockReward => OutPointSourceId::BlockReward(hash),
     };
     let utxo_outpoint = UtxoOutPoint::new(outpoint, index);
     let tx_input = TxInput::Utxo(utxo_outpoint);
@@ -146,28 +146,28 @@ fn mintlayer_encode_token_account_command_input_impl(
         Ok(hash) => hash,
         Err(_) => return Err(MintlayerErrorCode::WrongHashSize),
     });
-    let account_command = match AccountCommandIndex::from_u32(command)
+    let account_command = match AccountCommandTag::from_u32(command)
         .ok_or(MintlayerErrorCode::InvalidAccountCommand)?
     {
-        AccountCommandIndex::MintTokens => {
+        AccountCommandTag::MintTokens => {
             let amount =
                 Amount::from_bytes_be(data.as_ref()).ok_or(MintlayerErrorCode::InvalidAmount)?;
             AccountCommand::MintTokens(token_id, amount)
         }
-        AccountCommandIndex::UnmintTokens => AccountCommand::UnmintTokens(token_id),
-        AccountCommandIndex::LockTokenSupply => AccountCommand::LockTokenSupply(token_id),
-        AccountCommandIndex::FreezeToken => {
+        AccountCommandTag::UnmintTokens => AccountCommand::UnmintTokens(token_id),
+        AccountCommandTag::LockTokenSupply => AccountCommand::LockTokenSupply(token_id),
+        AccountCommandTag::FreezeToken => {
             let is_token_unfreezabe = IsTokenUnfreezable::decode_all(&mut data.as_ref())
                 .map_err(|_| MintlayerErrorCode::InvalidIsTokenUnfreezable)?;
             AccountCommand::FreezeToken(token_id, is_token_unfreezabe)
         }
-        AccountCommandIndex::UnfreezeToken => AccountCommand::UnfreezeToken(token_id),
-        AccountCommandIndex::ChangeTokenAuthority => {
+        AccountCommandTag::UnfreezeToken => AccountCommand::UnfreezeToken(token_id),
+        AccountCommandTag::ChangeTokenAuthority => {
             let destination = Destination::decode_all(&mut data.as_ref())
                 .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
             AccountCommand::ChangeTokenAuthority(token_id, destination)
         }
-        AccountCommandIndex::ChangeTokenMetadataUri => {
+        AccountCommandTag::ChangeTokenMetadataUri => {
             AccountCommand::ChangeTokenMetadataUri(token_id, data.to_vec())
         }
         _ => return Err(MintlayerErrorCode::InvalidAccountCommand),
@@ -325,12 +325,11 @@ extern "C" fn mintlayer_encode_lock_then_transfer_output(
         Ok(destination) => destination,
         Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
     };
-
-    let lock = match OutputTimeLockIndex::from_u8(lock_type) {
-        Some(OutputTimeLockIndex::UntilHeight) => OutputTimeLock::UntilHeight(lock_amount),
-        Some(OutputTimeLockIndex::UntilTime) => OutputTimeLock::UntilTime(lock_amount),
-        Some(OutputTimeLockIndex::ForBlockCount) => OutputTimeLock::ForBlockCount(lock_amount),
-        Some(OutputTimeLockIndex::ForSeconds) => OutputTimeLock::ForSeconds(lock_amount),
+    let lock = match OutputTimeLockTag::from_u8(lock_type) {
+        Some(OutputTimeLockTag::UntilHeight) => OutputTimeLock::UntilHeight(lock_amount),
+        Some(OutputTimeLockTag::UntilTime) => OutputTimeLock::UntilTime(lock_amount),
+        Some(OutputTimeLockTag::ForBlockCount) => OutputTimeLock::ForBlockCount(lock_amount),
+        Some(OutputTimeLockTag::ForSeconds) => OutputTimeLock::ForSeconds(lock_amount),
         None => return MintlayerErrorCode::InvalidOutputTimeLock.into(),
     };
 
@@ -579,16 +578,16 @@ fn mintlayer_encode_issue_fungible_token_output_impl(
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
     let is_freezable = IsTokenFreezable::from_u8(is_freezable)
         .ok_or(MintlayerErrorCode::InvalidIsTokenFreezable)?;
-    let total_supply = match TokenTotalSupplyIndex::from_u32(total_supply_type)
+    let total_supply = match TokenTotalSupplyTag::from_u32(total_supply_type)
         .ok_or(MintlayerErrorCode::InvalidTokenTotalSupply)?
     {
-        TokenTotalSupplyIndex::Fixed => {
+        TokenTotalSupplyTag::Fixed => {
             let amount = Amount::from_bytes_be(coin_amount.as_ref())
                 .ok_or(MintlayerErrorCode::InvalidAmount)?;
             TokenTotalSupply::Fixed(amount)
         }
-        TokenTotalSupplyIndex::Lockable => TokenTotalSupply::Lockable,
-        TokenTotalSupplyIndex::Unlimited => TokenTotalSupply::Unlimited,
+        TokenTotalSupplyTag::Lockable => TokenTotalSupply::Lockable,
+        TokenTotalSupplyTag::Unlimited => TokenTotalSupply::Unlimited,
     };
     let issuance = TokenIssuance::V1(TokenIssuanceV1 {
         token_ticker,
@@ -794,13 +793,13 @@ fn mintlayer_encode_htlc_output_impl(
         hash.try_into()
             .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
     );
-    let refund_timelock = match OutputTimeLockIndex::from_u8(lock_type)
+    let refund_timelock = match OutputTimeLockTag::from_u8(lock_type)
         .ok_or(MintlayerErrorCode::InvalidOutputTimeLock)?
     {
-        OutputTimeLockIndex::UntilHeight => OutputTimeLock::UntilHeight(lock_amount),
-        OutputTimeLockIndex::UntilTime => OutputTimeLock::UntilTime(lock_amount),
-        OutputTimeLockIndex::ForBlockCount => OutputTimeLock::ForBlockCount(lock_amount),
-        OutputTimeLockIndex::ForSeconds => OutputTimeLock::ForSeconds(lock_amount),
+        OutputTimeLockTag::UntilHeight => OutputTimeLock::UntilHeight(lock_amount),
+        OutputTimeLockTag::UntilTime => OutputTimeLock::UntilTime(lock_amount),
+        OutputTimeLockTag::ForBlockCount => OutputTimeLock::ForBlockCount(lock_amount),
+        OutputTimeLockTag::ForSeconds => OutputTimeLock::ForSeconds(lock_amount),
     };
     let txo = TxOutput::Htlc(
         value,

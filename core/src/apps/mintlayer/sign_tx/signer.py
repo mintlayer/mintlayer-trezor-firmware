@@ -6,6 +6,7 @@ from trezor.crypto import mintlayer_utils
 from trezor.crypto.bech32 import mintlayer_decode
 from trezor.crypto.curve import bip340
 from trezor.crypto.hashlib import blake2b
+from trezor.enums import MintlayerAccountCommandType
 from trezor.messages import (
     MintlayerSignature,
     MintlayerSignatures,
@@ -269,31 +270,31 @@ class Mintlayer:
             elif inp.input.account_command:
                 x = inp.input.account_command
                 if x.mint:
-                    command = 0
+                    command = MintlayerAccountCommandType.MINT_TOKENS
                     token_id = x.mint.token_id
                     data = x.mint.amount
                 elif x.unmint:
-                    command = 1
+                    command = MintlayerAccountCommandType.UNMINT_TOKENS
                     token_id = x.unmint.token_id
                     data = b""
                 elif x.lock_token_supply:
-                    command = 2
+                    command = MintlayerAccountCommandType.LOCK_TOKEN_SUPPLY
                     token_id = x.lock_token_supply.token_id
                     data = b""
                 elif x.freeze_token:
-                    command = 3
+                    command = MintlayerAccountCommandType.FREEZE_TOKEN
                     token_id = x.freeze_token.token_id
                     data = int(x.freeze_token.is_token_unfreezabe).to_bytes(1, "big")
                 elif x.unfreeze_token:
-                    command = 4
+                    command = MintlayerAccountCommandType.UNFREEZE_TOKEN
                     token_id = x.unfreeze_token.token_id
                     data = b""
                 elif x.change_token_authority:
-                    command = 5
+                    command = MintlayerAccountCommandType.CHANGE_TOKEN_AUTHORITY
                     token_id = x.change_token_authority.token_id
                     data = decode_nullable_address(x.change_token_authority.destination)
                 elif x.change_token_metadata_uri:
-                    command = 8
+                    command = MintlayerAccountCommandType.CHANGE_TOKEN_METADATA_URI
                     token_id = x.change_token_metadata_uri.token_id
                     data = x.change_token_metadata_uri.metadata_uri
                 elif x.conclude_order:
@@ -324,7 +325,7 @@ class Mintlayer:
                     raise Exception("unknown account command")
 
                 encoded_inp = mintlayer_utils.encode_token_account_command_input(
-                    x.nonce, command, mintlayer_decode(token_id), data
+                    x.nonce, int(command), mintlayer_decode(token_id), data
                 )
                 encoded_inputs.append(encoded_inp)
                 encoded_input_utxos.append(b"\x00")
@@ -349,7 +350,7 @@ class Mintlayer:
                 b"" if not x.value.token else mintlayer_decode(x.value.token.token_id)
             )
             encoded_out = mintlayer_utils.encode_lock_then_transfer_output(
-                x.value.amount, token_id, lock_type, lock_amount, data
+                x.value.amount, token_id, int(lock_type), lock_amount, data
             )
         elif out.burn:
             x = out.burn
@@ -430,7 +431,7 @@ class Mintlayer:
             encoded_out = mintlayer_utils.encode_htlc_output(
                 x.value.amount,
                 token_id,
-                lock_type,
+                int(lock_type),
                 lock_amount,
                 refund_key,
                 spend_key,

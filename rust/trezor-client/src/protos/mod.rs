@@ -39,6 +39,7 @@ mod generated {
         "tezos" => messages_tezos
         "webauthn" => messages_webauthn
         "mintlayer" => messages_mintlayer
+        "mintlayer" => messages_mintlayer_enums
     }
 }
 

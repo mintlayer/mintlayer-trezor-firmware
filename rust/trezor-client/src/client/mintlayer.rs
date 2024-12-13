@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use bitcoin::secp256k1;
 use protobuf::MessageField;
 
-use super::{handle_interaction, InteractionType, Trezor, TrezorResponse};
+use super::{handle_interaction, Trezor};
 use crate::{
     error::Result,
     protos::{

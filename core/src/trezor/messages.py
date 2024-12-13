@@ -49,6 +49,8 @@ if TYPE_CHECKING:
     from trezor.enums import HomescreenFormat  # noqa: F401
     from trezor.enums import InputScriptType  # noqa: F401
     from trezor.enums import MessageType  # noqa: F401
+    from trezor.enums import MintlayerAccountCommandType  # noqa: F401
+    from trezor.enums import MintlayerOutputTimeLockType  # noqa: F401
     from trezor.enums import MintlayerRequestType  # noqa: F401
     from trezor.enums import MintlayerTokenTotalSupplyType  # noqa: F401
     from trezor.enums import MintlayerUtxoType  # noqa: F401

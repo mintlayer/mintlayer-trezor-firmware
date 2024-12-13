@@ -300,6 +300,23 @@ if TYPE_CHECKING:
         ARRAY = 7
         STRUCT = 8
 
+    class MintlayerAccountCommandType(IntEnum):
+        MINT_TOKENS = 0
+        UNMINT_TOKENS = 1
+        LOCK_TOKEN_SUPPLY = 2
+        FREEZE_TOKEN = 3
+        UNFREEZE_TOKEN = 4
+        CHANGE_TOKEN_AUTHORITY = 5
+        CONCLUDE_ORDER = 6
+        FILL_ORDER = 7
+        CHANGE_TOKEN_METADATA_URI = 8
+
+    class MintlayerOutputTimeLockType(IntEnum):
+        UNTIL_HEIGHT = 0
+        UNTIL_TIME = 1
+        FOR_BLOCK_COUNT = 2
+        FOR_SECONDS = 3
+
     class MintlayerUtxoType(IntEnum):
         TRANSACTION = 0
         BLOCK = 1

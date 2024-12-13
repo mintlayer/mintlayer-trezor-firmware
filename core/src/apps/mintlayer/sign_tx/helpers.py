@@ -2,7 +2,7 @@ from micropython import const
 from typing import TYPE_CHECKING, Tuple
 
 from trezor import utils
-from trezor.enums import MintlayerRequestType
+from trezor.enums import MintlayerOutputTimeLockType, MintlayerRequestType
 from trezor.wire import DataError
 
 from . import layout
@@ -289,18 +289,18 @@ def _sanitize_tx_output(txo: MintlayerTxOutput) -> MintlayerTxOutput:
     return txo
 
 
-def get_lock(x: MintlayerOutputTimeLock) -> Tuple[int, int]:
+def get_lock(x: MintlayerOutputTimeLock) -> Tuple[MintlayerOutputTimeLockType, int]:
     if x.until_height:
-        lock_type = 0
+        lock_type = MintlayerOutputTimeLockType.UNTIL_HEIGHT
         lock_amount = x.until_height
     elif x.until_time:
-        lock_type = 1
+        lock_type = MintlayerOutputTimeLockType.UNTIL_TIME
         lock_amount = x.until_time
     elif x.for_block_count:
-        lock_type = 2
+        lock_type = MintlayerOutputTimeLockType.FOR_BLOCK_COUNT
         lock_amount = x.for_block_count
     elif x.for_seconds:
-        lock_type = 3
+        lock_type = MintlayerOutputTimeLockType.FOR_SECONDS
         lock_amount = x.for_seconds
     else:
         raise DataError("unhandled mintlayer lock type")

@@ -1,0 +1,31 @@
+syntax = "proto2";
+package hw.trezor.messages.mintlayer;
+
+// Sugar for easier handling in Java
+option java_package = "com.satoshilabs.trezor.lib.protobuf";
+option java_outer_classname = "TrezorMessageMintlayer";
+
+/**
+* Enum for Account Command type passed between the Python and Rust code
+*/
+enum MintlayerAccountCommandType {
+    MINT_TOKENS = 0;
+    UNMINT_TOKENS = 1;
+    LOCK_TOKEN_SUPPLY = 2;
+    FREEZE_TOKEN = 3;
+    UNFREEZE_TOKEN = 4;
+    CHANGE_TOKEN_AUTHORITY = 5;
+    CONCLUDE_ORDER = 6;
+    FILL_ORDER = 7;
+    CHANGE_TOKEN_METADATA_URI = 8;
+}
+
+/**
+* Enum for Output time lock type passed between the Python and Rust code
+*/
+enum MintlayerOutputTimeLockType {
+    UNTIL_HEIGHT = 0;
+    UNTIL_TIME = 1;
+    FOR_BLOCK_COUNT = 2;
+    FOR_SECONDS = 3;
+}
