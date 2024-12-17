@@ -7,10 +7,8 @@ use super::{handle_interaction, Trezor};
 use crate::{
     error::Result,
     protos::{
-        self, mintlayer_tx_ack_output::MintlayerTxAckOutputWrapper,
-        mintlayer_tx_ack_utxo_input::MintlayerTxAckInputWrapper,
-        mintlayer_tx_request::MintlayerRequestType, MintlayerTxAckOutput, MintlayerTxAckUtxoInput,
-        MintlayerTxInput, MintlayerTxOutput,
+        self, mintlayer_tx_request::MintlayerRequestType, MintlayerTxAckOutput,
+        MintlayerTxAckUtxoInput, MintlayerTxInput, MintlayerTxOutput,
     },
     Error,
 };
@@ -35,6 +33,8 @@ impl MintlayerSignature {
         Self { signature, multisig_idx }
     }
 }
+
+pub type TransactionId = [u8; 32];
 
 impl Trezor {
     // Mintlayer
@@ -78,7 +78,7 @@ impl Trezor {
         &mut self,
         inputs: Vec<MintlayerTxInput>,
         outputs: Vec<MintlayerTxOutput>,
-        utxos: BTreeMap<[u8; 32], BTreeMap<u32, MintlayerTxOutput>>,
+        utxos: BTreeMap<TransactionId, BTreeMap<u32, MintlayerTxOutput>>,
     ) -> Result<Vec<Vec<MintlayerSignature>>> {
         let mut req = protos::MintlayerSignTx::new();
         req.set_version(1);
@@ -91,19 +91,17 @@ impl Trezor {
 
             match response.request_type() {
                 MintlayerRequestType::TXINPUT => {
-                    let mut req = MintlayerTxAckInputWrapper::new();
+                    let mut req = MintlayerTxAckUtxoInput::new();
                     req.input = MessageField::from_option(
                         inputs.get(response.details.request_index() as usize).cloned(),
                     );
-                    let mut req2 = MintlayerTxAckUtxoInput::new();
-                    req2.tx = MessageField::some(req);
-                    msg = self
-                        .call::<_, _, protos::MintlayerTxRequest>(req2, Box::new(|_, m| Ok(m)))?;
+                    msg =
+                        self.call::<_, _, protos::MintlayerTxRequest>(req, Box::new(|_, m| Ok(m)))?;
                 }
                 MintlayerRequestType::TXOUTPUT => {
-                    let mut req = MintlayerTxAckOutputWrapper::new();
+                    let mut req = MintlayerTxAckOutput::new();
                     if response.details.has_tx_hash() {
-                        let tx_id: [u8; 32] = response
+                        let tx_id: TransactionId = response
                             .details
                             .tx_hash()
                             .try_into()
@@ -117,10 +115,8 @@ impl Trezor {
                             outputs.get(response.details.request_index() as usize).cloned(),
                         );
                     }
-                    let mut req2 = MintlayerTxAckOutput::new();
-                    req2.tx = MessageField::some(req);
-                    msg = self
-                        .call::<_, _, protos::MintlayerTxRequest>(req2, Box::new(|_, m| Ok(m)))?;
+                    msg =
+                        self.call::<_, _, protos::MintlayerTxRequest>(req, Box::new(|_, m| Ok(m)))?;
                 }
                 MintlayerRequestType::TXMETA => {
                     return Err(Error::MalformedMintlayerTxRequest(response))

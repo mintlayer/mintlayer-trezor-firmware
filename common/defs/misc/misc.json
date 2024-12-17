@@ -103,5 +103,12 @@
         "slip44": 501,
         "curve": "ed25519",
         "decimals": 9
+    },
+    {
+        "name": "Mintlayer",
+        "shortcut": "ML",
+        "slip44": 19788,
+        "curve": "secp256k1",
+        "decimals": 11
     }
 ]

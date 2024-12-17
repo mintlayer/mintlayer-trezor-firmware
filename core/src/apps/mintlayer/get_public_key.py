@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from apps.common.keychain import with_slip44_keychain
 
-from . import CURVE, PATTERNS, SLIP44_ID
+from . import CURVE, PATTERNS, SLIP44_ID, find_coin_by_name
 
 if TYPE_CHECKING:
     from trezor.messages import MintlayerGetPublicKey, MintlayerPublicKey
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from apps.common.keychain import Keychain
 
 
-@with_slip44_keychain(*PATTERNS, curve=CURVE, slip44_id=SLIP44_ID)
+@with_slip44_keychain(*PATTERNS, curve=CURVE, slip44_id=SLIP44_ID, allow_testnet=True)
 async def get_public_key(
     msg: MintlayerGetPublicKey, keychain: Keychain
 ) -> MintlayerPublicKey:
@@ -21,7 +21,11 @@ async def get_public_key(
 
     from apps.common import paths
 
-    await paths.validate_path(keychain, msg.address_n)
+    coin_info = find_coin_by_name(msg.coin_name)
+    await paths.validate_path(
+        keychain,
+        msg.address_n,
+    )
     node = keychain.derive(msg.address_n)
     pubkey = node.public_key()
     chain_code = node.chain_code()
@@ -31,7 +35,7 @@ async def get_public_key(
         await show_pubkey(
             hexlify(pubkey).decode(),
             account=paths.get_account_name(
-                "BNB", msg.address_n, PATTERNS[0], SLIP44_ID
+                coin_info.coin_shortcut, msg.address_n, PATTERNS, coin_info.slip44
             ),
             path=path,
         )

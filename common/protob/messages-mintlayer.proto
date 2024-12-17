@@ -13,8 +13,9 @@ option java_outer_classname = "TrezorMessageMintlayer";
  */
 message MintlayerGetAddress {
     repeated uint32 address_n = 1;  // BIP-32-style path to derive the key from master node
-    optional bool show_display = 2; // optionally prompt for confirmation on trezor display
-    optional bool chunkify = 3;     // display the address in chunks of 4 characters
+    required string coin_name = 2;  // Coin to use Testnet or Mainnet
+    optional bool show_display = 3; // optionally prompt for confirmation on trezor display
+    optional bool chunkify = 4;     // display the address in chunks of 4 characters
 }
 
 /**
@@ -32,7 +33,8 @@ message MintlayerAddress {
  */
 message MintlayerGetPublicKey {
     repeated uint32 address_n = 1;  // BIP-32 path to derive the key from master node
-    optional bool show_display = 2; // optionally show on display before sending the result
+    required string coin_name = 2;  // Coin to use Testnet or Mainnet
+    optional bool show_display = 3; // optionally show on display before sending the result
 }
 
 /**
@@ -45,15 +47,24 @@ message MintlayerPublicKey {
 }
 
 /**
+* Type of information required by transaction signing process
+*/
+enum MintlayerAddressType {
+    PUBLIC_KEY = 1;
+    PUBLIC_KEY_HASH = 2;
+}
+
+/**
  * Request: Ask device to sign a message
  * @start
  * @next Success
  * @next Failure
  */
 message MintlayerSignMessage {
-    repeated uint32 address_n = 1;  // BIP-32 path to derive the key from master node
-    required string address = 2;    // destination address in bech32 encoding
-    required bytes message = 3;     // message to sign
+    repeated uint32 address_n = 1;                     // BIP-32 path to derive the key from master node
+    required string coin_name = 2;                     // Coin to use Testnet or Mainnet
+    required MintlayerAddressType address_type = 3;    // destination address in bech32 encoding
+    required bytes message = 4;                        // message to sign
 }
 
 /**
@@ -65,36 +76,30 @@ message MintlayerSignMessage {
 message MintlayerSignTx {
     required uint32 outputs_count = 1;                         // number of transaction outputs
     required uint32 inputs_count = 2;                          // number of transaction inputs
-    optional uint32 version = 3 [default=1];                   // transaction version
-    optional bool serialize = 4 [default=true];                // serialize the full transaction, as opposed to only outputting the signatures
-    optional bool chunkify = 5;                                // display the address in chunks of 4 characters
+    required string coin_name = 3;                             // Coin to use Testnet or Mainnet
+    optional uint32 version = 4 [default=1];                   // transaction version
+    optional bool serialize = 5 [default=true];                // serialize the full transaction, as opposed to only outputting the signatures
+    optional bool chunkify = 6;                                // display the address in chunks of 4 characters
 }
 
 /**
  * Response: Device asks for information for signing transaction or returns the last result
- * If request_index is set, device awaits TxAck<any> matching the request type.
- * If signature_index is set, 'signature' contains signed input of signature_index's input
+ * If request_index is set, device awaits MintlayerTxAck<any> matching the request type.
  * @end
- * @next TxAckInput
- * @next TxAckOutput
- * @next TxAckPrevMeta
- * @next TxAckPrevInput
- * @next TxAckPrevOutput
- * @next TxAckPrevExtraData
- * @next TxAckPaymentRequest
+ * @next MintlayerTxAckUtxoInput
+ * @next MintlayerTxAckOutput
  */
 message MintlayerTxRequest {
-    optional MintlayerRequestType request_type = 1;              // what should be filled in TxAck message?
+    optional MintlayerRequestType request_type = 1;              // what should be filled in TxAck message
     optional MintlayerTxRequestDetailsType details = 2;          // request for tx details
-    optional MintlayerTxRequestSerializedType serialized = 3;    // serialized data and request for next
+    optional MintlayerTxRequestSerializedType serialized = 3;    // serialized data of the signatures
     /**
     * Type of information required by transaction signing process
     */
     enum MintlayerRequestType {
         TXINPUT = 0;
         TXOUTPUT = 1;
-        TXMETA = 2;
-        TXFINISHED = 3;
+        TXFINISHED = 2;
     }
     /**
     * Structure representing request details
@@ -113,16 +118,15 @@ message MintlayerTxRequest {
     /**
     * Structure representing all of the signatures for a single input, can be multiple for a multisig address
     */
-    message MintlayerSignatures {
-        optional uint32 signature_index = 1;                  // 'signature' field contains signed input of this index
+    message MintlayerSignaturesForInput {
+        required uint32 input_index = 1;                      // 'signatures' field contains signed input of this index
         repeated MintlayerSignature signatures = 2;           // all signatures for an input
     }
     /**
     * Structure representing serialized data
     */
     message MintlayerTxRequestSerializedType {
-        repeated MintlayerSignatures signatures = 1;          // signature of the signature_index input
-        optional bytes serialized_tx = 2;                     // the serialized tx
+        repeated MintlayerSignaturesForInput signatures = 1;  // signatures for all signed inputs
     }
 }
 
@@ -144,7 +148,7 @@ enum MintlayerUtxoType {
     BLOCK = 1;
 }
 
-/** Data type for output value coins or token
+/** Data type for an address
  * @embed
  */
 message MintlayerAddressPath {
@@ -157,12 +161,11 @@ message MintlayerAddressPath {
  * @embed
  */
 message MintlayerUtxoTxInput {
-    repeated MintlayerAddressPath address_n = 1;                        // BIP-32 path to derive the key from master node
+    repeated MintlayerAddressPath addresses = 1;                        // 0 or more addresses for which the corresponding private keys will be used to sign the transaction
     required string address = 2;                                        // destination address in bech32 encoding
     required bytes prev_hash = 3;                                       // hash of previous transaction output to spend by this input
     required uint32 prev_index = 4;                                     // index of previous output to spend
     required MintlayerUtxoType type = 5;                                // source type of the utxo (Transaction or BlockReward)
-    optional uint32 sequence = 6 [default=0xffffffff];                  // sequence
 }
 
 /** Data type for transaction Account input to be signed.
@@ -170,12 +173,17 @@ message MintlayerUtxoTxInput {
  * @embed
  */
 message MintlayerAccountTxInput {
-    repeated MintlayerAddressPath address_n = 1;                        // BIP-32 path to derive the key from master node
-    required string address = 2;                                        // destination address in bech32 encoding
-    optional uint32 sequence = 3 [default=0xffffffff];                  // sequence
-    required MintlayerOutputValue value = 4;                            // amount of previous transaction output
-    required uint64 nonce = 5;                                          // incrementing account nonce
-    required string delegation_id = 6;                                  // the delegation id of the account in bech32 encoding
+    repeated MintlayerAddressPath addresses = 1;                                // 0 or more addresses for which the corresponding private keys will be used to sign the transaction
+    required uint64 nonce = 2;                                                  // incrementing account nonce
+    optional MintlayerAccountSpendingDelegationBalance delegation_balance = 3;  // spend from a delegation balance
+}
+
+/** Data type for account spending from a Delegation Balance
+ * @embed
+ */
+message MintlayerAccountSpendingDelegationBalance {
+    required string delegation_id = 1;             // the delegation id of the account in bech32 encoding
+    required bytes amount = 2;                     // amount of coins to spend
 }
 
 /** Data type for transaction Account Command input to be signed.
@@ -183,19 +191,17 @@ message MintlayerAccountTxInput {
  * @embed
  */
 message MintlayerAccountCommandTxInput {
-    repeated MintlayerAddressPath address_n = 1;                             // BIP-32 path to derive the key from master node
-    required string address = 2;                                             // destination address in bech32 encoding
-    optional uint32 sequence = 3 [default=0xffffffff];                       // sequence
-    required uint64 nonce = 4;                                               // incrementing account nonce
-    optional MintlayerMintTokens mint = 5;                                   // mint tokens
-    optional MintlayerUnmintTokens unmint = 6;                               // unmint tokens
-    optional MintlayerLockTokenSupply lock_token_supply = 7;                 // lock token supply
-    optional MintlayerFreezeToken freeze_token = 8;                          // freeze supply
-    optional MintlayerUnfreezeToken unfreeze_token = 9;                      // unfreeze supply
-    optional MintlayerChangeTokenAuhtority change_token_authority = 10;      // change token authority
-    optional MintlayerConcludeOrder conclude_order = 11;                     // conclude an order
-    optional MintlayerFillOrder fill_order = 12;                             // fill an order
-    optional MintlayerChangeTokenMetadataUri change_token_metadata_uri = 13; // change token metadata uri
+    repeated MintlayerAddressPath addresses = 1;                             // 0 or more addresses for which the corresponding private keys will be used to sign the transaction
+    required uint64 nonce = 2;                                               // incrementing account nonce
+    optional MintlayerMintTokens mint = 3;                                   // mint tokens
+    optional MintlayerUnmintTokens unmint = 4;                               // unmint tokens
+    optional MintlayerLockTokenSupply lock_token_supply = 5;                 // lock token supply
+    optional MintlayerFreezeToken freeze_token = 6;                          // freeze supply
+    optional MintlayerUnfreezeToken unfreeze_token = 7;                      // unfreeze supply
+    optional MintlayerChangeTokenAuthority change_token_authority = 8;       // change token authority
+    optional MintlayerConcludeOrder conclude_order = 9;                      // conclude an order
+    optional MintlayerFillOrder fill_order = 10;                             // fill an order
+    optional MintlayerChangeTokenMetadataUri change_token_metadata_uri = 11; // change token metadata uri
 }
 
 /** Data type for account command Mint tokens
@@ -225,7 +231,7 @@ message MintlayerLockTokenSupply {
  */
 message MintlayerFreezeToken {
     required string token_id = 1;                  // token id in bech32 encoding
-    required bool is_token_unfreezabe = 2;         // is unfreezeable after freezing it
+    required bool is_token_unfreezable = 2;        // is unfreezeable after freezing it
 }
 
 /** Data type for account command Unfreeze token
@@ -238,7 +244,7 @@ message MintlayerUnfreezeToken {
 /** Data type for account command Change token authority
  * @embed
  */
-message MintlayerChangeTokenAuhtority {
+message MintlayerChangeTokenAuthority {
     required string token_id = 1;                  // token id in bech32 encoding
     required string destination = 2;               // destination for the new authority in bech32 encoding
 }
@@ -255,7 +261,7 @@ message MintlayerConcludeOrder {
  */
 message MintlayerFillOrder {
     required string order_id = 1;                  // order id in bech32 encoding
-    required bytes amount = 2;                     // value
+    required bytes amount = 2;                     // amount in atoms corresponds to the order's ask currency
     required string destination = 3;               // the destination in bech32 encoding
 }
 
@@ -325,7 +331,7 @@ message MintlayerOutputTimeLock {
  */
 message MintlayerLockThenTransferTxOutput {
     required string address = 1;                    // destination address in bech32 encoding
-    required MintlayerOutputValue value = 2;        // amount to spend in atoms
+    required MintlayerOutputValue value = 2;        // amount to spend in atoms for coin or token
     required MintlayerOutputTimeLock lock = 3;      // output lock
 }
 
@@ -333,7 +339,7 @@ message MintlayerLockThenTransferTxOutput {
  * @embed
  */
 message MintlayerBurnTxOutput {
-    required MintlayerOutputValue value = 1;        // amount to burn in atoms
+    required MintlayerOutputValue value = 1;        // amount to burn in atoms for coin or token
 }
 
 /** Data type for transaction Create stake pool output to be signed.
@@ -430,7 +436,7 @@ message MintlayerDataDepositTxOutput {
  * @embed
  */
 message MintlayerHtlcTxOutput {
-    required MintlayerOutputValue value = 1;                   // amount to transfer
+    required MintlayerOutputValue value = 1;                   // amount to transfer for coin or token
     required bytes secret_hash = 2;                            // the hash of the exchanged secret
     required string spend_key = 3;                             // the key that can spend the HTLC given the secret in bech32 encoding
     required MintlayerOutputTimeLock refund_timelock = 4;      // time lock
@@ -442,8 +448,8 @@ message MintlayerHtlcTxOutput {
  */
 message MintlayerCreateOrderTxOutput {
     required string conclude_key = 1;                          // The key that can authorize conclusion of an order in bech32 encoding
-    required MintlayerOutputValue ask = 2;                     // ask value of the order
-    required MintlayerOutputValue give = 3;                    // give value of the order
+    required MintlayerOutputValue ask = 2;                     // ask value of the order for coin or token
+    required MintlayerOutputValue give = 3;                    // give value of the order for coin or token
 }
 
 /**
@@ -452,11 +458,7 @@ message MintlayerCreateOrderTxOutput {
  * @next MintlayerTxRequest
  */
 message MintlayerTxAckUtxoInput {
-    required MintlayerTxAckInputWrapper tx = 1;
-
-    message MintlayerTxAckInputWrapper {
-        required MintlayerTxInput input = 1;
-    }
+    required MintlayerTxInput input = 1;
 }
 
 /**
@@ -465,9 +467,5 @@ message MintlayerTxAckUtxoInput {
  * @next MintlayerTxRequest
  */
 message MintlayerTxAckOutput {
-    required MintlayerTxAckOutputWrapper tx = 1;
-
-    message MintlayerTxAckOutputWrapper {
-        required MintlayerTxOutput output = 1;
-    }
+    required MintlayerTxOutput output = 1;
 }

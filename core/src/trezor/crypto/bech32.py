@@ -126,12 +126,6 @@ def convertbits(
     return ret
 
 
-def mintlayer_decode(address: str) -> bytes:
-    _, data, _ = bech32.decode(address)
-    decoded = bytes(convertbits(data, 5, 8, False))
-    return decoded
-
-
 def decode(hrp: str, addr: str) -> OptionalTuple2[int, bytes]:
     """Decode a segwit address."""
     from trezorcrypto import bech32

@@ -794,7 +794,6 @@ def cargo_build():
         '-Z build-std=core',
         '-Z build-std=alloc',
         '-Z build-std=panic_abort',
-        # '-Z build-std-features=panic_immediate_abort',
     ]
 
     env.get('ENV')['TREZOR_MODEL'] = TREZOR_MODEL

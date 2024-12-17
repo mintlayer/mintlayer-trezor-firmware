@@ -220,11 +220,6 @@ def _find_message_handler_module(msg_type: int) -> str:
         if msg_type == MessageType.MintlayerSignTx:
             return "apps.mintlayer.sign_tx"
 
-    if __debug__:
-        log.debug(
-            __name__,
-            f"msg type not found {msg_type}, {MessageType.MintlayerGetPublicKey}",
-        )
     raise ValueError
 
 

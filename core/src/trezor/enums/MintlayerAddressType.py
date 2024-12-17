@@ -2,6 +2,5 @@
 # fmt: off
 # isort:skip_file
 
-TXINPUT = 0
-TXOUTPUT = 1
-TXFINISHED = 2
+PUBLIC_KEY = 1
+PUBLIC_KEY_HASH = 2

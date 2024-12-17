@@ -96,10 +96,10 @@ pub enum Error {
     // mintlayer
     /// Chaincode error.
     #[cfg(feature = "mintlayer")]
-    #[error("Invalid chaincode length returned from device")]
+    #[error("Invalid chaincode returned from device")]
     InvalidChaincodeFromDevice,
     /// Device produced invalid TxRequest message.
     #[cfg(feature = "mintlayer")]
-    #[error("malformed MintlayerTxRequest: {0:?}")]
+    #[error("Malformed MintlayerTxRequest: {0:?}")]
     MalformedMintlayerTxRequest(protos::MintlayerTxRequest),
 }

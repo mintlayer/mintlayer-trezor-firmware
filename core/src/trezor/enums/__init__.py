@@ -317,6 +317,10 @@ if TYPE_CHECKING:
         FOR_BLOCK_COUNT = 2
         FOR_SECONDS = 3
 
+    class MintlayerAddressType(IntEnum):
+        PUBLIC_KEY = 1
+        PUBLIC_KEY_HASH = 2
+
     class MintlayerUtxoType(IntEnum):
         TRANSACTION = 0
         BLOCK = 1
@@ -329,8 +333,7 @@ if TYPE_CHECKING:
     class MintlayerRequestType(IntEnum):
         TXINPUT = 0
         TXOUTPUT = 1
-        TXMETA = 2
-        TXFINISHED = 3
+        TXFINISHED = 2
 
     class MoneroNetworkType(IntEnum):
         MAINNET = 0

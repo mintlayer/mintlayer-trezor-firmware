@@ -30,33 +30,53 @@ if TYPE_CHECKING:
 def get_address(
     client: "TrezorClient",
     address_n: "Address",
+    coin_name: str,
     show_display: bool = False,
     chunkify: bool = False,
 ) -> "MessageType":
     return client.call(
         messages.MintlayerGetAddress(
-            address_n=address_n, show_display=show_display, chunkify=chunkify
+            address_n=address_n,
+            coin_name=coin_name,
+            show_display=show_display,
+            chunkify=chunkify,
         )
     )
 
 
 def get_public_key(
-    client: "TrezorClient", address_n: "Address", show_display: bool = False
+    client: "TrezorClient",
+    address_n: "Address",
+    coin_name: str,
+    show_display: bool = False,
 ) -> "MessageType":
     return client.call(
-        messages.MintlayerGetPublicKey(address_n=address_n, show_display=show_display)
+        messages.MintlayerGetPublicKey(
+            address_n=address_n, coin_name=coin_name, show_display=show_display
+        )
     )
 
 
 def sign_message(
     client: "TrezorClient",
     address_n: "Address",
-    address: str,
+    coin_name: str,
+    address_type: str,
     message: bytes,
 ) -> "MessageType":
+    if address_type == "PUBLIC_KEY":
+        addr_type = messages.MintlayerAddressType.PUBLIC_KEY
+    elif address_type == "PUBLIC_KEY_HASH":
+        addr_type = messages.MintlayerAddressType.PUBLIC_KEY_HASH
+    else:
+        raise ValueError(f"Invalid address type {address_type}")
+
     return client.call(
         messages.MintlayerSignMessage(
-            address=address, address_n=address_n, message=message
+            coin_name=coin_name,
+            address_type=addr_type,
+            address_n=address_n,
+            message=message,
         )
     )
 
@@ -75,17 +95,19 @@ class Tx:
 @session
 def sign_tx(
     client: "TrezorClient",
+    coin_name: str,
     inputs: List[Input],
     outputs: List[Output],
     prev_txs: Dict[TxHash, Dict[int, Output]],
     version: Optional["int"] = 1,
     serialize: Optional["bool"] = True,
     chunkify: Optional["bool"] = None,
-) -> List[messages.MintlayerSignatures]:
+) -> List[messages.MintlayerSignaturesForInput]:
     res = client.call(
         messages.MintlayerSignTx(
             outputs_count=len(outputs),
             inputs_count=len(inputs),
+            coin_name=coin_name,
             version=version,
             serialize=serialize,
             chunkify=chunkify,
@@ -102,10 +124,8 @@ def sign_tx(
 
         if res.request_type == R.TXINPUT and res.details is not None:
             assert res.details.request_index is not None
-            msg = messages.MintlayerTxAckInputWrapper(
-                input=inputs[res.details.request_index]
-            )
-            msg = messages.MintlayerTxAckUtxoInput(tx=msg)
+            msg = inputs[res.details.request_index]
+            msg = messages.MintlayerTxAckUtxoInput(input=msg)
             res = client.call(msg)
         elif res.request_type == R.TXOUTPUT and res.details is not None:
             assert res.details is not None
@@ -114,8 +134,7 @@ def sign_tx(
                 out = prev_txs[res.details.tx_hash][res.details.request_index]
             else:
                 out = outputs[res.details.request_index]
-            msg = messages.MintlayerTxAckOutputWrapper(output=out)
-            msg = messages.MintlayerTxAckOutput(tx=msg)
+            msg = messages.MintlayerTxAckOutput(output=out)
             res = client.call(msg)
 
     raise Exception("Invalid response from trezor")

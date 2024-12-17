@@ -5,11 +5,6 @@ from trezor.enums import ButtonRequestType, MintlayerTokenTotalSupplyType
 from trezor.strings import format_amount
 from trezor.ui import layouts
 
-from apps.common.paths import address_n_to_str
-
-from ...bitcoin.common import BIP32_WALLET_DEPTH
-from ...bitcoin.keychain import address_n_to_name
-
 if TYPE_CHECKING:
     from trezor.messages import (
         MintlayerOutputTimeLock,
@@ -18,15 +13,14 @@ if TYPE_CHECKING:
     )
 
     from apps.common.coininfo import CoinInfo
-    from apps.common.paths import Bip32Path
-
-ML_COIN = "ML"
 
 
-def format_coin_amount(amount: bytes, token: MintlayerTokenOutputValue | None) -> str:
+def format_coin_amount(
+    amount: bytes, token: MintlayerTokenOutputValue | None, coininfo: CoinInfo
+) -> str:
     if token is None:
-        decimals = 11
-        name = ML_COIN
+        decimals = coininfo.decimals
+        name = coininfo.coin_shortcut
     else:
         decimals = token.number_of_decimals
         name = "ML Token: " + token.token_ticker.decode("utf-8")
@@ -37,20 +31,13 @@ def format_coin_amount(amount: bytes, token: MintlayerTokenOutputValue | None) -
     return f"{amount_str} {name}"
 
 
-def account_label(coin: CoinInfo, address_n: Bip32Path | None) -> str:
-    return (
-        TR.bitcoin__multiple_accounts
-        if address_n is None
-        else address_n_to_name(coin, list(address_n) + [0] * BIP32_WALLET_DEPTH)
-        or f"Path {address_n_to_str(address_n)}"
-    )
-
-
 def lock_to_string(lock: MintlayerOutputTimeLock) -> str:
+    from trezor.strings import format_timestamp
+
     if lock.until_time:
-        return f"Lock until {lock.until_time} time"
+        return f"Lock until {format_timestamp(lock.until_time)} time"
     elif lock.until_height:
-        return f"Lock until {lock.until_height} height"
+        return f"Lock until {lock.until_height} block height"
     elif lock.for_seconds:
         return f"Lock for {lock.for_seconds} seconds"
     elif lock.for_block_count:
@@ -62,6 +49,7 @@ def lock_to_string(lock: MintlayerOutputTimeLock) -> str:
 async def confirm_output(
     output: MintlayerTxOutput,
     output_index: int,
+    coininfo: CoinInfo,
     chunkify: bool,
 ) -> None:
     from ubinascii import hexlify
@@ -71,7 +59,7 @@ async def confirm_output(
         x = output.transfer
         assert x.address is not None
         address_short = x.address
-        amount = format_coin_amount(x.value.amount, x.value.token)
+        amount = format_coin_amount(x.value.amount, x.value.token, coininfo)
         address_label = "Transfer"
     elif output.lock_then_transfer:
         x = output.lock_then_transfer
@@ -79,11 +67,11 @@ async def confirm_output(
         address_label = "Lock then Transfer"
         address_short = f"Destination: {x.address}\n"
         address_short += lock_to_string(x.lock)
-        amount = format_coin_amount(x.value.amount, x.value.token)
+        amount = format_coin_amount(x.value.amount, x.value.token, coininfo)
     elif output.burn:
         x = output.burn
         address_short = "BURN"
-        amount = format_coin_amount(x.value.amount, x.value.token)
+        amount = format_coin_amount(x.value.amount, x.value.token, coininfo)
         address_label = ""
     elif output.create_stake_pool:
         x = output.create_stake_pool
@@ -95,7 +83,7 @@ VFT public key: {x.vrf_public_key}
 Margin ratio per thousand: {x.margin_ratio_per_thousand}
 Cost per block: {int.from_bytes(x.cost_per_block, "big")}
 """
-        amount = format_coin_amount(x.pledge, None)
+        amount = format_coin_amount(x.pledge, None, coininfo)
         address_label = "Create stake pool"
     elif output.produce_block_from_stake:
         x = output.produce_block_from_stake
@@ -110,7 +98,7 @@ Cost per block: {int.from_bytes(x.cost_per_block, "big")}
     elif output.delegate_staking:
         x = output.delegate_staking
         address_short = x.delegation_id
-        amount = format_coin_amount(x.amount, None)
+        amount = format_coin_amount(x.amount, None, coininfo)
         address_label = "Delegation staking"
     elif output.issue_fungible_token:
         x = output.issue_fungible_token
@@ -170,12 +158,12 @@ Media URI: {media_uri}"""
 Spend Key: {x.spend_key}
 Refund Key: {x.refund_key}
 Refund Time Lock: {lock}"""
-        amount = format_coin_amount(x.value.amount, x.value.token)
+        amount = format_coin_amount(x.value.amount, x.value.token, coininfo)
         address_label = "HTLC"
     elif output.create_order:
         x = output.create_order
-        ask_amount = format_coin_amount(x.ask.amount, x.ask.token)
-        give_amount = format_coin_amount(x.give.amount, x.give.token)
+        ask_amount = format_coin_amount(x.ask.amount, x.ask.token, coininfo)
+        give_amount = format_coin_amount(x.give.amount, x.give.token, coininfo)
         address_short = f"""Conclude Key: {x.conclude_key}
 Ask: {ask_amount}
 Give: {give_amount}"""
@@ -206,40 +194,10 @@ Give: {give_amount}"""
 
 
 async def confirm_total(
-    spending: int,
-    fee: int,
+    spending: int, fee: int, coininfo: CoinInfo, token: MintlayerTokenOutputValue | None
 ) -> None:
     await layouts.confirm_total(
-        format_coin_amount(spending.to_bytes(16, "big"), None),
-        format_coin_amount(fee.to_bytes(16, "big"), None),
+        format_coin_amount(spending.to_bytes(16, "big"), token, coininfo),
+        format_coin_amount(fee.to_bytes(16, "big"), token, coininfo),
         fee_rate_amount=None,
-    )
-
-
-async def confirm_change_count_over_threshold(change_count: int) -> None:
-    await layouts.show_warning(
-        "change_count_over_threshold",
-        TR.bitcoin__lot_of_change_outputs,
-        f"{str(change_count)} {TR.words__outputs}",
-        br_code=ButtonRequestType.SignTx,
-    )
-
-
-async def confirm_unverified_external_input() -> None:
-    await layouts.show_warning(
-        "unverified_external_input",
-        TR.bitcoin__unverified_external_inputs,
-        TR.words__continue_anyway,
-        button=TR.buttons__continue,
-        br_code=ButtonRequestType.SignTx,
-    )
-
-
-async def confirm_multiple_accounts() -> None:
-    await layouts.show_warning(
-        "sending_from_multiple_accounts",
-        TR.send__from_multiple_accounts,
-        TR.words__continue_anyway,
-        button=TR.buttons__continue,
-        br_code=ButtonRequestType.SignTx,
     )

@@ -461,6 +461,8 @@ if not utils.BITCOIN_ONLY:
     import trezor.enums.EthereumDefinitionType
     trezor.enums.MintlayerAccountCommandType
     import trezor.enums.MintlayerAccountCommandType
+    trezor.enums.MintlayerAddressType
+    import trezor.enums.MintlayerAddressType
     trezor.enums.MintlayerOutputTimeLockType
     import trezor.enums.MintlayerOutputTimeLockType
     trezor.enums.MintlayerRequestType
