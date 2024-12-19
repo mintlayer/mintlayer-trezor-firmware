@@ -59,12 +59,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Fix display orientation _south_.  [#3990]
 - Fixed SLIP-10 fingerprints for ed25519 and curve25519.  [#4093]
 
-## [2.8.1] (21st August 2024)
+## [2.8.1] (unreleased)
 
 ### Added
 - Improve precision of PIN timeout countdown.  [#4000]
-
-### Changed
 
 ### Fixed
 - Solana: added support for deprecated AToken Create `rent_sysvar` argument.  [#3976]
