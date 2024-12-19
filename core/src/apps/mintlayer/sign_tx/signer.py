@@ -93,9 +93,6 @@ class TxInfo:
     def add_output(self, txo: MintlayerTxOutput):
         self.outputs.append(txo)
 
-    def number_of_utxos(self) -> int:
-        return sum([1 for inp in self.inputs if inp.utxo is not None])
-
 
 class Mintlayer:
     def init_signing(self) -> None:
@@ -163,7 +160,6 @@ class Mintlayer:
         keychain: Keychain,
     ) -> None:
         from trezor.messages import MintlayerTxRequest, MintlayerTxRequestDetailsType
-
 
         self.progress = Progress()
         self.coininfo = find_coin_by_name(tx.coin_name)

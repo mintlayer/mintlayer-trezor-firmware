@@ -62,7 +62,8 @@ test = [
     "ui_empty_lock",
     "universal_fw",
 ]
-universal_fw = []
+universal_fw = ["mintlayer"]
+mintlayer = ["dep:ml_common", "dep:parity-scale-codec"]
 
 [lib]
 crate-type = ["staticlib"]
@@ -95,8 +96,8 @@ ufmt = "0.2.0"
 zeroize = { version = "1.7.0", default-features = false, optional = true }
 
 # minlayer
-parity-scale-codec = { version = "3.1", default-features = false, features = ["derive", "chain-error"] }
-ml_common = { git = "https://github.com/mintlayer/mintlayer-core", package = "trezor-common", branch = "feature/trezor-common" }
+parity-scale-codec = { version = "3.1", default-features = false, features = ["derive", "chain-error"], optional = true }
+ml_common = { git = "https://github.com/mintlayer/mintlayer-core", package = "trezor-common", branch = "feature/trezor-common", optional = true }
 
 # Runtime dependencies
 

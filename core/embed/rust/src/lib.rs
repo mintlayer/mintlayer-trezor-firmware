@@ -42,6 +42,7 @@ mod trezorhal;
 pub mod ui;
 
 #[cfg(feature = "micropython")]
+#[cfg(feature = "mintlayer")]
 pub mod mintlayer;
 
 #[cfg(feature = "debug")]

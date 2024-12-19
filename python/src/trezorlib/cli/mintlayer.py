@@ -17,12 +17,14 @@ def cli() -> None:
 
 
 @cli.command()
+@click.option("-c", "--coin", required=True, help="coin name")
 @click.option("-n", "--address", required=True, help="BIP-32 path")
 @click.option("-d", "--show-display", is_flag=True)
 @click.option("-C", "--chunkify", is_flag=True)
 @with_client
 def get_address(
     client: "TrezorClient",
+    coin: str,
     address: str,
     show_display: bool,
     chunkify: bool,
@@ -37,17 +39,20 @@ def get_address(
     return mintlayer.get_address(
         client,
         address_n,
+        coin,
         show_display,
         chunkify=chunkify,
     )
 
 
 @cli.command()
+@click.option("-c", "--coin", required=True, help="coin name")
 @click.option("-n", "--address", required=True, help="BIP-32 path, e.g. m/44h/0h/0h")
 @click.option("-d", "--show-display", is_flag=True)
 @with_client
 def get_public_key(
     client: "TrezorClient",
+    coin: str,
     address: str,
     show_display: bool,
 ) -> dict:
@@ -60,6 +65,7 @@ def get_public_key(
     result = mintlayer.get_public_key(
         client,
         address_n,
+        coin,
         show_display=show_display,
     )
     if isinstance(result, messages.MintlayerPublicKey):
@@ -72,21 +78,29 @@ def get_public_key(
 
 
 @cli.command()
+@click.option("-c", "--coin", required=True, help="coin name")
 @click.option("-n", "--address_n", required=True, help="BIP-32 path")
-@click.option("-a", "--address", required=True, help="bech32 encoded address")
+@click.option(
+    "-a",
+    "--address-type",
+    required=True,
+    help="Address type PUBLIC_KEY or PUBLIC_KEY_HASH",
+)
 @click.argument("message")
 @with_client
 def sign_message(
     client: "TrezorClient",
+    coin: str,
     address_n: str,
-    address: str,
+    address_type: str,
     message: str,
 ) -> dict:
     """Sign message using address of given path."""
     result = mintlayer.sign_message(
         client,
+        coin_name=coin,
         address_n=tools.parse_path(address_n),
-        address=address,
+        address_type=address_type,
         message=message.encode(),
     )
     if isinstance(result, messages.MessageSignature):
@@ -100,10 +114,13 @@ def sign_message(
 
 
 @cli.command()
+@click.option("-c", "--coin", required=True, help="coin name")
 @click.option("-C", "--chunkify", is_flag=True)
 @click.argument("json_file", type=click.File())
 @with_client
-def sign_tx(client: "TrezorClient", json_file: TextIO, chunkify: bool) -> None:
+def sign_tx(
+    client: "TrezorClient", coin: str, json_file: TextIO, chunkify: bool
+) -> None:
     """Sign transaction.
 
         Transaction data must be provided in a JSON file. The structure of the JSON matches the shape of the relevant protobuf messages. See
@@ -129,6 +146,7 @@ def sign_tx(client: "TrezorClient", json_file: TextIO, chunkify: bool) -> None:
 
     results = mintlayer.sign_tx(
         client,
+        coin,
         inputs,
         outputs,
         prev_txs=prev_txes,
@@ -139,7 +157,7 @@ def sign_tx(client: "TrezorClient", json_file: TextIO, chunkify: bool) -> None:
     click.echo()
     click.echo("Signed signatures:")
     for res in results:
-        click.echo(f"signature index: {res.signature_index}")
+        click.echo(f"input index: {res.input_index}")
         click.echo("signature:")
         for sig in res.signatures:
             if sig.multisig_idx is not None:

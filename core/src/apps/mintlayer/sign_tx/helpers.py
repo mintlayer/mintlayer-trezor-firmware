@@ -169,6 +169,12 @@ def _sanitize_tx_input(txi: MintlayerTxInput) -> MintlayerTxInput:
     elif txi.account:
         if txi.account.addresses is None:
             raise DataError("Input's addresses must be present for signing.")
+
+        if txi.account.delegation_balance:
+            pass
+        else:
+            raise DataError("No account spending is set")
+
     else:
         raise DataError(
             "No input type present either utxo, account_command or account must be present"
@@ -181,22 +187,33 @@ def _sanitize_tx_output(txo: MintlayerTxOutput) -> MintlayerTxOutput:
     from trezor.wire import DataError  # local_cache_global
 
     if txo.transfer:
-        x = txo.transfer
-        if x.value is None:
-            raise DataError("Missing amount field.")
-
-        if not x.address:
-            raise DataError("Missing address")
-    elif txo.lock_then_transfer:
-        x = txo.lock_then_transfer
-        if x.value is None:
-            raise DataError("Missing amount field.")
-
-        if not x.address:
-            raise DataError("Missing address")
-    else:
-        # TODO: senitize other tx outputs
         pass
+    elif txo.lock_then_transfer:
+        pass
+    elif txo.burn:
+        pass
+    elif txo.issue_nft:
+        pass
+    elif txo.create_stake_pool:
+        pass
+    elif txo.produce_block_from_stake:
+        raise DataError("Cannot create a ProduceBlockFromStake output in a transaction")
+    elif txo.create_delegation_id:
+        pass
+    elif txo.delegate_staking:
+        pass
+    elif txo.issue_fungible_token:
+        pass
+    elif txo.issue_nft:
+        pass
+    elif txo.data_deposit:
+        pass
+    elif txo.htlc:
+        pass
+    elif txo.create_order:
+        pass
+    else:
+        raise DataError("Tx Output not set")
 
     return txo
 

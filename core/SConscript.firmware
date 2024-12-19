@@ -791,9 +791,8 @@ def cargo_build():
         f'--target-dir=../../build/firmware/rust',
         '--no-default-features',
         '--features ' + ','.join(features),
-        '-Z build-std=core',
-        '-Z build-std=alloc',
-        '-Z build-std=panic_abort',
+        '-Z build-std=core,alloc',
+        '-Z build-std-features=panic_immediate_abort',
     ]
 
     env.get('ENV')['TREZOR_MODEL'] = TREZOR_MODEL
