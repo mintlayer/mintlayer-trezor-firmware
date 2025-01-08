@@ -31,7 +31,7 @@ def test_mintlayer_get_address(client: Client):
         assert (
             mintlayer.get_address(
                 client,
-                coin_name="Mainnet",
+                coin_name="mainnet",
                 address_n=parse_path("m/44h/19788h/0h/0/0"),
                 show_display=True,
             )
@@ -41,7 +41,7 @@ def test_mintlayer_get_address(client: Client):
         assert (
             mintlayer.get_address(
                 client,
-                coin_name="Testnet",
+                coin_name="testnet",
                 address_n=parse_path("m/44h/1h/0h/0/0"),
                 show_display=True,
             )

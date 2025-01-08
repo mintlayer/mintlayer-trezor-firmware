@@ -14,6 +14,7 @@ from trezor.messages import (
     MintlayerTxOutput,
     MintlayerTxRequestSerializedType,
 )
+from trezor.wire.errors import DataError
 
 from .. import find_coin_by_name
 from . import helpers
@@ -29,18 +30,24 @@ if TYPE_CHECKING:
     from apps.common.keychain import Keychain
 
 
-class TokenOutputValueTpl:
-    def __init__(self, token_id: str, token_ticker: bytes, number_of_decimals: int):
-        self.token_id = token_id
-        self.token_ticker = token_ticker
+class OutputValueTpl:
+    def __init__(
+        self, coin_or_token_id: str, ticker: bytes, number_of_decimals: int, amount: int
+    ):
+        self.coin_or_token_id = coin_or_token_id
+        self.ticker = ticker
         self.number_of_decimals = number_of_decimals
+        self.amount = amount
 
     @staticmethod
     def from_token_output_value(
-        value: MintlayerTokenOutputValue,
-    ) -> "TokenOutputValueTpl":
-        return TokenOutputValueTpl(
-            value.token_id, value.token_ticker, value.number_of_decimals
+        value: MintlayerTokenOutputValue, amount: int
+    ) -> "OutputValueTpl":
+        return OutputValueTpl(
+            value.token_id,
+            value.token_ticker,
+            value.number_of_decimals,
+            amount,
         )
 
 
@@ -108,22 +115,33 @@ class Mintlayer:
         # Fetch and add outputs, approve outputs and compute sum of output amounts.
         output_totals = await self.step2_approve_outputs()
 
+        if (
+            input_totals[self.coininfo.coin_shortcut]
+            < output_totals[self.coininfo.coin_shortcut].amount
+        ):
+            raise DataError("Transaction trying to print money")
+
         fee = (
             input_totals[self.coininfo.coin_shortcut]
-            - output_totals[self.coininfo.coin_shortcut]
+            - output_totals[self.coininfo.coin_shortcut].amount
         )
         await helpers.confirm_total(
-            output_totals[self.coininfo.coin_shortcut], fee, self.coininfo, None
+            output_totals[self.coininfo.coin_shortcut].amount, fee, self.coininfo, None
         )
         for token, total in output_totals.items():
-            if isinstance(token, TokenOutputValueTpl):
+            if token != self.coininfo.coin_shortcut:
                 token2 = MintlayerTokenOutputValue(
-                    token_id=token.token_id,
-                    token_ticker=token.token_ticker,
-                    number_of_decimals=token.number_of_decimals,
+                    token_id=total.coin_or_token_id,
+                    token_ticker=total.ticker,
+                    number_of_decimals=total.number_of_decimals,
                 )
-                fee = input_totals.get(token, 0) - total
-                await helpers.confirm_total(total, fee, self.coininfo, token2)
+
+                total_inputs = input_totals.get(token, 0)
+                if total_inputs < total.amount:
+                    raise DataError("Transaction trying to print money")
+
+                fee = total_inputs - total.amount
+                await helpers.confirm_total(total.amount, fee, self.coininfo, token2)
 
         # Make sure proper progress is shown, in case dialog was not required
         if not self.signing:
@@ -177,9 +195,9 @@ class Mintlayer:
 
     async def step1_process_inputs(
         self,
-    ) -> Dict[str | TokenOutputValueTpl, int]:
+    ) -> Dict[str, int]:
         tx_info = self.tx_info  # local_cache_attribute
-        totals: Dict[str | TokenOutputValueTpl, int] = {self.coininfo.coin_shortcut: 0}
+        totals: Dict[str, int] = {self.coininfo.coin_shortcut: 0}
 
         for i in range(tx_info.tx.inputs_count):
             self.progress.advance()
@@ -226,6 +244,78 @@ class Mintlayer:
                             address.multisig_idx,
                         )
                     )
+                x = txi.account_command
+                if x.mint:
+                    token_id = x.mint.token_id
+                    amount = int.from_bytes(x.mint.amount, "big")
+                    if token_id in totals:
+                        totals[token_id] += amount
+                    else:
+                        totals[token_id] = amount
+                elif x.unmint:
+                    pass
+                elif x.lock_token_supply:
+                    pass
+                elif x.freeze_token:
+                    pass
+                elif x.unfreeze_token:
+                    pass
+                elif x.change_token_authority:
+                    pass
+                elif x.change_token_metadata_uri:
+                    pass
+                elif x.conclude_order:
+                    ask = x.conclude_order.filled_ask_amount
+                    amount = int.from_bytes(ask.amount, "big")
+                    token_or_coin = (
+                        ask.token.token_id if ask.token else self.coininfo.coin_shortcut
+                    )
+
+                    if token_or_coin in totals:
+                        totals[token_or_coin] += amount
+                    elif ask.token:
+                        totals[token_or_coin] = amount
+                    else:
+                        raise Exception("ml_coin not found in totals")
+
+                    give = x.conclude_order.give_balance
+                    amount = int.from_bytes(give.amount, "big")
+                    token_or_coin = (
+                        give.token.token_id
+                        if give.token
+                        else self.coininfo.coin_shortcut
+                    )
+
+                    if token_or_coin in totals:
+                        totals[token_or_coin] += amount
+                    elif give.token:
+                        totals[token_or_coin] = amount
+                    else:
+                        raise Exception("ml_coin not found in totals")
+                elif x.fill_order:
+                    give_amount = int.from_bytes(
+                        x.fill_order.give_balance.amount, "big"
+                    )
+                    fill_amount = int.from_bytes(x.fill_order.amount, "big")
+                    ask_amount = int.from_bytes(x.fill_order.ask_balance.amount, "big")
+
+                    amount = (give_amount * fill_amount) // ask_amount
+
+                    give = x.fill_order.give_balance
+                    token_or_coin = (
+                        give.token.token_id
+                        if give.token
+                        else self.coininfo.coin_shortcut
+                    )
+
+                    if token_or_coin in totals:
+                        totals[token_or_coin] += amount
+                    elif give.token:
+                        totals[token_or_coin] = amount
+                    else:
+                        raise Exception("ml_coin not found in totals")
+                else:
+                    raise Exception("Unknown account command")
                 self.tx_info.add_input(txi, None, nodes)
             else:
                 raise Exception("Unhandled tx input type")
@@ -234,8 +324,15 @@ class Mintlayer:
 
     async def step2_approve_outputs(
         self,
-    ) -> Dict[str | TokenOutputValueTpl, int]:
-        totals: Dict[str | TokenOutputValueTpl, int] = {self.coininfo.coin_shortcut: 0}
+    ) -> Dict[str, OutputValueTpl]:
+        totals: Dict[str, OutputValueTpl] = {
+            self.coininfo.coin_shortcut: OutputValueTpl(
+                self.coininfo.coin_name,
+                self.coininfo.coin_shortcut.encode(),
+                self.coininfo.decimals,
+                0,
+            )
+        }
 
         for i in range(self.tx_info.tx.outputs_count):
             self.progress.advance()
@@ -552,35 +649,27 @@ class Mintlayer:
 
 
 def update_input_totals(
-    totals: Dict[str | TokenOutputValueTpl, int],
+    totals: Dict[str, int],
     txo: MintlayerTxOutput,
     ml_coin,
 ):
     def update(value: MintlayerOutputValue):
         amount = int.from_bytes(value.amount, "big")
-        token_or_coin = (
-            TokenOutputValueTpl.from_token_output_value(value.token)
-            if value.token
-            else ml_coin
-        )
+        token_or_coin = value.token.token_id if value.token else ml_coin
+
         if token_or_coin in totals:
             totals[token_or_coin] += amount
-        else:
+        elif value.token:
             totals[token_or_coin] = amount
-
-    if ml_coin not in totals:
-        totals[ml_coin] = 0
+        else:
+            raise Exception("ml_coin not found in totals")
 
     if txo.transfer:
         update(txo.transfer.value)
     elif txo.lock_then_transfer:
         update(txo.lock_then_transfer.value)
     elif txo.issue_nft:
-        token_or_coin = TokenOutputValueTpl(
-            token_id=txo.issue_nft.token_id,
-            token_ticker=txo.issue_nft.ticker,
-            number_of_decimals=0,
-        )
+        token_or_coin = txo.issue_nft.token_id
         if token_or_coin in totals:
             totals[token_or_coin] += 1
         else:
@@ -598,24 +687,21 @@ def update_input_totals(
 
 
 def update_output_totals(
-    totals: Dict[str | TokenOutputValueTpl, int],
+    totals: Dict[str, OutputValueTpl],
     txo: MintlayerTxOutput,
     ml_coin,
 ):
     def update(value: MintlayerOutputValue):
         amount = int.from_bytes(value.amount, "big")
-        token_or_coin = (
-            TokenOutputValueTpl.from_token_output_value(value.token)
-            if value.token
-            else ml_coin
-        )
-        if token_or_coin in totals:
-            totals[token_or_coin] += amount
-        else:
-            totals[token_or_coin] = amount
 
-    if ml_coin not in totals:
-        totals[ml_coin] = 0
+        token_or_coin = value.token.token_id if value.token else ml_coin
+        if token_or_coin in totals:
+            totals[token_or_coin].amount += amount
+        elif value.token:
+            token = OutputValueTpl.from_token_output_value(value.token, amount)
+            totals[token_or_coin] = token
+        else:
+            raise Exception("ml_coin not found in totals")
 
     if txo.transfer:
         update(txo.transfer.value)
@@ -624,20 +710,14 @@ def update_output_totals(
     elif txo.burn:
         update(txo.burn.value)
     elif txo.issue_nft:
-        token_or_coin = TokenOutputValueTpl(
-            token_id=txo.issue_nft.token_id,
-            token_ticker=txo.issue_nft.ticker,
-            number_of_decimals=0,
-        )
-        if token_or_coin in totals:
-            totals[token_or_coin] += 1
-        else:
-            totals[token_or_coin] = 1
+        pass
     elif txo.create_stake_pool:
         amount = int.from_bytes(txo.create_stake_pool.pledge, "big")
-        totals[ml_coin] += amount
+        totals[ml_coin].amount += amount
     elif txo.delegate_staking:
         amount = int.from_bytes(txo.delegate_staking.amount, "big")
-        totals[ml_coin] += amount
+        totals[ml_coin].amount += amount
     elif txo.htlc:
         update(txo.htlc.value)
+    elif txo.create_order:
+        pass

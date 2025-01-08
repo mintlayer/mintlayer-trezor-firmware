@@ -5872,14 +5872,20 @@ class MintlayerConcludeOrder(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
         1: protobuf.Field("order_id", "string", repeated=False, required=True),
+        2: protobuf.Field("filled_ask_amount", "MintlayerOutputValue", repeated=False, required=True),
+        3: protobuf.Field("give_balance", "MintlayerOutputValue", repeated=False, required=True),
     }
 
     def __init__(
         self,
         *,
         order_id: "str",
+        filled_ask_amount: "MintlayerOutputValue",
+        give_balance: "MintlayerOutputValue",
     ) -> None:
         self.order_id = order_id
+        self.filled_ask_amount = filled_ask_amount
+        self.give_balance = give_balance
 
 
 class MintlayerFillOrder(protobuf.MessageType):
@@ -5888,6 +5894,8 @@ class MintlayerFillOrder(protobuf.MessageType):
         1: protobuf.Field("order_id", "string", repeated=False, required=True),
         2: protobuf.Field("amount", "bytes", repeated=False, required=True),
         3: protobuf.Field("destination", "string", repeated=False, required=True),
+        4: protobuf.Field("ask_balance", "MintlayerOutputValue", repeated=False, required=True),
+        5: protobuf.Field("give_balance", "MintlayerOutputValue", repeated=False, required=True),
     }
 
     def __init__(
@@ -5896,10 +5904,14 @@ class MintlayerFillOrder(protobuf.MessageType):
         order_id: "str",
         amount: "bytes",
         destination: "str",
+        ask_balance: "MintlayerOutputValue",
+        give_balance: "MintlayerOutputValue",
     ) -> None:
         self.order_id = order_id
         self.amount = amount
         self.destination = destination
+        self.ask_balance = ask_balance
+        self.give_balance = give_balance
 
 
 class MintlayerChangeTokenMetadataUri(protobuf.MessageType):

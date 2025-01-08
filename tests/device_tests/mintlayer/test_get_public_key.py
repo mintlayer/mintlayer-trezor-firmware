@@ -35,7 +35,7 @@ def test_mintlayer_get_public_key(client: Client):
         IF = InputFlowShowXpubQRCode(client)
         client.set_input_flow(IF.get())
         result = mintlayer.get_public_key(
-            client, coin_name="Mainnet", address_n=MINTLAYER_PATH, show_display=True
+            client, coin_name="mainnet", address_n=MINTLAYER_PATH, show_display=True
         )
         if isinstance(result, messages.MintlayerPublicKey):
             # m/44'/19788'/0'/0/0 for MNEMONIC

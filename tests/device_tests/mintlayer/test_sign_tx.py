@@ -400,7 +400,7 @@ def test_mintlayer_sign_tx(client: Client):
             ]
         )
 
-        results = mintlayer.sign_tx(client, "Regtest", inputs, outputs, prev_txs)
+        results = mintlayer.sign_tx(client, "regtest", inputs, outputs, prev_txs)
 
         expected_multi_sigs = {
             0: "7a99714dc6cc917faa2afded8028159a5048caf6f8382f67e6b61623fbe62c60423f8f7983f88f40c6f42924594f3de492a232e9e703b241c3b17b130f8daa59",
@@ -516,6 +516,6 @@ def test_mintlayer_random_sign_tx(client: Client):
             )
         )
 
-        result = mintlayer.sign_tx(client, "Regtest", inputs, outputs, prev_txs)
+        result = mintlayer.sign_tx(client, "regtest", inputs, outputs, prev_txs)
 
         assert len(result) == num_inputs

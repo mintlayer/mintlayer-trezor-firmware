@@ -38,8 +38,9 @@ pub type TransactionId = [u8; 32];
 
 impl Trezor {
     // Mintlayer
-    pub fn mintlayer_get_public_key(&mut self, path: Vec<u32>) -> Result<XPub> {
+    pub fn mintlayer_get_public_key(&mut self, coin: String, path: Vec<u32>) -> Result<XPub> {
         let mut req = protos::MintlayerGetPublicKey::new();
+        req.set_coin_name(coin);
         req.address_n = path;
         let msg = self.call::<_, _, protos::MintlayerPublicKey>(
             req,
@@ -58,14 +59,16 @@ impl Trezor {
 
     pub fn mintlayer_sign_message(
         &mut self,
+        coin: String,
         path: Vec<u32>,
-        address: String,
+        address_type: protos::MintlayerAddressType,
         message: Vec<u8>,
     ) -> Result<Vec<u8>> {
         let mut req = protos::MintlayerSignMessage::new();
         req.address_n = path;
         req.set_message(message);
-        req.set_address(address);
+        req.set_coin_name(coin);
+        req.set_address_type(address_type);
         let msg = self.call::<_, _, protos::MessageSignature>(
             req,
             Box::new(|_, m| Ok(m.signature().to_vec())),
@@ -76,12 +79,14 @@ impl Trezor {
 
     pub fn mintlayer_sign_tx(
         &mut self,
+        coin: String,
         inputs: Vec<MintlayerTxInput>,
         outputs: Vec<MintlayerTxOutput>,
         utxos: BTreeMap<TransactionId, BTreeMap<u32, MintlayerTxOutput>>,
     ) -> Result<Vec<Vec<MintlayerSignature>>> {
         let mut req = protos::MintlayerSignTx::new();
         req.set_version(1);
+        req.set_coin_name(coin);
         req.set_inputs_count(inputs.len() as u32);
         req.set_outputs_count(outputs.len() as u32);
 
@@ -117,9 +122,6 @@ impl Trezor {
                     }
                     msg =
                         self.call::<_, _, protos::MintlayerTxRequest>(req, Box::new(|_, m| Ok(m)))?;
-                }
-                MintlayerRequestType::TXMETA => {
-                    return Err(Error::MalformedMintlayerTxRequest(response))
                 }
                 MintlayerRequestType::TXFINISHED => {
                     return Ok(response

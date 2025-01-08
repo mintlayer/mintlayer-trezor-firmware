@@ -66,7 +66,7 @@ class MLCoinInfo(CoinInfo):
 
 TESTNET_COIN = MLCoinInfo(
     slip44_id=1,
-    coin_name="Testnet",
+    coin_name="testnet",
     coin_shortcut="TML",
     decimals=11,
     prefixes=Prefixes(
@@ -81,7 +81,7 @@ TESTNET_COIN = MLCoinInfo(
 
 MAINNET_COIN = MLCoinInfo(
     slip44_id=SLIP44_ID,
-    coin_name="Mainnet",
+    coin_name="mainnet",
     coin_shortcut="ML",
     decimals=11,
     prefixes=Prefixes(
@@ -96,7 +96,7 @@ MAINNET_COIN = MLCoinInfo(
 
 REGTEST_COIN = MLCoinInfo(
     slip44_id=1,
-    coin_name="Regtest",
+    coin_name="regtest",
     coin_shortcut="TML",
     decimals=11,
     prefixes=Prefixes(

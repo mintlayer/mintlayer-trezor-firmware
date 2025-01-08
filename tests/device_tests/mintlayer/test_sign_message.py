@@ -14,7 +14,7 @@ def test_mintlayer_sign_message(client: Client):
     address = "mtc1qyumjs84s5nqgcp6nw9kwde9mn7akph6hgtulsdk"
     result = mintlayer.sign_message(
         client,
-        coin_name="Mainnet",
+        coin_name="mainnet",
         address_type="PUBLIC_KEY_HASH",
         address_n=parse_path("m/44h/19788h/0h/0/0"),
         message="Message to sign".encode(),

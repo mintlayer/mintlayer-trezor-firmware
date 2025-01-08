@@ -253,16 +253,20 @@ message MintlayerChangeTokenAuthority {
  * @embed
  */
 message MintlayerConcludeOrder {
-    required string order_id = 1;                  // order id in bech32 encoding
+    required string order_id = 1;                        // order id in bech32 encoding
+    required MintlayerOutputValue filled_ask_amount = 2; // the already filled ask amount
+    required MintlayerOutputValue give_balance = 3;      // the remaining give balance of the order
 }
 
 /** Data type for account command Fill order
  * @embed
  */
 message MintlayerFillOrder {
-    required string order_id = 1;                  // order id in bech32 encoding
-    required bytes amount = 2;                     // amount in atoms corresponds to the order's ask currency
-    required string destination = 3;               // the destination in bech32 encoding
+    required string order_id = 1;                        // order id in bech32 encoding
+    required bytes amount = 2;                           // amount in atoms corresponds to the order's ask currency
+    required string destination = 3;                     // the destination in bech32 encoding
+    required MintlayerOutputValue ask_balance = 4;       // the remaining ask balance of the order
+    required MintlayerOutputValue give_balance = 5;      // the remaining give balance of the order
 }
 
 /** Data type for account command Change token metadata uri

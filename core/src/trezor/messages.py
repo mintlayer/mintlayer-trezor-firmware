@@ -4386,11 +4386,15 @@ if TYPE_CHECKING:
 
     class MintlayerConcludeOrder(protobuf.MessageType):
         order_id: "str"
+        filled_ask_amount: "MintlayerOutputValue"
+        give_balance: "MintlayerOutputValue"
 
         def __init__(
             self,
             *,
             order_id: "str",
+            filled_ask_amount: "MintlayerOutputValue",
+            give_balance: "MintlayerOutputValue",
         ) -> None:
             pass
 
@@ -4402,6 +4406,8 @@ if TYPE_CHECKING:
         order_id: "str"
         amount: "bytes"
         destination: "str"
+        ask_balance: "MintlayerOutputValue"
+        give_balance: "MintlayerOutputValue"
 
         def __init__(
             self,
@@ -4409,6 +4415,8 @@ if TYPE_CHECKING:
             order_id: "str",
             amount: "bytes",
             destination: "str",
+            ask_balance: "MintlayerOutputValue",
+            give_balance: "MintlayerOutputValue",
         ) -> None:
             pass
 

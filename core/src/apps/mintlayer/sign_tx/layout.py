@@ -23,7 +23,8 @@ def format_coin_amount(
         name = coininfo.coin_shortcut
     else:
         decimals = token.number_of_decimals
-        name = f"Unknown Token wih ID: {token.token_id} and ticker {token.token_ticker.decode("utf-8")}"
+        ticker = token.token_ticker.decode("utf-8")
+        name = f"Unknown Token wih ID: {token.token_id} and ticker {ticker}"
 
     amount_int = int.from_bytes(amount, "big")
     amount_str = format_amount(amount_int, decimals)
