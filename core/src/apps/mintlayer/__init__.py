@@ -1,3 +1,5 @@
+from trezor.enums import MintlayerChainType
+
 from apps.common.coininfo import CoinInfo
 from apps.common.paths import PATTERN_BIP44, PATTERN_BIP44_PUBKEY
 
@@ -109,15 +111,33 @@ REGTEST_COIN = MLCoinInfo(
     ),
 )
 
+SIGNET_COIN = MLCoinInfo(
+    slip44_id=1,
+    coin_name="signet",
+    coin_shortcut="TML",
+    decimals=11,
+    prefixes=Prefixes(
+        public_key_hash="smt",
+        public_key="spmt",
+        token="smltk",
+        delegation="sdelg",
+        pool="spool",
+        order="sordr",
+    ),
+)
 
-def find_coin_by_name(name: str) -> MLCoinInfo:
-    if name == TESTNET_COIN.coin_name:
-        return TESTNET_COIN
 
-    if name == MAINNET_COIN.coin_name:
+def find_coin_by_chain_type(chain_type: MintlayerChainType) -> MLCoinInfo:
+    if chain_type == MintlayerChainType.Mainnet:
         return MAINNET_COIN
 
-    if name == REGTEST_COIN.coin_name:
+    if chain_type == MintlayerChainType.Testnet:
+        return TESTNET_COIN
+
+    if chain_type == MintlayerChainType.Regtest:
         return REGTEST_COIN
 
-    raise ValueError(f"unknown coin type {name}")
+    if chain_type == MintlayerChainType.Signet:
+        return SIGNET_COIN
+
+    raise ValueError(f"unknown coin type {chain_type}")

@@ -30,14 +30,15 @@ if TYPE_CHECKING:
 def get_address(
     client: "TrezorClient",
     address_n: "Address",
-    coin_name: str,
+    chain_type: int,
     show_display: bool = False,
     chunkify: bool = False,
 ) -> "MessageType":
+
     return client.call(
         messages.MintlayerGetAddress(
             address_n=address_n,
-            coin_name=coin_name,
+            chain_type=messages.MintlayerChainType(chain_type),
             show_display=show_display,
             chunkify=chunkify,
         )
@@ -47,12 +48,14 @@ def get_address(
 def get_public_key(
     client: "TrezorClient",
     address_n: "Address",
-    coin_name: str,
+    chain_type: int,
     show_display: bool = False,
 ) -> "MessageType":
     return client.call(
         messages.MintlayerGetPublicKey(
-            address_n=address_n, coin_name=coin_name, show_display=show_display
+            address_n=address_n,
+            chain_type=messages.MintlayerChainType(chain_type),
+            show_display=show_display,
         )
     )
 
@@ -60,7 +63,7 @@ def get_public_key(
 def sign_message(
     client: "TrezorClient",
     address_n: "Address",
-    coin_name: str,
+    chain_type: int,
     address_type: str,
     message: bytes,
 ) -> "MessageType":
@@ -73,7 +76,7 @@ def sign_message(
 
     return client.call(
         messages.MintlayerSignMessage(
-            coin_name=coin_name,
+            chain_type=messages.MintlayerChainType(chain_type),
             address_type=addr_type,
             address_n=address_n,
             message=message,
@@ -95,7 +98,7 @@ class Tx:
 @session
 def sign_tx(
     client: "TrezorClient",
-    coin_name: str,
+    chain_type: int,
     inputs: List[Input],
     outputs: List[Output],
     prev_txs: Dict[TxHash, Dict[int, Output]],
@@ -107,7 +110,7 @@ def sign_tx(
         messages.MintlayerSignTx(
             outputs_count=len(outputs),
             inputs_count=len(inputs),
-            coin_name=coin_name,
+            chain_type=messages.MintlayerChainType(chain_type),
             version=version,
             serialize=serialize,
             chunkify=chunkify,

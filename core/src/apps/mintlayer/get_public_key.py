@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from apps.common.keychain import with_slip44_keychain
 
-from . import CURVE, PATTERNS, SLIP44_ID, find_coin_by_name
+from . import CURVE, PATTERNS, SLIP44_ID, find_coin_by_chain_type
 
 if TYPE_CHECKING:
     from trezor.messages import MintlayerGetPublicKey, MintlayerPublicKey
@@ -21,7 +21,7 @@ async def get_public_key(
 
     from apps.common import paths
 
-    coin_info = find_coin_by_name(msg.coin_name)
+    coin_info = find_coin_by_chain_type(msg.chain_type)
     await paths.validate_path(
         keychain,
         msg.address_n,

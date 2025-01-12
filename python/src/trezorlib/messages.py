@@ -362,6 +362,13 @@ class MintlayerOutputTimeLockType(IntEnum):
     FOR_SECONDS = 3
 
 
+class MintlayerChainType(IntEnum):
+    Mainnet = 1
+    Testnet = 2
+    Regtest = 3
+    Signet = 4
+
+
 class MintlayerAddressType(IntEnum):
     PUBLIC_KEY = 1
     PUBLIC_KEY_HASH = 2
@@ -5489,7 +5496,7 @@ class MintlayerGetAddress(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 10000
     FIELDS = {
         1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
-        2: protobuf.Field("coin_name", "string", repeated=False, required=True),
+        2: protobuf.Field("chain_type", "MintlayerChainType", repeated=False, required=True),
         3: protobuf.Field("show_display", "bool", repeated=False, required=False, default=None),
         4: protobuf.Field("chunkify", "bool", repeated=False, required=False, default=None),
     }
@@ -5497,13 +5504,13 @@ class MintlayerGetAddress(protobuf.MessageType):
     def __init__(
         self,
         *,
-        coin_name: "str",
+        chain_type: "MintlayerChainType",
         address_n: Optional[Sequence["int"]] = None,
         show_display: Optional["bool"] = None,
         chunkify: Optional["bool"] = None,
     ) -> None:
         self.address_n: Sequence["int"] = address_n if address_n is not None else []
-        self.coin_name = coin_name
+        self.chain_type = chain_type
         self.show_display = show_display
         self.chunkify = chunkify
 
@@ -5526,19 +5533,19 @@ class MintlayerGetPublicKey(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 10002
     FIELDS = {
         1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
-        2: protobuf.Field("coin_name", "string", repeated=False, required=True),
+        2: protobuf.Field("chain_type", "MintlayerChainType", repeated=False, required=True),
         3: protobuf.Field("show_display", "bool", repeated=False, required=False, default=None),
     }
 
     def __init__(
         self,
         *,
-        coin_name: "str",
+        chain_type: "MintlayerChainType",
         address_n: Optional[Sequence["int"]] = None,
         show_display: Optional["bool"] = None,
     ) -> None:
         self.address_n: Sequence["int"] = address_n if address_n is not None else []
-        self.coin_name = coin_name
+        self.chain_type = chain_type
         self.show_display = show_display
 
 
@@ -5563,7 +5570,7 @@ class MintlayerSignMessage(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 10004
     FIELDS = {
         1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
-        2: protobuf.Field("coin_name", "string", repeated=False, required=True),
+        2: protobuf.Field("chain_type", "MintlayerChainType", repeated=False, required=True),
         3: protobuf.Field("address_type", "MintlayerAddressType", repeated=False, required=True),
         4: protobuf.Field("message", "bytes", repeated=False, required=True),
     }
@@ -5571,13 +5578,13 @@ class MintlayerSignMessage(protobuf.MessageType):
     def __init__(
         self,
         *,
-        coin_name: "str",
+        chain_type: "MintlayerChainType",
         address_type: "MintlayerAddressType",
         message: "bytes",
         address_n: Optional[Sequence["int"]] = None,
     ) -> None:
         self.address_n: Sequence["int"] = address_n if address_n is not None else []
-        self.coin_name = coin_name
+        self.chain_type = chain_type
         self.address_type = address_type
         self.message = message
 
@@ -5587,7 +5594,7 @@ class MintlayerSignTx(protobuf.MessageType):
     FIELDS = {
         1: protobuf.Field("outputs_count", "uint32", repeated=False, required=True),
         2: protobuf.Field("inputs_count", "uint32", repeated=False, required=True),
-        3: protobuf.Field("coin_name", "string", repeated=False, required=True),
+        3: protobuf.Field("chain_type", "MintlayerChainType", repeated=False, required=True),
         4: protobuf.Field("version", "uint32", repeated=False, required=False, default=1),
         5: protobuf.Field("serialize", "bool", repeated=False, required=False, default=True),
         6: protobuf.Field("chunkify", "bool", repeated=False, required=False, default=None),
@@ -5598,14 +5605,14 @@ class MintlayerSignTx(protobuf.MessageType):
         *,
         outputs_count: "int",
         inputs_count: "int",
-        coin_name: "str",
+        chain_type: "MintlayerChainType",
         version: Optional["int"] = 1,
         serialize: Optional["bool"] = True,
         chunkify: Optional["bool"] = None,
     ) -> None:
         self.outputs_count = outputs_count
         self.inputs_count = inputs_count
-        self.coin_name = coin_name
+        self.chain_type = chain_type
         self.version = version
         self.serialize = serialize
         self.chunkify = chunkify

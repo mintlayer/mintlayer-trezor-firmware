@@ -6,7 +6,7 @@ from trezor.enums import InputScriptType
 from apps.common.keychain import with_slip44_keychain
 
 from ..bitcoin.keychain import validate_path_against_script_type
-from . import CURVE, PATTERNS, SLIP44_ID, find_coin_by_name
+from . import CURVE, PATTERNS, SLIP44_ID, find_coin_by_chain_type
 
 if TYPE_CHECKING:
     from trezor.messages import MintlayerAddress, MintlayerGetAddress
@@ -22,7 +22,7 @@ async def get_address(msg: MintlayerGetAddress, keychain: Keychain) -> Mintlayer
 
     from apps.common import paths
 
-    coin_info = find_coin_by_name(msg.coin_name)
+    coin_info = find_coin_by_chain_type(msg.chain_type)
     address_n = msg.address_n  # local_cache_attribute
 
     await paths.validate_path(

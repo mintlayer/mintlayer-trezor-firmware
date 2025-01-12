@@ -6,16 +6,26 @@ option java_package = "com.satoshilabs.trezor.lib.protobuf";
 option java_outer_classname = "TrezorMessageMintlayer";
 
 /**
+* Chain Type used to determine the coin name and bech32 prefixes
+*/
+enum MintlayerChainType {
+    Mainnet = 1;
+    Testnet = 2;
+    Regtest = 3;
+    Signet = 4;
+}
+
+/**
  * Request: Ask the device for a Mintlayer address.
  * @start
  * @next MintlayerAddress
  * @next Failure
  */
 message MintlayerGetAddress {
-    repeated uint32 address_n = 1;  // BIP-32-style path to derive the key from master node
-    required string coin_name = 2;  // Coin to use Testnet or Mainnet
-    optional bool show_display = 3; // optionally prompt for confirmation on trezor display
-    optional bool chunkify = 4;     // display the address in chunks of 4 characters
+    repeated uint32 address_n = 1;               // BIP-32-style path to derive the key from master node
+    required MintlayerChainType chain_type = 2;  // Chain type to use
+    optional bool show_display = 3;              // optionally prompt for confirmation on trezor display
+    optional bool chunkify = 4;                  // display the address in chunks of 4 characters
 }
 
 /**
@@ -32,9 +42,9 @@ message MintlayerAddress {
  * @next MintlayerPublicKey
  */
 message MintlayerGetPublicKey {
-    repeated uint32 address_n = 1;  // BIP-32 path to derive the key from master node
-    required string coin_name = 2;  // Coin to use Testnet or Mainnet
-    optional bool show_display = 3; // optionally show on display before sending the result
+    repeated uint32 address_n = 1;               // BIP-32 path to derive the key from master node
+    required MintlayerChainType chain_type = 2;  // Chain type to use
+    optional bool show_display = 3;              // optionally show on display before sending the result
 }
 
 /**
@@ -62,7 +72,7 @@ enum MintlayerAddressType {
  */
 message MintlayerSignMessage {
     repeated uint32 address_n = 1;                     // BIP-32 path to derive the key from master node
-    required string coin_name = 2;                     // Coin to use Testnet or Mainnet
+    required MintlayerChainType chain_type = 2;        // Chain type to use
     required MintlayerAddressType address_type = 3;    // destination address in bech32 encoding
     required bytes message = 4;                        // message to sign
 }
@@ -76,7 +86,7 @@ message MintlayerSignMessage {
 message MintlayerSignTx {
     required uint32 outputs_count = 1;                         // number of transaction outputs
     required uint32 inputs_count = 2;                          // number of transaction inputs
-    required string coin_name = 3;                             // Coin to use Testnet or Mainnet
+    required MintlayerChainType chain_type = 3;                // Chain type to use
     optional uint32 version = 4 [default=1];                   // transaction version
     optional bool serialize = 5 [default=true];                // serialize the full transaction, as opposed to only outputting the signatures
     optional bool chunkify = 6;                                // display the address in chunks of 4 characters

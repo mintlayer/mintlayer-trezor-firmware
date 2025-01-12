@@ -317,6 +317,12 @@ if TYPE_CHECKING:
         FOR_BLOCK_COUNT = 2
         FOR_SECONDS = 3
 
+    class MintlayerChainType(IntEnum):
+        Mainnet = 1
+        Testnet = 2
+        Regtest = 3
+        Signet = 4
+
     class MintlayerAddressType(IntEnum):
         PUBLIC_KEY = 1
         PUBLIC_KEY_HASH = 2

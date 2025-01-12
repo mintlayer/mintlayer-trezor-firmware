@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from trezor.enums import MessageType  # noqa: F401
     from trezor.enums import MintlayerAccountCommandType  # noqa: F401
     from trezor.enums import MintlayerAddressType  # noqa: F401
+    from trezor.enums import MintlayerChainType  # noqa: F401
     from trezor.enums import MintlayerOutputTimeLockType  # noqa: F401
     from trezor.enums import MintlayerRequestType  # noqa: F401
     from trezor.enums import MintlayerTokenTotalSupplyType  # noqa: F401
@@ -4042,14 +4043,14 @@ if TYPE_CHECKING:
 
     class MintlayerGetAddress(protobuf.MessageType):
         address_n: "list[int]"
-        coin_name: "str"
+        chain_type: "MintlayerChainType"
         show_display: "bool | None"
         chunkify: "bool | None"
 
         def __init__(
             self,
             *,
-            coin_name: "str",
+            chain_type: "MintlayerChainType",
             address_n: "list[int] | None" = None,
             show_display: "bool | None" = None,
             chunkify: "bool | None" = None,
@@ -4076,13 +4077,13 @@ if TYPE_CHECKING:
 
     class MintlayerGetPublicKey(protobuf.MessageType):
         address_n: "list[int]"
-        coin_name: "str"
+        chain_type: "MintlayerChainType"
         show_display: "bool | None"
 
         def __init__(
             self,
             *,
-            coin_name: "str",
+            chain_type: "MintlayerChainType",
             address_n: "list[int] | None" = None,
             show_display: "bool | None" = None,
         ) -> None:
@@ -4110,14 +4111,14 @@ if TYPE_CHECKING:
 
     class MintlayerSignMessage(protobuf.MessageType):
         address_n: "list[int]"
-        coin_name: "str"
+        chain_type: "MintlayerChainType"
         address_type: "MintlayerAddressType"
         message: "bytes"
 
         def __init__(
             self,
             *,
-            coin_name: "str",
+            chain_type: "MintlayerChainType",
             address_type: "MintlayerAddressType",
             message: "bytes",
             address_n: "list[int] | None" = None,
@@ -4131,7 +4132,7 @@ if TYPE_CHECKING:
     class MintlayerSignTx(protobuf.MessageType):
         outputs_count: "int"
         inputs_count: "int"
-        coin_name: "str"
+        chain_type: "MintlayerChainType"
         version: "int"
         serialize: "bool"
         chunkify: "bool | None"
@@ -4141,7 +4142,7 @@ if TYPE_CHECKING:
             *,
             outputs_count: "int",
             inputs_count: "int",
-            coin_name: "str",
+            chain_type: "MintlayerChainType",
             version: "int | None" = None,
             serialize: "bool | None" = None,
             chunkify: "bool | None" = None,

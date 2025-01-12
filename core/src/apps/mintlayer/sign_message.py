@@ -4,7 +4,7 @@ from trezor.crypto import hashlib
 
 from apps.common.keychain import with_slip44_keychain
 
-from . import CURVE, PATTERNS, SLIP44_ID, find_coin_by_name
+from . import CURVE, PATTERNS, SLIP44_ID, find_coin_by_chain_type
 
 if TYPE_CHECKING:
     from trezor.messages import MessageSignature, MintlayerSignMessage
@@ -25,7 +25,7 @@ async def sign_message(
     from apps.common import paths
     from apps.common.signverify import decode_message
 
-    coin_info = find_coin_by_name(msg.coin_name)
+    coin_info = find_coin_by_chain_type(msg.chain_type)
     message = msg.message
     address_n = msg.address_n
     MESSAGE_MAGIC_PREFIX = b"===MINTLAYER MESSAGE BEGIN===\n"

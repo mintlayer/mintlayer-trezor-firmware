@@ -7,7 +7,7 @@ use super::{handle_interaction, Trezor};
 use crate::{
     error::Result,
     protos::{
-        self, mintlayer_tx_request::MintlayerRequestType, MintlayerTxAckOutput,
+        self, mintlayer_tx_request::MintlayerRequestType, MintlayerChainType, MintlayerTxAckOutput,
         MintlayerTxAckUtxoInput, MintlayerTxInput, MintlayerTxOutput,
     },
     Error,
@@ -38,9 +38,13 @@ pub type TransactionId = [u8; 32];
 
 impl Trezor {
     // Mintlayer
-    pub fn mintlayer_get_public_key(&mut self, coin: String, path: Vec<u32>) -> Result<XPub> {
+    pub fn mintlayer_get_public_key(
+        &mut self,
+        chain_type: MintlayerChainType,
+        path: Vec<u32>,
+    ) -> Result<XPub> {
         let mut req = protos::MintlayerGetPublicKey::new();
-        req.set_coin_name(coin);
+        req.set_chain_type(chain_type);
         req.address_n = path;
         let msg = self.call::<_, _, protos::MintlayerPublicKey>(
             req,
@@ -59,7 +63,7 @@ impl Trezor {
 
     pub fn mintlayer_sign_message(
         &mut self,
-        coin: String,
+        chain_type: MintlayerChainType,
         path: Vec<u32>,
         address_type: protos::MintlayerAddressType,
         message: Vec<u8>,
@@ -67,7 +71,7 @@ impl Trezor {
         let mut req = protos::MintlayerSignMessage::new();
         req.address_n = path;
         req.set_message(message);
-        req.set_coin_name(coin);
+        req.set_chain_type(chain_type);
         req.set_address_type(address_type);
         let msg = self.call::<_, _, protos::MessageSignature>(
             req,
@@ -79,14 +83,14 @@ impl Trezor {
 
     pub fn mintlayer_sign_tx(
         &mut self,
-        coin: String,
+        chain_type: MintlayerChainType,
         inputs: Vec<MintlayerTxInput>,
         outputs: Vec<MintlayerTxOutput>,
         utxos: BTreeMap<TransactionId, BTreeMap<u32, MintlayerTxOutput>>,
     ) -> Result<Vec<Vec<MintlayerSignature>>> {
         let mut req = protos::MintlayerSignTx::new();
         req.set_version(1);
-        req.set_coin_name(coin);
+        req.set_chain_type(chain_type);
         req.set_inputs_count(inputs.len() as u32);
         req.set_outputs_count(outputs.len() as u32);
 

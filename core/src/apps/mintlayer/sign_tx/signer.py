@@ -16,7 +16,7 @@ from trezor.messages import (
 )
 from trezor.wire.errors import DataError
 
-from .. import find_coin_by_name
+from .. import find_coin_by_chain_type
 from . import helpers
 from .helpers import mintlayer_decode
 from .progress import Progress
@@ -180,7 +180,7 @@ class Mintlayer:
         from trezor.messages import MintlayerTxRequest, MintlayerTxRequestDetailsType
 
         self.progress = Progress()
-        self.coininfo = find_coin_by_name(tx.coin_name)
+        self.coininfo = find_coin_by_chain_type(tx.chain_type)
         self.tx_info = TxInfo(tx=tx, inputs=[], outputs=[])
         self.keychain = keychain
 

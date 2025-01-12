@@ -17,14 +17,19 @@ def cli() -> None:
 
 
 @cli.command()
-@click.option("-c", "--coin", required=True, help="coin name")
+@click.option(
+    "-c",
+    "--chain-type",
+    required=True,
+    help="chain type 1 for Mainnet 2 for Testnet or 3 for Regtest",
+)
 @click.option("-n", "--address", required=True, help="BIP-32 path")
 @click.option("-d", "--show-display", is_flag=True)
 @click.option("-C", "--chunkify", is_flag=True)
 @with_client
 def get_address(
     client: "TrezorClient",
-    coin: str,
+    chain_type: int,
     address: str,
     show_display: bool,
     chunkify: bool,
@@ -39,20 +44,25 @@ def get_address(
     return mintlayer.get_address(
         client,
         address_n,
-        coin,
+        chain_type,
         show_display,
         chunkify=chunkify,
     )
 
 
 @cli.command()
-@click.option("-c", "--coin", required=True, help="coin name")
+@click.option(
+    "-c",
+    "--chain-type",
+    required=True,
+    help="chain type 1 for Mainnet 2 for Testnet or 3 for Regtest",
+)
 @click.option("-n", "--address", required=True, help="BIP-32 path, e.g. m/44h/0h/0h")
 @click.option("-d", "--show-display", is_flag=True)
 @with_client
 def get_public_key(
     client: "TrezorClient",
-    coin: str,
+    chain_type: int,
     address: str,
     show_display: bool,
 ) -> dict:
@@ -65,7 +75,7 @@ def get_public_key(
     result = mintlayer.get_public_key(
         client,
         address_n,
-        coin,
+        chain_type,
         show_display=show_display,
     )
     if isinstance(result, messages.MintlayerPublicKey):
@@ -78,7 +88,12 @@ def get_public_key(
 
 
 @cli.command()
-@click.option("-c", "--coin", required=True, help="coin name")
+@click.option(
+    "-c",
+    "--chain-type",
+    required=True,
+    help="chain type 1 for Mainnet 2 for Testnet or 3 for Regtest",
+)
 @click.option("-n", "--address_n", required=True, help="BIP-32 path")
 @click.option(
     "-a",
@@ -90,7 +105,7 @@ def get_public_key(
 @with_client
 def sign_message(
     client: "TrezorClient",
-    coin: str,
+    chain_type: int,
     address_n: str,
     address_type: str,
     message: str,
@@ -98,7 +113,7 @@ def sign_message(
     """Sign message using address of given path."""
     result = mintlayer.sign_message(
         client,
-        coin_name=coin,
+        chain_type=chain_type,
         address_n=tools.parse_path(address_n),
         address_type=address_type,
         message=message.encode(),
@@ -114,12 +129,17 @@ def sign_message(
 
 
 @cli.command()
-@click.option("-c", "--coin", required=True, help="coin name")
+@click.option(
+    "-c",
+    "--chain-type",
+    required=True,
+    help="chain type 1 for Mainnet 2 for Testnet or 3 for Regtest",
+)
 @click.option("-C", "--chunkify", is_flag=True)
 @click.argument("json_file", type=click.File())
 @with_client
 def sign_tx(
-    client: "TrezorClient", coin: str, json_file: TextIO, chunkify: bool
+    client: "TrezorClient", chain_type: int, json_file: TextIO, chunkify: bool
 ) -> None:
     """Sign transaction.
 
@@ -146,7 +166,7 @@ def sign_tx(
 
     results = mintlayer.sign_tx(
         client,
-        coin,
+        chain_type,
         inputs,
         outputs,
         prev_txs=prev_txes,
