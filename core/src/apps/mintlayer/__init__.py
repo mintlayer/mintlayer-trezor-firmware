@@ -17,7 +17,7 @@ class Prefixes:
         delegation: str,
         pool: str,
         order: str,
-    ):
+    ) -> None:
         self.public_key_hash = public_key_hash
         self.public_key = public_key
         self.token = token
@@ -34,7 +34,7 @@ class MLCoinInfo(CoinInfo):
         coin_shortcut: str,
         decimals: int,
         prefixes: Prefixes,
-    ):
+    ) -> None:
         super().__init__(
             coin_name,
             coin_shortcut,

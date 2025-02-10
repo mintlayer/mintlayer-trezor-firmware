@@ -41,7 +41,7 @@ class UiConfirmOutput(UiConfirm):
         output_index: int,
         coininfo: CoinInfo,
         chunkify: bool,
-    ):
+    ) -> None:
         self.output = output
         self.output_index = output_index
         self.chunkify = chunkify
@@ -63,7 +63,7 @@ class UiConfirmTotal(UiConfirm):
         fee: int,
         coininfo: CoinInfo,
         token: MintlayerTokenOutputValue | None,
-    ):
+    ) -> None:
         self.spending = spending
         self.fee = fee
         self.coininfo = coininfo

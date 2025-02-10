@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 class OutputValueTpl:
     def __init__(
         self, coin_or_token_id: str, ticker: bytes, number_of_decimals: int, amount: int
-    ):
+    ) -> None:
         self.coin_or_token_id = coin_or_token_id
         self.ticker = ticker
         self.number_of_decimals = number_of_decimals
@@ -72,7 +72,7 @@ class TxUtxoInput:
         input: MintlayerTxInput,
         utxo: MintlayerTxOutput | None,
         nodes: List[Tuple[bip32.HDNode, int | None]],
-    ):
+    ) -> None:
         self.input = input
         self.utxo = utxo
         self.nodes = nodes
@@ -84,7 +84,7 @@ class TxInfo:
         tx: MintlayerSignTx,
         inputs: List[TxUtxoInput],
         outputs: List[MintlayerTxOutput],
-    ):
+    ) -> None:
         self.tx = tx
         self.inputs = inputs
         self.outputs = outputs
@@ -94,10 +94,10 @@ class TxInfo:
         txi: MintlayerTxInput,
         txo: MintlayerTxOutput | None,
         nodes: List[Tuple[bip32.HDNode, int | None]],
-    ):
+    ) -> None:
         self.inputs.append(TxUtxoInput(input=txi, utxo=txo, nodes=nodes))
 
-    def add_output(self, txo: MintlayerTxOutput):
+    def add_output(self, txo: MintlayerTxOutput) -> None:
         self.outputs.append(txo)
 
 
@@ -651,9 +651,9 @@ class Mintlayer:
 def update_input_totals(
     totals: Dict[str, int],
     txo: MintlayerTxOutput,
-    ml_coin,
-):
-    def update(value: MintlayerOutputValue):
+    ml_coin: str,
+) -> None:
+    def update(value: MintlayerOutputValue) -> None:
         amount = int.from_bytes(value.amount, "big")
         token_or_coin = value.token.token_id if value.token else ml_coin
 
@@ -689,9 +689,9 @@ def update_input_totals(
 def update_output_totals(
     totals: Dict[str, OutputValueTpl],
     txo: MintlayerTxOutput,
-    ml_coin,
-):
-    def update(value: MintlayerOutputValue):
+    ml_coin: str,
+) -> None:
+    def update(value: MintlayerOutputValue) -> None:
         amount = int.from_bytes(value.amount, "big")
 
         token_or_coin = value.token.token_id if value.token else ml_coin

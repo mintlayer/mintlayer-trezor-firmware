@@ -5,7 +5,7 @@ if TYPE_CHECKING:
 
 
 class Progress:
-    def __init__(self):
+    def __init__(self) -> None:
         self.progress = 0
         self.steps = 0
         self.signing = False
