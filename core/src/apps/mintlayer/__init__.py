@@ -1,4 +1,5 @@
 from trezor.enums import MintlayerChainType
+from trezor.wire.errors import DataError
 
 from apps.common.coininfo import CoinInfo
 from apps.common.paths import PATTERN_BIP44, PATTERN_BIP44_PUBKEY
@@ -140,4 +141,4 @@ def find_coin_by_chain_type(chain_type: MintlayerChainType) -> MLCoinInfo:
     if chain_type == MintlayerChainType.Signet:
         return SIGNET_COIN
 
-    raise ValueError(f"unknown coin type {chain_type}")
+    raise DataError(f"Unknown chain type {chain_type}")

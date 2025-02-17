@@ -66,6 +66,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added a progress indicator for the formatting operation.  [#3035]
 - Solana: added support for deprecated AToken Create `rent_sysvar` argument.  [#3976]
 
+
 ## [2.8.0] (9th July 2024)
 
 ### Changed

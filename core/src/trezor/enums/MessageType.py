@@ -100,7 +100,6 @@ DebugLinkOptigaSetSecMax = 9008
 BenchmarkListNames = 9100
 BenchmarkNames = 9101
 BenchmarkRun = 9102
-BenchmarkResult = 9103
 if not utils.BITCOIN_ONLY:
     SetU2FCounter = 63
     GetNextU2FCounter = 80
@@ -257,5 +256,4 @@ if not utils.BITCOIN_ONLY:
     MintlayerSignMessage = 10004
     MintlayerSignTx = 10005
     MintlayerTxRequest = 10006
-    MintlayerTxAckUtxoInput = 10007
-    MintlayerTxAckOutput = 10008
+    MintlayerTxAck = 10007

@@ -467,8 +467,6 @@ if not utils.BITCOIN_ONLY:
     import trezor.enums.MintlayerChainType
     trezor.enums.MintlayerOutputTimeLockType
     import trezor.enums.MintlayerOutputTimeLockType
-    trezor.enums.MintlayerRequestType
-    import trezor.enums.MintlayerRequestType
     trezor.enums.MintlayerTokenTotalSupplyType
     import trezor.enums.MintlayerTokenTotalSupplyType
     trezor.enums.MintlayerUtxoType

@@ -13,15 +13,16 @@ if TYPE_CHECKING:
 
 @click.group(name="mintlayer")
 def cli() -> None:
-    """Mintalyer coin commands."""
+    """Mintlayer coin commands."""
 
 
 @cli.command()
 @click.option(
     "-c",
     "--chain-type",
+    type=int,
     required=True,
-    help="chain type 1 for Mainnet 2 for Testnet or 3 for Regtest",
+    help="chain type 1 for Mainnet, 2 for Testnet, 3 for Regtest or 4 for Signet",
 )
 @click.option("-n", "--address", required=True, help="BIP-32 path")
 @click.option("-d", "--show-display", is_flag=True)
@@ -37,7 +38,7 @@ def get_address(
     """Get address for specified path.
 
     \b
-    $ trezorctl mintlayer get-address -n m/44h/19788h/0h/0/0
+    $ trezorctl mintlayer get-address -c 1 -n m/44h/19788h/0h/0/0
     """
     address_n = tools.parse_path(address)
 
@@ -54,6 +55,7 @@ def get_address(
 @click.option(
     "-c",
     "--chain-type",
+    type=int,
     required=True,
     help="chain type 1 for Mainnet 2 for Testnet or 3 for Regtest",
 )
@@ -69,7 +71,7 @@ def get_public_key(
     """Get public key with its chain code of given path.
 
     \b
-    $ trezorctl mintlayer get-public-key -n m/44h/19788h/0h/0/0
+    $ trezorctl mintlayer get-public-key -c 1 -n m/44h/19788h/0h/0/0
     """
     address_n = tools.parse_path(address)
     result = mintlayer.get_public_key(
@@ -91,6 +93,7 @@ def get_public_key(
 @click.option(
     "-c",
     "--chain-type",
+    type=int,
     required=True,
     help="chain type 1 for Mainnet 2 for Testnet or 3 for Regtest",
 )
@@ -99,7 +102,7 @@ def get_public_key(
     "-a",
     "--address-type",
     required=True,
-    help="Address type PUBLIC_KEY or PUBLIC_KEY_HASH",
+    help="Address type: PUBLIC_KEY or PUBLIC_KEY_HASH",
 )
 @click.argument("message")
 @with_client
@@ -110,7 +113,11 @@ def sign_message(
     address_type: str,
     message: str,
 ) -> dict:
-    """Sign message using address of given path."""
+    """Sign message using address of given path.
+
+    \b
+    $ trezorctl mintlayer sign-message -c 1 -a PUBLIC_KEY_HASH -n m/44h/19788h/0h/0/0 "hello"
+    """
     result = mintlayer.sign_message(
         client,
         chain_type=chain_type,
@@ -132,6 +139,7 @@ def sign_message(
 @click.option(
     "-c",
     "--chain-type",
+    type=int,
     required=True,
     help="chain type 1 for Mainnet 2 for Testnet or 3 for Regtest",
 )
@@ -175,7 +183,7 @@ def sign_tx(
     )
 
     click.echo()
-    click.echo("Signed signatures:")
+    click.echo("Signatures:")
     for res in results:
         click.echo(f"input index: {res.input_index}")
         click.echo("signature:")

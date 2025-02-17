@@ -22,19 +22,15 @@ import pytest
 
 from trezorlib import messages, mintlayer
 from trezorlib.debuglink import TrezorClientDebugLink as Client
+from trezorlib.exceptions import TrezorFailure
 from trezorlib.tools import parse_path
 
 B = messages.ButtonRequestType
 
 
-def request_input(
-    n: int, tx_hash: Optional[bytes] = None
-) -> messages.MintlayerTxRequest:
+def request_input(n: int) -> messages.MintlayerTxRequest:
     return messages.MintlayerTxRequest(
-        request_type=messages.MintlayerRequestType.TXINPUT,
-        details=messages.MintlayerTxRequestDetailsType(
-            request_index=n, tx_hash=tx_hash
-        ),
+        input_request=messages.MintlayerTxInputRequest(input_index=n)
     )
 
 
@@ -42,17 +38,70 @@ def request_output(
     n: int, tx_hash: Optional[bytes] = None
 ) -> messages.MintlayerTxRequest:
     return messages.MintlayerTxRequest(
-        request_type=messages.MintlayerRequestType.TXOUTPUT,
-        details=messages.MintlayerTxRequestDetailsType(
-            request_index=n, tx_hash=tx_hash
-        ),
+        output_request=messages.MintlayerTxOutputRequest(
+            output_index=n, tx_hash=tx_hash
+        )
     )
 
 
 def request_finished() -> messages.MintlayerTxRequest:
     return messages.MintlayerTxRequest(
-        request_type=messages.MintlayerRequestType.TXFINISHED
+        signing_finished=messages.MintlayerTxSigningResult()
     )
+
+
+SIGN_TX_VECTORS = [
+    (
+        1,
+        "mmtc1q3plqylyzrj4mdemdfs39v8zy574rnztc5zpse0x",
+        "mdelg1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqut3aj8",
+        "mmltk1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqa3r2pu",
+        "mordr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqacsnmg",
+        "mpool1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd2ew4w",
+        "mvrfpk1qq7859x9n9zk9d8j3yfefr0l2vjmcsshzdm6ryz765pdmrufxmgsyh6z8a9",
+        # sigs ======================
+        "0770b640bd217d130e2a654860f6ef0d2c1711871c2bc02f725da6a9c97b84863eac0483bfbb741e53f684d000c6968b628dead5f37c1c0dbb4d926e769bb7ce",
+        "0bc5ace472748f2fff8afe60152558fd84f6027081a06a45c0ba621e447b1e7f7481e442849a97a63d077fbc3347badfb03a61cdf5e74120c1e5f69b01e8535a",
+    ),
+    (
+        2,
+        "tmtc1qjn5ls4sz90ppcart66jf0vx0n0u8ndjluz8lpsy",
+        "tdelg1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqnu8zn4",
+        "tmltk1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqjx44qw",
+        "tordr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqj0xv66",
+        "tpool1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqza035u",
+        "tvrfpk1qregu4v895mchautf84u46nsf9xel2507a37ksaf3stmuw44y3m4vffs89t",
+        # sigs ======================
+        "7ae7291601bd4a6a0069d91f2695b1a37faa4d42485e9cae047f3d080253d1fa827a4c2e38e004a2199adba7b0201a243856a9a3cf1c069ec856964570635ea2",
+        "abadf0c5f984c6b1f55a32a05cc7aa37aa5aae6b0b96544bb752c01ad8a29e7d9fe90124776699228f1843b1e033e5f27b081643b0c873e776e1142845aaa56c",
+    ),
+    (
+        3,
+        "rmtc1qjn5ls4sz90ppcart66jf0vx0n0u8ndjluu6nzuv",
+        "rdelg1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqf9m6ka",
+        "rmltk1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqglfd9x",
+        "rordr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqgk65lj",
+        "rpool1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqcynf35",
+        "rvrfpk1qregu4v895mchautf84u46nsf9xel2507a37ksaf3stmuw44y3m4vc2kzme",
+        # sigs ======================
+        "7ae7291601bd4a6a0069d91f2695b1a37faa4d42485e9cae047f3d080253d1fa827a4c2e38e004a2199adba7b0201a243856a9a3cf1c069ec856964570635ea2",
+        "abadf0c5f984c6b1f55a32a05cc7aa37aa5aae6b0b96544bb752c01ad8a29e7d9fe90124776699228f1843b1e033e5f27b081643b0c873e776e1142845aaa56c",
+    ),
+    (
+        4,
+        "smtc1qjn5ls4sz90ppcart66jf0vx0n0u8ndjluet3k7h",
+        "sdelg1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq4dx7rx",
+        "smltk1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq5h5fsa",
+        "sordr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq578s2f",
+        "spool1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqyvwdy0",
+        "svrfpk1qregu4v895mchautf84u46nsf9xel2507a37ksaf3stmuw44y3m4vt7hh77",
+        # sigs ======================
+        "7ae7291601bd4a6a0069d91f2695b1a37faa4d42485e9cae047f3d080253d1fa827a4c2e38e004a2199adba7b0201a243856a9a3cf1c069ec856964570635ea2",
+        "abadf0c5f984c6b1f55a32a05cc7aa37aa5aae6b0b96544bb752c01ad8a29e7d9fe90124776699228f1843b1e033e5f27b081643b0c873e776e1142845aaa56c",
+    ),
+]
+
+CHAIN_TYPE_TO_COIN = {1: 19788, 2: 1, 3: 1, 4: 1}
 
 
 @pytest.mark.altcoin
@@ -60,35 +109,62 @@ def request_finished() -> messages.MintlayerTxRequest:
 @pytest.mark.setup_client(
     mnemonic="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 )
-def test_mintlayer_sign_tx(client: Client):
+@pytest.mark.parametrize(
+    "chain_type, multisig_addr, delegation_id, token_id, order_id, pool_id, vrf_public_key, sig1, sig2",
+    SIGN_TX_VECTORS,
+)
+def test_mintlayer_sign_tx(
+    client: Client,
+    chain_type: int,
+    multisig_addr: str,
+    delegation_id: str,
+    token_id: str,
+    order_id: str,
+    pool_id: str,
+    vrf_public_key: str,
+    sig1: str,
+    sig2: str,
+):
+    coin = CHAIN_TYPE_TO_COIN[chain_type]
     with client:
-        path = parse_path("m/44h/1h/0h/0/0")
+        path = parse_path(f"m/44h/{coin}h/0h/0/0")
         address_0 = messages.MintlayerAddressPath(address_n=path)
-        wallet_dest0 = "rmt1qx5p4r2en7c99mpmg2tz9hucxfarf4k6dypq388a"
+        wallet_dest0 = mintlayer.get_address(
+            client,
+            chain_type=chain_type,
+            address_n=parse_path(f"m/44h/{coin}h/0h/0/0"),
+            show_display=True,
+        )
         prev_utxo_index = 1
+        prev_utxo_index_token = 2
 
-        path = parse_path("m/44h/1h/0h/0/0")
+        path = parse_path(f"m/44h/{coin}h/0h/0/0")
         multisig0 = messages.MintlayerAddressPath(address_n=path, multisig_idx=0)
-        path = parse_path("m/44h/1h/0h/0/1")
+        path = parse_path(f"m/44h/{coin}h/0h/0/1")
         multisig2 = messages.MintlayerAddressPath(address_n=path, multisig_idx=2)
-        prev_multisig_utxo_index = 2
-
-        multisig_addr = "rmtc1qjg6f4gxhhtgf5hvavu45ezwaxmtnvawdywlp4t7"
+        prev_multisig_utxo_index = 3
 
         prev_hash = b"\x00" * 32
+        # anyone_can_spend = wallet_dest0
         anyone_can_spend = "mxanyonecanspend1qqx4x7pk"
-        delegation_id = (
-            "rdelg1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqf9m6ka"
-        )
-        token_id = "rmltk1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqglfd9x"
-        order_id = "rordr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqgk65lj"
-        pool_id = "rpool1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqcynf35"
-        vrf_public_key = (
-            "rvrfpk1qqrrkekv3dm65f8kjng88ttjcgdf72ttur75a62nmrjc6htz04p4kt7hrp9"
-        )
+
+        token_ticker = "XXXX".encode()
+        number_of_decimals = 2
         uri = "http://uri.com".encode()
+        amount_10 = (10).to_bytes(16, byteorder="big")
+        value_10 = messages.MintlayerOutputValue(amount=amount_10)
         amount_1 = (1).to_bytes(16, byteorder="big")
-        value = messages.MintlayerOutputValue(amount=amount_1)
+        value_1 = messages.MintlayerOutputValue(amount=amount_1)
+        token_value_1 = messages.MintlayerOutputValue(
+            amount=amount_1,
+            token=messages.MintlayerTokenOutputValue(
+                token_id=token_id,
+                token_ticker=token_ticker,
+                number_of_decimals=number_of_decimals,
+            ),
+        )
+        amount_0 = (0).to_bytes(16, byteorder="big")
+        value_0 = messages.MintlayerOutputValue(amount=amount_0)
 
         inputs = [
             # UTXO input
@@ -97,7 +173,15 @@ def test_mintlayer_sign_tx(client: Client):
                     prev_hash=prev_hash,
                     prev_index=prev_utxo_index,
                     addresses=[address_0],
-                    address=wallet_dest0,
+                    type=messages.MintlayerUtxoType.TRANSACTION,
+                )
+            ),
+            # UTXO input wiht tokens
+            messages.MintlayerTxInput(
+                utxo=messages.MintlayerUtxoTxInput(
+                    prev_hash=prev_hash,
+                    prev_index=prev_utxo_index_token,
+                    addresses=[address_0],
                     type=messages.MintlayerUtxoType.TRANSACTION,
                 )
             ),
@@ -107,7 +191,6 @@ def test_mintlayer_sign_tx(client: Client):
                     prev_hash=prev_hash,
                     prev_index=prev_multisig_utxo_index,
                     addresses=[multisig0, multisig2],
-                    address=multisig_addr,
                     type=messages.MintlayerUtxoType.TRANSACTION,
                 )
             ),
@@ -126,7 +209,6 @@ def test_mintlayer_sign_tx(client: Client):
             messages.MintlayerTxInput(
                 account_command=messages.MintlayerAccountCommandTxInput(
                     addresses=[address_0],
-                    address=wallet_dest0,
                     nonce=0,
                     mint=messages.MintlayerMintTokens(
                         token_id=token_id, amount=amount_1
@@ -136,7 +218,6 @@ def test_mintlayer_sign_tx(client: Client):
             messages.MintlayerTxInput(
                 account_command=messages.MintlayerAccountCommandTxInput(
                     addresses=[address_0],
-                    address=wallet_dest0,
                     nonce=0,
                     unmint=messages.MintlayerUnmintTokens(token_id=token_id),
                 )
@@ -144,7 +225,6 @@ def test_mintlayer_sign_tx(client: Client):
             messages.MintlayerTxInput(
                 account_command=messages.MintlayerAccountCommandTxInput(
                     addresses=[address_0],
-                    address=wallet_dest0,
                     nonce=0,
                     lock_token_supply=messages.MintlayerLockTokenSupply(
                         token_id=token_id
@@ -154,17 +234,15 @@ def test_mintlayer_sign_tx(client: Client):
             messages.MintlayerTxInput(
                 account_command=messages.MintlayerAccountCommandTxInput(
                     addresses=[address_0],
-                    address=wallet_dest0,
                     nonce=0,
                     freeze_token=messages.MintlayerFreezeToken(
-                        token_id=token_id, is_token_unfreezable=True
+                        token_id=token_id, is_token_unfreezeable=True
                     ),
                 )
             ),
             messages.MintlayerTxInput(
                 account_command=messages.MintlayerAccountCommandTxInput(
                     addresses=[address_0],
-                    address=wallet_dest0,
                     nonce=0,
                     unfreeze_token=messages.MintlayerUnfreezeToken(token_id=token_id),
                 )
@@ -172,7 +250,6 @@ def test_mintlayer_sign_tx(client: Client):
             messages.MintlayerTxInput(
                 account_command=messages.MintlayerAccountCommandTxInput(
                     addresses=[address_0],
-                    address=wallet_dest0,
                     nonce=0,
                     change_token_authority=messages.MintlayerChangeTokenAuthority(
                         token_id=token_id, destination=anyone_can_spend
@@ -182,25 +259,30 @@ def test_mintlayer_sign_tx(client: Client):
             messages.MintlayerTxInput(
                 account_command=messages.MintlayerAccountCommandTxInput(
                     addresses=[address_0],
-                    address=wallet_dest0,
                     nonce=0,
-                    conclude_order=messages.MintlayerConcludeOrder(order_id=order_id),
-                )
-            ),
-            messages.MintlayerTxInput(
-                account_command=messages.MintlayerAccountCommandTxInput(
-                    addresses=[address_0],
-                    address=wallet_dest0,
-                    nonce=0,
-                    fill_order=messages.MintlayerFillOrder(
-                        order_id=order_id, amount=amount_1, destination=anyone_can_spend
+                    conclude_order=messages.MintlayerConcludeOrder(
+                        order_id=order_id,
+                        filled_ask_amount=value_0,
+                        give_balance=value_1,
                     ),
                 )
             ),
             messages.MintlayerTxInput(
                 account_command=messages.MintlayerAccountCommandTxInput(
                     addresses=[address_0],
-                    address=wallet_dest0,
+                    nonce=0,
+                    fill_order=messages.MintlayerFillOrder(
+                        order_id=order_id,
+                        amount=amount_1,
+                        destination=anyone_can_spend,
+                        ask_balance=value_1,
+                        give_balance=value_1,
+                    ),
+                )
+            ),
+            messages.MintlayerTxInput(
+                account_command=messages.MintlayerAccountCommandTxInput(
+                    addresses=[address_0],
                     nonce=0,
                     change_token_metadata_uri=messages.MintlayerChangeTokenMetadataUri(
                         token_id=token_id, metadata_uri=uri
@@ -209,56 +291,66 @@ def test_mintlayer_sign_tx(client: Client):
             ),
         ]
 
-        utxo = messages.MintlayerTransferTxOutput(address=wallet_dest0, value=value)
+        utxo = messages.MintlayerTransferTxOutput(address=wallet_dest0, value=value_10)
         utxo_out = messages.MintlayerTxOutput(transfer=utxo)
+        utxo = messages.MintlayerTransferTxOutput(
+            address=wallet_dest0, value=token_value_1
+        )
+        utxo_out_token = messages.MintlayerTxOutput(transfer=utxo)
 
-        utxo = messages.MintlayerTransferTxOutput(address=multisig_addr, value=value)
+        utxo = messages.MintlayerTransferTxOutput(address=multisig_addr, value=value_1)
         multisig_utxo = messages.MintlayerTxOutput(transfer=utxo)
         prev_txs = {
             prev_hash: {
                 prev_utxo_index: utxo_out,
+                prev_utxo_index_token: utxo_out_token,
                 prev_multisig_utxo_index: multisig_utxo,
             }
         }
 
-        value = messages.MintlayerOutputValue(amount=amount_1)
+        value_1 = messages.MintlayerOutputValue(amount=amount_1)
         outputs = [
             messages.MintlayerTxOutput(
                 transfer=messages.MintlayerTransferTxOutput(
-                    address=anyone_can_spend, value=value
+                    address=anyone_can_spend, value=token_value_1
+                )
+            ),
+            messages.MintlayerTxOutput(
+                transfer=messages.MintlayerTransferTxOutput(
+                    address=anyone_can_spend, value=value_1
                 )
             ),
             messages.MintlayerTxOutput(
                 lock_then_transfer=messages.MintlayerLockThenTransferTxOutput(
                     address=anyone_can_spend,
-                    value=value,
+                    value=value_1,
                     lock=messages.MintlayerOutputTimeLock(until_height=10),
                 )
             ),
             messages.MintlayerTxOutput(
                 lock_then_transfer=messages.MintlayerLockThenTransferTxOutput(
                     address=anyone_can_spend,
-                    value=value,
+                    value=value_1,
                     lock=messages.MintlayerOutputTimeLock(until_time=10),
                 )
             ),
             messages.MintlayerTxOutput(
                 lock_then_transfer=messages.MintlayerLockThenTransferTxOutput(
                     address=anyone_can_spend,
-                    value=value,
+                    value=value_1,
                     lock=messages.MintlayerOutputTimeLock(for_block_count=10),
                 )
             ),
             messages.MintlayerTxOutput(
                 lock_then_transfer=messages.MintlayerLockThenTransferTxOutput(
                     address=anyone_can_spend,
-                    value=value,
+                    value=value_1,
                     lock=messages.MintlayerOutputTimeLock(for_seconds=10),
                 )
             ),
             messages.MintlayerTxOutput(
                 burn=messages.MintlayerBurnTxOutput(
-                    value=value,
+                    value=value_1,
                 )
             ),
             messages.MintlayerTxOutput(
@@ -314,7 +406,7 @@ def test_mintlayer_sign_tx(client: Client):
             ),
             messages.MintlayerTxOutput(
                 htlc=messages.MintlayerHtlcTxOutput(
-                    value=value,
+                    value=value_1,
                     secret_hash=bytes([1] * 20),
                     spend_key=anyone_can_spend,
                     refund_timelock=messages.MintlayerOutputTimeLock(until_height=10),
@@ -324,8 +416,8 @@ def test_mintlayer_sign_tx(client: Client):
             messages.MintlayerTxOutput(
                 create_order=messages.MintlayerCreateOrderTxOutput(
                     conclude_key=anyone_can_spend,
-                    ask=value,
-                    give=value,
+                    ask=value_1,
+                    give=value_1,
                 )
             ),
         ]
@@ -337,14 +429,17 @@ def test_mintlayer_sign_tx(client: Client):
                 request_input(0),
                 # get First input's UTXO
                 request_output(prev_utxo_index),
-                # get Second UTXO input with multisig address
+                # get Second token UTXO input
                 request_input(1),
+                # get Second token input's UTXO
+                request_output(prev_utxo_index_token),
+                # get Second UTXO input with multisig address
+                request_input(2),
                 # get Second input's UTXO
                 request_output(prev_multisig_utxo_index),
                 # account input
-                request_input(2),
-                # account command inputs
                 request_input(3),
+                # account command inputs
                 request_input(4),
                 request_input(5),
                 request_input(6),
@@ -353,6 +448,7 @@ def test_mintlayer_sign_tx(client: Client):
                 request_input(9),
                 request_input(10),
                 request_input(11),
+                request_input(12),
                 # ===== outputs
                 # get First Output
                 request_output(0),
@@ -378,10 +474,11 @@ def test_mintlayer_sign_tx(client: Client):
                 messages.ButtonRequest(code=B.ConfirmOutput),
                 request_output(7),
                 messages.ButtonRequest(code=B.ConfirmOutput),
+                messages.ButtonRequest(code=B.ConfirmOutput),
                 request_output(8),
                 messages.ButtonRequest(code=B.ConfirmOutput),
-                messages.ButtonRequest(code=B.ConfirmOutput),
                 request_output(9),
+                messages.ButtonRequest(code=B.ConfirmOutput),
                 messages.ButtonRequest(code=B.ConfirmOutput),
                 request_output(10),
                 messages.ButtonRequest(code=B.ConfirmOutput),
@@ -389,8 +486,10 @@ def test_mintlayer_sign_tx(client: Client):
                 messages.ButtonRequest(code=B.ConfirmOutput),
                 request_output(12),
                 messages.ButtonRequest(code=B.ConfirmOutput),
-                messages.ButtonRequest(code=B.ConfirmOutput),
                 request_output(13),
+                messages.ButtonRequest(code=B.ConfirmOutput),
+                messages.ButtonRequest(code=B.ConfirmOutput),
+                request_output(14),
                 messages.ButtonRequest(code=B.ConfirmOutput),
                 # sign tx
                 messages.ButtonRequest(code=B.SignTx),
@@ -400,13 +499,13 @@ def test_mintlayer_sign_tx(client: Client):
             ]
         )
 
-        results = mintlayer.sign_tx(client, "regtest", inputs, outputs, prev_txs)
+        results = mintlayer.sign_tx(client, chain_type, inputs, outputs, prev_txs)
 
         expected_multi_sigs = {
-            0: "7a99714dc6cc917faa2afded8028159a5048caf6f8382f67e6b61623fbe62c60423f8f7983f88f40c6f42924594f3de492a232e9e703b241c3b17b130f8daa59",
-            2: "0a0a17d71bc98fa5c24ea611c856d0d08c6a765ea3c4c8f068668e0bdff710b82b0d2eead83d059386cd3cbdf4308418d4b81e6f52c001a9141ec477a8d24845",
+            0: sig1,
+            2: sig2,
         }
-        expected_sig = "7a99714dc6cc917faa2afded8028159a5048caf6f8382f67e6b61623fbe62c60423f8f7983f88f40c6f42924594f3de492a232e9e703b241c3b17b130f8daa59"
+        expected_sig = sig1
 
         assert len(results) == len(inputs)
 
@@ -430,14 +529,19 @@ def test_mintlayer_random_sign_tx(client: Client):
         prev_txs = {}
         inputs = []
         input_utxos = []
+        total_inputs = 0
         for _ in range(num_inputs):
             random_address = random.randint(0, 100)
             random_account = random.randint(0, 100)
-            path = parse_path(f"m/44h/19788h/{random_account}h/0/{random_address}")
+            random_purpose = random.choice([0, 1])
+            path = parse_path(
+                f"m/44h/19788h/{random_account}h/{random_purpose}/{random_address}"
+            )
 
             prev_hash = bytes(random.getrandbits(8) for _ in range(32))
 
-            random_amount = random.randint(0, 10_000)
+            random_amount = random.randint(1, 10_000)
+            total_inputs += random_amount
             address = messages.MintlayerAddressPath(address_n=path)
 
             prev_utxo_index = random.randint(0, 100)
@@ -446,7 +550,6 @@ def test_mintlayer_random_sign_tx(client: Client):
                     prev_hash=prev_hash,
                     prev_index=prev_utxo_index,
                     addresses=[address],
-                    address="mxanyonecanspend1qqx4x7pk",
                     type=random.choice(list(messages.MintlayerUtxoType)),
                 )
             )
@@ -469,7 +572,7 @@ def test_mintlayer_random_sign_tx(client: Client):
         num_outputs = random.randint(1, 10)
         outputs = []
         for _ in range(num_outputs):
-            random_amount = random.randint(0, 10_000)
+            random_amount = random.randint(0, total_inputs // num_outputs)
             value = messages.MintlayerOutputValue(
                 amount=random_amount.to_bytes(16, byteorder="big")
             )
@@ -516,6 +619,100 @@ def test_mintlayer_random_sign_tx(client: Client):
             )
         )
 
-        result = mintlayer.sign_tx(client, "regtest", inputs, outputs, prev_txs)
+        result = mintlayer.sign_tx(client, 3, inputs, outputs, prev_txs)
 
         assert len(result) == num_inputs
+
+
+CHAIN_TYPES = [1, 2, 3, 4]
+
+
+@pytest.mark.altcoin
+@pytest.mark.mintlayer
+@pytest.mark.setup_client(
+    mnemonic="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+)
+@pytest.mark.parametrize("chain_type", CHAIN_TYPES)
+def test_mintlayer_sign_tx_forbidden_path(client: Client, chain_type: int):
+    coin = CHAIN_TYPE_TO_COIN[chain_type]
+
+    prev_hash = bytes(random.getrandbits(8) for _ in range(32))
+    random_amount = random.randint(1, 10_000)
+    prev_utxo_index = random.randint(0, 100)
+
+    value = messages.MintlayerOutputValue(
+        amount=random_amount.to_bytes(16, byteorder="big")
+    )
+
+    wallet_dest0 = mintlayer.get_address(
+        client,
+        chain_type=chain_type,
+        address_n=parse_path(f"m/44h/{coin}h/0h/0/0"),
+        show_display=True,
+    )
+
+    utxo = messages.MintlayerTransferTxOutput(address=wallet_dest0, value=value)
+    utxo_out = messages.MintlayerTxOutput(transfer=utxo)
+
+    prev_txs = {prev_hash: {prev_utxo_index: utxo_out}}
+
+    with client:
+        # invalid coin
+        with pytest.raises(TrezorFailure, match="Forbidden key path"):
+            path = parse_path(f"m/44h/{coin + 1}h/0h/0/0")
+            address = messages.MintlayerAddressPath(address_n=path)
+
+            inp = messages.MintlayerTxInput(
+                utxo=messages.MintlayerUtxoTxInput(
+                    prev_hash=prev_hash,
+                    prev_index=prev_utxo_index,
+                    addresses=[address],
+                    type=random.choice(list(messages.MintlayerUtxoType)),
+                )
+            )
+            mintlayer.sign_tx(client, chain_type, [inp], [], prev_txs)
+
+        # invalid bip44
+        with pytest.raises(TrezorFailure, match="Forbidden key path"):
+            path = parse_path(f"m/43h/{coin}h/0h/0/0")
+            address = messages.MintlayerAddressPath(address_n=path)
+
+            inp = messages.MintlayerTxInput(
+                utxo=messages.MintlayerUtxoTxInput(
+                    prev_hash=prev_hash,
+                    prev_index=prev_utxo_index,
+                    addresses=[address],
+                    type=random.choice(list(messages.MintlayerUtxoType)),
+                )
+            )
+            mintlayer.sign_tx(client, chain_type, [inp], [], prev_txs)
+
+        # short path
+        with pytest.raises(TrezorFailure, match="Forbidden key path"):
+            path = parse_path(f"m/44h/{coin}h")
+            address = messages.MintlayerAddressPath(address_n=path)
+
+            inp = messages.MintlayerTxInput(
+                utxo=messages.MintlayerUtxoTxInput(
+                    prev_hash=prev_hash,
+                    prev_index=prev_utxo_index,
+                    addresses=[address],
+                    type=random.choice(list(messages.MintlayerUtxoType)),
+                )
+            )
+            mintlayer.sign_tx(client, chain_type, [inp], [], prev_txs)
+
+        # short path
+        with pytest.raises(TrezorFailure, match="Forbidden key path"):
+            path = parse_path("m/44h")
+            address = messages.MintlayerAddressPath(address_n=path)
+
+            inp = messages.MintlayerTxInput(
+                utxo=messages.MintlayerUtxoTxInput(
+                    prev_hash=prev_hash,
+                    prev_index=prev_utxo_index,
+                    addresses=[address],
+                    type=random.choice(list(messages.MintlayerUtxoType)),
+                )
+            )
+            mintlayer.sign_tx(client, chain_type, [inp], [], prev_txs)

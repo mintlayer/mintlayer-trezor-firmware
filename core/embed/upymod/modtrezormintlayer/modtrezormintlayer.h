@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "py/objstr.h"
 
-#include "embed/extmod/trezorobj.h"
+#include "embed/upymod/trezorobj.h"
 
 #include "embed/rust/mintlayer.h"
 
@@ -36,7 +36,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(
 /// def encode_account_spending_input(nonce: int, delegation_id: bytes, amount:
 /// bytes) -> bytes:
 ///     """
-///     encodes an utxo account spendinf from nonce and delegation id
+///     encodes an utxo account spending from nonce and delegation id
 ///     """
 STATIC mp_obj_t
 mod_trezormintlayer_utils_mintlayer_encode_account_spending_input(
@@ -491,7 +491,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
 
 /// def encode_compact_length(length: int) -> bytes:
 ///     """
-///     encodes a comapct length to bytes
+///     encodes a compact length to bytes
 ///     """
 STATIC mp_obj_t
 mod_trezormintlayer_utils_mintlayer_encode_comact_length(mp_obj_t length) {

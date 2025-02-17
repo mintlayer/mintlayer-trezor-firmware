@@ -22,9 +22,8 @@ async def sign_tx(
     msg: MintlayerSignTx,
     keychain: Keychain,
 ) -> MintlayerTxRequest:
-    from trezor.enums import MintlayerRequestType
     from trezor.messages import MintlayerTxRequest
-    from trezor.wire import DataError
+    from trezor.wire import DataError, FirmwareError
     from trezor.wire.context import call
 
     from . import helpers
@@ -43,11 +42,11 @@ async def sign_tx(
         if isinstance(req, tuple):
             request_class, req = req
             assert MintlayerTxRequest.is_type_of(req)
-            if req.request_type == MintlayerRequestType.TXFINISHED:
+            if req.signing_finished is not None:
                 return req
             res = await call(req, request_class)
         elif isinstance(req, helpers.UiConfirm):
             res = await req.confirm_dialog()
             progress.report_init()
         else:
-            raise TypeError("Invalid signing instruction")
+            raise FirmwareError("Invalid signing instruction")

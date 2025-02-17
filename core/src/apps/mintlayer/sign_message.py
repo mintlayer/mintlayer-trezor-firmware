@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from trezor.crypto import hashlib
+from trezor.wire.errors import DataError
 
 from apps.common.keychain import with_slip44_keychain
 
@@ -43,7 +44,7 @@ async def sign_message(
             coin_info.prefixes.public_key_hash, data, Encoding.BECH32M
         )
     else:
-        raise ValueError(f"Unknown Address type {msg.address_type}")
+        raise DataError(f"Unknown Address type {msg.address_type}")
 
     await confirm_signverify(
         decode_message(message),

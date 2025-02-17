@@ -10,11 +10,6 @@ class Progress:
         self.steps = 0
         self.signing = False
 
-        # We don't know how long it will take to fetch the previous transactions,
-        # so for each one we reserve _PREV_TX_MULTIPLIER steps in the signing
-        # progress.
-        self.prev_tx_step = 0
-
     def init(self, tx: MintlayerSignTx) -> None:
         self.progress = 0
         self.signing = False
@@ -33,14 +28,9 @@ class Progress:
             self.assert_finished()
 
         self.progress = 0
-        self.steps = 0
         self.signing = True
-
-        # Step 3 - serialize all inputs.
-        self.steps += tx.inputs_count
-
-        # Step 4 - serialize outputs
-        self.steps += tx.outputs_count
+        # Step 3 and 4 - serialize all inputs and outputs
+        self.steps = tx.inputs_count + tx.outputs_count
 
     def advance(self) -> None:
         self.progress += 1

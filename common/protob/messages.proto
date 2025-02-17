@@ -328,7 +328,7 @@ enum MessageType {
     MessageType_BenchmarkListNames = 9100 [(bitcoin_only) = true];
     MessageType_BenchmarkNames = 9101 [(bitcoin_only) = true];
     MessageType_BenchmarkRun = 9102 [(bitcoin_only) = true];
-    MessageType_BenchmarkResult = 9103 [(bitcoin_only) = true];
+    // MessageType_BenchmarkResult = 9103 [(bitcoin_only) = true];
 
     // Mintlayer
     MessageType_MintlayerGetAddress = 10000 [(wire_in) = true];
@@ -338,6 +338,5 @@ enum MessageType {
     MessageType_MintlayerSignMessage = 10004 [(wire_in) = true];
     MessageType_MintlayerSignTx = 10005 [(wire_in) = true];
     MessageType_MintlayerTxRequest = 10006 [(wire_out) = true];
-    MessageType_MintlayerTxAckUtxoInput = 10007 [(wire_in) = true];
-    MessageType_MintlayerTxAckOutput = 10008 [(wire_in) = true];
+    MessageType_MintlayerTxAck = 10007 [(wire_in) = true];
 }

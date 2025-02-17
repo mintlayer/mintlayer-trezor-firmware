@@ -103,7 +103,6 @@ def sign_tx(
     outputs: List[Output],
     prev_txs: Dict[TxHash, Dict[int, Output]],
     version: Optional["int"] = 1,
-    serialize: Optional["bool"] = True,
     chunkify: Optional["bool"] = None,
 ) -> List[messages.MintlayerSignaturesForInput]:
     res = client.call(
@@ -112,32 +111,24 @@ def sign_tx(
             inputs_count=len(inputs),
             chain_type=messages.MintlayerChainType(chain_type),
             version=version,
-            serialize=serialize,
             chunkify=chunkify,
         )
     )
 
-    R = messages.MintlayerRequestType
     while isinstance(res, messages.MintlayerTxRequest):
-        if res.request_type == R.TXFINISHED:
-            if res.serialized:
-                return list(res.serialized.signatures)
-            else:
-                return []
+        if res.signing_finished:
+            return list(res.signing_finished.signatures)
 
-        if res.request_type == R.TXINPUT and res.details is not None:
-            assert res.details.request_index is not None
-            msg = inputs[res.details.request_index]
-            msg = messages.MintlayerTxAckUtxoInput(input=msg)
+        if res.input_request:
+            msg = inputs[res.input_request.input_index]
+            msg = messages.MintlayerTxAck(input=msg)
             res = client.call(msg)
-        elif res.request_type == R.TXOUTPUT and res.details is not None:
-            assert res.details is not None
-            assert res.details.request_index is not None
-            if res.details.tx_hash:
-                out = prev_txs[res.details.tx_hash][res.details.request_index]
+        elif res.output_request:
+            if res.output_request.tx_hash:
+                out = prev_txs[res.output_request.tx_hash][res.output_request.output_index]
             else:
-                out = outputs[res.details.request_index]
-            msg = messages.MintlayerTxAckOutput(output=out)
+                out = outputs[res.output_request.output_index]
+            msg = messages.MintlayerTxAck(output=out)
             res = client.call(msg)
 
     raise Exception("Invalid response from trezor")

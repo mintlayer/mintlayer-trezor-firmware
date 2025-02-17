@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Tuple
 
 from trezor import utils
 from trezor.crypto.bech32 import bech32_decode, convertbits
-from trezor.enums import MintlayerOutputTimeLockType, MintlayerRequestType
+from trezor.enums import MintlayerOutputTimeLockType
 from trezor.messages import MintlayerTokenOutputValue
 from trezor.wire import DataError
 
@@ -90,12 +90,11 @@ def confirm_total(
 
 
 def request_tx_input(tx_req: MintlayerTxRequest, i: int) -> Awaitable[MintlayerTxInput]:  # type: ignore [awaitable-return-type]
-    from trezor.messages import MintlayerTxAckUtxoInput
+    from trezor.messages import MintlayerTxAck, MintlayerTxInputRequest
 
-    assert tx_req.details is not None
-    tx_req.request_type = MintlayerRequestType.TXINPUT
-    tx_req.details.request_index = i
-    ack = yield MintlayerTxAckUtxoInput, tx_req  # type: ignore [awaitable-return-type]
+    tx_req.input_request = MintlayerTxInputRequest(input_index=i)
+    assert tx_req.output_request is None and tx_req.signing_finished is None
+    ack = yield MintlayerTxAck, tx_req  # type: ignore [awaitable-return-type]
     _clear_tx_request(tx_req)
     return _sanitize_tx_input(ack.input)
 
@@ -103,41 +102,37 @@ def request_tx_input(tx_req: MintlayerTxRequest, i: int) -> Awaitable[MintlayerT
 def request_tx_output(
     tx_req: MintlayerTxRequest, i: int, tx_hash: bytes | None = None
 ) -> Awaitable[MintlayerTxOutput]:  # type: ignore [awaitable-return-type]
-    from trezor.messages import MintlayerTxAckOutput
+    from trezor.messages import MintlayerTxAck, MintlayerTxOutputRequest
 
-    assert tx_req.details is not None
-    tx_req.request_type = MintlayerRequestType.TXOUTPUT
-    if tx_hash:
-        tx_req.details.tx_hash = tx_hash
-
-    tx_req.details.request_index = i
-    ack = yield MintlayerTxAckOutput, tx_req  # type: ignore [awaitable-return-type]
+    tx_req.output_request = MintlayerTxOutputRequest(output_index=i, tx_hash=tx_hash)
+    assert tx_req.input_request is None and tx_req.signing_finished is None
+    ack = yield MintlayerTxAck, tx_req  # type: ignore [awaitable-return-type]
     _clear_tx_request(tx_req)
     return _sanitize_tx_output(ack.output)
 
 
 def request_tx_finish(tx_req: MintlayerTxRequest) -> Awaitable[None]:  # type: ignore [awaitable-return-type]
-    tx_req.request_type = MintlayerRequestType.TXFINISHED
     yield None, tx_req  # type: ignore [awaitable-return-type]q
+    assert tx_req.input_request is None and tx_req.output_request is None
     _clear_tx_request(tx_req)
 
 
 def _clear_tx_request(tx_req: MintlayerTxRequest) -> None:
-    details = tx_req.details  # local_cache_attribute
-
-    assert details is not None
-    tx_req.request_type = None
-    details.request_index = None
-    details.tx_hash = None
-    tx_req.serialized = None
+    assert tx_req.input_request is not None or tx_req.output_request is not None or tx_req.signing_finished is not None
+    tx_req.input_request = None
+    tx_req.output_request = None
+    tx_req.signing_finished = None
 
 
 # Data sanitizers
 # ===
 
 
-def _sanitize_tx_input(txi: MintlayerTxInput) -> MintlayerTxInput:
+def _sanitize_tx_input(txi: MintlayerTxInput | None) -> MintlayerTxInput:
     from trezor.wire import DataError  # local_cache_global
+
+    if txi is None:
+        raise DataError("Expected an MintlayerTxInput response")
 
     if txi.utxo:
         if len(txi.utxo.prev_hash) != TX_HASH_SIZE:
@@ -183,8 +178,11 @@ def _sanitize_tx_input(txi: MintlayerTxInput) -> MintlayerTxInput:
     return txi
 
 
-def _sanitize_tx_output(txo: MintlayerTxOutput) -> MintlayerTxOutput:
+def _sanitize_tx_output(txo: MintlayerTxOutput | None) -> MintlayerTxOutput:
     from trezor.wire import DataError  # local_cache_global
+
+    if txo is None:
+        raise DataError("Expected an MintlayerTxOutput response")
 
     if txo.transfer:
         pass

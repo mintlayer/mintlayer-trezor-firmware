@@ -5,25 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.8.3-Mintlayer] (31th October 2024)
+## [2.8.7-Mintlayer] (7th February 2025)
 
 ### Added
 - Mintlayer coin handlers  [#noissue]
-- Added support for T3B1  [#3728]
-- Added ability to set Optiga's security event counter to maximum: `trezorctl debug optiga-set-sec-max`.  [#4000]
-
-### Changed
-- Most USB level errors are now converted to `TransportException`.  [#4089]
-
-### Removed
-- CoSi functionality  [#3442]
-- Removed display_random feature.  [#4119]
-
-### Fixed
-- It is now possible to interrupt USB communication (via Ctrl+C, or a signal, or any other way).  [#4089]
 
 ## [0.13.9] (2024-06-19)
-[0.13.9]: https://github.com/trezor/trezor-firmware/compare/python/v0.13.8...python/v0.13.9
 [0.13.9]: https://github.com/trezor/trezor-firmware/compare/python/v0.13.8...python/v0.13.9
 
 ### Added
@@ -846,13 +833,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#3364]: https://github.com/trezor/trezor-firmware/pull/3364
 [#3422]: https://github.com/trezor/trezor-firmware/pull/3422
 [#3434]: https://github.com/trezor/trezor-firmware/pull/3434
-[#3442]: https://github.com/trezor/trezor-firmware/pull/3442
 [#3496]: https://github.com/trezor/trezor-firmware/pull/3496
 [#3504]: https://github.com/trezor/trezor-firmware/pull/3504
 [#3636]: https://github.com/trezor/trezor-firmware/pull/3636
-[#3728]: https://github.com/trezor/trezor-firmware/pull/3728
 [#3868]: https://github.com/trezor/trezor-firmware/pull/3868
 [#3893]: https://github.com/trezor/trezor-firmware/pull/3893
-[#4000]: https://github.com/trezor/trezor-firmware/pull/4000
-[#4089]: https://github.com/trezor/trezor-firmware/pull/4089
-[#4119]: https://github.com/trezor/trezor-firmware/pull/4119

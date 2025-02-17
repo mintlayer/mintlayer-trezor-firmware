@@ -85,7 +85,6 @@ trezor_message_impl! {
     BenchmarkListNames => MessageType_BenchmarkListNames,
     BenchmarkNames => MessageType_BenchmarkNames,
     BenchmarkRun => MessageType_BenchmarkRun,
-    BenchmarkResult => MessageType_BenchmarkResult,
 }
 
 #[cfg(feature = "binance")]
@@ -196,8 +195,7 @@ trezor_message_impl! {
     MintlayerSignMessage => MessageType_MintlayerSignMessage,
     MintlayerSignTx => MessageType_MintlayerSignTx,
     MintlayerTxRequest => MessageType_MintlayerTxRequest,
-    MintlayerTxAckUtxoInput => MessageType_MintlayerTxAckUtxoInput,
-    MintlayerTxAckOutput => MessageType_MintlayerTxAckOutput,
+    MintlayerTxAck => MessageType_MintlayerTxAck,
 }
 
 #[cfg(feature = "monero")]

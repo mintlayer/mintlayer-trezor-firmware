@@ -7,8 +7,9 @@ use super::{handle_interaction, Trezor};
 use crate::{
     error::Result,
     protos::{
-        self, mintlayer_tx_request::MintlayerRequestType, MintlayerChainType, MintlayerTxAckOutput,
-        MintlayerTxAckUtxoInput, MintlayerTxInput, MintlayerTxOutput,
+        self,
+        mintlayer_tx_ack::{MintlayerTxInput, MintlayerTxOutput},
+        MintlayerChainType, MintlayerTxAck,
     },
     Error,
 };
@@ -98,50 +99,41 @@ impl Trezor {
         loop {
             let response = handle_interaction(msg)?;
 
-            match response.request_type() {
-                MintlayerRequestType::TXINPUT => {
-                    let mut req = MintlayerTxAckUtxoInput::new();
-                    req.input = MessageField::from_option(
-                        inputs.get(response.details.request_index() as usize).cloned(),
+            if let Some(inp) = response.input_request.as_ref() {
+                let mut req = MintlayerTxAck::new();
+                req.input =
+                    MessageField::from_option(inputs.get(inp.input_index() as usize).cloned());
+                msg = self.call::<_, _, protos::MintlayerTxRequest>(req, Box::new(|_, m| Ok(m)))?;
+            } else if let Some(out_req) = response.output_request.as_ref() {
+                let mut req = MintlayerTxAck::new();
+                if out_req.has_tx_hash() {
+                    let tx_id: TransactionId = out_req
+                        .tx_hash()
+                        .try_into()
+                        .map_err(|_| Error::InvalidChaincodeFromDevice)?;
+                    let out = utxos.get(&tx_id).and_then(|tx| tx.get(&out_req.output_index()));
+                    req.output = MessageField::from_option(out.cloned());
+                } else {
+                    req.output = MessageField::from_option(
+                        outputs.get(out_req.output_index() as usize).cloned(),
                     );
-                    msg =
-                        self.call::<_, _, protos::MintlayerTxRequest>(req, Box::new(|_, m| Ok(m)))?;
                 }
-                MintlayerRequestType::TXOUTPUT => {
-                    let mut req = MintlayerTxAckOutput::new();
-                    if response.details.has_tx_hash() {
-                        let tx_id: TransactionId = response
-                            .details
-                            .tx_hash()
-                            .try_into()
-                            .map_err(|_| Error::InvalidChaincodeFromDevice)?;
-                        let out = utxos
-                            .get(&tx_id)
-                            .and_then(|tx| tx.get(&response.details.request_index()));
-                        req.output = MessageField::from_option(out.cloned());
-                    } else {
-                        req.output = MessageField::from_option(
-                            outputs.get(response.details.request_index() as usize).cloned(),
-                        );
-                    }
-                    msg =
-                        self.call::<_, _, protos::MintlayerTxRequest>(req, Box::new(|_, m| Ok(m)))?;
-                }
-                MintlayerRequestType::TXFINISHED => {
-                    return Ok(response
-                        .serialized
-                        .signatures
-                        .iter()
-                        .map(|s| {
-                            s.signatures
-                                .iter()
-                                .map(|s| {
-                                    MintlayerSignature::new(s.signature().to_vec(), s.multisig_idx)
-                                })
-                                .collect()
-                        })
-                        .collect())
-                }
+                msg = self.call::<_, _, protos::MintlayerTxRequest>(req, Box::new(|_, m| Ok(m)))?;
+            } else if let Some(finish) = response.signing_finished.as_ref() {
+                return Ok(finish
+                    .signatures
+                    .iter()
+                    .map(|s| {
+                        s.signatures
+                            .iter()
+                            .map(|s| {
+                                MintlayerSignature::new(s.signature().to_vec(), s.multisig_idx)
+                            })
+                            .collect()
+                    })
+                    .collect())
+            } else {
+                return Err(Error::MalformedMintlayerTxRequest(response))
             }
         }
     }
