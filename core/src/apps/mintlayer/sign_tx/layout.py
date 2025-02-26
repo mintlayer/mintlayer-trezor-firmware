@@ -41,13 +41,13 @@ def format_coin_amount_int(
 def lock_to_string(lock: MintlayerOutputTimeLock) -> str:
     from trezor.strings import format_timestamp
 
-    if lock.until_time:
+    if lock.until_time is not None:
         return f"Lock until {format_timestamp(lock.until_time)}"
-    elif lock.until_height:
+    elif lock.until_height is not None:
         return f"Lock until block height {lock.until_height}"
-    elif lock.for_seconds:
+    elif lock.for_seconds is not None:
         return f"Lock for {lock.for_seconds} seconds"
-    elif lock.for_block_count:
+    elif lock.for_block_count is not None:
         return f"Lock for {lock.for_block_count} blocks"
     else:
         raise DataError("Unhandled lock type")

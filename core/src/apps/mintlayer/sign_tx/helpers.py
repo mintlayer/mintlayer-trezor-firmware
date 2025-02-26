@@ -217,16 +217,16 @@ def _sanitize_tx_output(txo: MintlayerTxOutput | None) -> MintlayerTxOutput:
 
 
 def get_lock(x: MintlayerOutputTimeLock) -> Tuple[MintlayerOutputTimeLockType, int]:
-    if x.until_height:
+    if x.until_height is not None:
         lock_type = MintlayerOutputTimeLockType.UNTIL_HEIGHT
         lock_amount = x.until_height
-    elif x.until_time:
+    elif x.until_time is not None:
         lock_type = MintlayerOutputTimeLockType.UNTIL_TIME
         lock_amount = x.until_time
-    elif x.for_block_count:
+    elif x.for_block_count is not None:
         lock_type = MintlayerOutputTimeLockType.FOR_BLOCK_COUNT
         lock_amount = x.for_block_count
-    elif x.for_seconds:
+    elif x.for_seconds is not None:
         lock_type = MintlayerOutputTimeLockType.FOR_SECONDS
         lock_amount = x.for_seconds
     else:
