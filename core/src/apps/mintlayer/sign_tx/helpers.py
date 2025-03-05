@@ -118,7 +118,11 @@ def request_tx_finish(tx_req: MintlayerTxRequest) -> Awaitable[None]:  # type: i
 
 
 def _clear_tx_request(tx_req: MintlayerTxRequest) -> None:
-    assert tx_req.input_request is not None or tx_req.output_request is not None or tx_req.signing_finished is not None
+    assert (
+        tx_req.input_request is not None
+        or tx_req.output_request is not None
+        or tx_req.signing_finished is not None
+    )
     tx_req.input_request = None
     tx_req.output_request = None
     tx_req.signing_finished = None
@@ -132,7 +136,7 @@ def _sanitize_tx_input(txi: MintlayerTxInput | None) -> MintlayerTxInput:
     from trezor.wire import DataError  # local_cache_global
 
     if txi is None:
-        raise DataError("Expected an MintlayerTxInput response")
+        raise DataError("Expected a MintlayerTxInput response")
 
     if txi.utxo:
         if len(txi.utxo.prev_hash) != TX_HASH_SIZE:

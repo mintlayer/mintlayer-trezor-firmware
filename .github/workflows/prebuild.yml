@@ -116,12 +116,12 @@ jobs:
           comment-author: 'github-actions[bot]'
           body-includes: cargolock-comment-${{ github.workflow }}
 
-      - name: Create comment
-        uses: peter-evans/create-or-update-comment@v4
-        if: ${{ env.cargo_modified == '1' && steps.fc.outputs.comment-id == '' }}
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            <!-- cargolock-comment-${{ github.workflow }} -->
-            ${{ env.CARGOLOCK_COMMENT }}
-          edit-mode: replace
+      # - name: Create comment
+      #   uses: peter-evans/create-or-update-comment@v4
+      #   if: ${{ env.cargo_modified == '1' && steps.fc.outputs.comment-id == '' }}
+      #   with:
+      #     issue-number: ${{ github.event.pull_request.number }}
+      #     body: |
+      #       <!-- cargolock-comment-${{ github.workflow }} -->
+      #       ${{ env.CARGOLOCK_COMMENT }}
+      #     edit-mode: replace

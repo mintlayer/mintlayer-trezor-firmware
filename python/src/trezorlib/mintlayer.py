@@ -125,7 +125,9 @@ def sign_tx(
             res = client.call(msg)
         elif res.output_request:
             if res.output_request.tx_hash:
-                out = prev_txs[res.output_request.tx_hash][res.output_request.output_index]
+                out = prev_txs[res.output_request.tx_hash][
+                    res.output_request.output_index
+                ]
             else:
                 out = outputs[res.output_request.output_index]
             msg = messages.MintlayerTxAck(output=out)

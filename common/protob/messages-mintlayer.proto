@@ -91,8 +91,6 @@ message MintlayerSignTx {
     optional bool chunkify = 5;                                // display addresses in chunks of 4 characters
 }
 
-
-
 /**
  * Response: Device asks for information for signing transaction or returns the last result
  * If input_request or output_request is set, device awaits MintlayerTxAck matching the request type.
@@ -105,14 +103,14 @@ message MintlayerTxRequest {
     optional MintlayerTxSigningResult signing_finished = 3;            // serialized data containing the signatures
 
     /**
-    * Request for additional datata for a tx input
+    * Request for additional data for a tx input
     */
     message MintlayerTxInputRequest {
         required uint32 input_index = 1;                      // index for the requested input
     }
 
     /**
-    * Request for additional datata for a tx output
+    * Request for additional data for a tx output
     */
     message MintlayerTxOutputRequest {
         required uint32 output_index = 1;                      // index for the requested output
@@ -232,7 +230,7 @@ message MintlayerLockTokenSupply {
  */
 message MintlayerFreezeToken {
     required string token_id = 1;                  // token id in bech32 encoding
-    required bool is_token_unfreezeable = 2;        // is unfreezeable after freezing it
+    required bool is_token_unfreezable = 2;        // is unfreezable after freezing it
 }
 
 /** Data type for account command Unfreeze token

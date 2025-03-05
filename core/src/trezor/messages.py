@@ -4318,13 +4318,13 @@ if TYPE_CHECKING:
 
     class MintlayerFreezeToken(protobuf.MessageType):
         token_id: "str"
-        is_token_unfreezeable: "bool"
+        is_token_unfreezable: "bool"
 
         def __init__(
             self,
             *,
             token_id: "str",
-            is_token_unfreezeable: "bool",
+            is_token_unfreezable: "bool",
         ) -> None:
             pass
 

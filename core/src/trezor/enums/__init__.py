@@ -631,6 +631,7 @@ if TYPE_CHECKING:
         BenchmarkListNames = 9100
         BenchmarkNames = 9101
         BenchmarkRun = 9102
+        BenchmarkResult = 9103
         MintlayerGetAddress = 10000
         MintlayerAddress = 10001
         MintlayerGetPublicKey = 10002

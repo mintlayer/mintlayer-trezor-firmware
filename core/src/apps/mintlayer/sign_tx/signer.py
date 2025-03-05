@@ -373,7 +373,7 @@ class Mintlayer:
                 elif x.freeze_token:
                     command = MintlayerAccountCommandType.FREEZE_TOKEN
                     token_id = x.freeze_token.token_id
-                    data = int(x.freeze_token.is_token_unfreezeable).to_bytes(1, "big")
+                    data = int(x.freeze_token.is_token_unfreezable).to_bytes(1, "big")
                 elif x.unfreeze_token:
                     command = MintlayerAccountCommandType.UNFREEZE_TOKEN
                     token_id = x.unfreeze_token.token_id

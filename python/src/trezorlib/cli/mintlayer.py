@@ -22,7 +22,7 @@ def cli() -> None:
     "--chain-type",
     type=int,
     required=True,
-    help="chain type 1 for Mainnet, 2 for Testnet, 3 for Regtest or 4 for Signet",
+    help="Chain type: 1 for Mainnet, 2 for Testnet, 3 for Regtest or 4 for Signet",
 )
 @click.option("-n", "--address", required=True, help="BIP-32 path")
 @click.option("-d", "--show-display", is_flag=True)
@@ -57,7 +57,7 @@ def get_address(
     "--chain-type",
     type=int,
     required=True,
-    help="chain type 1 for Mainnet 2 for Testnet or 3 for Regtest",
+    help="Chain type: 1 for Mainnet, 2 for Testnet, 3 for Regtest or 4 for Signet",
 )
 @click.option("-n", "--address", required=True, help="BIP-32 path, e.g. m/44h/0h/0h")
 @click.option("-d", "--show-display", is_flag=True)
@@ -95,7 +95,7 @@ def get_public_key(
     "--chain-type",
     type=int,
     required=True,
-    help="chain type 1 for Mainnet 2 for Testnet or 3 for Regtest",
+    help="Chain type: 1 for Mainnet, 2 for Testnet, 3 for Regtest or 4 for Signet",
 )
 @click.option("-n", "--address_n", required=True, help="BIP-32 path")
 @click.option(
@@ -141,7 +141,7 @@ def sign_message(
     "--chain-type",
     type=int,
     required=True,
-    help="chain type 1 for Mainnet 2 for Testnet or 3 for Regtest",
+    help="Chain type: 1 for Mainnet, 2 for Testnet, 3 for Regtest or 4 for Signet",
 )
 @click.option("-C", "--chunkify", is_flag=True)
 @click.argument("json_file", type=click.File())

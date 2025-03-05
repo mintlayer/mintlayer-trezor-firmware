@@ -84,7 +84,7 @@ async def confirm_output(
         x = output.create_stake_pool
         assert x.staker is not None and x.decommission_key is not None
         address_short = f"""Pool ID: {x.pool_id}
-Staker: {x.staker}
+Staker key: {x.staker}
 Decommission key: {x.decommission_key}"
 VRF public key: {x.vrf_public_key}
 Margin ratio per thousand: {x.margin_ratio_per_thousand}
@@ -94,7 +94,7 @@ Cost per block: {int.from_bytes(x.cost_per_block, "big")}
         address_label = "Create staking pool"
     elif output.produce_block_from_stake:
         x = output.produce_block_from_stake
-        address_short = f"New decommission key: {x.destination}"
+        address_short = f"New staker key: {x.destination}"
         amount = ""
         address_label = "Produce block from stake"
     elif output.create_delegation_id:

@@ -690,6 +690,7 @@ class MessageType(IntEnum):
     BenchmarkListNames = 9100
     BenchmarkNames = 9101
     BenchmarkRun = 9102
+    BenchmarkResult = 9103
     MintlayerGetAddress = 10000
     MintlayerAddress = 10001
     MintlayerGetPublicKey = 10002
@@ -733,7 +734,7 @@ class BenchmarkRun(protobuf.MessageType):
 
 
 class BenchmarkResult(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = None
+    MESSAGE_WIRE_TYPE = 9103
     FIELDS = {
         1: protobuf.Field("value", "string", repeated=False, required=False, default=None),
         3: protobuf.Field("unit", "string", repeated=False, required=False, default=None),
@@ -5797,17 +5798,17 @@ class MintlayerFreezeToken(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
         1: protobuf.Field("token_id", "string", repeated=False, required=True),
-        2: protobuf.Field("is_token_unfreezeable", "bool", repeated=False, required=True),
+        2: protobuf.Field("is_token_unfreezable", "bool", repeated=False, required=True),
     }
 
     def __init__(
         self,
         *,
         token_id: "str",
-        is_token_unfreezeable: "bool",
+        is_token_unfreezable: "bool",
     ) -> None:
         self.token_id = token_id
-        self.is_token_unfreezeable = is_token_unfreezeable
+        self.is_token_unfreezable = is_token_unfreezable
 
 
 class MintlayerUnfreezeToken(protobuf.MessageType):
