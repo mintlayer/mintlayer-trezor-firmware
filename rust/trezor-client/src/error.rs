@@ -92,4 +92,14 @@ pub enum Error {
     #[cfg(feature = "bitcoin")]
     #[error(transparent)]
     Address(#[from] bitcoin::address::ParseError),
+
+    // mintlayer
+    /// Chaincode error.
+    #[cfg(feature = "mintlayer")]
+    #[error("Invalid chaincode returned from device")]
+    InvalidChaincodeFromDevice,
+    /// Device produced invalid TxRequest message.
+    #[cfg(feature = "mintlayer")]
+    #[error("Malformed MintlayerTxRequest: {0:?}")]
+    MalformedMintlayerTxRequest(protos::MintlayerTxRequest),
 }

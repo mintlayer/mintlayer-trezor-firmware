@@ -42,6 +42,7 @@ from . import (
     ethereum,
     fido,
     firmware,
+    mintlayer,
     monero,
     nem,
     ripple,
@@ -407,6 +408,7 @@ cli.add_command(device.cli)
 cli.add_command(eos.cli)
 cli.add_command(ethereum.cli)
 cli.add_command(fido.cli)
+cli.add_command(mintlayer.cli)
 cli.add_command(monero.cli)
 cli.add_command(nem.cli)
 cli.add_command(ripple.cli)

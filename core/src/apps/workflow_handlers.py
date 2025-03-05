@@ -210,6 +210,16 @@ def _find_message_handler_module(msg_type: int) -> str:
         if msg_type == MessageType.SolanaSignTx:
             return "apps.solana.sign_tx"
 
+        # mintlayer
+        if msg_type == MessageType.MintlayerGetAddress:
+            return "apps.mintlayer.get_address"
+        if msg_type == MessageType.MintlayerGetPublicKey:
+            return "apps.mintlayer.get_public_key"
+        if msg_type == MessageType.MintlayerSignMessage:
+            return "apps.mintlayer.sign_message"
+        if msg_type == MessageType.MintlayerSignTx:
+            return "apps.mintlayer.sign_tx"
+
     raise ValueError
 
 

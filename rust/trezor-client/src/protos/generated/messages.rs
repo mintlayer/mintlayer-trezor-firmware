@@ -522,6 +522,22 @@ pub enum MessageType {
     MessageType_BenchmarkRun = 9102,
     // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_BenchmarkResult)
     MessageType_BenchmarkResult = 9103,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerGetAddress)
+    MessageType_MintlayerGetAddress = 10000,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerAddress)
+    MessageType_MintlayerAddress = 10001,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerGetPublicKey)
+    MessageType_MintlayerGetPublicKey = 10002,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerPublicKey)
+    MessageType_MintlayerPublicKey = 10003,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerSignMessage)
+    MessageType_MintlayerSignMessage = 10004,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerSignTx)
+    MessageType_MintlayerSignTx = 10005,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerTxRequest)
+    MessageType_MintlayerTxRequest = 10006,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerTxAck)
+    MessageType_MintlayerTxAck = 10007,
 }
 
 impl ::protobuf::Enum for MessageType {
@@ -780,6 +796,14 @@ impl ::protobuf::Enum for MessageType {
             9101 => ::std::option::Option::Some(MessageType::MessageType_BenchmarkNames),
             9102 => ::std::option::Option::Some(MessageType::MessageType_BenchmarkRun),
             9103 => ::std::option::Option::Some(MessageType::MessageType_BenchmarkResult),
+            10000 => ::std::option::Option::Some(MessageType::MessageType_MintlayerGetAddress),
+            10001 => ::std::option::Option::Some(MessageType::MessageType_MintlayerAddress),
+            10002 => ::std::option::Option::Some(MessageType::MessageType_MintlayerGetPublicKey),
+            10003 => ::std::option::Option::Some(MessageType::MessageType_MintlayerPublicKey),
+            10004 => ::std::option::Option::Some(MessageType::MessageType_MintlayerSignMessage),
+            10005 => ::std::option::Option::Some(MessageType::MessageType_MintlayerSignTx),
+            10006 => ::std::option::Option::Some(MessageType::MessageType_MintlayerTxRequest),
+            10007 => ::std::option::Option::Some(MessageType::MessageType_MintlayerTxAck),
             _ => ::std::option::Option::None
         }
     }
@@ -1033,6 +1057,14 @@ impl ::protobuf::Enum for MessageType {
             "MessageType_BenchmarkNames" => ::std::option::Option::Some(MessageType::MessageType_BenchmarkNames),
             "MessageType_BenchmarkRun" => ::std::option::Option::Some(MessageType::MessageType_BenchmarkRun),
             "MessageType_BenchmarkResult" => ::std::option::Option::Some(MessageType::MessageType_BenchmarkResult),
+            "MessageType_MintlayerGetAddress" => ::std::option::Option::Some(MessageType::MessageType_MintlayerGetAddress),
+            "MessageType_MintlayerAddress" => ::std::option::Option::Some(MessageType::MessageType_MintlayerAddress),
+            "MessageType_MintlayerGetPublicKey" => ::std::option::Option::Some(MessageType::MessageType_MintlayerGetPublicKey),
+            "MessageType_MintlayerPublicKey" => ::std::option::Option::Some(MessageType::MessageType_MintlayerPublicKey),
+            "MessageType_MintlayerSignMessage" => ::std::option::Option::Some(MessageType::MessageType_MintlayerSignMessage),
+            "MessageType_MintlayerSignTx" => ::std::option::Option::Some(MessageType::MessageType_MintlayerSignTx),
+            "MessageType_MintlayerTxRequest" => ::std::option::Option::Some(MessageType::MessageType_MintlayerTxRequest),
+            "MessageType_MintlayerTxAck" => ::std::option::Option::Some(MessageType::MessageType_MintlayerTxAck),
             _ => ::std::option::Option::None
         }
     }
@@ -1285,6 +1317,14 @@ impl ::protobuf::Enum for MessageType {
         MessageType::MessageType_BenchmarkNames,
         MessageType::MessageType_BenchmarkRun,
         MessageType::MessageType_BenchmarkResult,
+        MessageType::MessageType_MintlayerGetAddress,
+        MessageType::MessageType_MintlayerAddress,
+        MessageType::MessageType_MintlayerGetPublicKey,
+        MessageType::MessageType_MintlayerPublicKey,
+        MessageType::MessageType_MintlayerSignMessage,
+        MessageType::MessageType_MintlayerSignTx,
+        MessageType::MessageType_MintlayerTxRequest,
+        MessageType::MessageType_MintlayerTxAck,
     ];
 }
 
@@ -1543,6 +1583,14 @@ impl ::protobuf::EnumFull for MessageType {
             MessageType::MessageType_BenchmarkNames => 244,
             MessageType::MessageType_BenchmarkRun => 245,
             MessageType::MessageType_BenchmarkResult => 246,
+            MessageType::MessageType_MintlayerGetAddress => 247,
+            MessageType::MessageType_MintlayerAddress => 248,
+            MessageType::MessageType_MintlayerGetPublicKey => 249,
+            MessageType::MessageType_MintlayerPublicKey => 250,
+            MessageType::MessageType_MintlayerSignMessage => 251,
+            MessageType::MessageType_MintlayerSignTx => 252,
+            MessageType::MessageType_MintlayerTxRequest => 253,
+            MessageType::MessageType_MintlayerTxAck => 254,
         };
         Self::enum_descriptor().value_by_index(index)
     }
@@ -1561,7 +1609,7 @@ impl MessageType {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x0emessages.proto\x12\x12hw.trezor.messages\x1a\roptions.proto*\xe8U\
+    \n\x0emessages.proto\x12\x12hw.trezor.messages\x1a\roptions.proto*\xbdX\
     \n\x0bMessageType\x12(\n\x16MessageType_Initialize\x10\0\x1a\x0c\x80\xa6\
     \x1d\x01\xb0\xb5\x18\x01\x90\xb5\x18\x01\x12\x1e\n\x10MessageType_Ping\
     \x10\x01\x1a\x08\x80\xa6\x1d\x01\x90\xb5\x18\x01\x12%\n\x13MessageType_S\
@@ -1842,11 +1890,19 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x80\xa6\x1d\x01\x12%\n\x1aMessageType_BenchmarkNames\x10\x8dG\x1a\x04\
     \x80\xa6\x1d\x01\x12#\n\x18MessageType_BenchmarkRun\x10\x8eG\x1a\x04\x80\
     \xa6\x1d\x01\x12&\n\x1bMessageType_BenchmarkResult\x10\x8fG\x1a\x04\x80\
-    \xa6\x1d\x01\x1a\x04\xc8\xf3\x18\x01\"\x04\x08Z\x10\\\"\x04\x08G\x10J\"\
-    \x04\x08r\x10z\"\x06\x08\xdb\x01\x10\xdb\x01\"\x06\x08\xe0\x01\x10\xe0\
-    \x01\"\x06\x08\xac\x02\x10\xb0\x02\"\x06\x08\xb5\x02\x10\xb8\x02\"\x06\
-    \x08\xe8\x07\x10\xcb\x08B8\n#com.satoshilabs.trezor.lib.protobufB\rTrezo\
-    rMessage\x80\xa6\x1d\x01\
+    \xa6\x1d\x01\x12*\n\x1fMessageType_MintlayerGetAddress\x10\x90N\x1a\x04\
+    \x90\xb5\x18\x01\x12'\n\x1cMessageType_MintlayerAddress\x10\x91N\x1a\x04\
+    \x98\xb5\x18\x01\x12,\n!MessageType_MintlayerGetPublicKey\x10\x92N\x1a\
+    \x04\x90\xb5\x18\x01\x12)\n\x1eMessageType_MintlayerPublicKey\x10\x93N\
+    \x1a\x04\x98\xb5\x18\x01\x12+\n\x20MessageType_MintlayerSignMessage\x10\
+    \x94N\x1a\x04\x90\xb5\x18\x01\x12&\n\x1bMessageType_MintlayerSignTx\x10\
+    \x95N\x1a\x04\x90\xb5\x18\x01\x12)\n\x1eMessageType_MintlayerTxRequest\
+    \x10\x96N\x1a\x04\x98\xb5\x18\x01\x12%\n\x1aMessageType_MintlayerTxAck\
+    \x10\x97N\x1a\x04\x90\xb5\x18\x01\x1a\x04\xc8\xf3\x18\x01\"\x04\x08Z\x10\
+    \\\"\x04\x08G\x10J\"\x04\x08r\x10z\"\x06\x08\xdb\x01\x10\xdb\x01\"\x06\
+    \x08\xe0\x01\x10\xe0\x01\"\x06\x08\xac\x02\x10\xb0\x02\"\x06\x08\xb5\x02\
+    \x10\xb8\x02\"\x06\x08\xe8\x07\x10\xcb\x08B8\n#com.satoshilabs.trezor.li\
+    b.protobufB\rTrezorMessage\x80\xa6\x1d\x01\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

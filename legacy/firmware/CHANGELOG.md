@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2.8.7-Mintlayer [7th February 2025]
+
+### Added
+- Mintlayer support  [#noissue]
+
 ## 1.12.1 [15th March 2023]
 
 ### Added

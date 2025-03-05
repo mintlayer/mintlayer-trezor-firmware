@@ -277,6 +277,7 @@ class Capability(IntEnum):
     Translations = 19
     Brightness = 20
     Haptic = 21
+    Mintlayer = 22
 
 
 class SdProtectOperationType(IntEnum):
@@ -340,6 +341,48 @@ class EthereumDataType(IntEnum):
     ADDRESS = 6
     ARRAY = 7
     STRUCT = 8
+
+
+class MintlayerAccountCommandType(IntEnum):
+    MINT_TOKENS = 0
+    UNMINT_TOKENS = 1
+    LOCK_TOKEN_SUPPLY = 2
+    FREEZE_TOKEN = 3
+    UNFREEZE_TOKEN = 4
+    CHANGE_TOKEN_AUTHORITY = 5
+    CONCLUDE_ORDER = 6
+    FILL_ORDER = 7
+    CHANGE_TOKEN_METADATA_URI = 8
+
+
+class MintlayerOutputTimeLockType(IntEnum):
+    UNTIL_HEIGHT = 0
+    UNTIL_TIME = 1
+    FOR_BLOCK_COUNT = 2
+    FOR_SECONDS = 3
+
+
+class MintlayerChainType(IntEnum):
+    Mainnet = 1
+    Testnet = 2
+    Regtest = 3
+    Signet = 4
+
+
+class MintlayerAddressType(IntEnum):
+    PUBLIC_KEY = 1
+    PUBLIC_KEY_HASH = 2
+
+
+class MintlayerUtxoType(IntEnum):
+    TRANSACTION = 0
+    BLOCK = 1
+
+
+class MintlayerTokenTotalSupplyType(IntEnum):
+    FIXED = 0
+    LOCKABLE = 1
+    UNLIMITED = 2
 
 
 class MoneroNetworkType(IntEnum):
@@ -648,6 +691,14 @@ class MessageType(IntEnum):
     BenchmarkNames = 9101
     BenchmarkRun = 9102
     BenchmarkResult = 9103
+    MintlayerGetAddress = 10000
+    MintlayerAddress = 10001
+    MintlayerGetPublicKey = 10002
+    MintlayerPublicKey = 10003
+    MintlayerSignMessage = 10004
+    MintlayerSignTx = 10005
+    MintlayerTxRequest = 10006
+    MintlayerTxAck = 10007
 
 
 class BenchmarkListNames(protobuf.MessageType):
@@ -5432,6 +5483,933 @@ class EthereumAccessList(protobuf.MessageType):
     ) -> None:
         self.storage_keys: Sequence["bytes"] = storage_keys if storage_keys is not None else []
         self.address = address
+
+
+class MintlayerGetAddress(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10000
+    FIELDS = {
+        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        2: protobuf.Field("chain_type", "MintlayerChainType", repeated=False, required=True),
+        3: protobuf.Field("show_display", "bool", repeated=False, required=False, default=None),
+        4: protobuf.Field("chunkify", "bool", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        chain_type: "MintlayerChainType",
+        address_n: Optional[Sequence["int"]] = None,
+        show_display: Optional["bool"] = None,
+        chunkify: Optional["bool"] = None,
+    ) -> None:
+        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.chain_type = chain_type
+        self.show_display = show_display
+        self.chunkify = chunkify
+
+
+class MintlayerAddress(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10001
+    FIELDS = {
+        1: protobuf.Field("address", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        address: "str",
+    ) -> None:
+        self.address = address
+
+
+class MintlayerGetPublicKey(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10002
+    FIELDS = {
+        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        2: protobuf.Field("chain_type", "MintlayerChainType", repeated=False, required=True),
+        3: protobuf.Field("show_display", "bool", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        chain_type: "MintlayerChainType",
+        address_n: Optional[Sequence["int"]] = None,
+        show_display: Optional["bool"] = None,
+    ) -> None:
+        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.chain_type = chain_type
+        self.show_display = show_display
+
+
+class MintlayerPublicKey(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10003
+    FIELDS = {
+        1: protobuf.Field("public_key", "bytes", repeated=False, required=True),
+        2: protobuf.Field("chain_code", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        public_key: "bytes",
+        chain_code: "bytes",
+    ) -> None:
+        self.public_key = public_key
+        self.chain_code = chain_code
+
+
+class MintlayerSignMessage(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10004
+    FIELDS = {
+        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        2: protobuf.Field("chain_type", "MintlayerChainType", repeated=False, required=True),
+        3: protobuf.Field("address_type", "MintlayerAddressType", repeated=False, required=True),
+        4: protobuf.Field("message", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        chain_type: "MintlayerChainType",
+        address_type: "MintlayerAddressType",
+        message: "bytes",
+        address_n: Optional[Sequence["int"]] = None,
+    ) -> None:
+        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.chain_type = chain_type
+        self.address_type = address_type
+        self.message = message
+
+
+class MintlayerSignTx(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10005
+    FIELDS = {
+        1: protobuf.Field("outputs_count", "uint32", repeated=False, required=True),
+        2: protobuf.Field("inputs_count", "uint32", repeated=False, required=True),
+        3: protobuf.Field("chain_type", "MintlayerChainType", repeated=False, required=True),
+        4: protobuf.Field("version", "uint32", repeated=False, required=False, default=1),
+        5: protobuf.Field("chunkify", "bool", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        outputs_count: "int",
+        inputs_count: "int",
+        chain_type: "MintlayerChainType",
+        version: Optional["int"] = 1,
+        chunkify: Optional["bool"] = None,
+    ) -> None:
+        self.outputs_count = outputs_count
+        self.inputs_count = inputs_count
+        self.chain_type = chain_type
+        self.version = version
+        self.chunkify = chunkify
+
+
+class MintlayerTxRequest(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10006
+    FIELDS = {
+        1: protobuf.Field("input_request", "MintlayerTxInputRequest", repeated=False, required=False, default=None),
+        2: protobuf.Field("output_request", "MintlayerTxOutputRequest", repeated=False, required=False, default=None),
+        3: protobuf.Field("signing_finished", "MintlayerTxSigningResult", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        input_request: Optional["MintlayerTxInputRequest"] = None,
+        output_request: Optional["MintlayerTxOutputRequest"] = None,
+        signing_finished: Optional["MintlayerTxSigningResult"] = None,
+    ) -> None:
+        self.input_request = input_request
+        self.output_request = output_request
+        self.signing_finished = signing_finished
+
+
+class MintlayerAddressPath(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        2: protobuf.Field("multisig_idx", "uint32", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        address_n: Optional[Sequence["int"]] = None,
+        multisig_idx: Optional["int"] = None,
+    ) -> None:
+        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.multisig_idx = multisig_idx
+
+
+class MintlayerUtxoTxInput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("addresses", "MintlayerAddressPath", repeated=True, required=False, default=None),
+        2: protobuf.Field("prev_hash", "bytes", repeated=False, required=True),
+        3: protobuf.Field("prev_index", "uint32", repeated=False, required=True),
+        4: protobuf.Field("type", "MintlayerUtxoType", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        prev_hash: "bytes",
+        prev_index: "int",
+        type: "MintlayerUtxoType",
+        addresses: Optional[Sequence["MintlayerAddressPath"]] = None,
+    ) -> None:
+        self.addresses: Sequence["MintlayerAddressPath"] = addresses if addresses is not None else []
+        self.prev_hash = prev_hash
+        self.prev_index = prev_index
+        self.type = type
+
+
+class MintlayerAccountTxInput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("addresses", "MintlayerAddressPath", repeated=True, required=False, default=None),
+        2: protobuf.Field("nonce", "uint64", repeated=False, required=True),
+        3: protobuf.Field("delegation_balance", "MintlayerAccountSpendingDelegationBalance", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        nonce: "int",
+        addresses: Optional[Sequence["MintlayerAddressPath"]] = None,
+        delegation_balance: Optional["MintlayerAccountSpendingDelegationBalance"] = None,
+    ) -> None:
+        self.addresses: Sequence["MintlayerAddressPath"] = addresses if addresses is not None else []
+        self.nonce = nonce
+        self.delegation_balance = delegation_balance
+
+
+class MintlayerAccountSpendingDelegationBalance(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("delegation_id", "string", repeated=False, required=True),
+        2: protobuf.Field("amount", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        delegation_id: "str",
+        amount: "bytes",
+    ) -> None:
+        self.delegation_id = delegation_id
+        self.amount = amount
+
+
+class MintlayerAccountCommandTxInput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("addresses", "MintlayerAddressPath", repeated=True, required=False, default=None),
+        2: protobuf.Field("nonce", "uint64", repeated=False, required=True),
+        3: protobuf.Field("mint", "MintlayerMintTokens", repeated=False, required=False, default=None),
+        4: protobuf.Field("unmint", "MintlayerUnmintTokens", repeated=False, required=False, default=None),
+        5: protobuf.Field("lock_token_supply", "MintlayerLockTokenSupply", repeated=False, required=False, default=None),
+        6: protobuf.Field("freeze_token", "MintlayerFreezeToken", repeated=False, required=False, default=None),
+        7: protobuf.Field("unfreeze_token", "MintlayerUnfreezeToken", repeated=False, required=False, default=None),
+        8: protobuf.Field("change_token_authority", "MintlayerChangeTokenAuthority", repeated=False, required=False, default=None),
+        9: protobuf.Field("conclude_order", "MintlayerConcludeOrder", repeated=False, required=False, default=None),
+        10: protobuf.Field("fill_order", "MintlayerFillOrder", repeated=False, required=False, default=None),
+        11: protobuf.Field("change_token_metadata_uri", "MintlayerChangeTokenMetadataUri", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        nonce: "int",
+        addresses: Optional[Sequence["MintlayerAddressPath"]] = None,
+        mint: Optional["MintlayerMintTokens"] = None,
+        unmint: Optional["MintlayerUnmintTokens"] = None,
+        lock_token_supply: Optional["MintlayerLockTokenSupply"] = None,
+        freeze_token: Optional["MintlayerFreezeToken"] = None,
+        unfreeze_token: Optional["MintlayerUnfreezeToken"] = None,
+        change_token_authority: Optional["MintlayerChangeTokenAuthority"] = None,
+        conclude_order: Optional["MintlayerConcludeOrder"] = None,
+        fill_order: Optional["MintlayerFillOrder"] = None,
+        change_token_metadata_uri: Optional["MintlayerChangeTokenMetadataUri"] = None,
+    ) -> None:
+        self.addresses: Sequence["MintlayerAddressPath"] = addresses if addresses is not None else []
+        self.nonce = nonce
+        self.mint = mint
+        self.unmint = unmint
+        self.lock_token_supply = lock_token_supply
+        self.freeze_token = freeze_token
+        self.unfreeze_token = unfreeze_token
+        self.change_token_authority = change_token_authority
+        self.conclude_order = conclude_order
+        self.fill_order = fill_order
+        self.change_token_metadata_uri = change_token_metadata_uri
+
+
+class MintlayerMintTokens(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("token_id", "string", repeated=False, required=True),
+        2: protobuf.Field("amount", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        token_id: "str",
+        amount: "bytes",
+    ) -> None:
+        self.token_id = token_id
+        self.amount = amount
+
+
+class MintlayerUnmintTokens(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("token_id", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        token_id: "str",
+    ) -> None:
+        self.token_id = token_id
+
+
+class MintlayerLockTokenSupply(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("token_id", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        token_id: "str",
+    ) -> None:
+        self.token_id = token_id
+
+
+class MintlayerFreezeToken(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("token_id", "string", repeated=False, required=True),
+        2: protobuf.Field("is_token_unfreezable", "bool", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        token_id: "str",
+        is_token_unfreezable: "bool",
+    ) -> None:
+        self.token_id = token_id
+        self.is_token_unfreezable = is_token_unfreezable
+
+
+class MintlayerUnfreezeToken(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("token_id", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        token_id: "str",
+    ) -> None:
+        self.token_id = token_id
+
+
+class MintlayerChangeTokenAuthority(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("token_id", "string", repeated=False, required=True),
+        2: protobuf.Field("destination", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        token_id: "str",
+        destination: "str",
+    ) -> None:
+        self.token_id = token_id
+        self.destination = destination
+
+
+class MintlayerConcludeOrder(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("order_id", "string", repeated=False, required=True),
+        2: protobuf.Field("filled_ask_amount", "MintlayerOutputValue", repeated=False, required=True),
+        3: protobuf.Field("give_balance", "MintlayerOutputValue", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        order_id: "str",
+        filled_ask_amount: "MintlayerOutputValue",
+        give_balance: "MintlayerOutputValue",
+    ) -> None:
+        self.order_id = order_id
+        self.filled_ask_amount = filled_ask_amount
+        self.give_balance = give_balance
+
+
+class MintlayerFillOrder(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("order_id", "string", repeated=False, required=True),
+        2: protobuf.Field("amount", "bytes", repeated=False, required=True),
+        3: protobuf.Field("destination", "string", repeated=False, required=True),
+        4: protobuf.Field("ask_balance", "MintlayerOutputValue", repeated=False, required=True),
+        5: protobuf.Field("give_balance", "MintlayerOutputValue", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        order_id: "str",
+        amount: "bytes",
+        destination: "str",
+        ask_balance: "MintlayerOutputValue",
+        give_balance: "MintlayerOutputValue",
+    ) -> None:
+        self.order_id = order_id
+        self.amount = amount
+        self.destination = destination
+        self.ask_balance = ask_balance
+        self.give_balance = give_balance
+
+
+class MintlayerChangeTokenMetadataUri(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("token_id", "string", repeated=False, required=True),
+        2: protobuf.Field("metadata_uri", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        token_id: "str",
+        metadata_uri: "bytes",
+    ) -> None:
+        self.token_id = token_id
+        self.metadata_uri = metadata_uri
+
+
+class MintlayerTokenOutputValue(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("token_id", "string", repeated=False, required=True),
+        2: protobuf.Field("token_ticker", "bytes", repeated=False, required=True),
+        3: protobuf.Field("number_of_decimals", "uint32", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        token_id: "str",
+        token_ticker: "bytes",
+        number_of_decimals: "int",
+    ) -> None:
+        self.token_id = token_id
+        self.token_ticker = token_ticker
+        self.number_of_decimals = number_of_decimals
+
+
+class MintlayerOutputValue(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("amount", "bytes", repeated=False, required=True),
+        2: protobuf.Field("token", "MintlayerTokenOutputValue", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        amount: "bytes",
+        token: Optional["MintlayerTokenOutputValue"] = None,
+    ) -> None:
+        self.amount = amount
+        self.token = token
+
+
+class MintlayerTransferTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("address", "string", repeated=False, required=True),
+        2: protobuf.Field("value", "MintlayerOutputValue", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        address: "str",
+        value: "MintlayerOutputValue",
+    ) -> None:
+        self.address = address
+        self.value = value
+
+
+class MintlayerOutputTimeLock(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("until_height", "uint64", repeated=False, required=False, default=None),
+        2: protobuf.Field("until_time", "uint64", repeated=False, required=False, default=None),
+        3: protobuf.Field("for_block_count", "uint64", repeated=False, required=False, default=None),
+        4: protobuf.Field("for_seconds", "uint64", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        until_height: Optional["int"] = None,
+        until_time: Optional["int"] = None,
+        for_block_count: Optional["int"] = None,
+        for_seconds: Optional["int"] = None,
+    ) -> None:
+        self.until_height = until_height
+        self.until_time = until_time
+        self.for_block_count = for_block_count
+        self.for_seconds = for_seconds
+
+
+class MintlayerLockThenTransferTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("address", "string", repeated=False, required=True),
+        2: protobuf.Field("value", "MintlayerOutputValue", repeated=False, required=True),
+        3: protobuf.Field("lock", "MintlayerOutputTimeLock", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        address: "str",
+        value: "MintlayerOutputValue",
+        lock: "MintlayerOutputTimeLock",
+    ) -> None:
+        self.address = address
+        self.value = value
+        self.lock = lock
+
+
+class MintlayerBurnTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("value", "MintlayerOutputValue", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        value: "MintlayerOutputValue",
+    ) -> None:
+        self.value = value
+
+
+class MintlayerCreateStakePoolTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("pool_id", "string", repeated=False, required=True),
+        2: protobuf.Field("pledge", "bytes", repeated=False, required=True),
+        3: protobuf.Field("staker", "string", repeated=False, required=True),
+        4: protobuf.Field("vrf_public_key", "string", repeated=False, required=True),
+        5: protobuf.Field("decommission_key", "string", repeated=False, required=True),
+        6: protobuf.Field("margin_ratio_per_thousand", "uint32", repeated=False, required=True),
+        7: protobuf.Field("cost_per_block", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        pool_id: "str",
+        pledge: "bytes",
+        staker: "str",
+        vrf_public_key: "str",
+        decommission_key: "str",
+        margin_ratio_per_thousand: "int",
+        cost_per_block: "bytes",
+    ) -> None:
+        self.pool_id = pool_id
+        self.pledge = pledge
+        self.staker = staker
+        self.vrf_public_key = vrf_public_key
+        self.decommission_key = decommission_key
+        self.margin_ratio_per_thousand = margin_ratio_per_thousand
+        self.cost_per_block = cost_per_block
+
+
+class MintlayerProduceBlockFromStakeTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("destination", "string", repeated=False, required=True),
+        2: protobuf.Field("pool_id", "string", repeated=False, required=True),
+        3: protobuf.Field("staker_balance", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        destination: "str",
+        pool_id: "str",
+        staker_balance: "bytes",
+    ) -> None:
+        self.destination = destination
+        self.pool_id = pool_id
+        self.staker_balance = staker_balance
+
+
+class MintlayerCreateDelegationIdTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("destination", "string", repeated=False, required=True),
+        2: protobuf.Field("pool_id", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        destination: "str",
+        pool_id: "str",
+    ) -> None:
+        self.destination = destination
+        self.pool_id = pool_id
+
+
+class MintlayerDelegateStakingTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("amount", "bytes", repeated=False, required=True),
+        2: protobuf.Field("delegation_id", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        amount: "bytes",
+        delegation_id: "str",
+    ) -> None:
+        self.amount = amount
+        self.delegation_id = delegation_id
+
+
+class MintlayerTokenTotalSupply(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("type", "MintlayerTokenTotalSupplyType", repeated=False, required=True),
+        2: protobuf.Field("fixed_amount", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        type: "MintlayerTokenTotalSupplyType",
+        fixed_amount: Optional["bytes"] = None,
+    ) -> None:
+        self.type = type
+        self.fixed_amount = fixed_amount
+
+
+class MintlayerIssueFungibleTokenTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("token_ticker", "bytes", repeated=False, required=True),
+        2: protobuf.Field("number_of_decimals", "uint32", repeated=False, required=True),
+        3: protobuf.Field("metadata_uri", "bytes", repeated=False, required=True),
+        4: protobuf.Field("total_supply", "MintlayerTokenTotalSupply", repeated=False, required=True),
+        5: protobuf.Field("authority", "string", repeated=False, required=True),
+        6: protobuf.Field("is_freezable", "bool", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        token_ticker: "bytes",
+        number_of_decimals: "int",
+        metadata_uri: "bytes",
+        total_supply: "MintlayerTokenTotalSupply",
+        authority: "str",
+        is_freezable: "bool",
+    ) -> None:
+        self.token_ticker = token_ticker
+        self.number_of_decimals = number_of_decimals
+        self.metadata_uri = metadata_uri
+        self.total_supply = total_supply
+        self.authority = authority
+        self.is_freezable = is_freezable
+
+
+class MintlayerIssueNftTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("token_id", "string", repeated=False, required=True),
+        2: protobuf.Field("destination", "string", repeated=False, required=True),
+        3: protobuf.Field("creator", "string", repeated=False, required=False, default=None),
+        4: protobuf.Field("name", "bytes", repeated=False, required=True),
+        5: protobuf.Field("description", "bytes", repeated=False, required=True),
+        6: protobuf.Field("ticker", "bytes", repeated=False, required=True),
+        7: protobuf.Field("icon_uri", "bytes", repeated=False, required=False, default=None),
+        8: protobuf.Field("additional_metadata_uri", "bytes", repeated=False, required=False, default=None),
+        9: protobuf.Field("media_uri", "bytes", repeated=False, required=False, default=None),
+        10: protobuf.Field("media_hash", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        token_id: "str",
+        destination: "str",
+        name: "bytes",
+        description: "bytes",
+        ticker: "bytes",
+        media_hash: "bytes",
+        creator: Optional["str"] = None,
+        icon_uri: Optional["bytes"] = None,
+        additional_metadata_uri: Optional["bytes"] = None,
+        media_uri: Optional["bytes"] = None,
+    ) -> None:
+        self.token_id = token_id
+        self.destination = destination
+        self.name = name
+        self.description = description
+        self.ticker = ticker
+        self.media_hash = media_hash
+        self.creator = creator
+        self.icon_uri = icon_uri
+        self.additional_metadata_uri = additional_metadata_uri
+        self.media_uri = media_uri
+
+
+class MintlayerDataDepositTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("data", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        data: "bytes",
+    ) -> None:
+        self.data = data
+
+
+class MintlayerHtlcTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("value", "MintlayerOutputValue", repeated=False, required=True),
+        2: protobuf.Field("secret_hash", "bytes", repeated=False, required=True),
+        3: protobuf.Field("spend_key", "string", repeated=False, required=True),
+        4: protobuf.Field("refund_timelock", "MintlayerOutputTimeLock", repeated=False, required=True),
+        5: protobuf.Field("refund_key", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        value: "MintlayerOutputValue",
+        secret_hash: "bytes",
+        spend_key: "str",
+        refund_timelock: "MintlayerOutputTimeLock",
+        refund_key: "str",
+    ) -> None:
+        self.value = value
+        self.secret_hash = secret_hash
+        self.spend_key = spend_key
+        self.refund_timelock = refund_timelock
+        self.refund_key = refund_key
+
+
+class MintlayerCreateOrderTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("conclude_key", "string", repeated=False, required=True),
+        2: protobuf.Field("ask", "MintlayerOutputValue", repeated=False, required=True),
+        3: protobuf.Field("give", "MintlayerOutputValue", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        conclude_key: "str",
+        ask: "MintlayerOutputValue",
+        give: "MintlayerOutputValue",
+    ) -> None:
+        self.conclude_key = conclude_key
+        self.ask = ask
+        self.give = give
+
+
+class MintlayerTxAck(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10007
+    FIELDS = {
+        1: protobuf.Field("input", "MintlayerTxInput", repeated=False, required=False, default=None),
+        2: protobuf.Field("output", "MintlayerTxOutput", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        input: Optional["MintlayerTxInput"] = None,
+        output: Optional["MintlayerTxOutput"] = None,
+    ) -> None:
+        self.input = input
+        self.output = output
+
+
+class MintlayerTxInputRequest(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("input_index", "uint32", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        input_index: "int",
+    ) -> None:
+        self.input_index = input_index
+
+
+class MintlayerTxOutputRequest(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("output_index", "uint32", repeated=False, required=True),
+        2: protobuf.Field("tx_hash", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        output_index: "int",
+        tx_hash: Optional["bytes"] = None,
+    ) -> None:
+        self.output_index = output_index
+        self.tx_hash = tx_hash
+
+
+class MintlayerSignature(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("signature", "bytes", repeated=False, required=True),
+        2: protobuf.Field("multisig_idx", "uint32", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        signature: "bytes",
+        multisig_idx: Optional["int"] = None,
+    ) -> None:
+        self.signature = signature
+        self.multisig_idx = multisig_idx
+
+
+class MintlayerSignaturesForInput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("input_index", "uint32", repeated=False, required=True),
+        2: protobuf.Field("signatures", "MintlayerSignature", repeated=True, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        input_index: "int",
+        signatures: Optional[Sequence["MintlayerSignature"]] = None,
+    ) -> None:
+        self.signatures: Sequence["MintlayerSignature"] = signatures if signatures is not None else []
+        self.input_index = input_index
+
+
+class MintlayerTxSigningResult(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("signatures", "MintlayerSignaturesForInput", repeated=True, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        signatures: Optional[Sequence["MintlayerSignaturesForInput"]] = None,
+    ) -> None:
+        self.signatures: Sequence["MintlayerSignaturesForInput"] = signatures if signatures is not None else []
+
+
+class MintlayerTxInput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("utxo", "MintlayerUtxoTxInput", repeated=False, required=False, default=None),
+        2: protobuf.Field("account", "MintlayerAccountTxInput", repeated=False, required=False, default=None),
+        3: protobuf.Field("account_command", "MintlayerAccountCommandTxInput", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        utxo: Optional["MintlayerUtxoTxInput"] = None,
+        account: Optional["MintlayerAccountTxInput"] = None,
+        account_command: Optional["MintlayerAccountCommandTxInput"] = None,
+    ) -> None:
+        self.utxo = utxo
+        self.account = account
+        self.account_command = account_command
+
+
+class MintlayerTxOutput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("transfer", "MintlayerTransferTxOutput", repeated=False, required=False, default=None),
+        2: protobuf.Field("lock_then_transfer", "MintlayerLockThenTransferTxOutput", repeated=False, required=False, default=None),
+        3: protobuf.Field("burn", "MintlayerBurnTxOutput", repeated=False, required=False, default=None),
+        4: protobuf.Field("create_stake_pool", "MintlayerCreateStakePoolTxOutput", repeated=False, required=False, default=None),
+        5: protobuf.Field("produce_block_from_stake", "MintlayerProduceBlockFromStakeTxOutput", repeated=False, required=False, default=None),
+        6: protobuf.Field("create_delegation_id", "MintlayerCreateDelegationIdTxOutput", repeated=False, required=False, default=None),
+        7: protobuf.Field("delegate_staking", "MintlayerDelegateStakingTxOutput", repeated=False, required=False, default=None),
+        8: protobuf.Field("issue_fungible_token", "MintlayerIssueFungibleTokenTxOutput", repeated=False, required=False, default=None),
+        9: protobuf.Field("issue_nft", "MintlayerIssueNftTxOutput", repeated=False, required=False, default=None),
+        10: protobuf.Field("data_deposit", "MintlayerDataDepositTxOutput", repeated=False, required=False, default=None),
+        11: protobuf.Field("htlc", "MintlayerHtlcTxOutput", repeated=False, required=False, default=None),
+        12: protobuf.Field("create_order", "MintlayerCreateOrderTxOutput", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        transfer: Optional["MintlayerTransferTxOutput"] = None,
+        lock_then_transfer: Optional["MintlayerLockThenTransferTxOutput"] = None,
+        burn: Optional["MintlayerBurnTxOutput"] = None,
+        create_stake_pool: Optional["MintlayerCreateStakePoolTxOutput"] = None,
+        produce_block_from_stake: Optional["MintlayerProduceBlockFromStakeTxOutput"] = None,
+        create_delegation_id: Optional["MintlayerCreateDelegationIdTxOutput"] = None,
+        delegate_staking: Optional["MintlayerDelegateStakingTxOutput"] = None,
+        issue_fungible_token: Optional["MintlayerIssueFungibleTokenTxOutput"] = None,
+        issue_nft: Optional["MintlayerIssueNftTxOutput"] = None,
+        data_deposit: Optional["MintlayerDataDepositTxOutput"] = None,
+        htlc: Optional["MintlayerHtlcTxOutput"] = None,
+        create_order: Optional["MintlayerCreateOrderTxOutput"] = None,
+    ) -> None:
+        self.transfer = transfer
+        self.lock_then_transfer = lock_then_transfer
+        self.burn = burn
+        self.create_stake_pool = create_stake_pool
+        self.produce_block_from_stake = produce_block_from_stake
+        self.create_delegation_id = create_delegation_id
+        self.delegate_staking = delegate_staking
+        self.issue_fungible_token = issue_fungible_token
+        self.issue_nft = issue_nft
+        self.data_deposit = data_deposit
+        self.htlc = htlc
+        self.create_order = create_order
 
 
 class MoneroTransactionSourceEntry(protobuf.MessageType):

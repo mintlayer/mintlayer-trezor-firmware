@@ -245,6 +245,7 @@ if TYPE_CHECKING:
         Translations = 19
         Brightness = 20
         Haptic = 21
+        Mintlayer = 22
 
     class SdProtectOperationType(IntEnum):
         DISABLE = 0
@@ -298,6 +299,42 @@ if TYPE_CHECKING:
         ADDRESS = 6
         ARRAY = 7
         STRUCT = 8
+
+    class MintlayerAccountCommandType(IntEnum):
+        MINT_TOKENS = 0
+        UNMINT_TOKENS = 1
+        LOCK_TOKEN_SUPPLY = 2
+        FREEZE_TOKEN = 3
+        UNFREEZE_TOKEN = 4
+        CHANGE_TOKEN_AUTHORITY = 5
+        CONCLUDE_ORDER = 6
+        FILL_ORDER = 7
+        CHANGE_TOKEN_METADATA_URI = 8
+
+    class MintlayerOutputTimeLockType(IntEnum):
+        UNTIL_HEIGHT = 0
+        UNTIL_TIME = 1
+        FOR_BLOCK_COUNT = 2
+        FOR_SECONDS = 3
+
+    class MintlayerChainType(IntEnum):
+        Mainnet = 1
+        Testnet = 2
+        Regtest = 3
+        Signet = 4
+
+    class MintlayerAddressType(IntEnum):
+        PUBLIC_KEY = 1
+        PUBLIC_KEY_HASH = 2
+
+    class MintlayerUtxoType(IntEnum):
+        TRANSACTION = 0
+        BLOCK = 1
+
+    class MintlayerTokenTotalSupplyType(IntEnum):
+        FIXED = 0
+        LOCKABLE = 1
+        UNLIMITED = 2
 
     class MoneroNetworkType(IntEnum):
         MAINNET = 0
@@ -595,3 +632,11 @@ if TYPE_CHECKING:
         BenchmarkNames = 9101
         BenchmarkRun = 9102
         BenchmarkResult = 9103
+        MintlayerGetAddress = 10000
+        MintlayerAddress = 10001
+        MintlayerGetPublicKey = 10002
+        MintlayerPublicKey = 10003
+        MintlayerSignMessage = 10004
+        MintlayerSignTx = 10005
+        MintlayerTxRequest = 10006
+        MintlayerTxAck = 10007

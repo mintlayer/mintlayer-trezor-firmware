@@ -29,6 +29,7 @@ ALTCOINS = (
     "tezos",
     "webauthn",
     "zcash",
+    "mintlayer"
 )
 
 pyfiles = chain.from_iterable(sorted(SRCDIR.glob(p)) for p in PATTERNS)

@@ -16,6 +16,11 @@ pub use solana::*;
 pub mod common;
 pub use common::*;
 
+#[cfg(feature = "mintlayer")]
+pub mod mintlayer;
+#[cfg(feature = "mintlayer")]
+pub use mintlayer::*;
+
 use crate::{
     error::{Error, Result},
     messages::TrezorMessage,

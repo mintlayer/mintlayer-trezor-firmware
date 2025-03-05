@@ -88,6 +88,7 @@ SOURCE_MOD += [
     'embed/upymod/modtrezorcrypto/crc.c',
     'embed/upymod/modtrezorcrypto/modtrezorcrypto.c',
     'embed/upymod/modtrezorcrypto/rand.c',
+    'embed/upymod/modtrezormintlayer/modtrezormintlayer.c',
 ]
 SOURCE_MOD_CRYPTO += [
     'vendor/trezor-crypto/address.c',
@@ -606,6 +607,7 @@ if FROZEN:
             SOURCE_PY_DIR + 'trezor/enums/Stellar*.py',
             SOURCE_PY_DIR + 'trezor/enums/Tezos*.py',
             SOURCE_PY_DIR + 'trezor/enums/Zcash*.py',
+            SOURCE_PY_DIR + 'trezor/enums/Mintlayer*.py',
         ])
     )
 
@@ -681,6 +683,10 @@ if FROZEN:
         SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'trezor/enums/Tezos*.py'))
 
         SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'apps/zcash/*.py'))
+
+        SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'apps/mintlayer/*.py'))
+        SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'apps/mintlayer/sign_tx/*.py'))
+        SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'trezor/enums/Mintlayer*.py'))
 
         SOURCE_PY.extend(Glob(SOURCE_PY_DIR + 'apps/webauthn/*.py'))
 
@@ -785,7 +791,7 @@ def cargo_build():
         f'--target-dir=../../build/firmware/rust',
         '--no-default-features',
         '--features ' + ','.join(features),
-        '-Z build-std=core',
+        '-Z build-std=core,alloc',
         '-Z build-std-features=panic_immediate_abort',
     ]
 
