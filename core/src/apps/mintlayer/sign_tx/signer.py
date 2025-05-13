@@ -300,6 +300,60 @@ class Mintlayer:
                 else:
                     raise DataError("Unknown account command")
                 self.tx_info.add_input(txi, None, nodes)
+            elif txi.order_command:
+                x = txi.order_command
+                nodes = []
+                for address in x.addresses:
+                    nodes.append(
+                        (
+                            self.keychain.derive(address.address_n),
+                            address.multisig_idx,
+                        )
+                    )
+                if x.fill:
+                    give_amount = int.from_bytes(x.fill.give_balance.amount, "big")
+                    fill_amount = int.from_bytes(x.fill.amount, "big")
+                    ask_amount = int.from_bytes(x.fill.ask_balance.amount, "big")
+
+                    amount = (give_amount * fill_amount) // ask_amount
+
+                    give = x.fill.give_balance
+                    ask_token_or_coin = (
+                        give.token.token_id
+                        if give.token
+                        else self.coininfo.coin_shortcut
+                    )
+
+                    totals[ask_token_or_coin] = (
+                        totals.get(ask_token_or_coin, 0) + amount
+                    )
+                elif x.freeze:
+                    pass
+                elif x.conclude:
+                    ask = x.conclude.filled_ask_amount
+                    ask_amount = int.from_bytes(ask.amount, "big")
+                    ask_token_or_coin = (
+                        ask.token.token_id if ask.token else self.coininfo.coin_shortcut
+                    )
+
+                    totals[ask_token_or_coin] = (
+                        totals.get(ask_token_or_coin, 0) + ask_amount
+                    )
+
+                    give = x.conclude.give_balance
+                    give_amount = int.from_bytes(give.amount, "big")
+                    give_token_or_coin = (
+                        give.token.token_id
+                        if give.token
+                        else self.coininfo.coin_shortcut
+                    )
+
+                    totals[give_token_or_coin] = (
+                        totals.get(give_token_or_coin, 0) + give_amount
+                    )
+                else:
+                    raise DataError("Unknown order command")
+                self.tx_info.add_input(txi, None, nodes)
             else:
                 raise DataError("Unhandled tx input type")
 
@@ -429,6 +483,58 @@ class Mintlayer:
                 encoded_inputs.append(encoded_inp)
                 # just add a \x00 for an empty Option as account command inputs don't have an UTXO
                 encoded_input_utxos.append(b"\x00")
+            elif inp.input.order_command:
+                x = inp.input.order_command
+
+                if x.conclude:
+                    ord = x.conclude
+                    encoded_inp = (
+                        mintlayer_utils.encode_conclude_order_v1_order_command_input(
+                            mintlayer_decode(
+                                ord.order_id, self.coininfo.prefixes.order
+                            ),
+                        )
+                    )
+                    encoded_inputs.append(encoded_inp)
+                    # just add a \x00 for an empty Option as order command inputs don't have an UTXO
+                    # TODO: fix when input commitments are ready
+                    encoded_input_utxos.append(b"\x00")
+                    continue
+                elif x.freeze:
+                    ord = x.freeze
+                    encoded_inp = (
+                        mintlayer_utils.encode_freeze_order_v1_order_command_input(
+                            mintlayer_decode(
+                                ord.order_id, self.coininfo.prefixes.order
+                            ),
+                        )
+                    )
+                    encoded_inputs.append(encoded_inp)
+                    # just add a \x00 for an empty Option as order command inputs don't have an UTXO
+                    # TODO: fix when input commitments are ready
+                    encoded_input_utxos.append(b"\x00")
+                    continue
+                elif x.fill:
+                    ord = x.fill
+                    destination = decode_nullable_address(ord.destination)
+                    encoded_inp = (
+                        mintlayer_utils.encode_fill_order_v1_order_command_input(
+                            mintlayer_decode(
+                                ord.order_id, self.coininfo.prefixes.order
+                            ),
+                            ord.amount,
+                            destination,
+                        )
+                    )
+                    encoded_inputs.append(encoded_inp)
+                    # just add a \x00 for an empty Option as account command inputs don't have an UTXO
+                    # TODO: fix when input commitments are ready
+                    encoded_input_utxos.append(b"\x00")
+                    continue
+                else:
+                    raise DataError("Unknown account command")
+            else:
+                raise DataError("Unknown input type")
 
         return encoded_inputs, encoded_input_utxos
 

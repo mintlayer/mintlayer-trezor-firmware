@@ -520,7 +520,7 @@ dependencies = [
 [[package]]
 name = "trezor-common"
 version = "1.0.2"
-source = "git+https://github.com/mintlayer/mintlayer-core?branch=master#5e6bb4778bb9e1c02ec3fb2662aac4b471cc4d58"
+source = "git+https://github.com/mintlayer/mintlayer-core?branch=trezor-common-orders-v1#0baa1abf2dd75acbb0ba140c30e23830268f1882"
 dependencies = [
  "num-derive 0.4.2",
  "num-traits",

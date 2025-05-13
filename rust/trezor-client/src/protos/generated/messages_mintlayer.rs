@@ -3659,6 +3659,911 @@ impl ::protobuf::reflect::ProtobufValue for MintlayerAccountCommandTxInput {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
+// @@protoc_insertion_point(message:hw.trezor.messages.mintlayer.MintlayerOrderCommandTxInput)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct MintlayerOrderCommandTxInput {
+    // message fields
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerOrderCommandTxInput.addresses)
+    pub addresses: ::std::vec::Vec<MintlayerAddressPath>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerOrderCommandTxInput.fill)
+    pub fill: ::protobuf::MessageField<MintlayerFillOrderV1>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerOrderCommandTxInput.freeze)
+    pub freeze: ::protobuf::MessageField<MintlayerFreezeOrder>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerOrderCommandTxInput.conclude)
+    pub conclude: ::protobuf::MessageField<MintlayerConcludeOrderV1>,
+    // special fields
+    // @@protoc_insertion_point(special_field:hw.trezor.messages.mintlayer.MintlayerOrderCommandTxInput.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a MintlayerOrderCommandTxInput {
+    fn default() -> &'a MintlayerOrderCommandTxInput {
+        <MintlayerOrderCommandTxInput as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl MintlayerOrderCommandTxInput {
+    pub fn new() -> MintlayerOrderCommandTxInput {
+        ::std::default::Default::default()
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(4);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "addresses",
+            |m: &MintlayerOrderCommandTxInput| { &m.addresses },
+            |m: &mut MintlayerOrderCommandTxInput| { &mut m.addresses },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, MintlayerFillOrderV1>(
+            "fill",
+            |m: &MintlayerOrderCommandTxInput| { &m.fill },
+            |m: &mut MintlayerOrderCommandTxInput| { &mut m.fill },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, MintlayerFreezeOrder>(
+            "freeze",
+            |m: &MintlayerOrderCommandTxInput| { &m.freeze },
+            |m: &mut MintlayerOrderCommandTxInput| { &mut m.freeze },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, MintlayerConcludeOrderV1>(
+            "conclude",
+            |m: &MintlayerOrderCommandTxInput| { &m.conclude },
+            |m: &mut MintlayerOrderCommandTxInput| { &mut m.conclude },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<MintlayerOrderCommandTxInput>(
+            "MintlayerOrderCommandTxInput",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for MintlayerOrderCommandTxInput {
+    const NAME: &'static str = "MintlayerOrderCommandTxInput";
+
+    fn is_initialized(&self) -> bool {
+        for v in &self.addresses {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.fill {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.freeze {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.conclude {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.addresses.push(is.read_message()?);
+                },
+                18 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.fill)?;
+                },
+                26 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.freeze)?;
+                },
+                34 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.conclude)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        for value in &self.addresses {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        if let Some(v) = self.fill.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.freeze.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.conclude.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        for v in &self.addresses {
+            ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+        };
+        if let Some(v) = self.fill.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        }
+        if let Some(v) = self.freeze.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+        }
+        if let Some(v) = self.conclude.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> MintlayerOrderCommandTxInput {
+        MintlayerOrderCommandTxInput::new()
+    }
+
+    fn clear(&mut self) {
+        self.addresses.clear();
+        self.fill.clear();
+        self.freeze.clear();
+        self.conclude.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static MintlayerOrderCommandTxInput {
+        static instance: MintlayerOrderCommandTxInput = MintlayerOrderCommandTxInput {
+            addresses: ::std::vec::Vec::new(),
+            fill: ::protobuf::MessageField::none(),
+            freeze: ::protobuf::MessageField::none(),
+            conclude: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for MintlayerOrderCommandTxInput {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("MintlayerOrderCommandTxInput").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for MintlayerOrderCommandTxInput {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for MintlayerOrderCommandTxInput {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+// @@protoc_insertion_point(message:hw.trezor.messages.mintlayer.MintlayerFillOrderV1)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct MintlayerFillOrderV1 {
+    // message fields
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFillOrderV1.order_id)
+    pub order_id: ::std::option::Option<::std::string::String>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFillOrderV1.amount)
+    pub amount: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFillOrderV1.destination)
+    pub destination: ::std::option::Option<::std::string::String>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFillOrderV1.ask_balance)
+    pub ask_balance: ::protobuf::MessageField<MintlayerOutputValue>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFillOrderV1.give_balance)
+    pub give_balance: ::protobuf::MessageField<MintlayerOutputValue>,
+    // special fields
+    // @@protoc_insertion_point(special_field:hw.trezor.messages.mintlayer.MintlayerFillOrderV1.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a MintlayerFillOrderV1 {
+    fn default() -> &'a MintlayerFillOrderV1 {
+        <MintlayerFillOrderV1 as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl MintlayerFillOrderV1 {
+    pub fn new() -> MintlayerFillOrderV1 {
+        ::std::default::Default::default()
+    }
+
+    // required string order_id = 1;
+
+    pub fn order_id(&self) -> &str {
+        match self.order_id.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_order_id(&mut self) {
+        self.order_id = ::std::option::Option::None;
+    }
+
+    pub fn has_order_id(&self) -> bool {
+        self.order_id.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_order_id(&mut self, v: ::std::string::String) {
+        self.order_id = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_order_id(&mut self) -> &mut ::std::string::String {
+        if self.order_id.is_none() {
+            self.order_id = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.order_id.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_order_id(&mut self) -> ::std::string::String {
+        self.order_id.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
+    // required bytes amount = 2;
+
+    pub fn amount(&self) -> &[u8] {
+        match self.amount.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_amount(&mut self) {
+        self.amount = ::std::option::Option::None;
+    }
+
+    pub fn has_amount(&self) -> bool {
+        self.amount.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_amount(&mut self, v: ::std::vec::Vec<u8>) {
+        self.amount = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_amount(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.amount.is_none() {
+            self.amount = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.amount.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_amount(&mut self) -> ::std::vec::Vec<u8> {
+        self.amount.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
+    // required string destination = 3;
+
+    pub fn destination(&self) -> &str {
+        match self.destination.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_destination(&mut self) {
+        self.destination = ::std::option::Option::None;
+    }
+
+    pub fn has_destination(&self) -> bool {
+        self.destination.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_destination(&mut self, v: ::std::string::String) {
+        self.destination = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_destination(&mut self) -> &mut ::std::string::String {
+        if self.destination.is_none() {
+            self.destination = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.destination.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_destination(&mut self) -> ::std::string::String {
+        self.destination.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(5);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "order_id",
+            |m: &MintlayerFillOrderV1| { &m.order_id },
+            |m: &mut MintlayerFillOrderV1| { &mut m.order_id },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "amount",
+            |m: &MintlayerFillOrderV1| { &m.amount },
+            |m: &mut MintlayerFillOrderV1| { &mut m.amount },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "destination",
+            |m: &MintlayerFillOrderV1| { &m.destination },
+            |m: &mut MintlayerFillOrderV1| { &mut m.destination },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, MintlayerOutputValue>(
+            "ask_balance",
+            |m: &MintlayerFillOrderV1| { &m.ask_balance },
+            |m: &mut MintlayerFillOrderV1| { &mut m.ask_balance },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, MintlayerOutputValue>(
+            "give_balance",
+            |m: &MintlayerFillOrderV1| { &m.give_balance },
+            |m: &mut MintlayerFillOrderV1| { &mut m.give_balance },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<MintlayerFillOrderV1>(
+            "MintlayerFillOrderV1",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for MintlayerFillOrderV1 {
+    const NAME: &'static str = "MintlayerFillOrderV1";
+
+    fn is_initialized(&self) -> bool {
+        if self.order_id.is_none() {
+            return false;
+        }
+        if self.amount.is_none() {
+            return false;
+        }
+        if self.destination.is_none() {
+            return false;
+        }
+        if self.ask_balance.is_none() {
+            return false;
+        }
+        if self.give_balance.is_none() {
+            return false;
+        }
+        for v in &self.ask_balance {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.give_balance {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.order_id = ::std::option::Option::Some(is.read_string()?);
+                },
+                18 => {
+                    self.amount = ::std::option::Option::Some(is.read_bytes()?);
+                },
+                26 => {
+                    self.destination = ::std::option::Option::Some(is.read_string()?);
+                },
+                34 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.ask_balance)?;
+                },
+                42 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.give_balance)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if let Some(v) = self.order_id.as_ref() {
+            my_size += ::protobuf::rt::string_size(1, &v);
+        }
+        if let Some(v) = self.amount.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(2, &v);
+        }
+        if let Some(v) = self.destination.as_ref() {
+            my_size += ::protobuf::rt::string_size(3, &v);
+        }
+        if let Some(v) = self.ask_balance.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.give_balance.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if let Some(v) = self.order_id.as_ref() {
+            os.write_string(1, v)?;
+        }
+        if let Some(v) = self.amount.as_ref() {
+            os.write_bytes(2, v)?;
+        }
+        if let Some(v) = self.destination.as_ref() {
+            os.write_string(3, v)?;
+        }
+        if let Some(v) = self.ask_balance.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
+        }
+        if let Some(v) = self.give_balance.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(5, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> MintlayerFillOrderV1 {
+        MintlayerFillOrderV1::new()
+    }
+
+    fn clear(&mut self) {
+        self.order_id = ::std::option::Option::None;
+        self.amount = ::std::option::Option::None;
+        self.destination = ::std::option::Option::None;
+        self.ask_balance.clear();
+        self.give_balance.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static MintlayerFillOrderV1 {
+        static instance: MintlayerFillOrderV1 = MintlayerFillOrderV1 {
+            order_id: ::std::option::Option::None,
+            amount: ::std::option::Option::None,
+            destination: ::std::option::Option::None,
+            ask_balance: ::protobuf::MessageField::none(),
+            give_balance: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for MintlayerFillOrderV1 {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("MintlayerFillOrderV1").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for MintlayerFillOrderV1 {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for MintlayerFillOrderV1 {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+// @@protoc_insertion_point(message:hw.trezor.messages.mintlayer.MintlayerFreezeOrder)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct MintlayerFreezeOrder {
+    // message fields
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFreezeOrder.order_id)
+    pub order_id: ::std::option::Option<::std::string::String>,
+    // special fields
+    // @@protoc_insertion_point(special_field:hw.trezor.messages.mintlayer.MintlayerFreezeOrder.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a MintlayerFreezeOrder {
+    fn default() -> &'a MintlayerFreezeOrder {
+        <MintlayerFreezeOrder as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl MintlayerFreezeOrder {
+    pub fn new() -> MintlayerFreezeOrder {
+        ::std::default::Default::default()
+    }
+
+    // required string order_id = 1;
+
+    pub fn order_id(&self) -> &str {
+        match self.order_id.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_order_id(&mut self) {
+        self.order_id = ::std::option::Option::None;
+    }
+
+    pub fn has_order_id(&self) -> bool {
+        self.order_id.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_order_id(&mut self, v: ::std::string::String) {
+        self.order_id = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_order_id(&mut self) -> &mut ::std::string::String {
+        if self.order_id.is_none() {
+            self.order_id = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.order_id.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_order_id(&mut self) -> ::std::string::String {
+        self.order_id.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(1);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "order_id",
+            |m: &MintlayerFreezeOrder| { &m.order_id },
+            |m: &mut MintlayerFreezeOrder| { &mut m.order_id },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<MintlayerFreezeOrder>(
+            "MintlayerFreezeOrder",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for MintlayerFreezeOrder {
+    const NAME: &'static str = "MintlayerFreezeOrder";
+
+    fn is_initialized(&self) -> bool {
+        if self.order_id.is_none() {
+            return false;
+        }
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.order_id = ::std::option::Option::Some(is.read_string()?);
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if let Some(v) = self.order_id.as_ref() {
+            my_size += ::protobuf::rt::string_size(1, &v);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if let Some(v) = self.order_id.as_ref() {
+            os.write_string(1, v)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> MintlayerFreezeOrder {
+        MintlayerFreezeOrder::new()
+    }
+
+    fn clear(&mut self) {
+        self.order_id = ::std::option::Option::None;
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static MintlayerFreezeOrder {
+        static instance: MintlayerFreezeOrder = MintlayerFreezeOrder {
+            order_id: ::std::option::Option::None,
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for MintlayerFreezeOrder {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("MintlayerFreezeOrder").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for MintlayerFreezeOrder {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for MintlayerFreezeOrder {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+// @@protoc_insertion_point(message:hw.trezor.messages.mintlayer.MintlayerConcludeOrderV1)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct MintlayerConcludeOrderV1 {
+    // message fields
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrderV1.order_id)
+    pub order_id: ::std::option::Option<::std::string::String>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrderV1.filled_ask_amount)
+    pub filled_ask_amount: ::protobuf::MessageField<MintlayerOutputValue>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrderV1.give_balance)
+    pub give_balance: ::protobuf::MessageField<MintlayerOutputValue>,
+    // special fields
+    // @@protoc_insertion_point(special_field:hw.trezor.messages.mintlayer.MintlayerConcludeOrderV1.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a MintlayerConcludeOrderV1 {
+    fn default() -> &'a MintlayerConcludeOrderV1 {
+        <MintlayerConcludeOrderV1 as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl MintlayerConcludeOrderV1 {
+    pub fn new() -> MintlayerConcludeOrderV1 {
+        ::std::default::Default::default()
+    }
+
+    // required string order_id = 1;
+
+    pub fn order_id(&self) -> &str {
+        match self.order_id.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_order_id(&mut self) {
+        self.order_id = ::std::option::Option::None;
+    }
+
+    pub fn has_order_id(&self) -> bool {
+        self.order_id.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_order_id(&mut self, v: ::std::string::String) {
+        self.order_id = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_order_id(&mut self) -> &mut ::std::string::String {
+        if self.order_id.is_none() {
+            self.order_id = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.order_id.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_order_id(&mut self) -> ::std::string::String {
+        self.order_id.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(3);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "order_id",
+            |m: &MintlayerConcludeOrderV1| { &m.order_id },
+            |m: &mut MintlayerConcludeOrderV1| { &mut m.order_id },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, MintlayerOutputValue>(
+            "filled_ask_amount",
+            |m: &MintlayerConcludeOrderV1| { &m.filled_ask_amount },
+            |m: &mut MintlayerConcludeOrderV1| { &mut m.filled_ask_amount },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, MintlayerOutputValue>(
+            "give_balance",
+            |m: &MintlayerConcludeOrderV1| { &m.give_balance },
+            |m: &mut MintlayerConcludeOrderV1| { &mut m.give_balance },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<MintlayerConcludeOrderV1>(
+            "MintlayerConcludeOrderV1",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for MintlayerConcludeOrderV1 {
+    const NAME: &'static str = "MintlayerConcludeOrderV1";
+
+    fn is_initialized(&self) -> bool {
+        if self.order_id.is_none() {
+            return false;
+        }
+        if self.filled_ask_amount.is_none() {
+            return false;
+        }
+        if self.give_balance.is_none() {
+            return false;
+        }
+        for v in &self.filled_ask_amount {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.give_balance {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.order_id = ::std::option::Option::Some(is.read_string()?);
+                },
+                18 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.filled_ask_amount)?;
+                },
+                26 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.give_balance)?;
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if let Some(v) = self.order_id.as_ref() {
+            my_size += ::protobuf::rt::string_size(1, &v);
+        }
+        if let Some(v) = self.filled_ask_amount.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.give_balance.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if let Some(v) = self.order_id.as_ref() {
+            os.write_string(1, v)?;
+        }
+        if let Some(v) = self.filled_ask_amount.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        }
+        if let Some(v) = self.give_balance.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> MintlayerConcludeOrderV1 {
+        MintlayerConcludeOrderV1::new()
+    }
+
+    fn clear(&mut self) {
+        self.order_id = ::std::option::Option::None;
+        self.filled_ask_amount.clear();
+        self.give_balance.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static MintlayerConcludeOrderV1 {
+        static instance: MintlayerConcludeOrderV1 = MintlayerConcludeOrderV1 {
+            order_id: ::std::option::Option::None,
+            filled_ask_amount: ::protobuf::MessageField::none(),
+            give_balance: ::protobuf::MessageField::none(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for MintlayerConcludeOrderV1 {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("MintlayerConcludeOrderV1").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for MintlayerConcludeOrderV1 {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for MintlayerConcludeOrderV1 {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
 // @@protoc_insertion_point(message:hw.trezor.messages.mintlayer.MintlayerMintTokens)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct MintlayerMintTokens {
@@ -10081,6 +10986,8 @@ pub mod mintlayer_tx_ack {
         pub account: ::protobuf::MessageField<super::MintlayerAccountTxInput>,
         // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerTxAck.MintlayerTxInput.account_command)
         pub account_command: ::protobuf::MessageField<super::MintlayerAccountCommandTxInput>,
+        // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerTxAck.MintlayerTxInput.order_command)
+        pub order_command: ::protobuf::MessageField<super::MintlayerOrderCommandTxInput>,
         // special fields
         // @@protoc_insertion_point(special_field:hw.trezor.messages.mintlayer.MintlayerTxAck.MintlayerTxInput.special_fields)
         pub special_fields: ::protobuf::SpecialFields,
@@ -10098,7 +11005,7 @@ pub mod mintlayer_tx_ack {
         }
 
         pub(in super) fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-            let mut fields = ::std::vec::Vec::with_capacity(3);
+            let mut fields = ::std::vec::Vec::with_capacity(4);
             let mut oneofs = ::std::vec::Vec::with_capacity(0);
             fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, super::MintlayerUtxoTxInput>(
                 "utxo",
@@ -10114,6 +11021,11 @@ pub mod mintlayer_tx_ack {
                 "account_command",
                 |m: &MintlayerTxInput| { &m.account_command },
                 |m: &mut MintlayerTxInput| { &mut m.account_command },
+            ));
+            fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, super::MintlayerOrderCommandTxInput>(
+                "order_command",
+                |m: &MintlayerTxInput| { &m.order_command },
+                |m: &mut MintlayerTxInput| { &mut m.order_command },
             ));
             ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<MintlayerTxInput>(
                 "MintlayerTxAck.MintlayerTxInput",
@@ -10142,6 +11054,11 @@ pub mod mintlayer_tx_ack {
                     return false;
                 }
             };
+            for v in &self.order_command {
+                if !v.is_initialized() {
+                    return false;
+                }
+            };
             true
         }
 
@@ -10156,6 +11073,9 @@ pub mod mintlayer_tx_ack {
                     },
                     26 => {
                         ::protobuf::rt::read_singular_message_into_field(is, &mut self.account_command)?;
+                    },
+                    34 => {
+                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.order_command)?;
                     },
                     tag => {
                         ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -10181,6 +11101,10 @@ pub mod mintlayer_tx_ack {
                 let len = v.compute_size();
                 my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
             }
+            if let Some(v) = self.order_command.as_ref() {
+                let len = v.compute_size();
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            }
             my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
             self.special_fields.cached_size().set(my_size as u32);
             my_size
@@ -10195,6 +11119,9 @@ pub mod mintlayer_tx_ack {
             }
             if let Some(v) = self.account_command.as_ref() {
                 ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+            }
+            if let Some(v) = self.order_command.as_ref() {
+                ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
             }
             os.write_unknown_fields(self.special_fields.unknown_fields())?;
             ::std::result::Result::Ok(())
@@ -10216,6 +11143,7 @@ pub mod mintlayer_tx_ack {
             self.utxo.clear();
             self.account.clear();
             self.account_command.clear();
+            self.order_command.clear();
             self.special_fields.clear();
         }
 
@@ -10224,6 +11152,7 @@ pub mod mintlayer_tx_ack {
                 utxo: ::protobuf::MessageField::none(),
                 account: ::protobuf::MessageField::none(),
                 account_command: ::protobuf::MessageField::none(),
+                order_command: ::protobuf::MessageField::none(),
                 special_fields: ::protobuf::SpecialFields::new(),
             };
             &instance
@@ -10984,8 +11913,26 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x20\x01(\x0b20.hw.trezor.messages.mintlayer.MintlayerFillOrderR\tfillOr\
     der\x12x\n\x19change_token_metadata_uri\x18\x0b\x20\x01(\x0b2=.hw.trezor\
     .messages.mintlayer.MintlayerChangeTokenMetadataUriR\x16changeTokenMetad\
-    ataUri\"H\n\x13MintlayerMintTokens\x12\x19\n\x08token_id\x18\x01\x20\x02\
-    (\tR\x07tokenId\x12\x16\n\x06amount\x18\x02\x20\x02(\x0cR\x06amount\"2\n\
+    ataUri\"\xd8\x02\n\x1cMintlayerOrderCommandTxInput\x12P\n\taddresses\x18\
+    \x01\x20\x03(\x0b22.hw.trezor.messages.mintlayer.MintlayerAddressPathR\t\
+    addresses\x12F\n\x04fill\x18\x02\x20\x01(\x0b22.hw.trezor.messages.mintl\
+    ayer.MintlayerFillOrderV1R\x04fill\x12J\n\x06freeze\x18\x03\x20\x01(\x0b\
+    22.hw.trezor.messages.mintlayer.MintlayerFreezeOrderR\x06freeze\x12R\n\
+    \x08conclude\x18\x04\x20\x01(\x0b26.hw.trezor.messages.mintlayer.Mintlay\
+    erConcludeOrderV1R\x08conclude\"\x97\x02\n\x14MintlayerFillOrderV1\x12\
+    \x19\n\x08order_id\x18\x01\x20\x02(\tR\x07orderId\x12\x16\n\x06amount\
+    \x18\x02\x20\x02(\x0cR\x06amount\x12\x20\n\x0bdestination\x18\x03\x20\
+    \x02(\tR\x0bdestination\x12S\n\x0bask_balance\x18\x04\x20\x02(\x0b22.hw.\
+    trezor.messages.mintlayer.MintlayerOutputValueR\naskBalance\x12U\n\x0cgi\
+    ve_balance\x18\x05\x20\x02(\x0b22.hw.trezor.messages.mintlayer.Mintlayer\
+    OutputValueR\x0bgiveBalance\"1\n\x14MintlayerFreezeOrder\x12\x19\n\x08or\
+    der_id\x18\x01\x20\x02(\tR\x07orderId\"\xec\x01\n\x18MintlayerConcludeOr\
+    derV1\x12\x19\n\x08order_id\x18\x01\x20\x02(\tR\x07orderId\x12^\n\x11fil\
+    led_ask_amount\x18\x02\x20\x02(\x0b22.hw.trezor.messages.mintlayer.Mintl\
+    ayerOutputValueR\x0ffilledAskAmount\x12U\n\x0cgive_balance\x18\x03\x20\
+    \x02(\x0b22.hw.trezor.messages.mintlayer.MintlayerOutputValueR\x0bgiveBa\
+    lance\"H\n\x13MintlayerMintTokens\x12\x19\n\x08token_id\x18\x01\x20\x02(\
+    \tR\x07tokenId\x12\x16\n\x06amount\x18\x02\x20\x02(\x0cR\x06amount\"2\n\
     \x15MintlayerUnmintTokens\x12\x19\n\x08token_id\x18\x01\x20\x02(\tR\x07t\
     okenId\"5\n\x18MintlayerLockTokenSupply\x12\x19\n\x08token_id\x18\x01\
     \x20\x02(\tR\x07tokenId\"c\n\x14MintlayerFreezeToken\x12\x19\n\x08token_\
@@ -11067,44 +12014,46 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     teOrderTxOutput\x12!\n\x0cconclude_key\x18\x01\x20\x02(\tR\x0bconcludeKe\
     y\x12D\n\x03ask\x18\x02\x20\x02(\x0b22.hw.trezor.messages.mintlayer.Mint\
     layerOutputValueR\x03ask\x12F\n\x04give\x18\x03\x20\x02(\x0b22.hw.trezor\
-    .messages.mintlayer.MintlayerOutputValueR\x04give\"\x92\r\n\x0eMintlayer\
+    .messages.mintlayer.MintlayerOutputValueR\x04give\"\xf3\r\n\x0eMintlayer\
     TxAck\x12S\n\x05input\x18\x01\x20\x01(\x0b2=.hw.trezor.messages.mintlaye\
     r.MintlayerTxAck.MintlayerTxInputR\x05input\x12V\n\x06output\x18\x02\x20\
     \x01(\x0b2>.hw.trezor.messages.mintlayer.MintlayerTxAck.MintlayerTxOutpu\
-    tR\x06output\x1a\x92\x02\n\x10MintlayerTxInput\x12F\n\x04utxo\x18\x01\
+    tR\x06output\x1a\xf3\x02\n\x10MintlayerTxInput\x12F\n\x04utxo\x18\x01\
     \x20\x01(\x0b22.hw.trezor.messages.mintlayer.MintlayerUtxoTxInputR\x04ut\
     xo\x12O\n\x07account\x18\x02\x20\x01(\x0b25.hw.trezor.messages.mintlayer\
     .MintlayerAccountTxInputR\x07account\x12e\n\x0faccount_command\x18\x03\
     \x20\x01(\x0b2<.hw.trezor.messages.mintlayer.MintlayerAccountCommandTxIn\
-    putR\x0eaccountCommand\x1a\xbd\t\n\x11MintlayerTxOutput\x12S\n\x08transf\
-    er\x18\x01\x20\x01(\x0b27.hw.trezor.messages.mintlayer.MintlayerTransfer\
-    TxOutputR\x08transfer\x12m\n\x12lock_then_transfer\x18\x02\x20\x01(\x0b2\
-    ?.hw.trezor.messages.mintlayer.MintlayerLockThenTransferTxOutputR\x10loc\
-    kThenTransfer\x12G\n\x04burn\x18\x03\x20\x01(\x0b23.hw.trezor.messages.m\
-    intlayer.MintlayerBurnTxOutputR\x04burn\x12j\n\x11create_stake_pool\x18\
-    \x04\x20\x01(\x0b2>.hw.trezor.messages.mintlayer.MintlayerCreateStakePoo\
-    lTxOutputR\x0fcreateStakePool\x12}\n\x18produce_block_from_stake\x18\x05\
-    \x20\x01(\x0b2D.hw.trezor.messages.mintlayer.MintlayerProduceBlockFromSt\
-    akeTxOutputR\x15produceBlockFromStake\x12s\n\x14create_delegation_id\x18\
-    \x06\x20\x01(\x0b2A.hw.trezor.messages.mintlayer.MintlayerCreateDelegati\
-    onIdTxOutputR\x12createDelegationId\x12i\n\x10delegate_staking\x18\x07\
-    \x20\x01(\x0b2>.hw.trezor.messages.mintlayer.MintlayerDelegateStakingTxO\
-    utputR\x0fdelegateStaking\x12s\n\x14issue_fungible_token\x18\x08\x20\x01\
-    (\x0b2A.hw.trezor.messages.mintlayer.MintlayerIssueFungibleTokenTxOutput\
-    R\x12issueFungibleToken\x12T\n\tissue_nft\x18\t\x20\x01(\x0b27.hw.trezor\
-    .messages.mintlayer.MintlayerIssueNftTxOutputR\x08issueNft\x12]\n\x0cdat\
-    a_deposit\x18\n\x20\x01(\x0b2:.hw.trezor.messages.mintlayer.MintlayerDat\
-    aDepositTxOutputR\x0bdataDeposit\x12G\n\x04htlc\x18\x0b\x20\x01(\x0b23.h\
-    w.trezor.messages.mintlayer.MintlayerHtlcTxOutputR\x04htlc\x12]\n\x0ccre\
-    ate_order\x18\x0c\x20\x01(\x0b2:.hw.trezor.messages.mintlayer.MintlayerC\
-    reateOrderTxOutputR\x0bcreateOrder*G\n\x12MintlayerChainType\x12\x0b\n\
-    \x07Mainnet\x10\x01\x12\x0b\n\x07Testnet\x10\x02\x12\x0b\n\x07Regtest\
-    \x10\x03\x12\n\n\x06Signet\x10\x04*;\n\x14MintlayerAddressType\x12\x0e\n\
-    \nPUBLIC_KEY\x10\x01\x12\x13\n\x0fPUBLIC_KEY_HASH\x10\x02*/\n\x11Mintlay\
-    erUtxoType\x12\x0f\n\x0bTRANSACTION\x10\0\x12\t\n\x05BLOCK\x10\x01*G\n\
-    \x1dMintlayerTokenTotalSupplyType\x12\t\n\x05FIXED\x10\0\x12\x0c\n\x08LO\
-    CKABLE\x10\x01\x12\r\n\tUNLIMITED\x10\x02B=\n#com.satoshilabs.trezor.lib\
-    .protobufB\x16TrezorMessageMintlayer\
+    putR\x0eaccountCommand\x12_\n\rorder_command\x18\x04\x20\x01(\x0b2:.hw.t\
+    rezor.messages.mintlayer.MintlayerOrderCommandTxInputR\x0corderCommand\
+    \x1a\xbd\t\n\x11MintlayerTxOutput\x12S\n\x08transfer\x18\x01\x20\x01(\
+    \x0b27.hw.trezor.messages.mintlayer.MintlayerTransferTxOutputR\x08transf\
+    er\x12m\n\x12lock_then_transfer\x18\x02\x20\x01(\x0b2?.hw.trezor.message\
+    s.mintlayer.MintlayerLockThenTransferTxOutputR\x10lockThenTransfer\x12G\
+    \n\x04burn\x18\x03\x20\x01(\x0b23.hw.trezor.messages.mintlayer.Mintlayer\
+    BurnTxOutputR\x04burn\x12j\n\x11create_stake_pool\x18\x04\x20\x01(\x0b2>\
+    .hw.trezor.messages.mintlayer.MintlayerCreateStakePoolTxOutputR\x0fcreat\
+    eStakePool\x12}\n\x18produce_block_from_stake\x18\x05\x20\x01(\x0b2D.hw.\
+    trezor.messages.mintlayer.MintlayerProduceBlockFromStakeTxOutputR\x15pro\
+    duceBlockFromStake\x12s\n\x14create_delegation_id\x18\x06\x20\x01(\x0b2A\
+    .hw.trezor.messages.mintlayer.MintlayerCreateDelegationIdTxOutputR\x12cr\
+    eateDelegationId\x12i\n\x10delegate_staking\x18\x07\x20\x01(\x0b2>.hw.tr\
+    ezor.messages.mintlayer.MintlayerDelegateStakingTxOutputR\x0fdelegateSta\
+    king\x12s\n\x14issue_fungible_token\x18\x08\x20\x01(\x0b2A.hw.trezor.mes\
+    sages.mintlayer.MintlayerIssueFungibleTokenTxOutputR\x12issueFungibleTok\
+    en\x12T\n\tissue_nft\x18\t\x20\x01(\x0b27.hw.trezor.messages.mintlayer.M\
+    intlayerIssueNftTxOutputR\x08issueNft\x12]\n\x0cdata_deposit\x18\n\x20\
+    \x01(\x0b2:.hw.trezor.messages.mintlayer.MintlayerDataDepositTxOutputR\
+    \x0bdataDeposit\x12G\n\x04htlc\x18\x0b\x20\x01(\x0b23.hw.trezor.messages\
+    .mintlayer.MintlayerHtlcTxOutputR\x04htlc\x12]\n\x0ccreate_order\x18\x0c\
+    \x20\x01(\x0b2:.hw.trezor.messages.mintlayer.MintlayerCreateOrderTxOutpu\
+    tR\x0bcreateOrder*G\n\x12MintlayerChainType\x12\x0b\n\x07Mainnet\x10\x01\
+    \x12\x0b\n\x07Testnet\x10\x02\x12\x0b\n\x07Regtest\x10\x03\x12\n\n\x06Si\
+    gnet\x10\x04*;\n\x14MintlayerAddressType\x12\x0e\n\nPUBLIC_KEY\x10\x01\
+    \x12\x13\n\x0fPUBLIC_KEY_HASH\x10\x02*/\n\x11MintlayerUtxoType\x12\x0f\n\
+    \x0bTRANSACTION\x10\0\x12\t\n\x05BLOCK\x10\x01*G\n\x1dMintlayerTokenTota\
+    lSupplyType\x12\t\n\x05FIXED\x10\0\x12\x0c\n\x08LOCKABLE\x10\x01\x12\r\n\
+    \tUNLIMITED\x10\x02B=\n#com.satoshilabs.trezor.lib.protobufB\x16TrezorMe\
+    ssageMintlayer\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -11122,7 +12071,7 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
     file_descriptor.get(|| {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
             let mut deps = ::std::vec::Vec::with_capacity(0);
-            let mut messages = ::std::vec::Vec::with_capacity(45);
+            let mut messages = ::std::vec::Vec::with_capacity(49);
             messages.push(MintlayerGetAddress::generated_message_descriptor_data());
             messages.push(MintlayerAddress::generated_message_descriptor_data());
             messages.push(MintlayerGetPublicKey::generated_message_descriptor_data());
@@ -11135,6 +12084,10 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             messages.push(MintlayerAccountTxInput::generated_message_descriptor_data());
             messages.push(MintlayerAccountSpendingDelegationBalance::generated_message_descriptor_data());
             messages.push(MintlayerAccountCommandTxInput::generated_message_descriptor_data());
+            messages.push(MintlayerOrderCommandTxInput::generated_message_descriptor_data());
+            messages.push(MintlayerFillOrderV1::generated_message_descriptor_data());
+            messages.push(MintlayerFreezeOrder::generated_message_descriptor_data());
+            messages.push(MintlayerConcludeOrderV1::generated_message_descriptor_data());
             messages.push(MintlayerMintTokens::generated_message_descriptor_data());
             messages.push(MintlayerUnmintTokens::generated_message_descriptor_data());
             messages.push(MintlayerLockTokenSupply::generated_message_descriptor_data());

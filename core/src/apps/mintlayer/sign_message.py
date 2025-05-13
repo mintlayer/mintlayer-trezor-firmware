@@ -47,6 +47,7 @@ async def sign_message(
         raise DataError(f"Unknown Address type {msg.address_type}")
 
     await confirm_signverify(
+        # TODO: decode_message does not always return a valid uft-8 string e.g. for input b'\xc1\x82)'
         decode_message(message),
         address,
         verify=False,
