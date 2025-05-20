@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from typing import Dict, List, Tuple
 
     from trezor.crypto import bip32
-    from trezor.messages import MintlayerOutputValue
+    from trezor.messages import MintlayerAddressPath, MintlayerOutputValue
 
     from apps.common.keychain import Keychain
 
@@ -194,6 +194,56 @@ class Mintlayer:
         tx_info = self.tx_info  # local_cache_attribute
         totals: Dict[str, int] = {self.coininfo.coin_shortcut: 0}
 
+        def nodes_for_addresses(
+            addresses: list[MintlayerAddressPath],
+        ) -> List[Tuple[bip32.HDNode, int | None]]:
+            return [
+                (
+                    self.keychain.derive(address.address_n),
+                    address.multisig_idx,
+                )
+                for address in addresses
+            ]
+
+        def update_totals_for_fill_order(
+            fill_amount_b: bytes,
+            ask_balance: MintlayerOutputValue,
+            give_balance: MintlayerOutputValue,
+        ) -> None:
+            give_amount = int.from_bytes(give_balance.amount, "big")
+            fill_amount = int.from_bytes(fill_amount_b, "big")
+            ask_amount = int.from_bytes(ask_balance.amount, "big")
+
+            amount = (give_amount * fill_amount) // ask_amount
+
+            give = give_balance
+            ask_token_or_coin = (
+                give.token.token_id if give.token else self.coininfo.coin_shortcut
+            )
+
+            totals[ask_token_or_coin] = totals.get(ask_token_or_coin, 0) + amount
+
+        def update_totals_for_conclude_order(
+            filled_ask_value: MintlayerOutputValue, give_balance: MintlayerOutputValue
+        ) -> None:
+            ask_amount = int.from_bytes(filled_ask_value.amount, "big")
+            ask_token_or_coin = (
+                filled_ask_value.token.token_id
+                if filled_ask_value.token
+                else self.coininfo.coin_shortcut
+            )
+
+            totals[ask_token_or_coin] = totals.get(ask_token_or_coin, 0) + ask_amount
+
+            give_amount = int.from_bytes(give_balance.amount, "big")
+            give_token_or_coin = (
+                give_balance.token.token_id
+                if give_balance.token
+                else self.coininfo.coin_shortcut
+            )
+
+            totals[give_token_or_coin] = totals.get(give_token_or_coin, 0) + give_amount
+
         for i in range(tx_info.tx.inputs_count):
             self.progress.advance()
             # get the input
@@ -203,26 +253,11 @@ class Mintlayer:
                 txo = await helpers.request_tx_output(
                     self.tx_req, txi.utxo.prev_index, txi.utxo.prev_hash
                 )
-                nodes = []
-                for address in txi.utxo.addresses:
-                    nodes.append(
-                        (
-                            self.keychain.derive(address.address_n),
-                            address.multisig_idx,
-                        )
-                    )
-
+                nodes = nodes_for_addresses(txi.utxo.addresses)
                 update_input_totals(totals, txo, self.coininfo.coin_shortcut)
                 self.tx_info.add_input(txi, txo, nodes)
             elif txi.account:
-                nodes = []
-                for address in txi.account.addresses:
-                    nodes.append(
-                        (
-                            self.keychain.derive(address.address_n),
-                            address.multisig_idx,
-                        )
-                    )
+                nodes = nodes_for_addresses(txi.account.addresses)
                 if txi.account.delegation_balance:
                     value = txi.account.delegation_balance
                     amount = int.from_bytes(value.amount, "big")
@@ -231,14 +266,7 @@ class Mintlayer:
                 else:
                     raise DataError("Unhandled account spending type")
             elif txi.account_command:
-                nodes = []
-                for address in txi.account_command.addresses:
-                    nodes.append(
-                        (
-                            self.keychain.derive(address.address_n),
-                            address.multisig_idx,
-                        )
-                    )
+                nodes = nodes_for_addresses(txi.account_command.addresses)
                 x = txi.account_command
                 if x.mint:
                     token_id = x.mint.token_id
@@ -257,99 +285,31 @@ class Mintlayer:
                 elif x.change_token_metadata_uri:
                     pass
                 elif x.conclude_order:
-                    ask = x.conclude_order.filled_ask_amount
-                    ask_amount = int.from_bytes(ask.amount, "big")
-                    ask_token_or_coin = (
-                        ask.token.token_id if ask.token else self.coininfo.coin_shortcut
-                    )
-
-                    totals[ask_token_or_coin] = (
-                        totals.get(ask_token_or_coin, 0) + ask_amount
-                    )
-
-                    give = x.conclude_order.give_balance
-                    give_amount = int.from_bytes(give.amount, "big")
-                    give_token_or_coin = (
-                        give.token.token_id
-                        if give.token
-                        else self.coininfo.coin_shortcut
-                    )
-
-                    totals[give_token_or_coin] = (
-                        totals.get(give_token_or_coin, 0) + give_amount
+                    update_totals_for_conclude_order(
+                        x.conclude_order.filled_ask_amount,
+                        x.conclude_order.give_balance,
                     )
                 elif x.fill_order:
-                    give_amount = int.from_bytes(
-                        x.fill_order.give_balance.amount, "big"
-                    )
-                    fill_amount = int.from_bytes(x.fill_order.amount, "big")
-                    ask_amount = int.from_bytes(x.fill_order.ask_balance.amount, "big")
-
-                    amount = (give_amount * fill_amount) // ask_amount
-
-                    give = x.fill_order.give_balance
-                    ask_token_or_coin = (
-                        give.token.token_id
-                        if give.token
-                        else self.coininfo.coin_shortcut
-                    )
-
-                    totals[ask_token_or_coin] = (
-                        totals.get(ask_token_or_coin, 0) + amount
+                    update_totals_for_fill_order(
+                        x.fill_order.amount,
+                        x.fill_order.ask_balance,
+                        x.fill_order.give_balance,
                     )
                 else:
                     raise DataError("Unknown account command")
                 self.tx_info.add_input(txi, None, nodes)
             elif txi.order_command:
                 x = txi.order_command
-                nodes = []
-                for address in x.addresses:
-                    nodes.append(
-                        (
-                            self.keychain.derive(address.address_n),
-                            address.multisig_idx,
-                        )
-                    )
+                nodes = nodes_for_addresses(x.addresses)
                 if x.fill:
-                    give_amount = int.from_bytes(x.fill.give_balance.amount, "big")
-                    fill_amount = int.from_bytes(x.fill.amount, "big")
-                    ask_amount = int.from_bytes(x.fill.ask_balance.amount, "big")
-
-                    amount = (give_amount * fill_amount) // ask_amount
-
-                    give = x.fill.give_balance
-                    ask_token_or_coin = (
-                        give.token.token_id
-                        if give.token
-                        else self.coininfo.coin_shortcut
-                    )
-
-                    totals[ask_token_or_coin] = (
-                        totals.get(ask_token_or_coin, 0) + amount
+                    update_totals_for_fill_order(
+                        x.fill.amount, x.fill.initially_asked, x.fill.initially_given
                     )
                 elif x.freeze:
                     pass
                 elif x.conclude:
-                    ask = x.conclude.filled_ask_amount
-                    ask_amount = int.from_bytes(ask.amount, "big")
-                    ask_token_or_coin = (
-                        ask.token.token_id if ask.token else self.coininfo.coin_shortcut
-                    )
-
-                    totals[ask_token_or_coin] = (
-                        totals.get(ask_token_or_coin, 0) + ask_amount
-                    )
-
-                    give = x.conclude.give_balance
-                    give_amount = int.from_bytes(give.amount, "big")
-                    give_token_or_coin = (
-                        give.token.token_id
-                        if give.token
-                        else self.coininfo.coin_shortcut
-                    )
-
-                    totals[give_token_or_coin] = (
-                        totals.get(give_token_or_coin, 0) + give_amount
+                    update_totals_for_conclude_order(
+                        x.conclude.filled_ask_amount, x.conclude.give_balance
                     )
                 else:
                     raise DataError("Unknown order command")
@@ -503,7 +463,7 @@ class Mintlayer:
                 elif x.freeze:
                     ord = x.freeze
                     encoded_inp = (
-                        mintlayer_utils.encode_freeze_order_v1_order_command_input(
+                        mintlayer_utils.encode_freeze_order_order_command_input(
                             mintlayer_decode(
                                 ord.order_id, self.coininfo.prefixes.order
                             ),
@@ -511,7 +471,6 @@ class Mintlayer:
                     )
                     encoded_inputs.append(encoded_inp)
                     # just add a \x00 for an empty Option as order command inputs don't have an UTXO
-                    # TODO: fix when input commitments are ready
                     encoded_input_utxos.append(b"\x00")
                     continue
                 elif x.fill:

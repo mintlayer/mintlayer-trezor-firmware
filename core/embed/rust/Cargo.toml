@@ -100,7 +100,7 @@ parity-scale-codec = { version = "3.1", default-features = false, features = [
     "derive",
     "chain-error",
 ], optional = true }
-ml_common = { git = "https://github.com/mintlayer/mintlayer-core", package = "trezor-common", branch = "trezor-common-orders-v1", optional = true }
+ml_common = { git = "https://github.com/mintlayer/mintlayer-core", package = "trezor-common", branch = "master", optional = true }
 
 # Runtime dependencies
 

@@ -214,7 +214,7 @@ extern "C" fn mintlayer_encode_conclude_order_v1_order_command_input(
 }
 
 #[no_mangle]
-extern "C" fn mintlayer_encode_freeze_order_v1_order_command_input(
+extern "C" fn mintlayer_encode_freeze_order_order_command_input(
     order_id_data: *const u8,
     order_id_data_len: u32,
 ) -> ByteArray {
@@ -257,6 +257,27 @@ extern "C" fn mintlayer_encode_fill_order_account_command_input(
     handle_err_or_encode(res)
 }
 
+fn mintlayer_encode_fill_order_account_command_input_impl(
+    order_id: &[u8],
+    coin_amount: &[u8],
+    destination_bytes: &[u8],
+    nonce: u64,
+) -> Result<TxInput, MintlayerErrorCode> {
+    let order_id = H256(
+        order_id
+            .try_into()
+            .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
+    );
+    let amount =
+        Amount::from_bytes_be(coin_amount.as_ref()).ok_or(MintlayerErrorCode::InvalidAmount)?;
+
+    let destination = Destination::decode_all(&mut destination_bytes.as_ref())
+        .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
+    let account_command = AccountCommand::FillOrder(order_id, amount, destination);
+    let tx_input = TxInput::AccountCommand(nonce, account_command);
+    Ok(tx_input)
+}
+
 #[no_mangle]
 extern "C" fn mintlayer_encode_fill_order_v1_order_command_input(
     order_id_data: *const u8,
@@ -279,27 +300,6 @@ extern "C" fn mintlayer_encode_fill_order_v1_order_command_input(
     );
 
     handle_err_or_encode(res)
-}
-
-fn mintlayer_encode_fill_order_account_command_input_impl(
-    order_id: &[u8],
-    coin_amount: &[u8],
-    destination_bytes: &[u8],
-    nonce: u64,
-) -> Result<TxInput, MintlayerErrorCode> {
-    let order_id = H256(
-        order_id
-            .try_into()
-            .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
-    );
-    let amount =
-        Amount::from_bytes_be(coin_amount.as_ref()).ok_or(MintlayerErrorCode::InvalidAmount)?;
-
-    let destination = Destination::decode_all(&mut destination_bytes.as_ref())
-        .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
-    let account_command = AccountCommand::FillOrder(order_id, amount, destination);
-    let tx_input = TxInput::AccountCommand(nonce, account_command);
-    Ok(tx_input)
 }
 
 fn mintlayer_encode_fill_order_v1_order_command_input_impl(

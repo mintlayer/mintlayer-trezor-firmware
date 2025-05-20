@@ -4296,8 +4296,8 @@ if TYPE_CHECKING:
         order_id: "str"
         amount: "bytes"
         destination: "str"
-        ask_balance: "MintlayerOutputValue"
-        give_balance: "MintlayerOutputValue"
+        initially_asked: "MintlayerOutputValue"
+        initially_given: "MintlayerOutputValue"
 
         def __init__(
             self,
@@ -4305,8 +4305,8 @@ if TYPE_CHECKING:
             order_id: "str",
             amount: "bytes",
             destination: "str",
-            ask_balance: "MintlayerOutputValue",
-            give_balance: "MintlayerOutputValue",
+            initially_asked: "MintlayerOutputValue",
+            initially_given: "MintlayerOutputValue",
         ) -> None:
             pass
 

@@ -164,18 +164,18 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(
     mod_trezormintlayer_utils_mintlayer_encode_conclude_order_v1_order_command_input_obj,
     mod_trezormintlayer_utils_mintlayer_encode_conclude_order_v1_order_command_input);
 
-/// def encode_freeze_order_v1_order_command_input(order_id: bytes)
+/// def encode_freeze_order_order_command_input(order_id: bytes)
 /// -> bytes:
 ///     """
 ///     encodes a freeze order v1 order command from the order id
 ///     """
 STATIC mp_obj_t
-mod_trezormintlayer_utils_mintlayer_encode_freeze_order_v1_order_command_input(
+mod_trezormintlayer_utils_mintlayer_encode_freeze_order_order_command_input(
     mp_obj_t order_id_obj) {
   mp_buffer_info_t order_id = {0};
   mp_get_buffer_raise(order_id_obj, &order_id, MP_BUFFER_READ);
 
-  ByteArray arr = mintlayer_encode_freeze_order_v1_order_command_input(
+  ByteArray arr = mintlayer_encode_freeze_order_order_command_input(
       order_id.buf, order_id.len);
   handle_err(&arr);
 
@@ -183,8 +183,8 @@ mod_trezormintlayer_utils_mintlayer_encode_freeze_order_v1_order_command_input(
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(
-    mod_trezormintlayer_utils_mintlayer_encode_freeze_order_v1_order_command_input_obj,
-    mod_trezormintlayer_utils_mintlayer_encode_freeze_order_v1_order_command_input);
+    mod_trezormintlayer_utils_mintlayer_encode_freeze_order_order_command_input_obj,
+    mod_trezormintlayer_utils_mintlayer_encode_freeze_order_order_command_input);
 
 /// def encode_fill_order_v1_order_command_input(order_id: bytes,
 /// amount: bytes, destination: bytes)

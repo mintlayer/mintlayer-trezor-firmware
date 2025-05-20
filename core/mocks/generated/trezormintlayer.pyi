@@ -52,7 +52,7 @@ def encode_conclude_order_v1_order_command_input(order_id: bytes)
 
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
-def encode_freeze_order_v1_order_command_input(order_id: bytes)
+def encode_freeze_order_order_command_input(order_id: bytes)
 -> bytes:
     """
     encodes a freeze order v1 order command from the order id

@@ -53,7 +53,7 @@ ByteArray mintlayer_encode_fill_order_account_command_input(
 ByteArray mintlayer_encode_conclude_order_v1_order_command_input(
     const unsigned char* order_id_data, uint32_t order_id_data_len);
 
-ByteArray mintlayer_encode_freeze_order_v1_order_command_input(
+ByteArray mintlayer_encode_freeze_order_order_command_input(
     const unsigned char* order_id_data, uint32_t order_id_data_len);
 
 ByteArray mintlayer_encode_fill_order_v1_order_command_input(
