@@ -44,6 +44,32 @@ amount: bytes, destination: bytes)
 
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
+def encode_conclude_order_v1_order_command_input(order_id: bytes)
+-> bytes:
+    """
+    encodes a conclude order v1 order command from the order id
+    """
+
+
+# upymod/modtrezormintlayer/modtrezormintlayer.h
+def encode_freeze_order_order_command_input(order_id: bytes)
+-> bytes:
+    """
+    encodes a freeze order v1 order command from the order id
+    """
+
+
+# upymod/modtrezormintlayer/modtrezormintlayer.h
+def encode_fill_order_v1_order_command_input(order_id: bytes,
+amount: bytes, destination: bytes)
+-> bytes:
+    """
+    encodes a fill order v1 order command from the order id, output
+    amount and destination
+    """
+
+
+# upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_transfer_output(amount: bytes, token_id: bytes, address: bytes)
 -> bytes:
     """

@@ -4272,6 +4272,80 @@ if TYPE_CHECKING:
         def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerAccountCommandTxInput"]:
             return isinstance(msg, cls)
 
+    class MintlayerOrderCommandTxInput(protobuf.MessageType):
+        addresses: "list[MintlayerAddressPath]"
+        fill: "MintlayerFillOrderV1 | None"
+        freeze: "MintlayerFreezeOrder | None"
+        conclude: "MintlayerConcludeOrderV1 | None"
+
+        def __init__(
+            self,
+            *,
+            addresses: "list[MintlayerAddressPath] | None" = None,
+            fill: "MintlayerFillOrderV1 | None" = None,
+            freeze: "MintlayerFreezeOrder | None" = None,
+            conclude: "MintlayerConcludeOrderV1 | None" = None,
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerOrderCommandTxInput"]:
+            return isinstance(msg, cls)
+
+    class MintlayerFillOrderV1(protobuf.MessageType):
+        order_id: "str"
+        amount: "bytes"
+        destination: "str"
+        initially_asked: "MintlayerOutputValue"
+        initially_given: "MintlayerOutputValue"
+
+        def __init__(
+            self,
+            *,
+            order_id: "str",
+            amount: "bytes",
+            destination: "str",
+            initially_asked: "MintlayerOutputValue",
+            initially_given: "MintlayerOutputValue",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerFillOrderV1"]:
+            return isinstance(msg, cls)
+
+    class MintlayerFreezeOrder(protobuf.MessageType):
+        order_id: "str"
+
+        def __init__(
+            self,
+            *,
+            order_id: "str",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerFreezeOrder"]:
+            return isinstance(msg, cls)
+
+    class MintlayerConcludeOrderV1(protobuf.MessageType):
+        order_id: "str"
+        filled_ask_amount: "MintlayerOutputValue"
+        give_balance: "MintlayerOutputValue"
+
+        def __init__(
+            self,
+            *,
+            order_id: "str",
+            filled_ask_amount: "MintlayerOutputValue",
+            give_balance: "MintlayerOutputValue",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerConcludeOrderV1"]:
+            return isinstance(msg, cls)
+
     class MintlayerMintTokens(protobuf.MessageType):
         token_id: "str"
         amount: "bytes"
@@ -4818,6 +4892,7 @@ if TYPE_CHECKING:
         utxo: "MintlayerUtxoTxInput | None"
         account: "MintlayerAccountTxInput | None"
         account_command: "MintlayerAccountCommandTxInput | None"
+        order_command: "MintlayerOrderCommandTxInput | None"
 
         def __init__(
             self,
@@ -4825,6 +4900,7 @@ if TYPE_CHECKING:
             utxo: "MintlayerUtxoTxInput | None" = None,
             account: "MintlayerAccountTxInput | None" = None,
             account_command: "MintlayerAccountCommandTxInput | None" = None,
+            order_command: "MintlayerOrderCommandTxInput | None" = None,
         ) -> None:
             pass
 

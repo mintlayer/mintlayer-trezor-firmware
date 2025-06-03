@@ -236,7 +236,7 @@ def test_mintlayer_sign_tx(
                     addresses=[address_0],
                     nonce=0,
                     freeze_token=messages.MintlayerFreezeToken(
-                        token_id=token_id, is_token_unfreezeable=True
+                        token_id=token_id, is_token_unfreezable=True
                     ),
                 )
             ),

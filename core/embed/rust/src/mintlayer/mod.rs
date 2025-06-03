@@ -7,10 +7,10 @@ use core::{
 use ml_common::{
     AccountCommand, AccountCommandTag, AccountOutPoint, AccountSpending, Amount, Destination,
     HashedTimelockContract, HtlcSecretHash, IsTokenFreezable, IsTokenUnfreezable, Metadata,
-    NftIssuance, NftIssuanceV0, OrderData, OutPointSourceId, OutPointSourceIdTag, OutputTimeLock,
-    OutputTimeLockTag, OutputValue, PublicKey, PublicKeyHolder, StakePoolData, TokenIssuance,
-    TokenIssuanceV1, TokenTotalSupply, TokenTotalSupplyTag, TxInput, TxOutput, UtxoOutPoint,
-    VRFPublicKeyHolder, H256,
+    NftIssuance, NftIssuanceV0, OrderAccountCommand, OrderData, OutPointSourceId,
+    OutPointSourceIdTag, OutputTimeLock, OutputTimeLockTag, OutputValue, PublicKey,
+    PublicKeyHolder, StakePoolData, TokenIssuance, TokenIssuanceV1, TokenTotalSupply,
+    TokenTotalSupplyTag, TxInput, TxOutput, UtxoOutPoint, VRFPublicKeyHolder, H256,
 };
 use num_traits::FromPrimitive;
 use parity_scale_codec::{DecodeAll, Encode};
@@ -196,6 +196,42 @@ extern "C" fn mintlayer_encode_conclude_order_account_command_input(
 }
 
 #[no_mangle]
+extern "C" fn mintlayer_encode_conclude_order_v1_order_command_input(
+    order_id_data: *const u8,
+    order_id_data_len: u32,
+) -> ByteArray {
+    let order_id =
+        unsafe { core::slice::from_raw_parts(order_id_data, order_id_data_len as usize) };
+    let order_id = H256(match order_id.try_into() {
+        Ok(hash) => hash,
+        Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+    });
+    let order_command = OrderAccountCommand::ConcludeOrder(order_id);
+
+    let tx_input = TxInput::OrderAccountCommand(order_command);
+
+    encode_to_byte_array(&tx_input)
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_freeze_order_order_command_input(
+    order_id_data: *const u8,
+    order_id_data_len: u32,
+) -> ByteArray {
+    let order_id =
+        unsafe { core::slice::from_raw_parts(order_id_data, order_id_data_len as usize) };
+    let order_id = H256(match order_id.try_into() {
+        Ok(hash) => hash,
+        Err(_) => return MintlayerErrorCode::WrongHashSize.into(),
+    });
+    let order_command = OrderAccountCommand::FreezeOrder(order_id);
+
+    let tx_input = TxInput::OrderAccountCommand(order_command);
+
+    encode_to_byte_array(&tx_input)
+}
+
+#[no_mangle]
 extern "C" fn mintlayer_encode_fill_order_account_command_input(
     nonce: u64,
     order_id_data: *const u8,
@@ -239,6 +275,50 @@ fn mintlayer_encode_fill_order_account_command_input_impl(
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
     let account_command = AccountCommand::FillOrder(order_id, amount, destination);
     let tx_input = TxInput::AccountCommand(nonce, account_command);
+    Ok(tx_input)
+}
+
+#[no_mangle]
+extern "C" fn mintlayer_encode_fill_order_v1_order_command_input(
+    order_id_data: *const u8,
+    order_id_data_len: u32,
+    amount_data: *const u8,
+    amount_data_len: u32,
+    destination_data: *const u8,
+    destination_data_len: u32,
+) -> ByteArray {
+    let order_id =
+        unsafe { core::slice::from_raw_parts(order_id_data, order_id_data_len as usize) };
+    let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
+    let destination_bytes =
+        unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
+
+    let res = mintlayer_encode_fill_order_v1_order_command_input_impl(
+        order_id,
+        coin_amount,
+        destination_bytes,
+    );
+
+    handle_err_or_encode(res)
+}
+
+fn mintlayer_encode_fill_order_v1_order_command_input_impl(
+    order_id: &[u8],
+    coin_amount: &[u8],
+    destination_bytes: &[u8],
+) -> Result<TxInput, MintlayerErrorCode> {
+    let order_id = H256(
+        order_id
+            .try_into()
+            .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
+    );
+    let amount =
+        Amount::from_bytes_be(coin_amount.as_ref()).ok_or(MintlayerErrorCode::InvalidAmount)?;
+
+    let destination = Destination::decode_all(&mut destination_bytes.as_ref())
+        .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
+    let order_command = OrderAccountCommand::FillOrder(order_id, amount, destination);
+    let tx_input = TxInput::OrderAccountCommand(order_command);
     Ok(tx_input)
 }
 

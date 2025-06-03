@@ -5749,6 +5749,89 @@ class MintlayerAccountCommandTxInput(protobuf.MessageType):
         self.change_token_metadata_uri = change_token_metadata_uri
 
 
+class MintlayerOrderCommandTxInput(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("addresses", "MintlayerAddressPath", repeated=True, required=False, default=None),
+        2: protobuf.Field("fill", "MintlayerFillOrderV1", repeated=False, required=False, default=None),
+        3: protobuf.Field("freeze", "MintlayerFreezeOrder", repeated=False, required=False, default=None),
+        4: protobuf.Field("conclude", "MintlayerConcludeOrderV1", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        addresses: Optional[Sequence["MintlayerAddressPath"]] = None,
+        fill: Optional["MintlayerFillOrderV1"] = None,
+        freeze: Optional["MintlayerFreezeOrder"] = None,
+        conclude: Optional["MintlayerConcludeOrderV1"] = None,
+    ) -> None:
+        self.addresses: Sequence["MintlayerAddressPath"] = addresses if addresses is not None else []
+        self.fill = fill
+        self.freeze = freeze
+        self.conclude = conclude
+
+
+class MintlayerFillOrderV1(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("order_id", "string", repeated=False, required=True),
+        2: protobuf.Field("amount", "bytes", repeated=False, required=True),
+        3: protobuf.Field("destination", "string", repeated=False, required=True),
+        4: protobuf.Field("initially_asked", "MintlayerOutputValue", repeated=False, required=True),
+        5: protobuf.Field("initially_given", "MintlayerOutputValue", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        order_id: "str",
+        amount: "bytes",
+        destination: "str",
+        initially_asked: "MintlayerOutputValue",
+        initially_given: "MintlayerOutputValue",
+    ) -> None:
+        self.order_id = order_id
+        self.amount = amount
+        self.destination = destination
+        self.initially_asked = initially_asked
+        self.initially_given = initially_given
+
+
+class MintlayerFreezeOrder(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("order_id", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        order_id: "str",
+    ) -> None:
+        self.order_id = order_id
+
+
+class MintlayerConcludeOrderV1(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("order_id", "string", repeated=False, required=True),
+        2: protobuf.Field("filled_ask_amount", "MintlayerOutputValue", repeated=False, required=True),
+        3: protobuf.Field("give_balance", "MintlayerOutputValue", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        order_id: "str",
+        filled_ask_amount: "MintlayerOutputValue",
+        give_balance: "MintlayerOutputValue",
+    ) -> None:
+        self.order_id = order_id
+        self.filled_ask_amount = filled_ask_amount
+        self.give_balance = give_balance
+
+
 class MintlayerMintTokens(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
@@ -6351,6 +6434,7 @@ class MintlayerTxInput(protobuf.MessageType):
         1: protobuf.Field("utxo", "MintlayerUtxoTxInput", repeated=False, required=False, default=None),
         2: protobuf.Field("account", "MintlayerAccountTxInput", repeated=False, required=False, default=None),
         3: protobuf.Field("account_command", "MintlayerAccountCommandTxInput", repeated=False, required=False, default=None),
+        4: protobuf.Field("order_command", "MintlayerOrderCommandTxInput", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -6359,10 +6443,12 @@ class MintlayerTxInput(protobuf.MessageType):
         utxo: Optional["MintlayerUtxoTxInput"] = None,
         account: Optional["MintlayerAccountTxInput"] = None,
         account_command: Optional["MintlayerAccountCommandTxInput"] = None,
+        order_command: Optional["MintlayerOrderCommandTxInput"] = None,
     ) -> None:
         self.utxo = utxo
         self.account = account
         self.account_command = account_command
+        self.order_command = order_command
 
 
 class MintlayerTxOutput(protobuf.MessageType):

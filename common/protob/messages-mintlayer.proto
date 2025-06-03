@@ -203,6 +203,44 @@ message MintlayerAccountCommandTxInput {
     optional MintlayerChangeTokenMetadataUri change_token_metadata_uri = 11; // change token metadata uri
 }
 
+/** Data type for transaction Order Command input to be signed.
+ *
+ * @embed
+ */
+message MintlayerOrderCommandTxInput {
+    repeated MintlayerAddressPath addresses = 1;                             // 0 or more addresses for which the corresponding private keys will be used to sign the transaction
+    optional MintlayerFillOrderV1 fill = 2;                                  // fill order
+    optional MintlayerFreezeOrder freeze = 3;                                // freeze order
+    optional MintlayerConcludeOrderV1 conclude = 4;                          // conclude order
+}
+
+/** Data type for order command Fill order
+ * @embed
+ */
+message MintlayerFillOrderV1 {
+    required string order_id = 1;                        // order id in bech32 encoding
+    required bytes amount = 2;                           // amount in atoms corresponds to the order's ask currency
+    required string destination = 3;                     // the destination in bech32 encoding
+    required MintlayerOutputValue initially_asked = 4;   // the initial ask balance of the order
+    required MintlayerOutputValue initially_given = 5;   // the initial give balance of the order
+}
+
+/** Data type for order command Freeze order
+ * @embed
+ */
+message MintlayerFreezeOrder {
+    required string order_id = 1;                        // order id in bech32 encoding
+}
+
+/** Data type for order command Conclude order
+ * @embed
+ */
+message MintlayerConcludeOrderV1 {
+    required string order_id = 1;                        // order id in bech32 encoding
+    required MintlayerOutputValue filled_ask_amount = 2; // the already filled ask amount
+    required MintlayerOutputValue give_balance = 3;      // the remaining give balance of the order
+}
+
 /** Data type for account command Mint tokens
  * @embed
  */
@@ -456,6 +494,7 @@ message MintlayerTxAck {
       optional MintlayerUtxoTxInput utxo = 1;                       // UTXO input
       optional MintlayerAccountTxInput account = 2;                 // account spending input
       optional MintlayerAccountCommandTxInput account_command = 3;  // account command input
+      optional MintlayerOrderCommandTxInput order_command = 4;      // order command input
   }
 
     /**

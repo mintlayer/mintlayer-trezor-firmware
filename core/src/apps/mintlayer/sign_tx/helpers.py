@@ -163,7 +163,7 @@ def _sanitize_tx_input(txi: MintlayerTxInput | None) -> MintlayerTxInput:
         if no_cmd:
             raise DataError("No account command present")
 
-        if txi.account_command.addresses is None:
+        if cmd.addresses is None:
             raise DataError("Input's addresses must be present for signing.")
     elif txi.account:
         if txi.account.addresses is None:
@@ -173,10 +173,17 @@ def _sanitize_tx_input(txi: MintlayerTxInput | None) -> MintlayerTxInput:
             pass
         else:
             raise DataError("No account spending is set")
+    elif txi.order_command:
+        cmd = txi.order_command
+        no_cmd = cmd.fill is None and cmd.freeze is None and cmd.conclude is None
+        if no_cmd:
+            raise DataError("No order command present")
 
+        if cmd.addresses is None:
+            raise DataError("Input's addresses must be present for signing.")
     else:
         raise DataError(
-            "No input type present either utxo, account_command or account must be present"
+            "No input type present either utxo, account_command, order_command or account must be present"
         )
 
     return txi
