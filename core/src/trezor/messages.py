@@ -4132,6 +4132,7 @@ if TYPE_CHECKING:
         outputs_count: "int"
         inputs_count: "int"
         chain_type: "MintlayerChainType"
+        input_commitments_version: "int"
         version: "int"
         chunkify: "bool | None"
 
@@ -4141,6 +4142,7 @@ if TYPE_CHECKING:
             outputs_count: "int",
             inputs_count: "int",
             chain_type: "MintlayerChainType",
+            input_commitments_version: "int",
             version: "int | None" = None,
             chunkify: "bool | None" = None,
         ) -> None:
@@ -4330,15 +4332,19 @@ if TYPE_CHECKING:
 
     class MintlayerConcludeOrderV1(protobuf.MessageType):
         order_id: "str"
-        filled_ask_amount: "MintlayerOutputValue"
-        give_balance: "MintlayerOutputValue"
+        initially_asked: "MintlayerOutputValue"
+        initially_given: "MintlayerOutputValue"
+        ask_balance: "bytes"
+        give_balance: "bytes"
 
         def __init__(
             self,
             *,
             order_id: "str",
-            filled_ask_amount: "MintlayerOutputValue",
-            give_balance: "MintlayerOutputValue",
+            initially_asked: "MintlayerOutputValue",
+            initially_given: "MintlayerOutputValue",
+            ask_balance: "bytes",
+            give_balance: "bytes",
         ) -> None:
             pass
 
@@ -4438,15 +4444,19 @@ if TYPE_CHECKING:
 
     class MintlayerConcludeOrder(protobuf.MessageType):
         order_id: "str"
-        filled_ask_amount: "MintlayerOutputValue"
-        give_balance: "MintlayerOutputValue"
+        initially_asked: "MintlayerOutputValue"
+        initially_given: "MintlayerOutputValue"
+        ask_balance: "bytes"
+        give_balance: "bytes"
 
         def __init__(
             self,
             *,
             order_id: "str",
-            filled_ask_amount: "MintlayerOutputValue",
-            give_balance: "MintlayerOutputValue",
+            initially_asked: "MintlayerOutputValue",
+            initially_given: "MintlayerOutputValue",
+            ask_balance: "bytes",
+            give_balance: "bytes",
         ) -> None:
             pass
 
@@ -4458,8 +4468,10 @@ if TYPE_CHECKING:
         order_id: "str"
         amount: "bytes"
         destination: "str"
-        ask_balance: "MintlayerOutputValue"
-        give_balance: "MintlayerOutputValue"
+        initially_asked: "MintlayerOutputValue"
+        initially_given: "MintlayerOutputValue"
+        ask_balance: "bytes"
+        give_balance: "bytes"
 
         def __init__(
             self,
@@ -4467,8 +4479,10 @@ if TYPE_CHECKING:
             order_id: "str",
             amount: "bytes",
             destination: "str",
-            ask_balance: "MintlayerOutputValue",
-            give_balance: "MintlayerOutputValue",
+            initially_asked: "MintlayerOutputValue",
+            initially_given: "MintlayerOutputValue",
+            ask_balance: "bytes",
+            give_balance: "bytes",
         ) -> None:
             pass
 

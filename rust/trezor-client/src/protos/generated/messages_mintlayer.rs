@@ -1129,6 +1129,8 @@ pub struct MintlayerSignTx {
     pub inputs_count: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerSignTx.chain_type)
     pub chain_type: ::std::option::Option<::protobuf::EnumOrUnknown<MintlayerChainType>>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerSignTx.input_commitments_version)
+    pub input_commitments_version: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerSignTx.version)
     pub version: ::std::option::Option<u32>,
     // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerSignTx.chunkify)
@@ -1209,7 +1211,26 @@ impl MintlayerSignTx {
         self.chain_type = ::std::option::Option::Some(::protobuf::EnumOrUnknown::new(v));
     }
 
-    // optional uint32 version = 4;
+    // required uint32 input_commitments_version = 4;
+
+    pub fn input_commitments_version(&self) -> u32 {
+        self.input_commitments_version.unwrap_or(0)
+    }
+
+    pub fn clear_input_commitments_version(&mut self) {
+        self.input_commitments_version = ::std::option::Option::None;
+    }
+
+    pub fn has_input_commitments_version(&self) -> bool {
+        self.input_commitments_version.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_input_commitments_version(&mut self, v: u32) {
+        self.input_commitments_version = ::std::option::Option::Some(v);
+    }
+
+    // optional uint32 version = 5;
 
     pub fn version(&self) -> u32 {
         self.version.unwrap_or(1u32)
@@ -1228,7 +1249,7 @@ impl MintlayerSignTx {
         self.version = ::std::option::Option::Some(v);
     }
 
-    // optional bool chunkify = 5;
+    // optional bool chunkify = 6;
 
     pub fn chunkify(&self) -> bool {
         self.chunkify.unwrap_or(false)
@@ -1248,7 +1269,7 @@ impl MintlayerSignTx {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(5);
+        let mut fields = ::std::vec::Vec::with_capacity(6);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "outputs_count",
@@ -1264,6 +1285,11 @@ impl MintlayerSignTx {
             "chain_type",
             |m: &MintlayerSignTx| { &m.chain_type },
             |m: &mut MintlayerSignTx| { &mut m.chain_type },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "input_commitments_version",
+            |m: &MintlayerSignTx| { &m.input_commitments_version },
+            |m: &mut MintlayerSignTx| { &mut m.input_commitments_version },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "version",
@@ -1296,6 +1322,9 @@ impl ::protobuf::Message for MintlayerSignTx {
         if self.chain_type.is_none() {
             return false;
         }
+        if self.input_commitments_version.is_none() {
+            return false;
+        }
         true
     }
 
@@ -1312,9 +1341,12 @@ impl ::protobuf::Message for MintlayerSignTx {
                     self.chain_type = ::std::option::Option::Some(is.read_enum_or_unknown()?);
                 },
                 32 => {
-                    self.version = ::std::option::Option::Some(is.read_uint32()?);
+                    self.input_commitments_version = ::std::option::Option::Some(is.read_uint32()?);
                 },
                 40 => {
+                    self.version = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                48 => {
                     self.chunkify = ::std::option::Option::Some(is.read_bool()?);
                 },
                 tag => {
@@ -1338,8 +1370,11 @@ impl ::protobuf::Message for MintlayerSignTx {
         if let Some(v) = self.chain_type {
             my_size += ::protobuf::rt::int32_size(3, v.value());
         }
-        if let Some(v) = self.version {
+        if let Some(v) = self.input_commitments_version {
             my_size += ::protobuf::rt::uint32_size(4, v);
+        }
+        if let Some(v) = self.version {
+            my_size += ::protobuf::rt::uint32_size(5, v);
         }
         if let Some(v) = self.chunkify {
             my_size += 1 + 1;
@@ -1359,11 +1394,14 @@ impl ::protobuf::Message for MintlayerSignTx {
         if let Some(v) = self.chain_type {
             os.write_enum(3, ::protobuf::EnumOrUnknown::value(&v))?;
         }
-        if let Some(v) = self.version {
+        if let Some(v) = self.input_commitments_version {
             os.write_uint32(4, v)?;
         }
+        if let Some(v) = self.version {
+            os.write_uint32(5, v)?;
+        }
         if let Some(v) = self.chunkify {
-            os.write_bool(5, v)?;
+            os.write_bool(6, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -1385,6 +1423,7 @@ impl ::protobuf::Message for MintlayerSignTx {
         self.outputs_count = ::std::option::Option::None;
         self.inputs_count = ::std::option::Option::None;
         self.chain_type = ::std::option::Option::None;
+        self.input_commitments_version = ::std::option::Option::None;
         self.version = ::std::option::Option::None;
         self.chunkify = ::std::option::Option::None;
         self.special_fields.clear();
@@ -1395,6 +1434,7 @@ impl ::protobuf::Message for MintlayerSignTx {
             outputs_count: ::std::option::Option::None,
             inputs_count: ::std::option::Option::None,
             chain_type: ::std::option::Option::None,
+            input_commitments_version: ::std::option::Option::None,
             version: ::std::option::Option::None,
             chunkify: ::std::option::Option::None,
             special_fields: ::protobuf::SpecialFields::new(),
@@ -4355,10 +4395,14 @@ pub struct MintlayerConcludeOrderV1 {
     // message fields
     // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrderV1.order_id)
     pub order_id: ::std::option::Option<::std::string::String>,
-    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrderV1.filled_ask_amount)
-    pub filled_ask_amount: ::protobuf::MessageField<MintlayerOutputValue>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrderV1.initially_asked)
+    pub initially_asked: ::protobuf::MessageField<MintlayerOutputValue>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrderV1.initially_given)
+    pub initially_given: ::protobuf::MessageField<MintlayerOutputValue>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrderV1.ask_balance)
+    pub ask_balance: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrderV1.give_balance)
-    pub give_balance: ::protobuf::MessageField<MintlayerOutputValue>,
+    pub give_balance: ::std::option::Option<::std::vec::Vec<u8>>,
     // special fields
     // @@protoc_insertion_point(special_field:hw.trezor.messages.mintlayer.MintlayerConcludeOrderV1.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -4411,8 +4455,80 @@ impl MintlayerConcludeOrderV1 {
         self.order_id.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
+    // required bytes ask_balance = 4;
+
+    pub fn ask_balance(&self) -> &[u8] {
+        match self.ask_balance.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_ask_balance(&mut self) {
+        self.ask_balance = ::std::option::Option::None;
+    }
+
+    pub fn has_ask_balance(&self) -> bool {
+        self.ask_balance.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_ask_balance(&mut self, v: ::std::vec::Vec<u8>) {
+        self.ask_balance = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_ask_balance(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.ask_balance.is_none() {
+            self.ask_balance = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.ask_balance.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_ask_balance(&mut self) -> ::std::vec::Vec<u8> {
+        self.ask_balance.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
+    // required bytes give_balance = 5;
+
+    pub fn give_balance(&self) -> &[u8] {
+        match self.give_balance.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_give_balance(&mut self) {
+        self.give_balance = ::std::option::Option::None;
+    }
+
+    pub fn has_give_balance(&self) -> bool {
+        self.give_balance.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_give_balance(&mut self, v: ::std::vec::Vec<u8>) {
+        self.give_balance = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_give_balance(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.give_balance.is_none() {
+            self.give_balance = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.give_balance.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_give_balance(&mut self) -> ::std::vec::Vec<u8> {
+        self.give_balance.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(3);
+        let mut fields = ::std::vec::Vec::with_capacity(5);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "order_id",
@@ -4420,11 +4536,21 @@ impl MintlayerConcludeOrderV1 {
             |m: &mut MintlayerConcludeOrderV1| { &mut m.order_id },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, MintlayerOutputValue>(
-            "filled_ask_amount",
-            |m: &MintlayerConcludeOrderV1| { &m.filled_ask_amount },
-            |m: &mut MintlayerConcludeOrderV1| { &mut m.filled_ask_amount },
+            "initially_asked",
+            |m: &MintlayerConcludeOrderV1| { &m.initially_asked },
+            |m: &mut MintlayerConcludeOrderV1| { &mut m.initially_asked },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, MintlayerOutputValue>(
+            "initially_given",
+            |m: &MintlayerConcludeOrderV1| { &m.initially_given },
+            |m: &mut MintlayerConcludeOrderV1| { &mut m.initially_given },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "ask_balance",
+            |m: &MintlayerConcludeOrderV1| { &m.ask_balance },
+            |m: &mut MintlayerConcludeOrderV1| { &mut m.ask_balance },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "give_balance",
             |m: &MintlayerConcludeOrderV1| { &m.give_balance },
             |m: &mut MintlayerConcludeOrderV1| { &mut m.give_balance },
@@ -4444,18 +4570,24 @@ impl ::protobuf::Message for MintlayerConcludeOrderV1 {
         if self.order_id.is_none() {
             return false;
         }
-        if self.filled_ask_amount.is_none() {
+        if self.initially_asked.is_none() {
+            return false;
+        }
+        if self.initially_given.is_none() {
+            return false;
+        }
+        if self.ask_balance.is_none() {
             return false;
         }
         if self.give_balance.is_none() {
             return false;
         }
-        for v in &self.filled_ask_amount {
+        for v in &self.initially_asked {
             if !v.is_initialized() {
                 return false;
             }
         };
-        for v in &self.give_balance {
+        for v in &self.initially_given {
             if !v.is_initialized() {
                 return false;
             }
@@ -4470,10 +4602,16 @@ impl ::protobuf::Message for MintlayerConcludeOrderV1 {
                     self.order_id = ::std::option::Option::Some(is.read_string()?);
                 },
                 18 => {
-                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.filled_ask_amount)?;
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.initially_asked)?;
                 },
                 26 => {
-                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.give_balance)?;
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.initially_given)?;
+                },
+                34 => {
+                    self.ask_balance = ::std::option::Option::Some(is.read_bytes()?);
+                },
+                42 => {
+                    self.give_balance = ::std::option::Option::Some(is.read_bytes()?);
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -4490,13 +4628,19 @@ impl ::protobuf::Message for MintlayerConcludeOrderV1 {
         if let Some(v) = self.order_id.as_ref() {
             my_size += ::protobuf::rt::string_size(1, &v);
         }
-        if let Some(v) = self.filled_ask_amount.as_ref() {
+        if let Some(v) = self.initially_asked.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
-        if let Some(v) = self.give_balance.as_ref() {
+        if let Some(v) = self.initially_given.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.ask_balance.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(4, &v);
+        }
+        if let Some(v) = self.give_balance.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(5, &v);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
@@ -4507,11 +4651,17 @@ impl ::protobuf::Message for MintlayerConcludeOrderV1 {
         if let Some(v) = self.order_id.as_ref() {
             os.write_string(1, v)?;
         }
-        if let Some(v) = self.filled_ask_amount.as_ref() {
+        if let Some(v) = self.initially_asked.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
         }
-        if let Some(v) = self.give_balance.as_ref() {
+        if let Some(v) = self.initially_given.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+        }
+        if let Some(v) = self.ask_balance.as_ref() {
+            os.write_bytes(4, v)?;
+        }
+        if let Some(v) = self.give_balance.as_ref() {
+            os.write_bytes(5, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -4531,16 +4681,20 @@ impl ::protobuf::Message for MintlayerConcludeOrderV1 {
 
     fn clear(&mut self) {
         self.order_id = ::std::option::Option::None;
-        self.filled_ask_amount.clear();
-        self.give_balance.clear();
+        self.initially_asked.clear();
+        self.initially_given.clear();
+        self.ask_balance = ::std::option::Option::None;
+        self.give_balance = ::std::option::Option::None;
         self.special_fields.clear();
     }
 
     fn default_instance() -> &'static MintlayerConcludeOrderV1 {
         static instance: MintlayerConcludeOrderV1 = MintlayerConcludeOrderV1 {
             order_id: ::std::option::Option::None,
-            filled_ask_amount: ::protobuf::MessageField::none(),
-            give_balance: ::protobuf::MessageField::none(),
+            initially_asked: ::protobuf::MessageField::none(),
+            initially_given: ::protobuf::MessageField::none(),
+            ask_balance: ::std::option::Option::None,
+            give_balance: ::std::option::Option::None,
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -5690,10 +5844,14 @@ pub struct MintlayerConcludeOrder {
     // message fields
     // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrder.order_id)
     pub order_id: ::std::option::Option<::std::string::String>,
-    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrder.filled_ask_amount)
-    pub filled_ask_amount: ::protobuf::MessageField<MintlayerOutputValue>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrder.initially_asked)
+    pub initially_asked: ::protobuf::MessageField<MintlayerOutputValue>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrder.initially_given)
+    pub initially_given: ::protobuf::MessageField<MintlayerOutputValue>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrder.ask_balance)
+    pub ask_balance: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerConcludeOrder.give_balance)
-    pub give_balance: ::protobuf::MessageField<MintlayerOutputValue>,
+    pub give_balance: ::std::option::Option<::std::vec::Vec<u8>>,
     // special fields
     // @@protoc_insertion_point(special_field:hw.trezor.messages.mintlayer.MintlayerConcludeOrder.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -5746,8 +5904,80 @@ impl MintlayerConcludeOrder {
         self.order_id.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
+    // required bytes ask_balance = 4;
+
+    pub fn ask_balance(&self) -> &[u8] {
+        match self.ask_balance.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_ask_balance(&mut self) {
+        self.ask_balance = ::std::option::Option::None;
+    }
+
+    pub fn has_ask_balance(&self) -> bool {
+        self.ask_balance.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_ask_balance(&mut self, v: ::std::vec::Vec<u8>) {
+        self.ask_balance = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_ask_balance(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.ask_balance.is_none() {
+            self.ask_balance = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.ask_balance.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_ask_balance(&mut self) -> ::std::vec::Vec<u8> {
+        self.ask_balance.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
+    // required bytes give_balance = 5;
+
+    pub fn give_balance(&self) -> &[u8] {
+        match self.give_balance.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_give_balance(&mut self) {
+        self.give_balance = ::std::option::Option::None;
+    }
+
+    pub fn has_give_balance(&self) -> bool {
+        self.give_balance.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_give_balance(&mut self, v: ::std::vec::Vec<u8>) {
+        self.give_balance = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_give_balance(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.give_balance.is_none() {
+            self.give_balance = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.give_balance.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_give_balance(&mut self) -> ::std::vec::Vec<u8> {
+        self.give_balance.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(3);
+        let mut fields = ::std::vec::Vec::with_capacity(5);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "order_id",
@@ -5755,11 +5985,21 @@ impl MintlayerConcludeOrder {
             |m: &mut MintlayerConcludeOrder| { &mut m.order_id },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, MintlayerOutputValue>(
-            "filled_ask_amount",
-            |m: &MintlayerConcludeOrder| { &m.filled_ask_amount },
-            |m: &mut MintlayerConcludeOrder| { &mut m.filled_ask_amount },
+            "initially_asked",
+            |m: &MintlayerConcludeOrder| { &m.initially_asked },
+            |m: &mut MintlayerConcludeOrder| { &mut m.initially_asked },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, MintlayerOutputValue>(
+            "initially_given",
+            |m: &MintlayerConcludeOrder| { &m.initially_given },
+            |m: &mut MintlayerConcludeOrder| { &mut m.initially_given },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "ask_balance",
+            |m: &MintlayerConcludeOrder| { &m.ask_balance },
+            |m: &mut MintlayerConcludeOrder| { &mut m.ask_balance },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "give_balance",
             |m: &MintlayerConcludeOrder| { &m.give_balance },
             |m: &mut MintlayerConcludeOrder| { &mut m.give_balance },
@@ -5779,18 +6019,24 @@ impl ::protobuf::Message for MintlayerConcludeOrder {
         if self.order_id.is_none() {
             return false;
         }
-        if self.filled_ask_amount.is_none() {
+        if self.initially_asked.is_none() {
+            return false;
+        }
+        if self.initially_given.is_none() {
+            return false;
+        }
+        if self.ask_balance.is_none() {
             return false;
         }
         if self.give_balance.is_none() {
             return false;
         }
-        for v in &self.filled_ask_amount {
+        for v in &self.initially_asked {
             if !v.is_initialized() {
                 return false;
             }
         };
-        for v in &self.give_balance {
+        for v in &self.initially_given {
             if !v.is_initialized() {
                 return false;
             }
@@ -5805,10 +6051,16 @@ impl ::protobuf::Message for MintlayerConcludeOrder {
                     self.order_id = ::std::option::Option::Some(is.read_string()?);
                 },
                 18 => {
-                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.filled_ask_amount)?;
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.initially_asked)?;
                 },
                 26 => {
-                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.give_balance)?;
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.initially_given)?;
+                },
+                34 => {
+                    self.ask_balance = ::std::option::Option::Some(is.read_bytes()?);
+                },
+                42 => {
+                    self.give_balance = ::std::option::Option::Some(is.read_bytes()?);
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -5825,13 +6077,19 @@ impl ::protobuf::Message for MintlayerConcludeOrder {
         if let Some(v) = self.order_id.as_ref() {
             my_size += ::protobuf::rt::string_size(1, &v);
         }
-        if let Some(v) = self.filled_ask_amount.as_ref() {
+        if let Some(v) = self.initially_asked.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
-        if let Some(v) = self.give_balance.as_ref() {
+        if let Some(v) = self.initially_given.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.ask_balance.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(4, &v);
+        }
+        if let Some(v) = self.give_balance.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(5, &v);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
@@ -5842,11 +6100,17 @@ impl ::protobuf::Message for MintlayerConcludeOrder {
         if let Some(v) = self.order_id.as_ref() {
             os.write_string(1, v)?;
         }
-        if let Some(v) = self.filled_ask_amount.as_ref() {
+        if let Some(v) = self.initially_asked.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
         }
-        if let Some(v) = self.give_balance.as_ref() {
+        if let Some(v) = self.initially_given.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+        }
+        if let Some(v) = self.ask_balance.as_ref() {
+            os.write_bytes(4, v)?;
+        }
+        if let Some(v) = self.give_balance.as_ref() {
+            os.write_bytes(5, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -5866,16 +6130,20 @@ impl ::protobuf::Message for MintlayerConcludeOrder {
 
     fn clear(&mut self) {
         self.order_id = ::std::option::Option::None;
-        self.filled_ask_amount.clear();
-        self.give_balance.clear();
+        self.initially_asked.clear();
+        self.initially_given.clear();
+        self.ask_balance = ::std::option::Option::None;
+        self.give_balance = ::std::option::Option::None;
         self.special_fields.clear();
     }
 
     fn default_instance() -> &'static MintlayerConcludeOrder {
         static instance: MintlayerConcludeOrder = MintlayerConcludeOrder {
             order_id: ::std::option::Option::None,
-            filled_ask_amount: ::protobuf::MessageField::none(),
-            give_balance: ::protobuf::MessageField::none(),
+            initially_asked: ::protobuf::MessageField::none(),
+            initially_given: ::protobuf::MessageField::none(),
+            ask_balance: ::std::option::Option::None,
+            give_balance: ::std::option::Option::None,
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -5909,10 +6177,14 @@ pub struct MintlayerFillOrder {
     pub amount: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFillOrder.destination)
     pub destination: ::std::option::Option<::std::string::String>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFillOrder.initially_asked)
+    pub initially_asked: ::protobuf::MessageField<MintlayerOutputValue>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFillOrder.initially_given)
+    pub initially_given: ::protobuf::MessageField<MintlayerOutputValue>,
     // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFillOrder.ask_balance)
-    pub ask_balance: ::protobuf::MessageField<MintlayerOutputValue>,
+    pub ask_balance: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFillOrder.give_balance)
-    pub give_balance: ::protobuf::MessageField<MintlayerOutputValue>,
+    pub give_balance: ::std::option::Option<::std::vec::Vec<u8>>,
     // special fields
     // @@protoc_insertion_point(special_field:hw.trezor.messages.mintlayer.MintlayerFillOrder.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -6037,8 +6309,80 @@ impl MintlayerFillOrder {
         self.destination.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
+    // required bytes ask_balance = 6;
+
+    pub fn ask_balance(&self) -> &[u8] {
+        match self.ask_balance.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_ask_balance(&mut self) {
+        self.ask_balance = ::std::option::Option::None;
+    }
+
+    pub fn has_ask_balance(&self) -> bool {
+        self.ask_balance.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_ask_balance(&mut self, v: ::std::vec::Vec<u8>) {
+        self.ask_balance = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_ask_balance(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.ask_balance.is_none() {
+            self.ask_balance = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.ask_balance.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_ask_balance(&mut self) -> ::std::vec::Vec<u8> {
+        self.ask_balance.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
+    // required bytes give_balance = 7;
+
+    pub fn give_balance(&self) -> &[u8] {
+        match self.give_balance.as_ref() {
+            Some(v) => v,
+            None => &[],
+        }
+    }
+
+    pub fn clear_give_balance(&mut self) {
+        self.give_balance = ::std::option::Option::None;
+    }
+
+    pub fn has_give_balance(&self) -> bool {
+        self.give_balance.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_give_balance(&mut self, v: ::std::vec::Vec<u8>) {
+        self.give_balance = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_give_balance(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.give_balance.is_none() {
+            self.give_balance = ::std::option::Option::Some(::std::vec::Vec::new());
+        }
+        self.give_balance.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_give_balance(&mut self) -> ::std::vec::Vec<u8> {
+        self.give_balance.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    }
+
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(5);
+        let mut fields = ::std::vec::Vec::with_capacity(7);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "order_id",
@@ -6056,11 +6400,21 @@ impl MintlayerFillOrder {
             |m: &mut MintlayerFillOrder| { &mut m.destination },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, MintlayerOutputValue>(
+            "initially_asked",
+            |m: &MintlayerFillOrder| { &m.initially_asked },
+            |m: &mut MintlayerFillOrder| { &mut m.initially_asked },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, MintlayerOutputValue>(
+            "initially_given",
+            |m: &MintlayerFillOrder| { &m.initially_given },
+            |m: &mut MintlayerFillOrder| { &mut m.initially_given },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "ask_balance",
             |m: &MintlayerFillOrder| { &m.ask_balance },
             |m: &mut MintlayerFillOrder| { &mut m.ask_balance },
         ));
-        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, MintlayerOutputValue>(
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "give_balance",
             |m: &MintlayerFillOrder| { &m.give_balance },
             |m: &mut MintlayerFillOrder| { &mut m.give_balance },
@@ -6086,18 +6440,24 @@ impl ::protobuf::Message for MintlayerFillOrder {
         if self.destination.is_none() {
             return false;
         }
+        if self.initially_asked.is_none() {
+            return false;
+        }
+        if self.initially_given.is_none() {
+            return false;
+        }
         if self.ask_balance.is_none() {
             return false;
         }
         if self.give_balance.is_none() {
             return false;
         }
-        for v in &self.ask_balance {
+        for v in &self.initially_asked {
             if !v.is_initialized() {
                 return false;
             }
         };
-        for v in &self.give_balance {
+        for v in &self.initially_given {
             if !v.is_initialized() {
                 return false;
             }
@@ -6118,10 +6478,16 @@ impl ::protobuf::Message for MintlayerFillOrder {
                     self.destination = ::std::option::Option::Some(is.read_string()?);
                 },
                 34 => {
-                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.ask_balance)?;
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.initially_asked)?;
                 },
                 42 => {
-                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.give_balance)?;
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.initially_given)?;
+                },
+                50 => {
+                    self.ask_balance = ::std::option::Option::Some(is.read_bytes()?);
+                },
+                58 => {
+                    self.give_balance = ::std::option::Option::Some(is.read_bytes()?);
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -6144,13 +6510,19 @@ impl ::protobuf::Message for MintlayerFillOrder {
         if let Some(v) = self.destination.as_ref() {
             my_size += ::protobuf::rt::string_size(3, &v);
         }
-        if let Some(v) = self.ask_balance.as_ref() {
+        if let Some(v) = self.initially_asked.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
-        if let Some(v) = self.give_balance.as_ref() {
+        if let Some(v) = self.initially_given.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        if let Some(v) = self.ask_balance.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(6, &v);
+        }
+        if let Some(v) = self.give_balance.as_ref() {
+            my_size += ::protobuf::rt::bytes_size(7, &v);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
@@ -6167,11 +6539,17 @@ impl ::protobuf::Message for MintlayerFillOrder {
         if let Some(v) = self.destination.as_ref() {
             os.write_string(3, v)?;
         }
-        if let Some(v) = self.ask_balance.as_ref() {
+        if let Some(v) = self.initially_asked.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
         }
-        if let Some(v) = self.give_balance.as_ref() {
+        if let Some(v) = self.initially_given.as_ref() {
             ::protobuf::rt::write_message_field_with_cached_size(5, v, os)?;
+        }
+        if let Some(v) = self.ask_balance.as_ref() {
+            os.write_bytes(6, v)?;
+        }
+        if let Some(v) = self.give_balance.as_ref() {
+            os.write_bytes(7, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -6193,8 +6571,10 @@ impl ::protobuf::Message for MintlayerFillOrder {
         self.order_id = ::std::option::Option::None;
         self.amount = ::std::option::Option::None;
         self.destination = ::std::option::Option::None;
-        self.ask_balance.clear();
-        self.give_balance.clear();
+        self.initially_asked.clear();
+        self.initially_given.clear();
+        self.ask_balance = ::std::option::Option::None;
+        self.give_balance = ::std::option::Option::None;
         self.special_fields.clear();
     }
 
@@ -6203,8 +6583,10 @@ impl ::protobuf::Message for MintlayerFillOrder {
             order_id: ::std::option::Option::None,
             amount: ::std::option::Option::None,
             destination: ::std::option::Option::None,
-            ask_balance: ::protobuf::MessageField::none(),
-            give_balance: ::protobuf::MessageField::none(),
+            initially_asked: ::protobuf::MessageField::none(),
+            initially_given: ::protobuf::MessageField::none(),
+            ask_balance: ::std::option::Option::None,
+            give_balance: ::std::option::Option::None,
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -11859,52 +12241,53 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x12O\n\nchain_type\x18\x02\x20\x02(\x0e20.hw.trezor.messages.mintlayer.\
     MintlayerChainTypeR\tchainType\x12U\n\x0caddress_type\x18\x03\x20\x02(\
     \x0e22.hw.trezor.messages.mintlayer.MintlayerAddressTypeR\x0baddressType\
-    \x12\x18\n\x07message\x18\x04\x20\x02(\x0cR\x07message\"\xe3\x01\n\x0fMi\
+    \x12\x18\n\x07message\x18\x04\x20\x02(\x0cR\x07message\"\x9f\x02\n\x0fMi\
     ntlayerSignTx\x12#\n\routputs_count\x18\x01\x20\x02(\rR\x0coutputsCount\
     \x12!\n\x0cinputs_count\x18\x02\x20\x02(\rR\x0binputsCount\x12O\n\nchain\
     _type\x18\x03\x20\x02(\x0e20.hw.trezor.messages.mintlayer.MintlayerChain\
-    TypeR\tchainType\x12\x1b\n\x07version\x18\x04\x20\x01(\r:\x011R\x07versi\
-    on\x12\x1a\n\x08chunkify\x18\x05\x20\x01(\x08R\x08chunkify\"\x87\x07\n\
-    \x12MintlayerTxRequest\x12m\n\rinput_request\x18\x01\x20\x01(\x0b2H.hw.t\
-    rezor.messages.mintlayer.MintlayerTxRequest.MintlayerTxInputRequestR\x0c\
-    inputRequest\x12p\n\x0eoutput_request\x18\x02\x20\x01(\x0b2I.hw.trezor.m\
-    essages.mintlayer.MintlayerTxRequest.MintlayerTxOutputRequestR\routputRe\
-    quest\x12t\n\x10signing_finished\x18\x03\x20\x01(\x0b2I.hw.trezor.messag\
-    es.mintlayer.MintlayerTxRequest.MintlayerTxSigningResultR\x0fsigningFini\
-    shed\x1a:\n\x17MintlayerTxInputRequest\x12\x1f\n\x0binput_index\x18\x01\
-    \x20\x02(\rR\ninputIndex\x1aV\n\x18MintlayerTxOutputRequest\x12!\n\x0cou\
-    tput_index\x18\x01\x20\x02(\rR\x0boutputIndex\x12\x17\n\x07tx_hash\x18\
-    \x02\x20\x01(\x0cR\x06txHash\x1aU\n\x12MintlayerSignature\x12\x1c\n\tsig\
-    nature\x18\x01\x20\x02(\x0cR\tsignature\x12!\n\x0cmultisig_idx\x18\x02\
-    \x20\x01(\rR\x0bmultisigIdx\x1a\xa3\x01\n\x1bMintlayerSignaturesForInput\
-    \x12\x1f\n\x0binput_index\x18\x01\x20\x02(\rR\ninputIndex\x12c\n\nsignat\
-    ures\x18\x02\x20\x03(\x0b2C.hw.trezor.messages.mintlayer.MintlayerTxRequ\
-    est.MintlayerSignatureR\nsignatures\x1a\x88\x01\n\x18MintlayerTxSigningR\
-    esult\x12l\n\nsignatures\x18\x01\x20\x03(\x0b2L.hw.trezor.messages.mintl\
-    ayer.MintlayerTxRequest.MintlayerSignaturesForInputR\nsignatures\"V\n\
-    \x14MintlayerAddressPath\x12\x1b\n\taddress_n\x18\x01\x20\x03(\rR\x08add\
-    ressN\x12!\n\x0cmultisig_idx\x18\x02\x20\x01(\rR\x0bmultisigIdx\"\xe9\
-    \x01\n\x14MintlayerUtxoTxInput\x12P\n\taddresses\x18\x01\x20\x03(\x0b22.\
-    hw.trezor.messages.mintlayer.MintlayerAddressPathR\taddresses\x12\x1b\n\
-    \tprev_hash\x18\x02\x20\x02(\x0cR\x08prevHash\x12\x1d\n\nprev_index\x18\
-    \x03\x20\x02(\rR\tprevIndex\x12C\n\x04type\x18\x04\x20\x02(\x0e2/.hw.tre\
-    zor.messages.mintlayer.MintlayerUtxoTypeR\x04type\"\xf9\x01\n\x17Mintlay\
-    erAccountTxInput\x12P\n\taddresses\x18\x01\x20\x03(\x0b22.hw.trezor.mess\
-    ages.mintlayer.MintlayerAddressPathR\taddresses\x12\x14\n\x05nonce\x18\
-    \x02\x20\x02(\x04R\x05nonce\x12v\n\x12delegation_balance\x18\x03\x20\x01\
-    (\x0b2G.hw.trezor.messages.mintlayer.MintlayerAccountSpendingDelegationB\
-    alanceR\x11delegationBalance\"h\n)MintlayerAccountSpendingDelegationBala\
-    nce\x12#\n\rdelegation_id\x18\x01\x20\x02(\tR\x0cdelegationId\x12\x16\n\
-    \x06amount\x18\x02\x20\x02(\x0cR\x06amount\"\xcf\x07\n\x1eMintlayerAccou\
-    ntCommandTxInput\x12P\n\taddresses\x18\x01\x20\x03(\x0b22.hw.trezor.mess\
-    ages.mintlayer.MintlayerAddressPathR\taddresses\x12\x14\n\x05nonce\x18\
-    \x02\x20\x02(\x04R\x05nonce\x12E\n\x04mint\x18\x03\x20\x01(\x0b21.hw.tre\
-    zor.messages.mintlayer.MintlayerMintTokensR\x04mint\x12K\n\x06unmint\x18\
-    \x04\x20\x01(\x0b23.hw.trezor.messages.mintlayer.MintlayerUnmintTokensR\
-    \x06unmint\x12b\n\x11lock_token_supply\x18\x05\x20\x01(\x0b26.hw.trezor.\
-    messages.mintlayer.MintlayerLockTokenSupplyR\x0flockTokenSupply\x12U\n\
-    \x0cfreeze_token\x18\x06\x20\x01(\x0b22.hw.trezor.messages.mintlayer.Min\
-    tlayerFreezeTokenR\x0bfreezeToken\x12[\n\x0eunfreeze_token\x18\x07\x20\
+    TypeR\tchainType\x12:\n\x19input_commitments_version\x18\x04\x20\x02(\rR\
+    \x17inputCommitmentsVersion\x12\x1b\n\x07version\x18\x05\x20\x01(\r:\x01\
+    1R\x07version\x12\x1a\n\x08chunkify\x18\x06\x20\x01(\x08R\x08chunkify\"\
+    \x87\x07\n\x12MintlayerTxRequest\x12m\n\rinput_request\x18\x01\x20\x01(\
+    \x0b2H.hw.trezor.messages.mintlayer.MintlayerTxRequest.MintlayerTxInputR\
+    equestR\x0cinputRequest\x12p\n\x0eoutput_request\x18\x02\x20\x01(\x0b2I.\
+    hw.trezor.messages.mintlayer.MintlayerTxRequest.MintlayerTxOutputRequest\
+    R\routputRequest\x12t\n\x10signing_finished\x18\x03\x20\x01(\x0b2I.hw.tr\
+    ezor.messages.mintlayer.MintlayerTxRequest.MintlayerTxSigningResultR\x0f\
+    signingFinished\x1a:\n\x17MintlayerTxInputRequest\x12\x1f\n\x0binput_ind\
+    ex\x18\x01\x20\x02(\rR\ninputIndex\x1aV\n\x18MintlayerTxOutputRequest\
+    \x12!\n\x0coutput_index\x18\x01\x20\x02(\rR\x0boutputIndex\x12\x17\n\x07\
+    tx_hash\x18\x02\x20\x01(\x0cR\x06txHash\x1aU\n\x12MintlayerSignature\x12\
+    \x1c\n\tsignature\x18\x01\x20\x02(\x0cR\tsignature\x12!\n\x0cmultisig_id\
+    x\x18\x02\x20\x01(\rR\x0bmultisigIdx\x1a\xa3\x01\n\x1bMintlayerSignature\
+    sForInput\x12\x1f\n\x0binput_index\x18\x01\x20\x02(\rR\ninputIndex\x12c\
+    \n\nsignatures\x18\x02\x20\x03(\x0b2C.hw.trezor.messages.mintlayer.Mintl\
+    ayerTxRequest.MintlayerSignatureR\nsignatures\x1a\x88\x01\n\x18Mintlayer\
+    TxSigningResult\x12l\n\nsignatures\x18\x01\x20\x03(\x0b2L.hw.trezor.mess\
+    ages.mintlayer.MintlayerTxRequest.MintlayerSignaturesForInputR\nsignatur\
+    es\"V\n\x14MintlayerAddressPath\x12\x1b\n\taddress_n\x18\x01\x20\x03(\rR\
+    \x08addressN\x12!\n\x0cmultisig_idx\x18\x02\x20\x01(\rR\x0bmultisigIdx\"\
+    \xe9\x01\n\x14MintlayerUtxoTxInput\x12P\n\taddresses\x18\x01\x20\x03(\
+    \x0b22.hw.trezor.messages.mintlayer.MintlayerAddressPathR\taddresses\x12\
+    \x1b\n\tprev_hash\x18\x02\x20\x02(\x0cR\x08prevHash\x12\x1d\n\nprev_inde\
+    x\x18\x03\x20\x02(\rR\tprevIndex\x12C\n\x04type\x18\x04\x20\x02(\x0e2/.h\
+    w.trezor.messages.mintlayer.MintlayerUtxoTypeR\x04type\"\xf9\x01\n\x17Mi\
+    ntlayerAccountTxInput\x12P\n\taddresses\x18\x01\x20\x03(\x0b22.hw.trezor\
+    .messages.mintlayer.MintlayerAddressPathR\taddresses\x12\x14\n\x05nonce\
+    \x18\x02\x20\x02(\x04R\x05nonce\x12v\n\x12delegation_balance\x18\x03\x20\
+    \x01(\x0b2G.hw.trezor.messages.mintlayer.MintlayerAccountSpendingDelegat\
+    ionBalanceR\x11delegationBalance\"h\n)MintlayerAccountSpendingDelegation\
+    Balance\x12#\n\rdelegation_id\x18\x01\x20\x02(\tR\x0cdelegationId\x12\
+    \x16\n\x06amount\x18\x02\x20\x02(\x0cR\x06amount\"\xcf\x07\n\x1eMintlaye\
+    rAccountCommandTxInput\x12P\n\taddresses\x18\x01\x20\x03(\x0b22.hw.trezo\
+    r.messages.mintlayer.MintlayerAddressPathR\taddresses\x12\x14\n\x05nonce\
+    \x18\x02\x20\x02(\x04R\x05nonce\x12E\n\x04mint\x18\x03\x20\x01(\x0b21.hw\
+    .trezor.messages.mintlayer.MintlayerMintTokensR\x04mint\x12K\n\x06unmint\
+    \x18\x04\x20\x01(\x0b23.hw.trezor.messages.mintlayer.MintlayerUnmintToke\
+    nsR\x06unmint\x12b\n\x11lock_token_supply\x18\x05\x20\x01(\x0b26.hw.trez\
+    or.messages.mintlayer.MintlayerLockTokenSupplyR\x0flockTokenSupply\x12U\
+    \n\x0cfreeze_token\x18\x06\x20\x01(\x0b22.hw.trezor.messages.mintlayer.M\
+    intlayerFreezeTokenR\x0bfreezeToken\x12[\n\x0eunfreeze_token\x18\x07\x20\
     \x01(\x0b24.hw.trezor.messages.mintlayer.MintlayerUnfreezeTokenR\runfree\
     zeToken\x12q\n\x16change_token_authority\x18\x08\x20\x01(\x0b2;.hw.trezo\
     r.messages.mintlayer.MintlayerChangeTokenAuthorityR\x14changeTokenAuthor\
@@ -11926,134 +12309,140 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     .hw.trezor.messages.mintlayer.MintlayerOutputValueR\x0einitiallyAsked\
     \x12[\n\x0finitially_given\x18\x05\x20\x02(\x0b22.hw.trezor.messages.min\
     tlayer.MintlayerOutputValueR\x0einitiallyGiven\"1\n\x14MintlayerFreezeOr\
-    der\x12\x19\n\x08order_id\x18\x01\x20\x02(\tR\x07orderId\"\xec\x01\n\x18\
+    der\x12\x19\n\x08order_id\x18\x01\x20\x02(\tR\x07orderId\"\xb3\x02\n\x18\
     MintlayerConcludeOrderV1\x12\x19\n\x08order_id\x18\x01\x20\x02(\tR\x07or\
-    derId\x12^\n\x11filled_ask_amount\x18\x02\x20\x02(\x0b22.hw.trezor.messa\
-    ges.mintlayer.MintlayerOutputValueR\x0ffilledAskAmount\x12U\n\x0cgive_ba\
-    lance\x18\x03\x20\x02(\x0b22.hw.trezor.messages.mintlayer.MintlayerOutpu\
-    tValueR\x0bgiveBalance\"H\n\x13MintlayerMintTokens\x12\x19\n\x08token_id\
-    \x18\x01\x20\x02(\tR\x07tokenId\x12\x16\n\x06amount\x18\x02\x20\x02(\x0c\
-    R\x06amount\"2\n\x15MintlayerUnmintTokens\x12\x19\n\x08token_id\x18\x01\
-    \x20\x02(\tR\x07tokenId\"5\n\x18MintlayerLockTokenSupply\x12\x19\n\x08to\
-    ken_id\x18\x01\x20\x02(\tR\x07tokenId\"c\n\x14MintlayerFreezeToken\x12\
-    \x19\n\x08token_id\x18\x01\x20\x02(\tR\x07tokenId\x120\n\x14is_token_unf\
-    reezable\x18\x02\x20\x02(\x08R\x12isTokenUnfreezable\"3\n\x16MintlayerUn\
-    freezeToken\x12\x19\n\x08token_id\x18\x01\x20\x02(\tR\x07tokenId\"\\\n\
-    \x1dMintlayerChangeTokenAuthority\x12\x19\n\x08token_id\x18\x01\x20\x02(\
-    \tR\x07tokenId\x12\x20\n\x0bdestination\x18\x02\x20\x02(\tR\x0bdestinati\
-    on\"\xea\x01\n\x16MintlayerConcludeOrder\x12\x19\n\x08order_id\x18\x01\
-    \x20\x02(\tR\x07orderId\x12^\n\x11filled_ask_amount\x18\x02\x20\x02(\x0b\
-    22.hw.trezor.messages.mintlayer.MintlayerOutputValueR\x0ffilledAskAmount\
-    \x12U\n\x0cgive_balance\x18\x03\x20\x02(\x0b22.hw.trezor.messages.mintla\
-    yer.MintlayerOutputValueR\x0bgiveBalance\"\x95\x02\n\x12MintlayerFillOrd\
-    er\x12\x19\n\x08order_id\x18\x01\x20\x02(\tR\x07orderId\x12\x16\n\x06amo\
-    unt\x18\x02\x20\x02(\x0cR\x06amount\x12\x20\n\x0bdestination\x18\x03\x20\
-    \x02(\tR\x0bdestination\x12S\n\x0bask_balance\x18\x04\x20\x02(\x0b22.hw.\
-    trezor.messages.mintlayer.MintlayerOutputValueR\naskBalance\x12U\n\x0cgi\
-    ve_balance\x18\x05\x20\x02(\x0b22.hw.trezor.messages.mintlayer.Mintlayer\
-    OutputValueR\x0bgiveBalance\"_\n\x1fMintlayerChangeTokenMetadataUri\x12\
-    \x19\n\x08token_id\x18\x01\x20\x02(\tR\x07tokenId\x12!\n\x0cmetadata_uri\
-    \x18\x02\x20\x02(\x0cR\x0bmetadataUri\"\x87\x01\n\x19MintlayerTokenOutpu\
-    tValue\x12\x19\n\x08token_id\x18\x01\x20\x02(\tR\x07tokenId\x12!\n\x0cto\
-    ken_ticker\x18\x02\x20\x02(\x0cR\x0btokenTicker\x12,\n\x12number_of_deci\
-    mals\x18\x03\x20\x02(\rR\x10numberOfDecimals\"}\n\x14MintlayerOutputValu\
-    e\x12\x16\n\x06amount\x18\x01\x20\x02(\x0cR\x06amount\x12M\n\x05token\
-    \x18\x02\x20\x01(\x0b27.hw.trezor.messages.mintlayer.MintlayerTokenOutpu\
-    tValueR\x05token\"\x7f\n\x19MintlayerTransferTxOutput\x12\x18\n\x07addre\
-    ss\x18\x01\x20\x02(\tR\x07address\x12H\n\x05value\x18\x02\x20\x02(\x0b22\
-    .hw.trezor.messages.mintlayer.MintlayerOutputValueR\x05value\"\xa4\x01\n\
-    \x17MintlayerOutputTimeLock\x12!\n\x0cuntil_height\x18\x01\x20\x01(\x04R\
-    \x0buntilHeight\x12\x1d\n\nuntil_time\x18\x02\x20\x01(\x04R\tuntilTime\
-    \x12&\n\x0ffor_block_count\x18\x03\x20\x01(\x04R\rforBlockCount\x12\x1f\
-    \n\x0bfor_seconds\x18\x04\x20\x01(\x04R\nforSeconds\"\xd2\x01\n!Mintlaye\
-    rLockThenTransferTxOutput\x12\x18\n\x07address\x18\x01\x20\x02(\tR\x07ad\
-    dress\x12H\n\x05value\x18\x02\x20\x02(\x0b22.hw.trezor.messages.mintlaye\
-    r.MintlayerOutputValueR\x05value\x12I\n\x04lock\x18\x03\x20\x02(\x0b25.h\
-    w.trezor.messages.mintlayer.MintlayerOutputTimeLockR\x04lock\"a\n\x15Min\
-    tlayerBurnTxOutput\x12H\n\x05value\x18\x01\x20\x02(\x0b22.hw.trezor.mess\
-    ages.mintlayer.MintlayerOutputValueR\x05value\"\x9d\x02\n\x20MintlayerCr\
-    eateStakePoolTxOutput\x12\x17\n\x07pool_id\x18\x01\x20\x02(\tR\x06poolId\
-    \x12\x16\n\x06pledge\x18\x02\x20\x02(\x0cR\x06pledge\x12\x16\n\x06staker\
-    \x18\x03\x20\x02(\tR\x06staker\x12$\n\x0evrf_public_key\x18\x04\x20\x02(\
-    \tR\x0cvrfPublicKey\x12)\n\x10decommission_key\x18\x05\x20\x02(\tR\x0fde\
-    commissionKey\x129\n\x19margin_ratio_per_thousand\x18\x06\x20\x02(\rR\
-    \x16marginRatioPerThousand\x12$\n\x0ecost_per_block\x18\x07\x20\x02(\x0c\
-    R\x0ccostPerBlock\"\x8a\x01\n&MintlayerProduceBlockFromStakeTxOutput\x12\
-    \x20\n\x0bdestination\x18\x01\x20\x02(\tR\x0bdestination\x12\x17\n\x07po\
-    ol_id\x18\x02\x20\x02(\tR\x06poolId\x12%\n\x0estaker_balance\x18\x03\x20\
-    \x02(\x0cR\rstakerBalance\"`\n#MintlayerCreateDelegationIdTxOutput\x12\
-    \x20\n\x0bdestination\x18\x01\x20\x02(\tR\x0bdestination\x12\x17\n\x07po\
-    ol_id\x18\x02\x20\x02(\tR\x06poolId\"_\n\x20MintlayerDelegateStakingTxOu\
-    tput\x12\x16\n\x06amount\x18\x01\x20\x02(\x0cR\x06amount\x12#\n\rdelegat\
-    ion_id\x18\x02\x20\x02(\tR\x0cdelegationId\"\x8f\x01\n\x19MintlayerToken\
-    TotalSupply\x12O\n\x04type\x18\x01\x20\x02(\x0e2;.hw.trezor.messages.min\
-    tlayer.MintlayerTokenTotalSupplyTypeR\x04type\x12!\n\x0cfixed_amount\x18\
-    \x02\x20\x01(\x0cR\x0bfixedAmount\"\xb6\x02\n#MintlayerIssueFungibleToke\
-    nTxOutput\x12!\n\x0ctoken_ticker\x18\x01\x20\x02(\x0cR\x0btokenTicker\
-    \x12,\n\x12number_of_decimals\x18\x02\x20\x02(\rR\x10numberOfDecimals\
-    \x12!\n\x0cmetadata_uri\x18\x03\x20\x02(\x0cR\x0bmetadataUri\x12Z\n\x0ct\
-    otal_supply\x18\x04\x20\x02(\x0b27.hw.trezor.messages.mintlayer.Mintlaye\
-    rTokenTotalSupplyR\x0btotalSupply\x12\x1c\n\tauthority\x18\x05\x20\x02(\
-    \tR\tauthority\x12!\n\x0cis_freezable\x18\x06\x20\x02(\x08R\x0bisFreezab\
-    le\"\xcf\x02\n\x19MintlayerIssueNftTxOutput\x12\x19\n\x08token_id\x18\
-    \x01\x20\x02(\tR\x07tokenId\x12\x20\n\x0bdestination\x18\x02\x20\x02(\tR\
-    \x0bdestination\x12\x18\n\x07creator\x18\x03\x20\x01(\tR\x07creator\x12\
-    \x12\n\x04name\x18\x04\x20\x02(\x0cR\x04name\x12\x20\n\x0bdescription\
-    \x18\x05\x20\x02(\x0cR\x0bdescription\x12\x16\n\x06ticker\x18\x06\x20\
-    \x02(\x0cR\x06ticker\x12\x19\n\x08icon_uri\x18\x07\x20\x01(\x0cR\x07icon\
-    Uri\x126\n\x17additional_metadata_uri\x18\x08\x20\x01(\x0cR\x15additiona\
-    lMetadataUri\x12\x1b\n\tmedia_uri\x18\t\x20\x01(\x0cR\x08mediaUri\x12\
-    \x1d\n\nmedia_hash\x18\n\x20\x02(\x0cR\tmediaHash\"2\n\x1cMintlayerDataD\
-    epositTxOutput\x12\x12\n\x04data\x18\x01\x20\x02(\x0cR\x04data\"\x9e\x02\
-    \n\x15MintlayerHtlcTxOutput\x12H\n\x05value\x18\x01\x20\x02(\x0b22.hw.tr\
-    ezor.messages.mintlayer.MintlayerOutputValueR\x05value\x12\x1f\n\x0bsecr\
-    et_hash\x18\x02\x20\x02(\x0cR\nsecretHash\x12\x1b\n\tspend_key\x18\x03\
-    \x20\x02(\tR\x08spendKey\x12^\n\x0frefund_timelock\x18\x04\x20\x02(\x0b2\
-    5.hw.trezor.messages.mintlayer.MintlayerOutputTimeLockR\x0erefundTimeloc\
-    k\x12\x1d\n\nrefund_key\x18\x05\x20\x02(\tR\trefundKey\"\xcf\x01\n\x1cMi\
-    ntlayerCreateOrderTxOutput\x12!\n\x0cconclude_key\x18\x01\x20\x02(\tR\
-    \x0bconcludeKey\x12D\n\x03ask\x18\x02\x20\x02(\x0b22.hw.trezor.messages.\
-    mintlayer.MintlayerOutputValueR\x03ask\x12F\n\x04give\x18\x03\x20\x02(\
-    \x0b22.hw.trezor.messages.mintlayer.MintlayerOutputValueR\x04give\"\xf3\
-    \r\n\x0eMintlayerTxAck\x12S\n\x05input\x18\x01\x20\x01(\x0b2=.hw.trezor.\
-    messages.mintlayer.MintlayerTxAck.MintlayerTxInputR\x05input\x12V\n\x06o\
-    utput\x18\x02\x20\x01(\x0b2>.hw.trezor.messages.mintlayer.MintlayerTxAck\
-    .MintlayerTxOutputR\x06output\x1a\xf3\x02\n\x10MintlayerTxInput\x12F\n\
-    \x04utxo\x18\x01\x20\x01(\x0b22.hw.trezor.messages.mintlayer.MintlayerUt\
-    xoTxInputR\x04utxo\x12O\n\x07account\x18\x02\x20\x01(\x0b25.hw.trezor.me\
-    ssages.mintlayer.MintlayerAccountTxInputR\x07account\x12e\n\x0faccount_c\
-    ommand\x18\x03\x20\x01(\x0b2<.hw.trezor.messages.mintlayer.MintlayerAcco\
-    untCommandTxInputR\x0eaccountCommand\x12_\n\rorder_command\x18\x04\x20\
-    \x01(\x0b2:.hw.trezor.messages.mintlayer.MintlayerOrderCommandTxInputR\
-    \x0corderCommand\x1a\xbd\t\n\x11MintlayerTxOutput\x12S\n\x08transfer\x18\
-    \x01\x20\x01(\x0b27.hw.trezor.messages.mintlayer.MintlayerTransferTxOutp\
-    utR\x08transfer\x12m\n\x12lock_then_transfer\x18\x02\x20\x01(\x0b2?.hw.t\
-    rezor.messages.mintlayer.MintlayerLockThenTransferTxOutputR\x10lockThenT\
-    ransfer\x12G\n\x04burn\x18\x03\x20\x01(\x0b23.hw.trezor.messages.mintlay\
-    er.MintlayerBurnTxOutputR\x04burn\x12j\n\x11create_stake_pool\x18\x04\
-    \x20\x01(\x0b2>.hw.trezor.messages.mintlayer.MintlayerCreateStakePoolTxO\
-    utputR\x0fcreateStakePool\x12}\n\x18produce_block_from_stake\x18\x05\x20\
-    \x01(\x0b2D.hw.trezor.messages.mintlayer.MintlayerProduceBlockFromStakeT\
-    xOutputR\x15produceBlockFromStake\x12s\n\x14create_delegation_id\x18\x06\
-    \x20\x01(\x0b2A.hw.trezor.messages.mintlayer.MintlayerCreateDelegationId\
-    TxOutputR\x12createDelegationId\x12i\n\x10delegate_staking\x18\x07\x20\
-    \x01(\x0b2>.hw.trezor.messages.mintlayer.MintlayerDelegateStakingTxOutpu\
-    tR\x0fdelegateStaking\x12s\n\x14issue_fungible_token\x18\x08\x20\x01(\
-    \x0b2A.hw.trezor.messages.mintlayer.MintlayerIssueFungibleTokenTxOutputR\
-    \x12issueFungibleToken\x12T\n\tissue_nft\x18\t\x20\x01(\x0b27.hw.trezor.\
-    messages.mintlayer.MintlayerIssueNftTxOutputR\x08issueNft\x12]\n\x0cdata\
-    _deposit\x18\n\x20\x01(\x0b2:.hw.trezor.messages.mintlayer.MintlayerData\
-    DepositTxOutputR\x0bdataDeposit\x12G\n\x04htlc\x18\x0b\x20\x01(\x0b23.hw\
-    .trezor.messages.mintlayer.MintlayerHtlcTxOutputR\x04htlc\x12]\n\x0ccrea\
-    te_order\x18\x0c\x20\x01(\x0b2:.hw.trezor.messages.mintlayer.MintlayerCr\
-    eateOrderTxOutputR\x0bcreateOrder*G\n\x12MintlayerChainType\x12\x0b\n\
-    \x07Mainnet\x10\x01\x12\x0b\n\x07Testnet\x10\x02\x12\x0b\n\x07Regtest\
-    \x10\x03\x12\n\n\x06Signet\x10\x04*;\n\x14MintlayerAddressType\x12\x0e\n\
-    \nPUBLIC_KEY\x10\x01\x12\x13\n\x0fPUBLIC_KEY_HASH\x10\x02*/\n\x11Mintlay\
-    erUtxoType\x12\x0f\n\x0bTRANSACTION\x10\0\x12\t\n\x05BLOCK\x10\x01*G\n\
-    \x1dMintlayerTokenTotalSupplyType\x12\t\n\x05FIXED\x10\0\x12\x0c\n\x08LO\
-    CKABLE\x10\x01\x12\r\n\tUNLIMITED\x10\x02B=\n#com.satoshilabs.trezor.lib\
-    .protobufB\x16TrezorMessageMintlayer\
+    derId\x12[\n\x0finitially_asked\x18\x02\x20\x02(\x0b22.hw.trezor.message\
+    s.mintlayer.MintlayerOutputValueR\x0einitiallyAsked\x12[\n\x0finitially_\
+    given\x18\x03\x20\x02(\x0b22.hw.trezor.messages.mintlayer.MintlayerOutpu\
+    tValueR\x0einitiallyGiven\x12\x1f\n\x0bask_balance\x18\x04\x20\x02(\x0cR\
+    \naskBalance\x12!\n\x0cgive_balance\x18\x05\x20\x02(\x0cR\x0bgiveBalance\
+    \"H\n\x13MintlayerMintTokens\x12\x19\n\x08token_id\x18\x01\x20\x02(\tR\
+    \x07tokenId\x12\x16\n\x06amount\x18\x02\x20\x02(\x0cR\x06amount\"2\n\x15\
+    MintlayerUnmintTokens\x12\x19\n\x08token_id\x18\x01\x20\x02(\tR\x07token\
+    Id\"5\n\x18MintlayerLockTokenSupply\x12\x19\n\x08token_id\x18\x01\x20\
+    \x02(\tR\x07tokenId\"c\n\x14MintlayerFreezeToken\x12\x19\n\x08token_id\
+    \x18\x01\x20\x02(\tR\x07tokenId\x120\n\x14is_token_unfreezable\x18\x02\
+    \x20\x02(\x08R\x12isTokenUnfreezable\"3\n\x16MintlayerUnfreezeToken\x12\
+    \x19\n\x08token_id\x18\x01\x20\x02(\tR\x07tokenId\"\\\n\x1dMintlayerChan\
+    geTokenAuthority\x12\x19\n\x08token_id\x18\x01\x20\x02(\tR\x07tokenId\
+    \x12\x20\n\x0bdestination\x18\x02\x20\x02(\tR\x0bdestination\"\xb1\x02\n\
+    \x16MintlayerConcludeOrder\x12\x19\n\x08order_id\x18\x01\x20\x02(\tR\x07\
+    orderId\x12[\n\x0finitially_asked\x18\x02\x20\x02(\x0b22.hw.trezor.messa\
+    ges.mintlayer.MintlayerOutputValueR\x0einitiallyAsked\x12[\n\x0finitiall\
+    y_given\x18\x03\x20\x02(\x0b22.hw.trezor.messages.mintlayer.MintlayerOut\
+    putValueR\x0einitiallyGiven\x12\x1f\n\x0bask_balance\x18\x04\x20\x02(\
+    \x0cR\naskBalance\x12!\n\x0cgive_balance\x18\x05\x20\x02(\x0cR\x0bgiveBa\
+    lance\"\xe7\x02\n\x12MintlayerFillOrder\x12\x19\n\x08order_id\x18\x01\
+    \x20\x02(\tR\x07orderId\x12\x16\n\x06amount\x18\x02\x20\x02(\x0cR\x06amo\
+    unt\x12\x20\n\x0bdestination\x18\x03\x20\x02(\tR\x0bdestination\x12[\n\
+    \x0finitially_asked\x18\x04\x20\x02(\x0b22.hw.trezor.messages.mintlayer.\
+    MintlayerOutputValueR\x0einitiallyAsked\x12[\n\x0finitially_given\x18\
+    \x05\x20\x02(\x0b22.hw.trezor.messages.mintlayer.MintlayerOutputValueR\
+    \x0einitiallyGiven\x12\x1f\n\x0bask_balance\x18\x06\x20\x02(\x0cR\naskBa\
+    lance\x12!\n\x0cgive_balance\x18\x07\x20\x02(\x0cR\x0bgiveBalance\"_\n\
+    \x1fMintlayerChangeTokenMetadataUri\x12\x19\n\x08token_id\x18\x01\x20\
+    \x02(\tR\x07tokenId\x12!\n\x0cmetadata_uri\x18\x02\x20\x02(\x0cR\x0bmeta\
+    dataUri\"\x87\x01\n\x19MintlayerTokenOutputValue\x12\x19\n\x08token_id\
+    \x18\x01\x20\x02(\tR\x07tokenId\x12!\n\x0ctoken_ticker\x18\x02\x20\x02(\
+    \x0cR\x0btokenTicker\x12,\n\x12number_of_decimals\x18\x03\x20\x02(\rR\
+    \x10numberOfDecimals\"}\n\x14MintlayerOutputValue\x12\x16\n\x06amount\
+    \x18\x01\x20\x02(\x0cR\x06amount\x12M\n\x05token\x18\x02\x20\x01(\x0b27.\
+    hw.trezor.messages.mintlayer.MintlayerTokenOutputValueR\x05token\"\x7f\n\
+    \x19MintlayerTransferTxOutput\x12\x18\n\x07address\x18\x01\x20\x02(\tR\
+    \x07address\x12H\n\x05value\x18\x02\x20\x02(\x0b22.hw.trezor.messages.mi\
+    ntlayer.MintlayerOutputValueR\x05value\"\xa4\x01\n\x17MintlayerOutputTim\
+    eLock\x12!\n\x0cuntil_height\x18\x01\x20\x01(\x04R\x0buntilHeight\x12\
+    \x1d\n\nuntil_time\x18\x02\x20\x01(\x04R\tuntilTime\x12&\n\x0ffor_block_\
+    count\x18\x03\x20\x01(\x04R\rforBlockCount\x12\x1f\n\x0bfor_seconds\x18\
+    \x04\x20\x01(\x04R\nforSeconds\"\xd2\x01\n!MintlayerLockThenTransferTxOu\
+    tput\x12\x18\n\x07address\x18\x01\x20\x02(\tR\x07address\x12H\n\x05value\
+    \x18\x02\x20\x02(\x0b22.hw.trezor.messages.mintlayer.MintlayerOutputValu\
+    eR\x05value\x12I\n\x04lock\x18\x03\x20\x02(\x0b25.hw.trezor.messages.min\
+    tlayer.MintlayerOutputTimeLockR\x04lock\"a\n\x15MintlayerBurnTxOutput\
+    \x12H\n\x05value\x18\x01\x20\x02(\x0b22.hw.trezor.messages.mintlayer.Min\
+    tlayerOutputValueR\x05value\"\x9d\x02\n\x20MintlayerCreateStakePoolTxOut\
+    put\x12\x17\n\x07pool_id\x18\x01\x20\x02(\tR\x06poolId\x12\x16\n\x06pled\
+    ge\x18\x02\x20\x02(\x0cR\x06pledge\x12\x16\n\x06staker\x18\x03\x20\x02(\
+    \tR\x06staker\x12$\n\x0evrf_public_key\x18\x04\x20\x02(\tR\x0cvrfPublicK\
+    ey\x12)\n\x10decommission_key\x18\x05\x20\x02(\tR\x0fdecommissionKey\x12\
+    9\n\x19margin_ratio_per_thousand\x18\x06\x20\x02(\rR\x16marginRatioPerTh\
+    ousand\x12$\n\x0ecost_per_block\x18\x07\x20\x02(\x0cR\x0ccostPerBlock\"\
+    \x8a\x01\n&MintlayerProduceBlockFromStakeTxOutput\x12\x20\n\x0bdestinati\
+    on\x18\x01\x20\x02(\tR\x0bdestination\x12\x17\n\x07pool_id\x18\x02\x20\
+    \x02(\tR\x06poolId\x12%\n\x0estaker_balance\x18\x03\x20\x02(\x0cR\rstake\
+    rBalance\"`\n#MintlayerCreateDelegationIdTxOutput\x12\x20\n\x0bdestinati\
+    on\x18\x01\x20\x02(\tR\x0bdestination\x12\x17\n\x07pool_id\x18\x02\x20\
+    \x02(\tR\x06poolId\"_\n\x20MintlayerDelegateStakingTxOutput\x12\x16\n\
+    \x06amount\x18\x01\x20\x02(\x0cR\x06amount\x12#\n\rdelegation_id\x18\x02\
+    \x20\x02(\tR\x0cdelegationId\"\x8f\x01\n\x19MintlayerTokenTotalSupply\
+    \x12O\n\x04type\x18\x01\x20\x02(\x0e2;.hw.trezor.messages.mintlayer.Mint\
+    layerTokenTotalSupplyTypeR\x04type\x12!\n\x0cfixed_amount\x18\x02\x20\
+    \x01(\x0cR\x0bfixedAmount\"\xb6\x02\n#MintlayerIssueFungibleTokenTxOutpu\
+    t\x12!\n\x0ctoken_ticker\x18\x01\x20\x02(\x0cR\x0btokenTicker\x12,\n\x12\
+    number_of_decimals\x18\x02\x20\x02(\rR\x10numberOfDecimals\x12!\n\x0cmet\
+    adata_uri\x18\x03\x20\x02(\x0cR\x0bmetadataUri\x12Z\n\x0ctotal_supply\
+    \x18\x04\x20\x02(\x0b27.hw.trezor.messages.mintlayer.MintlayerTokenTotal\
+    SupplyR\x0btotalSupply\x12\x1c\n\tauthority\x18\x05\x20\x02(\tR\tauthori\
+    ty\x12!\n\x0cis_freezable\x18\x06\x20\x02(\x08R\x0bisFreezable\"\xcf\x02\
+    \n\x19MintlayerIssueNftTxOutput\x12\x19\n\x08token_id\x18\x01\x20\x02(\t\
+    R\x07tokenId\x12\x20\n\x0bdestination\x18\x02\x20\x02(\tR\x0bdestination\
+    \x12\x18\n\x07creator\x18\x03\x20\x01(\tR\x07creator\x12\x12\n\x04name\
+    \x18\x04\x20\x02(\x0cR\x04name\x12\x20\n\x0bdescription\x18\x05\x20\x02(\
+    \x0cR\x0bdescription\x12\x16\n\x06ticker\x18\x06\x20\x02(\x0cR\x06ticker\
+    \x12\x19\n\x08icon_uri\x18\x07\x20\x01(\x0cR\x07iconUri\x126\n\x17additi\
+    onal_metadata_uri\x18\x08\x20\x01(\x0cR\x15additionalMetadataUri\x12\x1b\
+    \n\tmedia_uri\x18\t\x20\x01(\x0cR\x08mediaUri\x12\x1d\n\nmedia_hash\x18\
+    \n\x20\x02(\x0cR\tmediaHash\"2\n\x1cMintlayerDataDepositTxOutput\x12\x12\
+    \n\x04data\x18\x01\x20\x02(\x0cR\x04data\"\x9e\x02\n\x15MintlayerHtlcTxO\
+    utput\x12H\n\x05value\x18\x01\x20\x02(\x0b22.hw.trezor.messages.mintlaye\
+    r.MintlayerOutputValueR\x05value\x12\x1f\n\x0bsecret_hash\x18\x02\x20\
+    \x02(\x0cR\nsecretHash\x12\x1b\n\tspend_key\x18\x03\x20\x02(\tR\x08spend\
+    Key\x12^\n\x0frefund_timelock\x18\x04\x20\x02(\x0b25.hw.trezor.messages.\
+    mintlayer.MintlayerOutputTimeLockR\x0erefundTimelock\x12\x1d\n\nrefund_k\
+    ey\x18\x05\x20\x02(\tR\trefundKey\"\xcf\x01\n\x1cMintlayerCreateOrderTxO\
+    utput\x12!\n\x0cconclude_key\x18\x01\x20\x02(\tR\x0bconcludeKey\x12D\n\
+    \x03ask\x18\x02\x20\x02(\x0b22.hw.trezor.messages.mintlayer.MintlayerOut\
+    putValueR\x03ask\x12F\n\x04give\x18\x03\x20\x02(\x0b22.hw.trezor.message\
+    s.mintlayer.MintlayerOutputValueR\x04give\"\xf3\r\n\x0eMintlayerTxAck\
+    \x12S\n\x05input\x18\x01\x20\x01(\x0b2=.hw.trezor.messages.mintlayer.Min\
+    tlayerTxAck.MintlayerTxInputR\x05input\x12V\n\x06output\x18\x02\x20\x01(\
+    \x0b2>.hw.trezor.messages.mintlayer.MintlayerTxAck.MintlayerTxOutputR\
+    \x06output\x1a\xf3\x02\n\x10MintlayerTxInput\x12F\n\x04utxo\x18\x01\x20\
+    \x01(\x0b22.hw.trezor.messages.mintlayer.MintlayerUtxoTxInputR\x04utxo\
+    \x12O\n\x07account\x18\x02\x20\x01(\x0b25.hw.trezor.messages.mintlayer.M\
+    intlayerAccountTxInputR\x07account\x12e\n\x0faccount_command\x18\x03\x20\
+    \x01(\x0b2<.hw.trezor.messages.mintlayer.MintlayerAccountCommandTxInputR\
+    \x0eaccountCommand\x12_\n\rorder_command\x18\x04\x20\x01(\x0b2:.hw.trezo\
+    r.messages.mintlayer.MintlayerOrderCommandTxInputR\x0corderCommand\x1a\
+    \xbd\t\n\x11MintlayerTxOutput\x12S\n\x08transfer\x18\x01\x20\x01(\x0b27.\
+    hw.trezor.messages.mintlayer.MintlayerTransferTxOutputR\x08transfer\x12m\
+    \n\x12lock_then_transfer\x18\x02\x20\x01(\x0b2?.hw.trezor.messages.mintl\
+    ayer.MintlayerLockThenTransferTxOutputR\x10lockThenTransfer\x12G\n\x04bu\
+    rn\x18\x03\x20\x01(\x0b23.hw.trezor.messages.mintlayer.MintlayerBurnTxOu\
+    tputR\x04burn\x12j\n\x11create_stake_pool\x18\x04\x20\x01(\x0b2>.hw.trez\
+    or.messages.mintlayer.MintlayerCreateStakePoolTxOutputR\x0fcreateStakePo\
+    ol\x12}\n\x18produce_block_from_stake\x18\x05\x20\x01(\x0b2D.hw.trezor.m\
+    essages.mintlayer.MintlayerProduceBlockFromStakeTxOutputR\x15produceBloc\
+    kFromStake\x12s\n\x14create_delegation_id\x18\x06\x20\x01(\x0b2A.hw.trez\
+    or.messages.mintlayer.MintlayerCreateDelegationIdTxOutputR\x12createDele\
+    gationId\x12i\n\x10delegate_staking\x18\x07\x20\x01(\x0b2>.hw.trezor.mes\
+    sages.mintlayer.MintlayerDelegateStakingTxOutputR\x0fdelegateStaking\x12\
+    s\n\x14issue_fungible_token\x18\x08\x20\x01(\x0b2A.hw.trezor.messages.mi\
+    ntlayer.MintlayerIssueFungibleTokenTxOutputR\x12issueFungibleToken\x12T\
+    \n\tissue_nft\x18\t\x20\x01(\x0b27.hw.trezor.messages.mintlayer.Mintlaye\
+    rIssueNftTxOutputR\x08issueNft\x12]\n\x0cdata_deposit\x18\n\x20\x01(\x0b\
+    2:.hw.trezor.messages.mintlayer.MintlayerDataDepositTxOutputR\x0bdataDep\
+    osit\x12G\n\x04htlc\x18\x0b\x20\x01(\x0b23.hw.trezor.messages.mintlayer.\
+    MintlayerHtlcTxOutputR\x04htlc\x12]\n\x0ccreate_order\x18\x0c\x20\x01(\
+    \x0b2:.hw.trezor.messages.mintlayer.MintlayerCreateOrderTxOutputR\x0bcre\
+    ateOrder*G\n\x12MintlayerChainType\x12\x0b\n\x07Mainnet\x10\x01\x12\x0b\
+    \n\x07Testnet\x10\x02\x12\x0b\n\x07Regtest\x10\x03\x12\n\n\x06Signet\x10\
+    \x04*;\n\x14MintlayerAddressType\x12\x0e\n\nPUBLIC_KEY\x10\x01\x12\x13\n\
+    \x0fPUBLIC_KEY_HASH\x10\x02*/\n\x11MintlayerUtxoType\x12\x0f\n\x0bTRANSA\
+    CTION\x10\0\x12\t\n\x05BLOCK\x10\x01*G\n\x1dMintlayerTokenTotalSupplyTyp\
+    e\x12\t\n\x05FIXED\x10\0\x12\x0c\n\x08LOCKABLE\x10\x01\x12\r\n\tUNLIMITE\
+    D\x10\x02B=\n#com.satoshilabs.trezor.lib.protobufB\x16TrezorMessageMintl\
+    ayer\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

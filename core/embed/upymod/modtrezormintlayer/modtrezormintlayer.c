@@ -27,52 +27,8 @@
 
 // #if MICROPY_PY_TREZORMINTLAYER
 
+#include "modtrezormintlayer-input-comm.h"
 #include "modtrezormintlayer.h"
-
-void handle_err(ByteArray *res) {
-  if (res->data != NULL) {
-    return;
-  }
-
-  switch (res->len_or_err.err) {
-    case WrongHashSize:
-      mp_raise_ValueError("Invalid hash size");
-      break;
-    case InvalidUtxoType:
-      mp_raise_ValueError("Invalid UTXO type");
-      break;
-    case InvalidAmount:
-      mp_raise_ValueError("Invalid amount");
-      break;
-    case InvalidAccountCommand:
-      mp_raise_ValueError("Invalid account command");
-      break;
-    case InvalidDestination:
-      mp_raise_ValueError("Invalid destination");
-      break;
-    case InvalidIsTokenUnfreezable:
-      mp_raise_ValueError("Invalid token unfreezable flag");
-      break;
-    case InvalidIsTokenFreezable:
-      mp_raise_ValueError("Invalid token freezable flag");
-      break;
-    case InvalidVrfPublicKey:
-      mp_raise_ValueError("Invalid VRF public key");
-      break;
-    case InvalidPublicKey:
-      mp_raise_ValueError("Invalid public key");
-      break;
-    case InvalidOutputTimeLock:
-      mp_raise_ValueError("Invalid output time lock");
-      break;
-    case InvalidTokenTotalSupply:
-      mp_raise_ValueError("Invalid token total supply");
-      break;
-    default:
-      mp_raise_ValueError("Unknown error");
-      break;
-  }
-}
 
 STATIC const mp_rom_map_elem_t mod_trezormintlayer_globals_table[] = {
     {MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_trezormintlayer)},
@@ -135,6 +91,24 @@ STATIC const mp_rom_map_elem_t mod_trezormintlayer_globals_table[] = {
          &mod_trezormintlayer_utils_mintlayer_encode_create_order_output_obj)},
     {MP_ROM_QSTR(MP_QSTR_encode_compact_length),
      MP_ROM_PTR(&mod_trezormintlayer_utils_mintlayer_encode_comact_length_obj)},
+
+    // Input commitments
+    {MP_ROM_QSTR(MP_QSTR_encode_empty_input_commitment),
+     MP_ROM_PTR(
+         &mod_trezormintlayer_utils_mintlayer_encode_empty_input_commitment_obj)},
+    {MP_ROM_QSTR(MP_QSTR_encode_input_commitment_for_utxo),
+     MP_ROM_PTR(
+         &mod_trezormintlayer_utils_mintlayer_encode_input_commitment_for_utxo_obj)},
+    {MP_ROM_QSTR(
+         MP_QSTR_encode_input_commitment_v1_for_produce_block_from_stake_utxo),
+     MP_ROM_PTR(
+         &mod_trezormintlayer_utils_mintlayer_encode_input_commitment_v1_for_produce_block_from_stake_utxo_obj)},
+    {MP_ROM_QSTR(MP_QSTR_encode_input_commitment_v1_for_fill_order),
+     MP_ROM_PTR(
+         &mod_trezormintlayer_utils_mintlayer_encode_input_commitment_v1_for_fill_order_obj)},
+    {MP_ROM_QSTR(MP_QSTR_encode_input_commitment_v1_for_conclude_order),
+     MP_ROM_PTR(
+         &mod_trezormintlayer_utils_mintlayer_encode_input_commitment_v1_for_conclude_order_obj)},
 };
 STATIC MP_DEFINE_CONST_DICT(mod_trezormintlayer_globals,
                             mod_trezormintlayer_globals_table);

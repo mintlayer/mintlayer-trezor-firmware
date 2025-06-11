@@ -1,6 +1,55 @@
 from typing import *
 
 
+# upymod/modtrezormintlayer/modtrezormintlayer-input-comm.h
+def encode_empty_input_commitment() -> bytes:
+    """
+    Encodes an empty input commitment.
+    """
+
+
+# upymod/modtrezormintlayer/modtrezormintlayer-input-comm.h
+def encode_input_commitment_for_utxo(encoded_utxo: bytes) -> bytes:
+    """
+    Encodes an input commitment for a utxo.
+    in v1 it works for any utxo input except ProduceBlockFromStake.
+    """
+
+
+# upymod/modtrezormintlayer/modtrezormintlayer-input-comm.h
+def encode_input_commitment_v1_for_produce_block_from_stake_utxo(
+  encoded_utxo: bytes, staker_balance_amount: bytes
+) -> bytes:
+    """
+    Encodes an input commitment for a ProduceBlockFromStake utxo (v1 only).
+    """
+
+
+# upymod/modtrezormintlayer/modtrezormintlayer-input-comm.h
+def encode_input_commitment_v1_for_fill_order(
+    asked_token: bytes, initially_asked_amount: bytes,
+    given_token: bytes, initially_given_amount: bytes,
+) -> bytes:
+    """
+    Encodes input commitment for filling an order (v1 only);
+    asked_token and given_token can be empty byte arrays, which means that
+    the corresponding
+    """
+
+
+# upymod/modtrezormintlayer/modtrezormintlayer-input-comm.h
+def encode_input_commitment_v1_for_conclude_order(
+    asked_token: bytes, initially_asked_amount: bytes, ask_balance_amount:
+    bytes, given_token: bytes, initially_given_amount: bytes,
+    give_balance_amount: bytes
+) -> bytes:
+    """
+    Encodes input commitment for concluding an order (v1 only);
+    asked_token and given_token can be empty byte arrays, which means that
+    the corresponding
+    """
+
+
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_utxo_input(tx_hash: bytes, index: int, utxo_type: int) -> bytes:
     """
@@ -38,7 +87,7 @@ def encode_fill_order_account_command_input(nonce: int, order_id: bytes,
 amount: bytes, destination: bytes)
 -> bytes:
     """
-    encodes an fill order account command from the nonce, order id, output
+    encodes a fill order account command from the nonce, order id, output
     amount and destination
     """
 

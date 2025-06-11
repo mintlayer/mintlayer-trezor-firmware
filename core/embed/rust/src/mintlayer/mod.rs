@@ -15,6 +15,8 @@ use ml_common::{
 use num_traits::FromPrimitive;
 use parity_scale_codec::{DecodeAll, Encode};
 
+pub mod input_commitments;
+
 #[repr(C)]
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum MintlayerErrorCode {
@@ -29,6 +31,7 @@ pub enum MintlayerErrorCode {
     InvalidPublicKey = 9,
     InvalidOutputTimeLock = 10,
     InvalidTokenTotalSupply = 11,
+    InvalidEncodedUtxo = 12,
 }
 
 #[repr(C)]
@@ -110,8 +113,7 @@ fn mintlayer_encode_account_spending_input_impl(
             .try_into()
             .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
     );
-    let amount =
-        Amount::from_bytes_be(coin_amount.as_ref()).ok_or(MintlayerErrorCode::InvalidAmount)?;
+    let amount = parse_amount(coin_amount)?;
     let tx_input = TxInput::Account(AccountOutPoint {
         nonce,
         account: AccountSpending::DelegationBalance(delegation_id, amount),
@@ -150,8 +152,7 @@ fn mintlayer_encode_token_account_command_input_impl(
         .ok_or(MintlayerErrorCode::InvalidAccountCommand)?
     {
         AccountCommandTag::MintTokens => {
-            let amount =
-                Amount::from_bytes_be(data.as_ref()).ok_or(MintlayerErrorCode::InvalidAmount)?;
+            let amount = parse_amount(data)?;
             AccountCommand::MintTokens(token_id, amount)
         }
         AccountCommandTag::UnmintTokens => AccountCommand::UnmintTokens(token_id),
@@ -170,7 +171,9 @@ fn mintlayer_encode_token_account_command_input_impl(
         AccountCommandTag::ChangeTokenMetadataUri => {
             AccountCommand::ChangeTokenMetadataUri(token_id, data.to_vec())
         }
-        _ => return Err(MintlayerErrorCode::InvalidAccountCommand),
+        AccountCommandTag::ConcludeOrder | AccountCommandTag::FillOrder => {
+            return Err(MintlayerErrorCode::InvalidAccountCommand)
+        }
     };
     let tx_input = TxInput::AccountCommand(nonce, account_command);
     Ok(tx_input)
@@ -268,8 +271,7 @@ fn mintlayer_encode_fill_order_account_command_input_impl(
             .try_into()
             .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
     );
-    let amount =
-        Amount::from_bytes_be(coin_amount.as_ref()).ok_or(MintlayerErrorCode::InvalidAmount)?;
+    let amount = parse_amount(coin_amount)?;
 
     let destination = Destination::decode_all(&mut destination_bytes.as_ref())
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
@@ -312,8 +314,7 @@ fn mintlayer_encode_fill_order_v1_order_command_input_impl(
             .try_into()
             .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
     );
-    let amount =
-        Amount::from_bytes_be(coin_amount.as_ref()).ok_or(MintlayerErrorCode::InvalidAmount)?;
+    let amount = parse_amount(coin_amount)?;
 
     let destination = Destination::decode_all(&mut destination_bytes.as_ref())
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
@@ -322,29 +323,39 @@ fn mintlayer_encode_fill_order_v1_order_command_input_impl(
     Ok(tx_input)
 }
 
+fn parse_amount(amount_data: &[u8]) -> Result<Amount, MintlayerErrorCode> {
+    Amount::from_bytes_be(amount_data).ok_or(MintlayerErrorCode::InvalidAmount)
+}
+
 fn parse_output_value(
-    amount_data: *const u8,
-    amount_data_len: u32,
-    token_id_data_len: u32,
-    token_id_data: *const u8,
-) -> Result<OutputValue, ByteArray> {
-    let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
-    let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
-        Some(amount) => amount,
-        None => return Err(MintlayerErrorCode::InvalidAmount.into()),
-    };
-    let value = if token_id_data_len == 32 {
-        let token_id =
-            unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
-        let token_id = H256(match token_id.try_into() {
-            Ok(hash) => hash,
-            Err(_) => return Err(MintlayerErrorCode::WrongHashSize.into()),
-        });
+    amount_data: &[u8],
+    token_id_data: &[u8],
+) -> Result<OutputValue, MintlayerErrorCode> {
+    let amount = parse_amount(amount_data)?;
+
+    let value = if !token_id_data.is_empty() {
+        let token_id = H256(
+            token_id_data
+                .try_into()
+                .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
+        );
         OutputValue::TokenV1(token_id, amount)
     } else {
         OutputValue::Coin(amount)
     };
     Ok(value)
+}
+
+fn parse_output_value_raw(
+    amount_data: *const u8,
+    amount_data_len: u32,
+    token_id_data_len: u32,
+    token_id_data: *const u8,
+) -> Result<OutputValue, ByteArray> {
+    let amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
+    let token_id =
+        unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
+    parse_output_value(amount, token_id).map_err(|err| err.into())
 }
 
 #[no_mangle]
@@ -356,7 +367,7 @@ extern "C" fn mintlayer_encode_transfer_output(
     destination_data: *const u8,
     destination_data_len: u32,
 ) -> ByteArray {
-    let value = match parse_output_value(
+    let value = match parse_output_value_raw(
         amount_data,
         amount_data_len,
         token_id_data_len,
@@ -389,7 +400,7 @@ extern "C" fn mintlayer_encode_lock_then_transfer_output(
     destination_data: *const u8,
     destination_data_len: u32,
 ) -> ByteArray {
-    let value = match parse_output_value(
+    let value = match parse_output_value_raw(
         amount_data,
         amount_data_len,
         token_id_data_len,
@@ -425,7 +436,7 @@ extern "C" fn mintlayer_encode_burn_output(
     token_id_data: *const u8,
     token_id_data_len: u32,
 ) -> ByteArray {
-    let value = match parse_output_value(
+    let value = match parse_output_value_raw(
         amount_data,
         amount_data_len,
         token_id_data_len,
@@ -508,16 +519,14 @@ fn mintlayer_encode_create_stake_pool_output_impl(
             .try_into()
             .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
     );
-    let pledge = Amount::from_bytes_be(pledge_coin_amount.as_ref())
-        .ok_or(MintlayerErrorCode::InvalidAmount)?;
+    let pledge = parse_amount(pledge_coin_amount)?;
     let staker = Destination::decode_all(&mut staker_destination_bytes.as_ref())
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
     let vrf_public_key = VRFPublicKeyHolder::decode_all(&mut vrf_public_key.as_ref())
         .map_err(|_| MintlayerErrorCode::InvalidVrfPublicKey)?;
     let decommission_key = Destination::decode_all(&mut decommission_destination_bytes.as_ref())
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
-    let cost_per_block = Amount::from_bytes_be(cost_per_block_coin_amount.as_ref())
-        .ok_or(MintlayerErrorCode::InvalidAmount)?;
+    let cost_per_block = parse_amount(cost_per_block_coin_amount)?;
     let txo = TxOutput::CreateStakePool(
         pool_id,
         StakePoolData {
@@ -590,9 +599,9 @@ extern "C" fn mintlayer_encode_delegate_staking_output(
     delegation_id_data_len: u32,
 ) -> ByteArray {
     let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
-    let amount = match Amount::from_bytes_be(coin_amount.as_ref()) {
-        Some(amount) => amount,
-        None => return MintlayerErrorCode::InvalidAmount.into(),
+    let amount = match parse_amount(coin_amount) {
+        Ok(amount) => amount,
+        Err(err) => return err.into(),
     };
 
     let delegation_id =
@@ -662,8 +671,7 @@ fn mintlayer_encode_issue_fungible_token_output_impl(
         .ok_or(MintlayerErrorCode::InvalidTokenTotalSupply)?
     {
         TokenTotalSupplyTag::Fixed => {
-            let amount = Amount::from_bytes_be(coin_amount.as_ref())
-                .ok_or(MintlayerErrorCode::InvalidAmount)?;
+            let amount = parse_amount(coin_amount)?;
             TokenTotalSupply::Fixed(amount)
         }
         TokenTotalSupplyTag::Lockable => TokenTotalSupply::Lockable,
@@ -823,7 +831,7 @@ extern "C" fn mintlayer_encode_htlc_output(
     secret_hash_data: *const u8,
     secret_hash_data_len: u32,
 ) -> ByteArray {
-    let value = match parse_output_value(
+    let value = match parse_output_value_raw(
         amount_data,
         amount_data_len,
         token_id_data_len,
@@ -906,7 +914,7 @@ extern "C" fn mintlayer_encode_create_order_output(
     give_token_id_data: *const u8,
     give_token_id_data_len: u32,
 ) -> ByteArray {
-    let ask_value = match parse_output_value(
+    let ask_value = match parse_output_value_raw(
         ask_amount_data,
         ask_amount_data_len,
         ask_token_id_data_len,
@@ -916,7 +924,7 @@ extern "C" fn mintlayer_encode_create_order_output(
         Err(value) => return value,
     };
 
-    let give_value = match parse_output_value(
+    let give_value = match parse_output_value_raw(
         give_amount_data,
         give_amount_data_len,
         give_token_id_data_len,

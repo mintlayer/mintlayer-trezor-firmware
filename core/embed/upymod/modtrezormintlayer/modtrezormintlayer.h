@@ -10,7 +10,7 @@
 #include "curves.h"
 #include "memzero.h"
 
-void handle_err(ByteArray *res);
+#include "utils.h"
 
 /// def encode_utxo_input(tx_hash: bytes, index: int, utxo_type: int) -> bytes:
 ///     """
@@ -115,7 +115,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
 /// amount: bytes, destination: bytes)
 /// -> bytes:
 ///     """
-///     encodes an fill order account command from the nonce, order id, output
+///     encodes a fill order account command from the nonce, order id, output
 ///     amount and destination
 ///     """
 STATIC mp_obj_t

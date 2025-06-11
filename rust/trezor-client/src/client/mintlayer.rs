@@ -37,6 +37,21 @@ impl MintlayerSignature {
 
 pub type TransactionId = [u8; 32];
 
+#[derive(Debug, Clone, Copy)]
+pub enum SighashInputCommitmentsVersion {
+    V0,
+    V1,
+}
+
+impl SighashInputCommitmentsVersion {
+    fn as_msg_param(self) -> u32 {
+        match self {
+            SighashInputCommitmentsVersion::V0 => 0,
+            SighashInputCommitmentsVersion::V1 => 1,
+        }
+    }
+}
+
 impl Trezor {
     // Mintlayer
     pub fn mintlayer_get_public_key(
@@ -88,12 +103,14 @@ impl Trezor {
         inputs: Vec<MintlayerTxInput>,
         outputs: Vec<MintlayerTxOutput>,
         utxos: BTreeMap<TransactionId, BTreeMap<u32, MintlayerTxOutput>>,
+        input_commitments_version: SighashInputCommitmentsVersion,
     ) -> Result<Vec<Vec<MintlayerSignature>>> {
         let mut req = protos::MintlayerSignTx::new();
         req.set_version(1);
         req.set_chain_type(chain_type);
         req.set_inputs_count(inputs.len() as u32);
         req.set_outputs_count(outputs.len() as u32);
+        req.set_input_commitments_version(input_commitments_version.as_msg_param());
 
         let mut msg = self.call::<_, _, protos::MintlayerTxRequest>(req, Box::new(|_, m| Ok(m)))?;
         loop {
