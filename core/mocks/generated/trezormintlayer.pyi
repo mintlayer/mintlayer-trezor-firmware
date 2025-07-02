@@ -109,12 +109,12 @@ def encode_freeze_order_order_command_input(order_id: bytes)
 
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
-def encode_fill_order_v1_order_command_input(order_id: bytes,
-amount: bytes, destination: bytes)
--> bytes:
+def encode_fill_order_v1_order_command_input(
+    order_id: bytes, amount: bytes
+) -> bytes:
     """
-    encodes a fill order v1 order command from the order id, output
-    amount and destination
+    encodes a fill order v1 order command from the order id and output
+    amount
     """
 
 

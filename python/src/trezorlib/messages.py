@@ -5682,9 +5682,8 @@ class MintlayerFillOrderV1(protobuf.MessageType):
     FIELDS = {
         1: protobuf.Field("order_id", "string", repeated=False, required=True),
         2: protobuf.Field("amount", "bytes", repeated=False, required=True),
-        3: protobuf.Field("destination", "string", repeated=False, required=True),
-        4: protobuf.Field("initially_asked", "MintlayerOutputValue", repeated=False, required=True),
-        5: protobuf.Field("initially_given", "MintlayerOutputValue", repeated=False, required=True),
+        3: protobuf.Field("initially_asked", "MintlayerOutputValue", repeated=False, required=True),
+        4: protobuf.Field("initially_given", "MintlayerOutputValue", repeated=False, required=True),
     }
 
     def __init__(
@@ -5692,13 +5691,11 @@ class MintlayerFillOrderV1(protobuf.MessageType):
         *,
         order_id: "str",
         amount: "bytes",
-        destination: "str",
         initially_asked: "MintlayerOutputValue",
         initially_given: "MintlayerOutputValue",
     ) -> None:
         self.order_id = order_id
         self.amount = amount
-        self.destination = destination
         self.initially_asked = initially_asked
         self.initially_given = initially_given
 

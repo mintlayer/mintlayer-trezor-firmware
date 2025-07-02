@@ -221,9 +221,8 @@ message MintlayerOrderCommandTxInput {
 message MintlayerFillOrderV1 {
     required string order_id = 1;                        // order id in bech32 encoding
     required bytes amount = 2;                           // amount in atoms corresponds to the order's ask currency
-    required string destination = 3;                     // the destination in bech32 encoding
-    required MintlayerOutputValue initially_asked = 4;   // the initial ask balance of the order
-    required MintlayerOutputValue initially_given = 5;   // the initial give balance of the order
+    required MintlayerOutputValue initially_asked = 3;   // the initial ask balance of the order
+    required MintlayerOutputValue initially_given = 4;   // the initial give balance of the order
 }
 
 /** Data type for order command Freeze order

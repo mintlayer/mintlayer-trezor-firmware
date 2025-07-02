@@ -280,20 +280,12 @@ extern "C" fn mintlayer_encode_fill_order_v1_order_command_input(
     order_id_data_len: u32,
     amount_data: *const u8,
     amount_data_len: u32,
-    destination_data: *const u8,
-    destination_data_len: u32,
 ) -> ByteArray {
     let order_id =
         unsafe { core::slice::from_raw_parts(order_id_data, order_id_data_len as usize) };
     let coin_amount = unsafe { core::slice::from_raw_parts(amount_data, amount_data_len as usize) };
-    let destination_bytes =
-        unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
 
-    let res = mintlayer_encode_fill_order_v1_order_command_input_impl(
-        order_id,
-        coin_amount,
-        destination_bytes,
-    );
+    let res = mintlayer_encode_fill_order_v1_order_command_input_impl(order_id, coin_amount);
 
     handle_err_or_encode(res)
 }
@@ -301,7 +293,6 @@ extern "C" fn mintlayer_encode_fill_order_v1_order_command_input(
 fn mintlayer_encode_fill_order_v1_order_command_input_impl(
     order_id: &[u8],
     coin_amount: &[u8],
-    destination_bytes: &[u8],
 ) -> Result<TxInput, MintlayerErrorCode> {
     let order_id = H256(
         order_id
@@ -310,9 +301,7 @@ fn mintlayer_encode_fill_order_v1_order_command_input_impl(
     );
     let amount = parse_amount(coin_amount)?;
 
-    let destination = Destination::decode_all(&mut &*destination_bytes)
-        .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
-    let order_command = OrderAccountCommand::FillOrder(order_id, amount, destination);
+    let order_command = OrderAccountCommand::FillOrder(order_id, amount);
     let tx_input = TxInput::OrderAccountCommand(order_command);
     Ok(tx_input)
 }
