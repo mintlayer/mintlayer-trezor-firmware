@@ -206,7 +206,7 @@ def _sanitize_tx_output(txo: MintlayerTxOutput | None) -> MintlayerTxOutput:
     elif txo.create_stake_pool:
         pass
     elif txo.produce_block_from_stake:
-        raise DataError("Cannot create a ProduceBlockFromStake output in a transaction")
+        pass
     elif txo.create_delegation_id:
         pass
     elif txo.delegate_staking:
