@@ -81,7 +81,7 @@ def test_mintlayer_sign_message_error_path(
                 client,
                 address_type=addr_type,
                 chain_type=chain_type,
-                address_n=parse_path(f"m/44h/{coin+1}h/0h/0/0"),
+                address_n=parse_path(f"m/44h/{coin + 1}h/0h/0/0"),
                 message="Message to sign".encode(),
             )
 

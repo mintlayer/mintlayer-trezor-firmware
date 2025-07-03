@@ -1,3 +1,6 @@
+#ifndef MINTLAYER_H
+#define MINTLAYER_H
+
 #include "common.h"
 
 uint32_t mintlayer_screen_fatal_error_rust(const char* title, const char* msg,
@@ -142,3 +145,36 @@ ByteArray mintlayer_encode_create_order_output(
     uint32_t give_token_id_data_len);
 
 ByteArray mintlayer_encode_compact_length(uint32_t length);
+
+ByteArray mintlayer_encode_empty_input_commitment();
+
+ByteArray mintlayer_encode_input_commitment_for_utxo(
+    const unsigned char* encoded_utxo_data, uint32_t encoded_utxo_data_len);
+
+ByteArray
+mintlayer_encode_input_commitment_v1_for_produce_block_from_stake_utxo(
+    const unsigned char* encoded_utxo_data, uint32_t encoded_utxo_data_len,
+    const unsigned char* staker_balance_amount_data,
+    uint32_t staker_balance_amount_data_len);
+
+ByteArray mintlayer_encode_input_commitment_v1_for_fill_order(
+    const unsigned char* asked_token_data, uint32_t asked_token_data_len,
+    const unsigned char* initially_asked_amount_data,
+    uint32_t initially_asked_amount_data_len,
+    const unsigned char* given_token_data, uint32_t given_token_data_len,
+    const unsigned char* initially_given_amount_data,
+    uint32_t initially_given_amount_data_len);
+
+ByteArray mintlayer_encode_input_commitment_v1_for_conclude_order(
+    const unsigned char* asked_token_data, uint32_t asked_token_data_len,
+    const unsigned char* initially_asked_amount_data,
+    uint32_t initially_asked_amount_data_len,
+    const unsigned char* ask_balance_amount_data,
+    uint32_t ask_balance_amount_data_len, const unsigned char* given_token_data,
+    uint32_t given_token_data_len,
+    const unsigned char* initially_given_amount_data,
+    uint32_t initially_given_amount_data_len,
+    const unsigned char* give_balance_amount_data,
+    uint32_t give_balance_amount_data_len);
+
+#endif  // MINTLAYER_H

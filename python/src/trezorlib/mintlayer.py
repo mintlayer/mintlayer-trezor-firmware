@@ -102,6 +102,7 @@ def sign_tx(
     inputs: List[Input],
     outputs: List[Output],
     prev_txs: Dict[TxHash, Dict[int, Output]],
+    input_commitments_version: int = 0,
     version: Optional["int"] = 1,
     chunkify: Optional["bool"] = None,
 ) -> List[messages.MintlayerSignaturesForInput]:
@@ -110,6 +111,7 @@ def sign_tx(
             outputs_count=len(outputs),
             inputs_count=len(inputs),
             chain_type=messages.MintlayerChainType(chain_type),
+            input_commitments_version=input_commitments_version,
             version=version,
             chunkify=chunkify,
         )

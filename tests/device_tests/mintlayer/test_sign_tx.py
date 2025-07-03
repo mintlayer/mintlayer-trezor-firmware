@@ -16,6 +16,7 @@
 
 import itertools
 import random
+import sys
 from typing import Optional
 
 import pytest
@@ -59,9 +60,23 @@ SIGN_TX_VECTORS = [
         "mordr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqacsnmg",
         "mpool1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd2ew4w",
         "mvrfpk1qq7859x9n9zk9d8j3yfefr0l2vjmcsshzdm6ryz765pdmrufxmgsyh6z8a9",
+        0,
         # sigs ======================
         "0770b640bd217d130e2a654860f6ef0d2c1711871c2bc02f725da6a9c97b84863eac0483bfbb741e53f684d000c6968b628dead5f37c1c0dbb4d926e769bb7ce",
         "0bc5ace472748f2fff8afe60152558fd84f6027081a06a45c0ba621e447b1e7f7481e442849a97a63d077fbc3347badfb03a61cdf5e74120c1e5f69b01e8535a",
+    ),
+    (
+        1,
+        "mmtc1q3plqylyzrj4mdemdfs39v8zy574rnztc5zpse0x",
+        "mdelg1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqut3aj8",
+        "mmltk1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqa3r2pu",
+        "mordr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqacsnmg",
+        "mpool1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqd2ew4w",
+        "mvrfpk1qq7859x9n9zk9d8j3yfefr0l2vjmcsshzdm6ryz765pdmrufxmgsyh6z8a9",
+        1,
+        # sigs ======================
+        "c1d6188af3555e8a1b0215f45947258ab52bee1570fe87c22605244b1bf050a28ce6e73ef9fed75ab65ba7bfcbe32d60469f0a13dfb33a5e3dc742c2a5a31625",
+        "e8aac202adfd00d0306bb249b47cf21f3a8941347f8e4509ad69331537384716bf0e947e3d52bc1aa9e3f6a1e5969371409ecdfb892596f09c6befe46d55269e",
     ),
     (
         2,
@@ -71,6 +86,33 @@ SIGN_TX_VECTORS = [
         "tordr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqj0xv66",
         "tpool1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqza035u",
         "tvrfpk1qregu4v895mchautf84u46nsf9xel2507a37ksaf3stmuw44y3m4vffs89t",
+        0,
+        # sigs ======================
+        "7ae7291601bd4a6a0069d91f2695b1a37faa4d42485e9cae047f3d080253d1fa827a4c2e38e004a2199adba7b0201a243856a9a3cf1c069ec856964570635ea2",
+        "abadf0c5f984c6b1f55a32a05cc7aa37aa5aae6b0b96544bb752c01ad8a29e7d9fe90124776699228f1843b1e033e5f27b081643b0c873e776e1142845aaa56c",
+    ),
+    (
+        2,
+        "tmtc1qjn5ls4sz90ppcart66jf0vx0n0u8ndjluz8lpsy",
+        "tdelg1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqnu8zn4",
+        "tmltk1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqjx44qw",
+        "tordr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqj0xv66",
+        "tpool1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqza035u",
+        "tvrfpk1qregu4v895mchautf84u46nsf9xel2507a37ksaf3stmuw44y3m4vffs89t",
+        1,
+        # sigs ======================
+        "f5674b6f71edfa2ed7c7b8b3a36fc7123e73f84df10dae28f78e81b3c74fc3aab6b641cba96b180116b79f931ebf9a6fea5d2b5c1596ce1ca22da430c97e58a6",
+        "0414bb46f04a85abd40f6f4e36638fc382b3eb52c8594510af6c1b4d01099ec259766e954dd9547e738886d4dd1619fbd18660f603f461baef3a9d2603ae0ebf",
+    ),
+    (
+        3,
+        "rmtc1qjn5ls4sz90ppcart66jf0vx0n0u8ndjluu6nzuv",
+        "rdelg1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqf9m6ka",
+        "rmltk1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqglfd9x",
+        "rordr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqgk65lj",
+        "rpool1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqcynf35",
+        "rvrfpk1qregu4v895mchautf84u46nsf9xel2507a37ksaf3stmuw44y3m4vc2kzme",
+        0,
         # sigs ======================
         "7ae7291601bd4a6a0069d91f2695b1a37faa4d42485e9cae047f3d080253d1fa827a4c2e38e004a2199adba7b0201a243856a9a3cf1c069ec856964570635ea2",
         "abadf0c5f984c6b1f55a32a05cc7aa37aa5aae6b0b96544bb752c01ad8a29e7d9fe90124776699228f1843b1e033e5f27b081643b0c873e776e1142845aaa56c",
@@ -83,6 +125,20 @@ SIGN_TX_VECTORS = [
         "rordr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqgk65lj",
         "rpool1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqcynf35",
         "rvrfpk1qregu4v895mchautf84u46nsf9xel2507a37ksaf3stmuw44y3m4vc2kzme",
+        1,
+        # sigs ======================
+        "f5674b6f71edfa2ed7c7b8b3a36fc7123e73f84df10dae28f78e81b3c74fc3aab6b641cba96b180116b79f931ebf9a6fea5d2b5c1596ce1ca22da430c97e58a6",
+        "0414bb46f04a85abd40f6f4e36638fc382b3eb52c8594510af6c1b4d01099ec259766e954dd9547e738886d4dd1619fbd18660f603f461baef3a9d2603ae0ebf",
+    ),
+    (
+        4,
+        "smtc1qjn5ls4sz90ppcart66jf0vx0n0u8ndjluet3k7h",
+        "sdelg1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq4dx7rx",
+        "smltk1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq5h5fsa",
+        "sordr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq578s2f",
+        "spool1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqyvwdy0",
+        "svrfpk1qregu4v895mchautf84u46nsf9xel2507a37ksaf3stmuw44y3m4vt7hh77",
+        0,
         # sigs ======================
         "7ae7291601bd4a6a0069d91f2695b1a37faa4d42485e9cae047f3d080253d1fa827a4c2e38e004a2199adba7b0201a243856a9a3cf1c069ec856964570635ea2",
         "abadf0c5f984c6b1f55a32a05cc7aa37aa5aae6b0b96544bb752c01ad8a29e7d9fe90124776699228f1843b1e033e5f27b081643b0c873e776e1142845aaa56c",
@@ -95,9 +151,10 @@ SIGN_TX_VECTORS = [
         "sordr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq578s2f",
         "spool1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqyvwdy0",
         "svrfpk1qregu4v895mchautf84u46nsf9xel2507a37ksaf3stmuw44y3m4vt7hh77",
+        1,
         # sigs ======================
-        "7ae7291601bd4a6a0069d91f2695b1a37faa4d42485e9cae047f3d080253d1fa827a4c2e38e004a2199adba7b0201a243856a9a3cf1c069ec856964570635ea2",
-        "abadf0c5f984c6b1f55a32a05cc7aa37aa5aae6b0b96544bb752c01ad8a29e7d9fe90124776699228f1843b1e033e5f27b081643b0c873e776e1142845aaa56c",
+        "f5674b6f71edfa2ed7c7b8b3a36fc7123e73f84df10dae28f78e81b3c74fc3aab6b641cba96b180116b79f931ebf9a6fea5d2b5c1596ce1ca22da430c97e58a6",
+        "0414bb46f04a85abd40f6f4e36638fc382b3eb52c8594510af6c1b4d01099ec259766e954dd9547e738886d4dd1619fbd18660f603f461baef3a9d2603ae0ebf",
     ),
 ]
 
@@ -110,7 +167,7 @@ CHAIN_TYPE_TO_COIN = {1: 19788, 2: 1, 3: 1, 4: 1}
     mnemonic="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 )
 @pytest.mark.parametrize(
-    "chain_type, multisig_addr, delegation_id, token_id, order_id, pool_id, vrf_public_key, sig1, sig2",
+    "chain_type, multisig_addr, delegation_id, token_id, order_id, pool_id, vrf_public_key, input_commitments_version, sig1, sig2",
     SIGN_TX_VECTORS,
 )
 def test_mintlayer_sign_tx(
@@ -122,6 +179,7 @@ def test_mintlayer_sign_tx(
     order_id: str,
     pool_id: str,
     vrf_public_key: str,
+    input_commitments_version: int,
     sig1: str,
     sig2: str,
 ):
@@ -163,8 +221,6 @@ def test_mintlayer_sign_tx(
                 number_of_decimals=number_of_decimals,
             ),
         )
-        amount_0 = (0).to_bytes(16, byteorder="big")
-        value_0 = messages.MintlayerOutputValue(amount=amount_0)
 
         inputs = [
             # UTXO input
@@ -176,7 +232,7 @@ def test_mintlayer_sign_tx(
                     type=messages.MintlayerUtxoType.TRANSACTION,
                 )
             ),
-            # UTXO input wiht tokens
+            # UTXO input with tokens
             messages.MintlayerTxInput(
                 utxo=messages.MintlayerUtxoTxInput(
                     prev_hash=prev_hash,
@@ -194,7 +250,7 @@ def test_mintlayer_sign_tx(
                     type=messages.MintlayerUtxoType.TRANSACTION,
                 )
             ),
-            # Account inpput
+            # Account input
             messages.MintlayerTxInput(
                 account=messages.MintlayerAccountTxInput(
                     addresses=[address_0],
@@ -262,8 +318,10 @@ def test_mintlayer_sign_tx(
                     nonce=0,
                     conclude_order=messages.MintlayerConcludeOrder(
                         order_id=order_id,
-                        filled_ask_amount=value_0,
-                        give_balance=value_1,
+                        initially_asked=value_1,
+                        initially_given=value_1,
+                        ask_balance=amount_1,
+                        give_balance=amount_1,
                     ),
                 )
             ),
@@ -274,9 +332,11 @@ def test_mintlayer_sign_tx(
                     fill_order=messages.MintlayerFillOrder(
                         order_id=order_id,
                         amount=amount_1,
+                        initially_asked=value_1,
+                        initially_given=value_1,
                         destination=anyone_can_spend,
-                        ask_balance=value_1,
-                        give_balance=value_1,
+                        ask_balance=amount_1,
+                        give_balance=amount_1,
                     ),
                 )
             ),
@@ -499,7 +559,9 @@ def test_mintlayer_sign_tx(
             ]
         )
 
-        results = mintlayer.sign_tx(client, chain_type, inputs, outputs, prev_txs)
+        results = mintlayer.sign_tx(
+            client, chain_type, inputs, outputs, prev_txs, input_commitments_version
+        )
 
         expected_multi_sigs = {
             0: sig1,
@@ -523,34 +585,37 @@ def test_mintlayer_sign_tx(
     mnemonic="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 )
 def test_mintlayer_random_sign_tx(client: Client):
+    rng = make_rng()
+
     with client:
-        num_inputs = random.randint(1, 10)
+        num_inputs = rng.randint(1, 10)
+        input_commitments_version = rng.randint(0, 1)
 
         prev_txs = {}
         inputs = []
         input_utxos = []
         total_inputs = 0
         for _ in range(num_inputs):
-            random_address = random.randint(0, 100)
-            random_account = random.randint(0, 100)
-            random_purpose = random.choice([0, 1])
+            random_address = rng.randint(0, 100)
+            random_account = rng.randint(0, 100)
+            random_purpose = rng.choice([0, 1])
             path = parse_path(
                 f"m/44h/19788h/{random_account}h/{random_purpose}/{random_address}"
             )
 
-            prev_hash = bytes(random.getrandbits(8) for _ in range(32))
+            prev_hash = bytes(rng.getrandbits(8) for _ in range(32))
 
-            random_amount = random.randint(1, 10_000)
+            random_amount = rng.randint(1, 10_000)
             total_inputs += random_amount
             address = messages.MintlayerAddressPath(address_n=path)
 
-            prev_utxo_index = random.randint(0, 100)
+            prev_utxo_index = rng.randint(0, 100)
             inp = messages.MintlayerTxInput(
                 utxo=messages.MintlayerUtxoTxInput(
                     prev_hash=prev_hash,
                     prev_index=prev_utxo_index,
                     addresses=[address],
-                    type=random.choice(list(messages.MintlayerUtxoType)),
+                    type=rng.choice(list(messages.MintlayerUtxoType)),
                 )
             )
 
@@ -569,10 +634,10 @@ def test_mintlayer_random_sign_tx(client: Client):
             inputs.append(inp)
             input_utxos.append((prev_hash, prev_utxo_index))
 
-        num_outputs = random.randint(1, 10)
+        num_outputs = rng.randint(1, 10)
         outputs = []
         for _ in range(num_outputs):
-            random_amount = random.randint(0, total_inputs // num_outputs)
+            random_amount = rng.randint(0, total_inputs // num_outputs)
             value = messages.MintlayerOutputValue(
                 amount=random_amount.to_bytes(16, byteorder="big")
             )
@@ -619,7 +684,9 @@ def test_mintlayer_random_sign_tx(client: Client):
             )
         )
 
-        result = mintlayer.sign_tx(client, 3, inputs, outputs, prev_txs)
+        result = mintlayer.sign_tx(
+            client, 3, inputs, outputs, prev_txs, input_commitments_version
+        )
 
         assert len(result) == num_inputs
 
@@ -636,9 +703,12 @@ CHAIN_TYPES = [1, 2, 3, 4]
 def test_mintlayer_sign_tx_forbidden_path(client: Client, chain_type: int):
     coin = CHAIN_TYPE_TO_COIN[chain_type]
 
-    prev_hash = bytes(random.getrandbits(8) for _ in range(32))
-    random_amount = random.randint(1, 10_000)
-    prev_utxo_index = random.randint(0, 100)
+    rng = make_rng()
+
+    input_commitments_version = rng.randint(0, 1)
+    prev_hash = bytes(rng.getrandbits(8) for _ in range(32))
+    random_amount = rng.randint(1, 10_000)
+    prev_utxo_index = rng.randint(0, 100)
 
     value = messages.MintlayerOutputValue(
         amount=random_amount.to_bytes(16, byteorder="big")
@@ -667,7 +737,7 @@ def test_mintlayer_sign_tx_forbidden_path(client: Client, chain_type: int):
                     prev_hash=prev_hash,
                     prev_index=prev_utxo_index,
                     addresses=[address],
-                    type=random.choice(list(messages.MintlayerUtxoType)),
+                    type=rng.choice(list(messages.MintlayerUtxoType)),
                 )
             )
             mintlayer.sign_tx(client, chain_type, [inp], [], prev_txs)
@@ -682,7 +752,7 @@ def test_mintlayer_sign_tx_forbidden_path(client: Client, chain_type: int):
                     prev_hash=prev_hash,
                     prev_index=prev_utxo_index,
                     addresses=[address],
-                    type=random.choice(list(messages.MintlayerUtxoType)),
+                    type=rng.choice(list(messages.MintlayerUtxoType)),
                 )
             )
             mintlayer.sign_tx(client, chain_type, [inp], [], prev_txs)
@@ -697,7 +767,7 @@ def test_mintlayer_sign_tx_forbidden_path(client: Client, chain_type: int):
                     prev_hash=prev_hash,
                     prev_index=prev_utxo_index,
                     addresses=[address],
-                    type=random.choice(list(messages.MintlayerUtxoType)),
+                    type=rng.choice(list(messages.MintlayerUtxoType)),
                 )
             )
             mintlayer.sign_tx(client, chain_type, [inp], [], prev_txs)
@@ -712,7 +782,15 @@ def test_mintlayer_sign_tx_forbidden_path(client: Client, chain_type: int):
                     prev_hash=prev_hash,
                     prev_index=prev_utxo_index,
                     addresses=[address],
-                    type=random.choice(list(messages.MintlayerUtxoType)),
+                    type=rng.choice(list(messages.MintlayerUtxoType)),
                 )
             )
-            mintlayer.sign_tx(client, chain_type, [inp], [], prev_txs)
+            mintlayer.sign_tx(
+                client, chain_type, [inp], [], prev_txs, input_commitments_version
+            )
+
+
+def make_rng() -> random.Random:
+    seed = random.randint(0, sys.maxsize)
+    print(f"Using rng seed {seed}")
+    return random.Random(seed)

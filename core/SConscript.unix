@@ -86,6 +86,7 @@ SOURCE_MOD += [
     'embed/upymod/modtrezorcrypto/crc.c',
     'embed/upymod/modtrezorcrypto/modtrezorcrypto.c',
     'embed/upymod/modtrezormintlayer/modtrezormintlayer.c',
+    'embed/upymod/modtrezormintlayer/utils.c',
 ]
 SOURCE_MOD_CRYPTO += [
     'vendor/trezor-crypto/address.c',

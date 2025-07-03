@@ -133,7 +133,7 @@ class Mintlayer:
                 raise DataError("Transaction trying to print money")
 
             fee = total_inputs - total.amount
-            # FIXME new confirm total
+            # TODO: new confirm total
             await helpers.confirm_total(
                 total.amount, fee, self.coininfo, token_output_value
             )
@@ -149,10 +149,10 @@ class Mintlayer:
         workflow.autolock_interrupts_workflow = False
 
         # Serialize the inputs.
-        encoded_inputs, encoded_input_utxos = await self.step3_serialize_inputs()
+        encoded_inputs, encoded_input_commitments = await self.step3_serialize_inputs()
         if __debug__:
             log.debug(__name__, "encoded inputs: %s", str(encoded_inputs))
-            log.debug(__name__, "encoded utxos: %s", str(encoded_input_utxos))
+            log.debug(__name__, "encoded utxos: %s", str(encoded_input_commitments))
 
         # Serialize the outputs.
         encoded_outputs = await self.step4_serialize_outputs()
@@ -161,7 +161,7 @@ class Mintlayer:
 
         # Sign the inputs.
         signatures = await self.step5_sign_inputs(
-            encoded_inputs, encoded_input_utxos, encoded_outputs
+            encoded_inputs, encoded_input_commitments, encoded_outputs
         )
 
         # write the signatures
@@ -192,6 +192,15 @@ class Mintlayer:
         self,
     ) -> Dict[str, int]:
         tx_info = self.tx_info  # local_cache_attribute
+        # Note: the `totals` produced during input and output handling are used to calculate the fee
+        # and to check that the tx doesn't try to print money. This leads to some weirdness during
+        # `FillOrder` handling, where we add the "filled" amount (which is in the "give" curency)
+        # to `totals` instead of the "fill" amount (the one in the "ask" currency), which is
+        # actually present in the inputs. But we also show these `totals` to the user, which
+        # is confusing. Perhaps we should calculate the actual input amounts (to show them
+        # to the user) and the fictional amounts (to satisfy the output amounts) separately.
+        # (Note that we already have a TODO related to a custom "confirm_total" dialog, so this
+        # can be solved as part of the same task).
         totals: Dict[str, int] = {self.coininfo.coin_shortcut: 0}
 
         def nodes_for_addresses(
@@ -206,43 +215,47 @@ class Mintlayer:
             ]
 
         def update_totals_for_fill_order(
-            fill_amount_b: bytes,
-            ask_balance: MintlayerOutputValue,
-            give_balance: MintlayerOutputValue,
+            fill_amount_bytes: bytes,
+            ask_balance_bytes: bytes,
+            give_balance_bytes: bytes,
+            give_token_or_coin: str,
         ) -> None:
-            give_amount = int.from_bytes(give_balance.amount, "big")
-            fill_amount = int.from_bytes(fill_amount_b, "big")
-            ask_amount = int.from_bytes(ask_balance.amount, "big")
+            fill_amount = int.from_bytes(fill_amount_bytes, "big")
+            ask_balance = int.from_bytes(ask_balance_bytes, "big")
+            give_balance = int.from_bytes(give_balance_bytes, "big")
 
-            amount = (give_amount * fill_amount) // ask_amount
+            filled_amount = (give_balance * fill_amount) // ask_balance
 
-            give = give_balance
-            ask_token_or_coin = (
-                give.token.token_id if give.token else self.coininfo.coin_shortcut
+            totals[give_token_or_coin] = (
+                totals.get(give_token_or_coin, 0) + filled_amount
             )
-
-            totals[ask_token_or_coin] = totals.get(ask_token_or_coin, 0) + amount
 
         def update_totals_for_conclude_order(
-            filled_ask_value: MintlayerOutputValue, give_balance: MintlayerOutputValue
+            initially_asked_value: MintlayerOutputValue,
+            ask_balance_bytes: bytes,
+            initially_given_value: MintlayerOutputValue,
+            give_balance_bytes: bytes,
         ) -> None:
-            ask_amount = int.from_bytes(filled_ask_value.amount, "big")
             ask_token_or_coin = (
-                filled_ask_value.token.token_id
-                if filled_ask_value.token
+                initially_asked_value.token.token_id
+                if initially_asked_value.token
                 else self.coininfo.coin_shortcut
             )
-
-            totals[ask_token_or_coin] = totals.get(ask_token_or_coin, 0) + ask_amount
-
-            give_amount = int.from_bytes(give_balance.amount, "big")
+            initially_asked = int.from_bytes(initially_asked_value.amount, "big")
+            ask_balance = int.from_bytes(ask_balance_bytes, "big")
             give_token_or_coin = (
-                give_balance.token.token_id
-                if give_balance.token
+                initially_given_value.token.token_id
+                if initially_given_value.token
                 else self.coininfo.coin_shortcut
             )
+            give_balance = int.from_bytes(give_balance_bytes, "big")
 
-            totals[give_token_or_coin] = totals.get(give_token_or_coin, 0) + give_amount
+            filled_value = initially_asked - ask_balance
+
+            totals[ask_token_or_coin] = totals.get(ask_token_or_coin, 0) + filled_value
+            totals[give_token_or_coin] = (
+                totals.get(give_token_or_coin, 0) + give_balance
+            )
 
         for i in range(tx_info.tx.inputs_count):
             self.progress.advance()
@@ -286,14 +299,23 @@ class Mintlayer:
                     pass
                 elif x.conclude_order:
                     update_totals_for_conclude_order(
-                        x.conclude_order.filled_ask_amount,
+                        x.conclude_order.initially_asked,
+                        x.conclude_order.ask_balance,
+                        x.conclude_order.initially_given,
                         x.conclude_order.give_balance,
                     )
                 elif x.fill_order:
+                    given = x.fill_order.initially_given
+                    give_token_or_coin = (
+                        given.token.token_id
+                        if given.token
+                        else self.coininfo.coin_shortcut
+                    )
                     update_totals_for_fill_order(
                         x.fill_order.amount,
                         x.fill_order.ask_balance,
                         x.fill_order.give_balance,
+                        give_token_or_coin,
                     )
                 else:
                     raise DataError("Unknown account command")
@@ -302,14 +324,26 @@ class Mintlayer:
                 x = txi.order_command
                 nodes = nodes_for_addresses(x.addresses)
                 if x.fill:
+                    given = x.fill.initially_given
+                    give_token_or_coin = (
+                        given.token.token_id
+                        if given.token
+                        else self.coininfo.coin_shortcut
+                    )
                     update_totals_for_fill_order(
-                        x.fill.amount, x.fill.initially_asked, x.fill.initially_given
+                        x.fill.amount,
+                        x.fill.initially_asked.amount,
+                        x.fill.initially_given.amount,
+                        give_token_or_coin,
                     )
                 elif x.freeze:
                     pass
                 elif x.conclude:
                     update_totals_for_conclude_order(
-                        x.conclude.filled_ask_amount, x.conclude.give_balance
+                        x.conclude.initially_asked,
+                        x.conclude.ask_balance,
+                        x.conclude.initially_given,
+                        x.conclude.give_balance,
                     )
                 else:
                     raise DataError("Unknown order command")
@@ -341,7 +375,7 @@ class Mintlayer:
 
     async def step3_serialize_inputs(self) -> Tuple[List[bytes], List[bytes]]:
         encoded_inputs = []
-        encoded_input_utxos = []
+        encoded_input_commitments = []
         for inp in self.tx_info.inputs:
             self.progress.advance()
             if inp.input.utxo and inp.utxo:
@@ -351,9 +385,10 @@ class Mintlayer:
                 )
                 encoded_inputs.append(encoded_inp)
 
-                encoded_inp_utxo = self.serialize_output(inp.utxo)
-                # prepend \x01 for an active Option
-                encoded_input_utxos.append(b"\x01" + encoded_inp_utxo)
+                encoded_input_commitment = self.serialize_input_commitment_for_utxo(
+                    inp.utxo
+                )
+                encoded_input_commitments.append(encoded_input_commitment)
             elif inp.input.account:
                 a = inp.input.account
                 nonce = a.nonce
@@ -366,8 +401,9 @@ class Mintlayer:
                         nonce, delegation_id, deleg_balance.amount
                     )
                     encoded_inputs.append(encoded_inp)
-                    # just add a \x00 for an empty Option as accounts don't have an UTXO
-                    encoded_input_utxos.append(b"\x00")
+                    encoded_input_commitments.append(
+                        mintlayer_utils.encode_empty_input_commitment()
+                    )
                 else:
                     raise DataError("Unknown account spending")
             elif inp.input.account_command:
@@ -411,8 +447,16 @@ class Mintlayer:
                         )
                     )
                     encoded_inputs.append(encoded_inp)
-                    # just add a \x00 for an empty Option as account command inputs don't have an UTXO
-                    encoded_input_utxos.append(b"\x00")
+
+                    encoded_input_commitment = (
+                        self.serialize_input_commitment_for_conclude_order(
+                            ord.initially_asked,
+                            ord.ask_balance,
+                            ord.initially_given,
+                            ord.give_balance,
+                        )
+                    )
+                    encoded_input_commitments.append(encoded_input_commitment)
                     continue
                 elif x.fill_order:
                     ord = x.fill_order
@@ -428,8 +472,14 @@ class Mintlayer:
                         )
                     )
                     encoded_inputs.append(encoded_inp)
-                    # just add a \x00 for an empty Option as account command inputs don't have an UTXO
-                    encoded_input_utxos.append(b"\x00")
+
+                    encoded_input_commitment = (
+                        self.serialize_input_commitment_for_fill_order(
+                            ord.initially_asked,
+                            ord.initially_given,
+                        )
+                    )
+                    encoded_input_commitments.append(encoded_input_commitment)
                     continue
                 else:
                     raise DataError("Unknown account command")
@@ -441,8 +491,9 @@ class Mintlayer:
                     data,
                 )
                 encoded_inputs.append(encoded_inp)
-                # just add a \x00 for an empty Option as account command inputs don't have an UTXO
-                encoded_input_utxos.append(b"\x00")
+                encoded_input_commitments.append(
+                    mintlayer_utils.encode_empty_input_commitment()
+                )
             elif inp.input.order_command:
                 x = inp.input.order_command
 
@@ -456,10 +507,16 @@ class Mintlayer:
                         )
                     )
                     encoded_inputs.append(encoded_inp)
-                    # just add a \x00 for an empty Option as order command inputs don't have an UTXO
-                    # TODO: fix when input commitments are ready
-                    encoded_input_utxos.append(b"\x00")
-                    continue
+
+                    encoded_input_commitment = (
+                        self.serialize_input_commitment_for_conclude_order(
+                            ord.initially_asked,
+                            ord.ask_balance,
+                            ord.initially_given,
+                            ord.give_balance,
+                        )
+                    )
+                    encoded_input_commitments.append(encoded_input_commitment)
                 elif x.freeze:
                     ord = x.freeze
                     encoded_inp = (
@@ -470,9 +527,9 @@ class Mintlayer:
                         )
                     )
                     encoded_inputs.append(encoded_inp)
-                    # just add a \x00 for an empty Option as order command inputs don't have an UTXO
-                    encoded_input_utxos.append(b"\x00")
-                    continue
+                    encoded_input_commitments.append(
+                        mintlayer_utils.encode_empty_input_commitment()
+                    )
                 elif x.fill:
                     ord = x.fill
                     destination = decode_nullable_address(ord.destination)
@@ -486,16 +543,20 @@ class Mintlayer:
                         )
                     )
                     encoded_inputs.append(encoded_inp)
-                    # just add a \x00 for an empty Option as account command inputs don't have an UTXO
-                    # TODO: fix when input commitments are ready
-                    encoded_input_utxos.append(b"\x00")
-                    continue
+
+                    encoded_input_commitment = (
+                        self.serialize_input_commitment_for_fill_order(
+                            ord.initially_asked,
+                            ord.initially_given,
+                        )
+                    )
+                    encoded_input_commitments.append(encoded_input_commitment)
                 else:
                     raise DataError("Unknown account command")
             else:
                 raise DataError("Unknown input type")
 
-        return encoded_inputs, encoded_input_utxos
+        return encoded_inputs, encoded_input_commitments
 
     def serialize_output(self, out: MintlayerTxOutput) -> bytes:
         if out.transfer:
@@ -619,6 +680,82 @@ class Mintlayer:
             raise DataError("Unhandled tx output type")
         return encoded_out
 
+    def using_v1_input_commitments(self) -> bool:
+        ver = self.tx_info.tx.input_commitments_version
+        if ver == 0:
+            return False
+        elif ver == 1:
+            return True
+        else:
+            raise DataError("Unhandled input commitments version")
+
+    def serialize_input_commitment_for_utxo(self, out: MintlayerTxOutput) -> bytes:
+        encoded_utxo = self.serialize_output(out)
+
+        if out.produce_block_from_stake and self.using_v1_input_commitments():
+            staker_balance = out.produce_block_from_stake.staker_balance
+            encoded_comm = mintlayer_utils.encode_input_commitment_v1_for_produce_block_from_stake_utxo(
+                encoded_utxo, staker_balance
+            )
+        else:
+            encoded_comm = mintlayer_utils.encode_input_commitment_for_utxo(
+                encoded_utxo
+            )
+
+        return encoded_comm
+
+    def serialize_input_commitment_for_conclude_order(
+        self,
+        initially_asked: MintlayerOutputValue,
+        ask_balance: bytes,
+        initially_given: MintlayerOutputValue,
+        give_balance: bytes,
+    ) -> bytes:
+        if self.using_v1_input_commitments():
+            asked_token = decode_nullable_token_id(
+                initially_asked.token, self.coininfo.prefixes.token
+            )
+            given_token = decode_nullable_token_id(
+                initially_given.token, self.coininfo.prefixes.token
+            )
+            encoded_comm = (
+                mintlayer_utils.encode_input_commitment_v1_for_conclude_order(
+                    asked_token,
+                    initially_asked.amount,
+                    ask_balance,
+                    given_token,
+                    initially_given.amount,
+                    give_balance,
+                )
+            )
+        else:
+            encoded_comm = mintlayer_utils.encode_empty_input_commitment()
+
+        return encoded_comm
+
+    def serialize_input_commitment_for_fill_order(
+        self,
+        initially_asked: MintlayerOutputValue,
+        initially_given: MintlayerOutputValue,
+    ) -> bytes:
+        if self.using_v1_input_commitments():
+            asked_token = decode_nullable_token_id(
+                initially_asked.token, self.coininfo.prefixes.token
+            )
+            given_token = decode_nullable_token_id(
+                initially_given.token, self.coininfo.prefixes.token
+            )
+            encoded_comm = mintlayer_utils.encode_input_commitment_v1_for_fill_order(
+                asked_token,
+                initially_asked.amount,
+                given_token,
+                initially_given.amount,
+            )
+        else:
+            encoded_comm = mintlayer_utils.encode_empty_input_commitment()
+
+        return encoded_comm
+
     async def step4_serialize_outputs(self) -> List[bytes]:
         encoded_outputs = []
         for out in self.tx_info.outputs:
@@ -631,15 +768,15 @@ class Mintlayer:
     async def step5_sign_inputs(
         self,
         encoded_inputs: List[bytes],
-        encoded_input_utxos: List[bytes],
+        encoded_input_commitments: List[bytes],
         encoded_outputs: List[bytes],
     ) -> List[List[Tuple[bytes, int | None]]]:
         from trezor.utils import HashWriter
 
         signatures = []
-        if len(encoded_inputs) != len(encoded_input_utxos):
+        if len(encoded_inputs) != len(encoded_input_commitments):
             raise DataError(
-                "number of encoded utxos not the same as the number of inputs"
+                "number of input commitments not the same as the number of inputs"
             )
 
         for i in range(self.tx_info.tx.inputs_count):
@@ -658,9 +795,9 @@ class Mintlayer:
                 for inp in encoded_inputs:
                     writer.extend(inp)
 
-                writer.extend(len(encoded_input_utxos).to_bytes(4, "little"))
-                for utxo in encoded_input_utxos:
-                    writer.extend(utxo)
+                writer.extend(len(encoded_input_commitments).to_bytes(4, "little"))
+                for commitment in encoded_input_commitments:
+                    writer.extend(commitment)
 
                 encoded_len = mintlayer_utils.encode_compact_length(
                     len(encoded_outputs)
@@ -747,15 +884,25 @@ def update_output_totals(
         update(txo.lock_then_transfer.value)
     elif txo.burn:
         update(txo.burn.value)
-    elif txo.issue_nft:
-        pass
     elif txo.create_stake_pool:
         amount = int.from_bytes(txo.create_stake_pool.pledge, "big")
         totals[ml_coin].amount += amount
+    elif txo.produce_block_from_stake:
+        pass
+    elif txo.create_delegation_id:
+        pass
     elif txo.delegate_staking:
         amount = int.from_bytes(txo.delegate_staking.amount, "big")
         totals[ml_coin].amount += amount
+    elif txo.issue_fungible_token:
+        pass
+    elif txo.issue_nft:
+        pass
+    elif txo.data_deposit:
+        pass
     elif txo.htlc:
         update(txo.htlc.value)
     elif txo.create_order:
         pass
+    else:
+        raise DataError("Unhandled TX output type in update_output_totals")

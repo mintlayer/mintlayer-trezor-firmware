@@ -100,7 +100,11 @@ parity-scale-codec = { version = "3.1", default-features = false, features = [
     "derive",
     "chain-error",
 ], optional = true }
-ml_common = { git = "https://github.com/mintlayer/mintlayer-core", package = "trezor-common", branch = "master", optional = true }
+[dependencies.ml_common]
+git = "https://github.com/mintlayer/mintlayer-core"
+rev = "563511e331fd2d619f2699612863df9ecee58ff8" # Commit "Sighash input commitments v1"
+package = "trezor-common"
+optional = true
 
 # Runtime dependencies
 

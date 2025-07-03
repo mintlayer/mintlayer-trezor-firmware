@@ -87,8 +87,9 @@ message MintlayerSignTx {
     required uint32 outputs_count = 1;                         // number of transaction outputs
     required uint32 inputs_count = 2;                          // number of transaction inputs
     required MintlayerChainType chain_type = 3;                // Chain type to use
-    optional uint32 version = 4 [default=1];                   // transaction version
-    optional bool chunkify = 5;                                // display addresses in chunks of 4 characters
+    required uint32 input_commitments_version = 4;             // input commitments version
+    optional uint32 version = 5 [default=1];                   // transaction version
+    optional bool chunkify = 6;                                // display addresses in chunks of 4 characters
 }
 
 /**
@@ -113,7 +114,7 @@ message MintlayerTxRequest {
     * Request for additional data for a tx output
     */
     message MintlayerTxOutputRequest {
-        required uint32 output_index = 1;                      // index for the requested output
+        required uint32 output_index = 1;                     // index for the requested output
         optional bytes tx_hash = 2;                           // transaction hash for the specified output or none for the current transaction that is being signed
     }
     /**
@@ -237,8 +238,10 @@ message MintlayerFreezeOrder {
  */
 message MintlayerConcludeOrderV1 {
     required string order_id = 1;                        // order id in bech32 encoding
-    required MintlayerOutputValue filled_ask_amount = 2; // the already filled ask amount
-    required MintlayerOutputValue give_balance = 3;      // the remaining give balance of the order
+    required MintlayerOutputValue initially_asked = 2;   // the initial ask balance of the order
+    required MintlayerOutputValue initially_given = 3;   // the initial give balance of the order
+    required bytes ask_balance = 4;                      // the remaining ask balance of the order
+    required bytes give_balance = 5;                     // the remaining give balance of the order
 }
 
 /** Data type for account command Mint tokens
@@ -291,8 +294,10 @@ message MintlayerChangeTokenAuthority {
  */
 message MintlayerConcludeOrder {
     required string order_id = 1;                        // order id in bech32 encoding
-    required MintlayerOutputValue filled_ask_amount = 2; // the already filled ask amount
-    required MintlayerOutputValue give_balance = 3;      // the remaining give balance of the order
+    required MintlayerOutputValue initially_asked = 2;   // the initial ask balance of the order
+    required MintlayerOutputValue initially_given = 3;   // the initial give balance of the order
+    required bytes ask_balance = 4;                      // the remaining ask balance of the order
+    required bytes give_balance = 5;                     // the remaining give balance of the order
 }
 
 /** Data type for account command Fill order
@@ -302,8 +307,10 @@ message MintlayerFillOrder {
     required string order_id = 1;                        // order id in bech32 encoding
     required bytes amount = 2;                           // amount in atoms corresponds to the order's ask currency
     required string destination = 3;                     // the destination in bech32 encoding
-    required MintlayerOutputValue ask_balance = 4;       // the remaining ask balance of the order
-    required MintlayerOutputValue give_balance = 5;      // the remaining give balance of the order
+    required MintlayerOutputValue initially_asked = 4;   // the initial ask balance of the order
+    required MintlayerOutputValue initially_given = 5;   // the initial give balance of the order
+    required bytes ask_balance = 6;                      // the remaining ask balance of the order
+    required bytes give_balance = 7;                     // the remaining give balance of the order
 }
 
 /** Data type for account command Change token metadata uri
@@ -491,11 +498,11 @@ message MintlayerTxAck {
      * @next MintlayerTxRequest
      */
     message MintlayerTxInput {
-      optional MintlayerUtxoTxInput utxo = 1;                       // UTXO input
-      optional MintlayerAccountTxInput account = 2;                 // account spending input
-      optional MintlayerAccountCommandTxInput account_command = 3;  // account command input
-      optional MintlayerOrderCommandTxInput order_command = 4;      // order command input
-  }
+        optional MintlayerUtxoTxInput utxo = 1;                       // UTXO input
+        optional MintlayerAccountTxInput account = 2;                 // account spending input
+        optional MintlayerAccountCommandTxInput account_command = 3;  // account command input
+        optional MintlayerOrderCommandTxInput order_command = 4;      // order command input
+    }
 
     /**
      * Request: Data about output to be signed.
@@ -503,18 +510,17 @@ message MintlayerTxAck {
      * @next MintlayerTxRequest
      */
     message MintlayerTxOutput {
-      optional MintlayerTransferTxOutput transfer = 1;                                 // transfer output
-      optional MintlayerLockThenTransferTxOutput lock_then_transfer = 2;               // lock then transfer output
-      optional MintlayerBurnTxOutput burn = 3;                                         // burn output
-      optional MintlayerCreateStakePoolTxOutput create_stake_pool = 4;                 // create stake pool output
-      optional MintlayerProduceBlockFromStakeTxOutput produce_block_from_stake = 5;    // create block from stake output
-      optional MintlayerCreateDelegationIdTxOutput create_delegation_id = 6;           // create delegation Id output
-      optional MintlayerDelegateStakingTxOutput delegate_staking = 7;                  // delegate staking output
-      optional MintlayerIssueFungibleTokenTxOutput issue_fungible_token = 8;           // issue fungible token output
-      optional MintlayerIssueNftTxOutput issue_nft = 9;                                // issue NFT output
-      optional MintlayerDataDepositTxOutput data_deposit = 10;                         // data deposit output
-      optional MintlayerHtlcTxOutput htlc = 11;                                        // HTLC output
-      optional MintlayerCreateOrderTxOutput create_order = 12;                         // Create order output
-  }
+        optional MintlayerTransferTxOutput transfer = 1;                                 // transfer output
+        optional MintlayerLockThenTransferTxOutput lock_then_transfer = 2;               // lock then transfer output
+        optional MintlayerBurnTxOutput burn = 3;                                         // burn output
+        optional MintlayerCreateStakePoolTxOutput create_stake_pool = 4;                 // create stake pool output
+        optional MintlayerProduceBlockFromStakeTxOutput produce_block_from_stake = 5;    // create block from stake output
+        optional MintlayerCreateDelegationIdTxOutput create_delegation_id = 6;           // create delegation Id output
+        optional MintlayerDelegateStakingTxOutput delegate_staking = 7;                  // delegate staking output
+        optional MintlayerIssueFungibleTokenTxOutput issue_fungible_token = 8;           // issue fungible token output
+        optional MintlayerIssueNftTxOutput issue_nft = 9;                                // issue NFT output
+        optional MintlayerDataDepositTxOutput data_deposit = 10;                         // data deposit output
+        optional MintlayerHtlcTxOutput htlc = 11;                                        // HTLC output
+        optional MintlayerCreateOrderTxOutput create_order = 12;                         // Create order output
+    }
 }
-

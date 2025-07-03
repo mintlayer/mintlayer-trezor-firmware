@@ -28,14 +28,19 @@ def format_coin_amount_int(
     if token is None:
         decimals = coininfo.decimals
         name = coininfo.coin_shortcut
+        amount_str = format_amount(amount_int, decimals)
+        return f"{amount_str} {name}"
     else:
         decimals = token.number_of_decimals
         ticker = token.token_ticker.decode("utf-8")
-        name = f"Unknown token with ID: {token.token_id} and ticker {ticker}"
+        decimal_amount_str = format_amount(amount_int, decimals)
 
-    amount_str = format_amount(amount_int, decimals)
-
-    return f"{amount_str} {name}"
+        # TODO: check if it's a known token, see https://github.com/mintlayer/mintlayer-trezor-firmware/issues/6
+        is_known_token = False
+        if is_known_token:
+            return f"{decimal_amount_str} {ticker}"
+        else:
+            return f"{amount_int} atoms (presumable decimal amount: {decimal_amount_str}) of unknown token with ID {token.token_id} and ticker {ticker}"
 
 
 def lock_to_string(lock: MintlayerOutputTimeLock) -> str:
@@ -100,7 +105,7 @@ Cost per block: {int.from_bytes(x.cost_per_block, "big")}
     elif output.create_delegation_id:
         x = output.create_delegation_id
         amount = ""
-        address_short = f"Address: {x.destination}\nPoolId: {x.pool_id}"
+        address_short = f"Owner: {x.destination}\nPool id: {x.pool_id}"
         address_label = "Create delegation"
     elif output.delegate_staking:
         x = output.delegate_staking
@@ -179,6 +184,8 @@ Give: {give_amount}"""
     else:
         raise DataError("Unhandled output type")
 
+    # TODO: it's better to confirm all outputs in a uniform way, see https://github.com/mintlayer/mintlayer-trezor-firmware/issues/4
+    # (the item about "output confirmation dialog").
     if amount:
         layout = layouts.confirm_output(
             address_short,
