@@ -16,9 +16,13 @@ def configure(
     hw_model = get_hw_model_as_number("T2T1")
     hw_revision = 0
 
-    defines += ["DISPLAY_RGB565"]
     features_available.append("display_rgb565")
-    defines += [("USE_RGB_COLORS", "1")]
+    defines += [
+        "DISPLAY_RGB565",
+        ("USE_RGB_COLORS", "1"),
+        ("DISPLAY_RESX", "240"),
+        ("DISPLAY_RESY", "240"),
+    ]
 
     mcu = "STM32F427xx"
 
@@ -41,24 +45,27 @@ def configure(
         ("USE_HSE", "1"),
     ]
 
-    sources += ["embed/io/display/st-7789/display_nofb.c"]
-    sources += ["embed/io/display/st-7789/display_driver.c"]
-    sources += ["embed/io/display/st-7789/display_io.c"]
-    sources += ["embed/io/display/st-7789/display_panel.c"]
-    sources += ["embed/io/display/st-7789/panels/tf15411a.c"]
-    sources += ["embed/io/display/st-7789/panels/154a.c"]
-    sources += ["embed/io/display/st-7789/panels/lx154a2411.c"]
-    sources += ["embed/io/display/st-7789/panels/lx154a2422.c"]
-    paths += ["embed/io/display/inc"]
+    if "display" in features_wanted:
+        sources += ["embed/io/display/st-7789/display_nofb.c"]
+        sources += ["embed/io/display/st-7789/display_driver.c"]
+        sources += ["embed/io/display/st-7789/display_io.c"]
+        sources += ["embed/io/display/st-7789/display_panel.c"]
+        sources += ["embed/io/display/st-7789/panels/tf15411a.c"]
+        sources += ["embed/io/display/st-7789/panels/154a.c"]
+        sources += ["embed/io/display/st-7789/panels/lx154a2411.c"]
+        sources += ["embed/io/display/st-7789/panels/lx154a2422.c"]
+        paths += ["embed/io/display/inc"]
+        defines += [("USE_DISPLAY", "1")]
 
-    sources += ["embed/io/display/backlight/stm32/backlight_pwm.c"]
-
-    features_available.append("backlight")
-    defines += [("USE_BACKLIGHT", "1")]
+        features_available.append("backlight")
+        defines += [("USE_BACKLIGHT", "1")]
+        sources += ["embed/io/backlight/stm32/tps61043.c"]
+        paths += ["embed/io/backlight/inc"]
 
     if "input" in features_wanted:
         sources += ["embed/io/i2c_bus/stm32f4/i2c_bus.c"]
         sources += ["embed/io/touch/ft6x36/ft6x36.c"]
+        sources += ["embed/io/touch/touch_poll.c"]
         paths += ["embed/io/i2c_bus/inc"]
         paths += ["embed/io/touch/inc"]
         features_available.append("touch")
@@ -96,6 +103,7 @@ def configure(
         ]
         features_available.append("usb")
         paths += ["embed/io/usb/inc"]
+        defines += [("USE_USB", "1")]
 
     if "dma2d" in features_wanted:
         defines += ["USE_DMA2D"]

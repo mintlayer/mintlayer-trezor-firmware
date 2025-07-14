@@ -7,12 +7,24 @@ from trezor import io
 from trezor.loop import wait
 from trezor.utils import chunks
 from trezor.wire.codec import codec_v1
+from trezor.wire.protocol_common import WireError
 
 
 class MockHID:
+
+    TX_PACKET_LEN = 64
+    RX_PACKET_LEN = 64
+
     def __init__(self, num):
         self.num = num
         self.data = []
+        self.packet = None
+
+    def pad_packet(self, data):
+        if len(data) > self.RX_PACKET_LEN:
+            raise Exception("Too long packet")
+        padding_length = self.RX_PACKET_LEN - len(data)
+        return data + b"\x00" * padding_length
 
     def iface_num(self):
         return self.num
@@ -21,13 +33,35 @@ class MockHID:
         self.data.append(bytearray(msg))
         return len(msg)
 
+    def mock_read(self, packet, gen):
+        self.packet = self.pad_packet(packet)
+        return gen.send(self.RX_PACKET_LEN)
+
+    def read(self, buffer, offset=0):
+        if self.packet is None:
+            raise Exception("No packet to read")
+
+        if offset > len(buffer):
+            raise Exception("Offset out of bounds")
+
+        buffer_space = len(buffer) - offset
+
+        if len(self.packet) > buffer_space:
+            raise Exception("Buffer too small")
+        else:
+            end = offset + len(self.packet)
+            buffer[offset:end] = self.packet
+            read = len(self.packet)
+            self.packet = None
+            return read
+
     def wait_object(self, mode):
         return wait(mode | self.num)
 
 
 MESSAGE_TYPE = 0x4242
 
-HEADER_PAYLOAD_LENGTH = codec_v1._REP_LEN - 3 - ustruct.calcsize(">HL")
+HEADER_PAYLOAD_LENGTH = MockHID.RX_PACKET_LEN - 3 - ustruct.calcsize(">HL")
 
 
 def make_header(mtype, length):
@@ -43,13 +77,13 @@ class TestWireCodecV1(unittest.TestCase):
         message_packet = make_header(mtype=MESSAGE_TYPE, length=0)
         buffer = bytearray(64)
 
-        gen = codec_v1.read_message(self.interface, buffer)
+        gen = codec_v1.read_message(self.interface, lambda: buffer)
 
         query = gen.send(None)
         self.assertObjectEqual(query, self.interface.wait_object(io.POLL_READ))
 
         with self.assertRaises(StopIteration) as e:
-            gen.send(message_packet)
+            self.interface.mock_read(message_packet, gen)
 
         # e.value is StopIteration. e.value.value is the return value of the call
         result = e.value.value
@@ -59,6 +93,17 @@ class TestWireCodecV1(unittest.TestCase):
         # message should have been read into the buffer
         self.assertEqual(buffer, b"\x00" * 64)
 
+    def test_read_no_buffer(self):
+        # zero length message - just a header
+        message_packet = make_header(mtype=MESSAGE_TYPE, length=0)
+        gen = codec_v1.read_message(self.interface, lambda: None)
+
+        query = gen.send(None)
+        self.assertObjectEqual(query, self.interface.wait_object(io.POLL_READ))
+
+        with self.assertRaises(WireError):
+            self.interface.mock_read(message_packet, gen)
+
     def test_read_many_packets(self):
         message = bytes(range(256))
 
@@ -67,19 +112,21 @@ class TestWireCodecV1(unittest.TestCase):
         # other packets are "?" + 63 bytes of data
         packets = [header + message[:HEADER_PAYLOAD_LENGTH]] + [
             b"?" + chunk
-            for chunk in chunks(message[HEADER_PAYLOAD_LENGTH:], codec_v1._REP_LEN - 1)
+            for chunk in chunks(
+                message[HEADER_PAYLOAD_LENGTH:], MockHID.RX_PACKET_LEN - 1
+            )
         ]
 
         buffer = bytearray(256)
-        gen = codec_v1.read_message(self.interface, buffer)
+        gen = codec_v1.read_message(self.interface, lambda: buffer)
         query = gen.send(None)
         for packet in packets[:-1]:
             self.assertObjectEqual(query, self.interface.wait_object(io.POLL_READ))
-            query = gen.send(packet)
+            query = self.interface.mock_read(packet, gen)
 
         # last packet will stop
         with self.assertRaises(StopIteration) as e:
-            gen.send(packets[-1])
+            self.interface.mock_read(packets[-1], gen)
 
         # e.value is StopIteration. e.value.value is the return value of the call
         result = e.value.value
@@ -95,16 +142,16 @@ class TestWireCodecV1(unittest.TestCase):
 
         packet = header + message
         # make sure we fit into one packet, to make this easier
-        self.assertTrue(len(packet) <= codec_v1._REP_LEN)
+        self.assertTrue(len(packet) <= MockHID.RX_PACKET_LEN)
 
         buffer = bytearray(1)
         self.assertTrue(len(buffer) <= len(packet))
 
-        gen = codec_v1.read_message(self.interface, buffer)
+        gen = codec_v1.read_message(self.interface, lambda: buffer)
         query = gen.send(None)
         self.assertObjectEqual(query, self.interface.wait_object(io.POLL_READ))
         with self.assertRaises(StopIteration) as e:
-            gen.send(packet)
+            self.interface.mock_read(packet, gen)
 
         # e.value is StopIteration. e.value.value is the return value of the call
         result = e.value.value
@@ -135,7 +182,9 @@ class TestWireCodecV1(unittest.TestCase):
         # other packets are "?" + 63 bytes of data
         packets = [header + message[:HEADER_PAYLOAD_LENGTH]] + [
             b"?" + chunk
-            for chunk in chunks(message[HEADER_PAYLOAD_LENGTH:], codec_v1._REP_LEN - 1)
+            for chunk in chunks(
+                message[HEADER_PAYLOAD_LENGTH:], MockHID.RX_PACKET_LEN - 1
+            )
         ]
 
         for _ in packets:
@@ -166,14 +215,14 @@ class TestWireCodecV1(unittest.TestCase):
             self.assertObjectEqual(query, self.interface.wait_object(io.POLL_WRITE))
 
         buffer = bytearray(1024)
-        gen = codec_v1.read_message(self.interface, buffer)
+        gen = codec_v1.read_message(self.interface, lambda: buffer)
         query = gen.send(None)
         for packet in self.interface.data[:-1]:
             self.assertObjectEqual(query, self.interface.wait_object(io.POLL_READ))
-            query = gen.send(packet)
+            query = self.interface.mock_read(packet, gen)
 
         with self.assertRaises(StopIteration) as e:
-            gen.send(self.interface.data[-1])
+            self.interface.mock_read(self.interface.data[-1], gen)
 
         result = e.value.value
         self.assertEqual(result.type, MESSAGE_TYPE)
@@ -190,15 +239,15 @@ class TestWireCodecV1(unittest.TestCase):
         packet = header + b"\x00" * HEADER_PAYLOAD_LENGTH
 
         buffer = bytearray(65536)
-        gen = codec_v1.read_message(self.interface, buffer)
+        gen = codec_v1.read_message(self.interface, lambda: buffer)
 
         query = gen.send(None)
         for _ in range(PACKET_COUNT - 1):
             self.assertObjectEqual(query, self.interface.wait_object(io.POLL_READ))
-            query = gen.send(packet)
+            query = self.interface.mock_read(packet, gen)
 
         with self.assertRaises(codec_v1.CodecError) as e:
-            gen.send(packet)
+            self.interface.mock_read(packet, gen)
 
         self.assertEqual(e.value.args[0], "Message too large")
 

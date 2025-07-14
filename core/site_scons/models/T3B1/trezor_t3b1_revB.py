@@ -16,14 +16,20 @@ def configure(
     hw_model = get_hw_model_as_number("T3B1")
     hw_revision = ord("B")
 
-    defines += ["FRAMEBUFFER"]
+    defines += [
+        "FRAMEBUFFER",
+        ("DISPLAY_RESX", "128"),
+        ("DISPLAY_RESY", "64"),
+        ("LOCKABLE_BOOTLOADER", "1"),
+    ]
     features_available.append("framebuffer")
     features_available.append("display_mono")
 
     mcu = "STM32U585xx"
     linker_script = """embed/sys/linker/stm32u58/{target}.ld"""
+    memory_layout = "memory.ld"
 
-    stm32u5_common_files(env, defines, sources, paths)
+    stm32u5_common_files(env, features_wanted, defines, sources, paths)
 
     env.get("ENV")[
         "CPU_ASFLAGS"
@@ -40,11 +46,14 @@ def configure(
         ("HW_REVISION", str(hw_revision)),
     ]
 
-    sources += ["embed/io/display/vg-2864/display_driver.c"]
-    paths += ["embed/io/display/inc"]
+    if "display" in features_wanted:
+        sources += ["embed/io/display/vg-2864/display_driver.c"]
+        paths += ["embed/io/display/inc"]
+        defines += [("USE_DISPLAY", "1")]
 
     if "input" in features_wanted:
         sources += ["embed/io/button/stm32/button.c"]
+        sources += ["embed/io/button/button_poll.c"]
         paths += ["embed/io/button/inc"]
         features_available.append("button")
         defines += [("USE_BUTTON", "1")]
@@ -69,12 +78,14 @@ def configure(
         ]
         features_available.append("usb")
         paths += ["embed/io/usb/inc"]
+        defines += [("USE_USB", "1")]
 
     if "optiga" in features_wanted:
         sources += ["embed/io/i2c_bus/stm32u5/i2c_bus.c"]
         sources += ["embed/sec/optiga/stm32/optiga_hal.c"]
         sources += ["embed/sec/optiga/optiga.c"]
         sources += ["embed/sec/optiga/optiga_commands.c"]
+        sources += ["embed/sec/optiga/optiga_config.c"]
         sources += ["embed/sec/optiga/optiga_transport.c"]
         sources += ["vendor/trezor-crypto/hash_to_curve.c"]
         paths += ["embed/io/i2c_bus/inc"]
@@ -90,12 +101,16 @@ def configure(
         paths += ["embed/sec/consumption_mask/inc"]
         defines += [("USE_CONSUMPTION_MASK", "1")]
 
+    if "hw_revision" in features_wanted:
+        defines += [("USE_HW_REVISION", "1")]
+        paths += ["embed/util/hw_revision/inc"]
+        sources += ["embed/util/hw_revision/stm32/hw_revision.c"]
+
     defines += [
         ("USE_HASH_PROCESSOR", "1"),
         ("USE_STORAGE_HWKEY", "1"),
         ("USE_TAMPER", "1"),
         ("USE_FLASH_BURST", "1"),
-        ("USE_RESET_TO_BOOT", "1"),
         ("USE_OEM_KEYS_CHECK", "1"),
         ("USE_PVD", "1"),
     ]
@@ -103,8 +118,6 @@ def configure(
     env.get("ENV")["TREZOR_BOARD"] = board
     env.get("ENV")["MCU_TYPE"] = mcu
     env.get("ENV")["LINKER_SCRIPT"] = linker_script
-
-    defs = env.get("CPPDEFINES_IMPLICIT")
-    defs += ["__ARM_FEATURE_CMSE=3"]
+    env.get("ENV")["MEMORY_LAYOUT"] = memory_layout
 
     return features_available

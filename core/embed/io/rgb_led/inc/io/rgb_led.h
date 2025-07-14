@@ -32,6 +32,11 @@ void rgb_led_deinit(void);
 
 #endif
 
+#define RGBLED_GREEN 0x00FF00
+#define RGBLED_RED 0xFF0000
+#define RGBLED_BLUE 0x0000FF
+#define RGBLED_YELLOW 0xFFFF00
+
 // Set RGB LED color
 // color: 24-bit RGB color, 0x00RRGGBB
 void rgb_led_set_color(uint32_t color);

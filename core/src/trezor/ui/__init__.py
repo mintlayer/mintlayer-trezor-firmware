@@ -8,7 +8,13 @@ from trezor import io, log, loop, utils, wire, workflow
 from trezor.messages import ButtonAck, ButtonRequest
 from trezor.wire import context
 from trezor.wire.protocol_common import Context
-from trezorui_api import AttachType, BacklightLevels, LayoutState
+from trezorui_api import (
+    AttachType,
+    BacklightLevels,
+    LayoutState,
+    backlight_fade,
+    backlight_set,
+)
 
 if TYPE_CHECKING:
     from typing import Any, Callable, Generator, Generic, Iterator, TypeVar
@@ -32,10 +38,6 @@ if __debug__:
 display = Display()
 
 # re-export constants from modtrezorui
-NORMAL: int = Display.FONT_NORMAL
-DEMIBOLD: int = Display.FONT_DEMIBOLD
-BOLD_UPPER: int = Display.FONT_BOLD_UPPER
-MONO: int = Display.FONT_MONO
 WIDTH: int = Display.WIDTH
 HEIGHT: int = Display.HEIGHT
 
@@ -67,12 +69,12 @@ async def _alert(count: int) -> None:
     long_sleep = loop.sleep(80)
     for i in range(count * 2):
         if i % 2 == 0:
-            display.backlight(BacklightLevels.MAX)
+            backlight_set(BacklightLevels.MAX)
             await short_sleep
         else:
-            display.backlight(BacklightLevels.DIM)
+            backlight_set(BacklightLevels.DIM)
             await long_sleep
-    display.backlight(BacklightLevels.NORMAL)
+    backlight_set(BacklightLevels.NORMAL)
     global _alert_in_progress
     _alert_in_progress = False
 
@@ -85,24 +87,6 @@ def alert(count: int = 3) -> None:
 
         _alert_in_progress = True
         loop.schedule(_alert(count))
-
-
-def backlight_fade(val: int, delay: int = 14000, step: int = 15) -> None:
-    if utils.USE_BACKLIGHT:
-        if __debug__:
-            if utils.DISABLE_ANIMATION:
-                display.backlight(val)
-                return
-        current = display.backlight()
-        if current < 0:
-            display.backlight(val)
-            return
-        elif current > val:
-            step = -step
-        for i in range(current, val, step):
-            display.backlight(i)
-            utime.sleep_us(delay)
-        display.backlight(val)
 
 
 class Shutdown(Exception):
@@ -397,6 +381,11 @@ class Layout(Generic[T]):
             yield self._handle_input_iface(io.BUTTON, self.layout.button_event)
         if utils.USE_TOUCH:
             yield self._handle_input_iface(io.TOUCH, self.layout.touch_event)
+        if utils.USE_BLE:
+            # most layouts don't care but we don't want to keep stale events in the queue
+            yield self._handle_ble_events()
+        if utils.USE_POWER_MANAGER:
+            yield self._handle_power_manager()
 
     def _handle_input_iface(
         self, iface: int, event_call: Callable[..., LayoutState | None]
@@ -446,6 +435,39 @@ class Layout(Generic[T]):
             except Exception:
                 raise
 
+    if utils.USE_BLE:
+
+        async def _handle_ble_events(self) -> None:
+            blecheck = loop.wait(io.BLE_EVENT)
+            try:
+                while True:
+                    event = await blecheck
+                    if __debug__:
+                        import trezorble as ble
+
+                        log.debug(
+                            __name__,
+                            "BLE event: %s, state: %s",
+                            event,
+                            ",".join(ble.connection_flags()),
+                        )
+                    self._event(self.layout.ble_event, *event)
+            except Shutdown:
+                return
+
+    if utils.USE_POWER_MANAGER:
+
+        def _handle_power_manager(self) -> Generator:
+            pm = loop.wait(io.PM_EVENT)
+            try:
+                while True:
+                    flags = yield pm
+                    self._event(self.layout.pm_event, flags)
+            except Exception:
+                raise
+            finally:
+                pm.close()
+
     def _task_finalizer(self, task: loop.Task, value: Any) -> None:
         if value is None:
             # all is good
@@ -459,7 +481,7 @@ class Layout(Generic[T]):
             return
 
         if isinstance(value, BaseException):
-            if __debug__ and value.__class__.__name__ != "UnexpectedMessage":
+            if __debug__ and value.__class__.__name__ != "UnexpectedMessageException":
                 log.error(
                     __name__, "UI task died: %s (%s)", task, value.__class__.__name__
                 )
@@ -467,6 +489,7 @@ class Layout(Generic[T]):
                 self._emit_message(value)
             except Shutdown:
                 pass
+            return
 
         if __debug__:
             log.error(__name__, "UI task returned non-None: %s (%s)", task, value)
@@ -493,6 +516,8 @@ class ProgressLayout:
     def __init__(self, layout: LayoutObj[UiResult]) -> None:
         self.layout = layout
         self.transition_out = None
+        self.value = 0
+        self.progress_step = 20
 
     def is_layout_attached(self) -> bool:
         return True
@@ -510,10 +535,21 @@ class ProgressLayout:
         if utils.DISABLE_ANIMATION:
             return
 
-        msg = self.layout.progress_event(value, description or "")
-        assert msg is None
-        if self.layout.paint():
-            refresh()
+        def do_progress_event(val: int) -> None:
+            msg = self.layout.progress_event(val, description or "")
+            assert msg is None
+            if self.layout.paint():
+                refresh()
+
+        # animate the progress bar in a blocking fashion
+        step = min(self.progress_step, max(value - self.value, 1))
+        last_value = self.value
+        for v in range(self.value, min(value, 1000) + 1, step):
+            do_progress_event(v)
+            last_value = v
+        if value >= 1000 and last_value != 1000:
+            do_progress_event(1000)
+        self.value = value
 
     def start(self) -> None:
         global CURRENT_LAYOUT
@@ -526,9 +562,9 @@ class ProgressLayout:
 
         self.layout.request_complete_repaint()
         painted = self.layout.paint()
-        backlight_fade(BacklightLevels.NORMAL)
         if painted:
             refresh()
+        backlight_fade(BacklightLevels.NORMAL)
 
     def stop(self) -> None:
         global CURRENT_LAYOUT

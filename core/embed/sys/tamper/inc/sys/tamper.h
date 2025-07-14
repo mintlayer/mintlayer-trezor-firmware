@@ -17,26 +17,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TREZOR_HAL_TAMPER_H
-#define TREZOR_HAL_TAMPER_H
+#pragma once
 
 #include <trezor_types.h>
 
-#ifdef KERNEL_MODE
+#ifdef SECURE_MODE
 
 // Tamper module enables the internal tamper detection on STM32 microcontroller
 // as well as external tamper input if it's available on the device
 
 // Initializes the tamper detection
-void tamper_init(void);
+bool tamper_init(void);
 
-// Triggers one of internal tampers.
-// The function is intended for experimentation with internal tamper mechanism
-// Use TAMP_CR1_xxx constants to as a parameter
-// Only TAMP_CR1_ITAMP5E (RTC) and TAMP_CR1_ITAMP8E (monotonic counter)
-// are supported
-void tamper_test(uint32_t tamper_type);
+// Get status of external tamper inputs
+uint8_t tamper_external_read(void);
 
-#endif  // KERNEL_MODE
+// Enable external tamper inputs
+void tamper_external_enable(void);
 
-#endif  // TREZOR_HAL_TAMPER_H
+#endif  // SECURE_MODE

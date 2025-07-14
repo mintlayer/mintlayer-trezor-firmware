@@ -1,4 +1,3 @@
-from micropython import const
 from typing import TYPE_CHECKING
 
 from trezor import TR, translations
@@ -10,11 +9,9 @@ if TYPE_CHECKING:
     from trezor.messages import ChangeLanguage, Success
     from trezor.ui import ProgressLayout
 
-_CHUNK_SIZE = const(1024)
-
 
 async def change_language(msg: ChangeLanguage) -> Success:
-    from trezor import utils, workflow
+    from trezor import utils
     from trezor.messages import Success
     from trezor.ui.layouts.progress import progress
 
@@ -23,7 +20,6 @@ async def change_language(msg: ChangeLanguage) -> Success:
     def report(value: int) -> None:
         nonlocal loader
         if loader is None:
-            workflow.close_others()
             loader = progress(TR.language__progress)
         loader.report(value)
 
@@ -63,11 +59,13 @@ async def do_change_language(
     import storage.device
     from trezor import utils
 
+    from apps.common import chunked
+
     if data_length > translations.area_bytesize():
         raise DataError("Translations too long")
 
     # Getting and parsing the header
-    header_data = await _get_data_chunk(data_length, 0)
+    header_data = await chunked.get_data_chunk(data_length, 0)
     try:
         header = translations.TranslationsHeader(header_data)
     except (ValueError, EOFError):
@@ -102,22 +100,17 @@ async def do_change_language(
     # If we saved it gradually to the storage and only checked the fingerprint at the end
     # (with the idea of deleting the data if the fingerprint does not match),
     # attackers could still write some data into storage and then unplug the device.
+    # Note: it may raise MemoryError in case the heap is fragmented.
     blob = utils.empty_bytearray(translations.area_bytesize())
 
     # Write the header
     blob.extend(header_data)
 
     # Requesting the data in chunks and storing them in the blob
-    # Also checking the hash of the data for consistency
     data_to_fetch = data_length - len(header_data)
-    data_left = data_to_fetch
-    offset = len(header_data)
-    while data_left > 0:
-        data_chunk = await _get_data_chunk(data_left, offset)
-        report(len(blob) * 1000 // data_length)
-        blob.extend(data_chunk)
-        data_left -= len(data_chunk)
-        offset += len(data_chunk)
+    await chunked.get_all_chunks(
+        blob, data_to_fetch, offset=len(header_data), report=report
+    )
 
     # When the data do not match the hash, do not write anything
     try:
@@ -131,16 +124,6 @@ async def do_change_language(
     translations.init()
     report(1000)
     await _show_success(silent_install, show_display)
-
-
-async def _get_data_chunk(data_left: int, offset: int) -> bytes:
-    from trezor.messages import TranslationDataAck, TranslationDataRequest
-    from trezor.wire.context import call
-
-    data_length = min(data_left, _CHUNK_SIZE)
-    req = TranslationDataRequest(data_length=data_length, data_offset=offset)
-    res = await call(req, TranslationDataAck)
-    return res.data_chunk
 
 
 async def _require_confirm_change_language(

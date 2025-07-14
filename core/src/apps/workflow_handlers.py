@@ -76,6 +76,10 @@ def _find_message_handler_module(msg_type: int) -> str:
     if utils.USE_OPTIGA and msg_type == MessageType.AuthenticateDevice:
         return "apps.management.authenticate_device"
 
+    if utils.USE_BLE:
+        if msg_type == MessageType.BleUnpair:
+            return "apps.management.ble.unpair"
+
     # bitcoin
     if msg_type == MessageType.AuthorizeCoinJoin:
         return "apps.bitcoin.authorize_coinjoin"
@@ -107,6 +111,16 @@ def _find_message_handler_module(msg_type: int) -> str:
         return "apps.misc.get_firmware_hash"
 
     if not utils.BITCOIN_ONLY:
+        # When promoting the Nostr app to production-level
+        # and removing the "if" guard don't forget to also remove
+        # the corresponding guards (PYOPT == '0') in Sconscript.*
+        if __debug__:
+            # nostr
+            if msg_type == MessageType.NostrGetPubkey:
+                return "apps.nostr.get_pubkey"
+            if msg_type == MessageType.NostrSignEvent:
+                return "apps.nostr.sign_event"
+
         if msg_type == MessageType.SetU2FCounter:
             return "apps.management.set_u2f_counter"
         if msg_type == MessageType.GetNextU2FCounter:
@@ -193,14 +207,6 @@ def _find_message_handler_module(msg_type: int) -> str:
             return "apps.eos.get_public_key"
         if msg_type == MessageType.EosSignTx:
             return "apps.eos.sign_tx"
-
-        # binance
-        if msg_type == MessageType.BinanceGetAddress:
-            return "apps.binance.get_address"
-        if msg_type == MessageType.BinanceGetPublicKey:
-            return "apps.binance.get_public_key"
-        if msg_type == MessageType.BinanceSignTx:
-            return "apps.binance.sign_tx"
 
         # solana
         if msg_type == MessageType.SolanaGetPublicKey:

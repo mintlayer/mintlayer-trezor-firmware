@@ -16,7 +16,7 @@ use heapless::Vec;
 
 // So that there is only one implementation, and not multiple generic ones
 // as would be via `const N: usize` generics.
-const MAX_OPS: usize = 20;
+const MAX_OPS: usize = 30;
 
 /// To account for operations that are not made of characters
 /// but need to be accounted for somehow.
@@ -108,13 +108,14 @@ impl<'a> OpTextLayout<'a> {
                     };
                 }
                 // Drawing text
-                Op::Text(text, continued) => {
+                Op::Text(text, font, continued) => {
                     // Try to fit text on the current page and if they do not fit,
                     // return the appropriate OutOfBounds message
 
                     // Inserting the ellipsis at the very beginning of the text if needed
                     // (just for incomplete texts that were separated)
                     layout.continues_from_prev_page = continued;
+                    layout.style.text_font = font;
 
                     let fit = text.map(|t| layout.layout_text(t, cursor, sink));
 
@@ -159,7 +160,7 @@ impl<'a> OpTextLayout<'a> {
         let mut skipped = 0;
         ops_iter.filter_map(move |op| {
             match op {
-                Op::Text(text, _continued) if skipped < skip_bytes => {
+                Op::Text(text, font, _continued) if skipped < skip_bytes => {
                     let skip_text_bytes_if_fits_partially = skip_bytes - skipped;
                     skipped = skipped.saturating_add(text.len());
                     if skipped > skip_bytes {
@@ -168,6 +169,7 @@ impl<'a> OpTextLayout<'a> {
                         // Signifying that the text continues from previous page
                         Some(Op::Text(
                             text.skip_prefix(skip_text_bytes_if_fits_partially),
+                            font,
                             true,
                         ))
                     } else {
@@ -191,91 +193,70 @@ impl<'a> OpTextLayout<'a> {
 
 // Op-adding operations
 impl<'a> OpTextLayout<'a> {
-    pub fn with_new_item(mut self, item: Op<'a>) -> Self {
+    pub fn add_new_item(&mut self, item: Op<'a>) -> &mut Self {
         self.ops
             .push(item)
             .assert_if_debugging_ui("Could not push to self.ops - increase MAX_OPS.");
         self
     }
 
-    pub fn text(self, text: TString<'a>) -> Self {
-        self.with_new_item(Op::Text(text, false))
+    pub fn add_text(&mut self, text: impl Into<TString<'a>>, font: Font) -> &mut Self {
+        self.add_new_item(Op::Text(text.into(), font, false))
     }
 
-    pub fn newline(self) -> Self {
-        self.text("\n".into())
+    pub fn add_color(&mut self, color: Color) -> &mut Self {
+        self.add_new_item(Op::Color(color))
     }
 
-    pub fn newline_half(self) -> Self {
-        self.text("\r".into())
+    pub fn add_newline(&mut self) -> &mut Self {
+        let font = self.layout.style.text_font;
+        self.add_text("\n", font)
     }
 
-    pub fn next_page(self) -> Self {
-        self.with_new_item(Op::NextPage)
+    pub fn add_newline_half(&mut self) -> &mut Self {
+        let font = self.layout.style.text_font;
+        self.add_text("\r", font)
     }
 
-    pub fn font(self, font: Font) -> Self {
-        self.with_new_item(Op::Font(font))
+    pub fn add_next_page(&mut self) -> &mut Self {
+        self.add_new_item(Op::NextPage)
     }
 
-    pub fn offset(self, offset: Offset) -> Self {
-        self.with_new_item(Op::CursorOffset(offset))
+    pub fn add_offset(&mut self, offset: Offset) -> &mut Self {
+        self.add_new_item(Op::CursorOffset(offset))
     }
 
-    pub fn alignment(self, alignment: Alignment) -> Self {
-        self.with_new_item(Op::Alignment(alignment))
+    pub fn add_alignment(&mut self, alignment: Alignment) -> &mut Self {
+        self.add_new_item(Op::Alignment(alignment))
     }
 
-    pub fn line_breaking(self, line_breaking: LineBreaking) -> Self {
-        self.with_new_item(Op::LineBreaking(line_breaking))
+    pub fn add_line_breaking(&mut self, line_breaking: LineBreaking) -> &mut Self {
+        self.add_new_item(Op::LineBreaking(line_breaking))
     }
 
-    pub fn chunks(self, chunks: Option<Chunks>) -> Self {
-        self.with_new_item(Op::Chunkify(chunks))
+    pub fn add_chunks(&mut self, chunks: Option<Chunks>) -> &mut Self {
+        self.add_new_item(Op::Chunkify(chunks))
     }
 
-    pub fn line_spacing(self, spacing: i16) -> Self {
-        self.with_new_item(Op::LineSpacing(spacing))
-    }
-}
-
-// Op-adding aggregation operations
-impl<'a> OpTextLayout<'a> {
-    pub fn text_normal(self, text: impl Into<TString<'a>>) -> Self {
-        self.font(Font::NORMAL).text(text.into())
+    pub fn add_line_spacing(&mut self, spacing: i16) -> &mut Self {
+        self.add_new_item(Op::LineSpacing(spacing))
     }
 
-    pub fn text_mono(self, text: impl Into<TString<'a>>) -> Self {
-        self.font(Font::MONO).text(text.into())
-    }
-
-    pub fn text_bold(self, text: impl Into<TString<'a>>) -> Self {
-        self.font(Font::BOLD).text(text.into())
-    }
-
-    pub fn text_bold_upper(self, text: impl Into<TString<'a>>) -> Self {
-        self.font(Font::BOLD_UPPER).text(text.into())
-    }
-
-    pub fn text_demibold(self, text: impl Into<TString<'a>>) -> Self {
-        self.font(Font::DEMIBOLD).text(text.into())
-    }
-
-    pub fn chunkify_text(self, chunks: Option<(Chunks, i16)>) -> Self {
-        if let Some(chunks) = chunks {
-            self.chunks(Some(chunks.0)).line_spacing(chunks.1)
+    pub fn add_chunkify_text(&mut self, chunks: Option<(Chunks, i16)>) -> &mut Self {
+        if let Some((c, spacing)) = chunks {
+            self.add_chunks(Some(c)).add_line_spacing(spacing)
         } else {
-            self.chunks(None).line_spacing(0)
+            self.add_chunks(None).add_line_spacing(0)
         }
     }
 }
 
 #[derive(Clone)]
 pub enum Op<'a> {
-    /// Render text with current color and font.
+    /// Render text with current color and specified font.
     /// Bool signifies whether this is a split Text Op continued from previous
     /// page. If true, a leading ellipsis will be rendered.
-    Text(TString<'a>, bool),
+    Text(TString<'a>, Font, bool),
     /// Set current text color.
     Color(Color),
     /// Set currently used font.

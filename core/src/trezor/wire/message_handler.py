@@ -29,7 +29,7 @@ def wrap_protobuf_load(
             log.debug(
                 __name__,
                 "Buffer to be parsed to a LoadedMessage: %s",
-                utils.get_bytes_as_str(buffer),
+                utils.hexlify_if_bytes(buffer),
             )
         msg = protobuf.decode(buffer, expected_type, EXPERIMENTAL_ENABLED)
         if __debug__ and utils.EMULATOR:
@@ -65,11 +65,11 @@ async def handle_single_message(ctx: Context, msg: Message) -> bool:
             msg_type = protobuf.type_for_wire(msg.type).MESSAGE_NAME
         except Exception:
             msg_type = f"{msg.type} - unknown message type"
-        log.debug(
+        log.info(
             __name__,
-            "%d receive: <%s>",
-            ctx.iface.iface_num(),
+            "received message: %s",
             msg_type,
+            iface=ctx.iface,
         )
 
     res_msg: protobuf.MessageType | None = None
@@ -97,6 +97,10 @@ async def handle_single_message(ctx: Context, msg: Message) -> bool:
         # `req_type`. Raises if the message is malformed.
         req_msg = wrap_protobuf_load(msg.data, req_type)
 
+        if __debug__ and utils.LOG_STACK_USAGE:
+            utils.zero_unused_stack()
+            unused_stack_before = utils.estimate_unused_stack()
+
         # Create the handler task.
         task = handler(req_msg)
 
@@ -108,6 +112,17 @@ async def handle_single_message(ctx: Context, msg: Message) -> bool:
         # Spawn a workflow around the task. This ensures that concurrent
         # workflows are shut down.
         res_msg = await workflow.spawn(with_context(ctx, task))
+
+        if __debug__ and utils.LOG_STACK_USAGE:
+            unused_stack_after = utils.estimate_unused_stack()
+            log.debug(
+                __name__,
+                "<%s> estimated stack usage=%d (unused before=%d, after=%d)",
+                msg_type,
+                unused_stack_before - unused_stack_after,
+                unused_stack_before,
+                unused_stack_after,
+            )
 
     except UnexpectedMessageException:
         # Workflow was trying to read a message from the wire, and
@@ -134,11 +149,11 @@ async def handle_single_message(ctx: Context, msg: Message) -> bool:
         # - something canceled the workflow from the outside
         if __debug__:
             if isinstance(exc, ActionCancelled):
-                log.debug(__name__, "cancelled: %s", exc.message)
+                log.debug(__name__, "cancelled: %s", exc.message, iface=ctx.iface)
             elif isinstance(exc, loop.TaskClosed):
-                log.debug(__name__, "cancelled: loop task was closed")
+                log.debug(__name__, "cancelled: loop task was closed", iface=ctx.iface)
             else:
-                log.exception(__name__, exc)
+                log.exception(__name__, exc, iface=ctx.iface)
         res_msg = failure(exc)
 
     if res_msg is not None:

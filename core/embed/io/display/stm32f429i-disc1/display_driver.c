@@ -50,11 +50,11 @@ static display_driver_t g_display_driver = {
     .initialized = false,
 };
 
-void display_init(display_content_mode_t mode) {
+bool display_init(display_content_mode_t mode) {
   display_driver_t *drv = &g_display_driver;
 
   if (drv->initialized) {
-    return;
+    return true;
   }
 
   memset(drv, 0, sizeof(display_driver_t));
@@ -67,11 +67,16 @@ void display_init(display_content_mode_t mode) {
     ili9341_init();
   }
 
+  gfx_bitblt_init();
+
   drv->initialized = true;
+  return true;
 }
 
 void display_deinit(display_content_mode_t mode) {
   display_driver_t *drv = &g_display_driver;
+
+  gfx_bitblt_deinit();
 
   mpu_set_active_fb(NULL, 0);
 
@@ -128,12 +133,13 @@ int display_get_orientation(void) {
 bool display_get_frame_buffer(display_fb_info_t *fb) {
   display_driver_t *drv = &g_display_driver;
 
+  memset(fb, 0, sizeof(display_fb_info_t));
+
   if (!drv->initialized) {
-    fb->ptr = NULL;
-    fb->stride = 0;
     return false;
   } else {
     fb->ptr = (void *)drv->framebuf;
+    fb->size = FRAME_BUFFER_SIZE;
     fb->stride = DISPLAY_RESX * sizeof(uint16_t);
     // Enable access to the frame buffer from the unprivileged code
     mpu_set_active_fb(fb->ptr, FRAME_BUFFER_SIZE);
@@ -159,6 +165,11 @@ void display_fill(const gfx_bitblt_t *bb) {
   bb_new.dst_row = drv->framebuf + (DISPLAY_RESX * bb_new.dst_y);
   bb_new.dst_stride = DISPLAY_RESX * sizeof(uint16_t);
 
+  if (!gfx_bitblt_check_dst_x(&bb_new, 16) ||
+      !gfx_bitblt_check_dst_y(&bb_new, FRAME_BUFFER_SIZE)) {
+    return;
+  }
+
   gfx_rgb565_fill(&bb_new);
 }
 
@@ -172,6 +183,12 @@ void display_copy_rgb565(const gfx_bitblt_t *bb) {
   gfx_bitblt_t bb_new = *bb;
   bb_new.dst_row = drv->framebuf + (DISPLAY_RESX * bb_new.dst_y);
   bb_new.dst_stride = DISPLAY_RESX * sizeof(uint16_t);
+
+  if (!gfx_bitblt_check_dst_x(&bb_new, 16) ||
+      !gfx_bitblt_check_src_x(&bb_new, 16) ||
+      !gfx_bitblt_check_dst_y(&bb_new, FRAME_BUFFER_SIZE)) {
+    return;
+  }
 
   gfx_rgb565_copy_rgb565(&bb_new);
 }
@@ -187,21 +204,13 @@ void display_copy_mono1p(const gfx_bitblt_t *bb) {
   bb_new.dst_row = drv->framebuf + (DISPLAY_RESX * bb_new.dst_y);
   bb_new.dst_stride = DISPLAY_RESX * sizeof(uint16_t);
 
-  gfx_rgb565_copy_mono1p(&bb_new);
-}
-
-void display_copy_mono4(const gfx_bitblt_t *bb) {
-  display_driver_t *drv = &g_display_driver;
-
-  if (!drv->initialized) {
+  if (!gfx_bitblt_check_dst_x(&bb_new, 16) ||
+      !gfx_bitblt_check_src_x(&bb_new, 1) ||
+      !gfx_bitblt_check_dst_y(&bb_new, FRAME_BUFFER_SIZE)) {
     return;
   }
 
-  gfx_bitblt_t bb_new = *bb;
-  bb_new.dst_row = drv->framebuf + (DISPLAY_RESX * bb_new.dst_y);
-  bb_new.dst_stride = DISPLAY_RESX * sizeof(uint16_t);
-
-  gfx_rgb565_copy_mono4(&bb_new);
+  gfx_rgb565_copy_mono1p(&bb_new);
 }
 
 #endif

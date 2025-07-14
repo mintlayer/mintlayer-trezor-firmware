@@ -2,24 +2,27 @@ ifneq ($(V),1)
 Q := @
 endif
 
-SKIPPED_MESSAGES := Binance Cardano DebugMonero Eos Monero Ontology Ripple SdProtect Tezos WebAuthn Mintlayer \
-	DebugLinkRecordScreen DebugLinkEraseSdCard DebugLinkWatchLayout \
+SKIPPED_MESSAGES := Cardano DebugMonero Eos Monero Ontology Ripple SdProtect Tezos WebAuthn Mintlayer \
+	DebugLinkGetPairingInfo DebugLinkPairingInfo DebugLinkGetGcInfo DebugLinkGcInfoItem \
+	DebugLinkGcInfo DebugLinkRecordScreen DebugLinkEraseSdCard DebugLinkWatchLayout \
 	DebugLinkLayout DebugLinkResetDebugEvents GetNonce \
 	TxAckInput TxAckOutput TxAckPrev TxAckPaymentRequest \
 	EthereumSignTypedData EthereumTypedDataStructRequest EthereumTypedDataStructAck \
 	EthereumTypedDataValueRequest EthereumTypedDataValueAck ShowDeviceTutorial \
 	UnlockBootloader AuthenticateDevice AuthenticityProof \
 	Solana StellarClaimClaimableBalanceOp \
-	ChangeLanguage TranslationDataRequest TranslationDataAck \
-	SetBrightness DebugLinkOptigaSetSecMax EntropyCheckReady EntropyCheckContinue \
-	BenchmarkListNames BenchmarkRun BenchmarkNames BenchmarkResult
+	ChangeLanguage DataChunkRequest DataChunkAck Thp \
+	SetBrightness DebugLinkOptigaSetSecMax \
+	BenchmarkListNames BenchmarkRun BenchmarkNames BenchmarkResult \
+	NostrGetPubkey NostrPubkey NostrSignEvent NostrEventSignature \
+	BleUnpair
 
 ifeq ($(BITCOIN_ONLY), 1)
 SKIPPED_MESSAGES += Ethereum NEM Stellar
 endif
 
 PROTO_NAMES = messages messages-bitcoin messages-common messages-crypto messages-debug \
-	messages-ethereum messages-ethereum-definitions messages-management messages-nem \
+	messages-ethereum messages-definitions messages-management messages-nem \
 	messages-stellar options
 
 PROTO_OPTIONS = $(PROTO_NAMES:=.options)

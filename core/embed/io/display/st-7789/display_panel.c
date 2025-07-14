@@ -25,7 +25,7 @@
 #include "display_panel.h"
 #include "display_io.h"
 
-#ifdef TREZOR_MODEL_T
+#ifdef TREZOR_MODEL_T2T1
 #include "panels/154a.h"
 #include "panels/lx154a2411.h"
 #include "panels/lx154a2422.h"
@@ -47,14 +47,26 @@
 
 #ifdef KERNEL_MODE
 
+#ifdef TREZOR_MODEL_T2T1
+#ifdef BOARDLOADER
 // using const volatile instead of #define results in binaries that change
 // only in 1-byte when the flag changes.
 // using #define leads compiler to over-optimize the code leading to bigger
-// differencies in the resulting binaries.
+// differences in the resulting binaries.
 const volatile uint8_t DISPLAY_ST7789V_INVERT_COLORS2 = 1;
 
+#else
+
+volatile uint8_t DISPLAY_ST7789V_INVERT_COLORS2 = 0;
+
+void display_panel_preserve_inversion(void) {
+  DISPLAY_ST7789V_INVERT_COLORS2 = display_panel_is_inverted();
+}
+#endif
+#endif
+
 // Window padding (correction) when using 90dg or 270dg orientation
-// (internally the display is 240x320 but we use only 240x240)
+// (internally the display is 240x320, but we use only 240x240)
 static display_padding_t g_window_padding;
 
 #ifdef DISPLAY_IDENTIFY
@@ -211,7 +223,7 @@ void display_panel_init(void) {
   HAL_Delay(120);
 
   // identify the controller we will communicate with
-#ifdef TREZOR_MODEL_T
+#ifdef TREZOR_MODEL_T2T1
   uint32_t id = display_panel_identify();
   if (id == DISPLAY_ID_GC9307) {
     tf15411a_init_seq();
@@ -232,9 +244,9 @@ void display_panel_init(void) {
 }
 
 void display_panel_reinit(void) {
-  // reinitialization is needed due to original sequence is unchangable in
+  // reinitialization is needed due to original sequence is unchangeable in
   // boardloader
-#ifdef TREZOR_MODEL_T
+#ifdef TREZOR_MODEL_T2T1
   // model TT has new gamma settings
   uint32_t id = display_panel_identify();
   if (id == DISPLAY_ID_ST7789V && display_panel_is_inverted()) {
@@ -250,7 +262,7 @@ void display_panel_reinit(void) {
 }
 
 void display_panel_rotate(int angle) {
-#ifdef TREZOR_MODEL_T
+#ifdef TREZOR_MODEL_T2T1
   uint32_t id = display_panel_identify();
   if (id == DISPLAY_ID_GC9307) {
     tf15411a_rotate(angle, &g_window_padding);

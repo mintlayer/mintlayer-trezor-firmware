@@ -88,30 +88,6 @@ impl<'a> BinaryData<'a> {
         self.len() == 0
     }
 
-    /// Returns a reference to the binary data.
-    ///
-    /// This function is used just in the `paint()` functions in
-    /// UI components, that are going to be deleted after adopting new
-    /// drawing library for models T and TS3. Do not use this function in new
-    /// code.
-    ///
-    /// # Safety
-    /// The caller must ensure that the returned slice is not modified by
-    /// MicroPython. This means (a) discarding the slice before returning
-    /// to Python, and (b) being careful about calling into Python while
-    /// the slice is held.
-    pub unsafe fn data(&self) -> &[u8] {
-        match self {
-            Self::Slice(data) => data,
-            // SAFETY: We expect no existing mutable reference. See safety
-            // note above.
-            #[cfg(feature = "micropython")]
-            Self::Object(obj) => unsafe { unwrap!(get_buffer(*obj)) },
-            #[cfg(feature = "micropython")]
-            Self::AllocatedSlice(data) => data,
-        }
-    }
-
     /// Returns the length of the binary data in bytes.
     pub fn len(&self) -> usize {
         match self {
@@ -162,12 +138,14 @@ impl<'a> BinaryData<'a> {
 impl<'a> PartialEq for BinaryData<'a> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Slice(a), Self::Slice(b)) => a.as_ptr() == b.as_ptr() && a.len() == b.len(),
+            (Self::Slice(a), Self::Slice(b)) => {
+                core::ptr::eq(a.as_ptr(), b.as_ptr()) && a.len() == b.len()
+            }
             #[cfg(feature = "micropython")]
             (Self::Object(a), Self::Object(b)) => a == b,
             #[cfg(feature = "micropython")]
             (Self::AllocatedSlice(a), Self::AllocatedSlice(b)) => {
-                a.as_ptr() == b.as_ptr() && a.len() == b.len()
+                core::ptr::eq(a.as_ptr(), b.as_ptr()) && a.len() == b.len()
             }
             #[cfg(feature = "micropython")]
             _ => false,

@@ -4,13 +4,37 @@ from trezor.crypto import base58
 from trezor.utils import BufferReader
 from trezor.wire import DataError
 
+from ..constants import (
+    MICROLAMPORTS_PER_LAMPORT,
+    SOLANA_BASE_FEE_LAMPORTS,
+    SOLANA_COMPUTE_UNIT_LIMIT,
+)
 from ..types import AddressType
 from .instruction import Instruction
-from .instructions import get_instruction, get_instruction_id_length
+from .instructions import (
+    COMPUTE_BUDGET_PROGRAM_ID,
+    COMPUTE_BUDGET_PROGRAM_ID_INS_SET_COMPUTE_UNIT_LIMIT,
+    COMPUTE_BUDGET_PROGRAM_ID_INS_SET_COMPUTE_UNIT_PRICE,
+    get_instruction,
+    get_instruction_id_length,
+)
 from .parse import parse_block_hash, parse_pubkey, parse_var_int
 
 if TYPE_CHECKING:
     from ..types import Account, Address, AddressReference, RawInstruction
+
+
+class Fee:
+    def __init__(
+        self,
+        base: int,
+        priority: int,
+        rent: int,
+    ) -> None:
+        self.base = base
+        self.priority = priority
+        self.rent = rent
+        self.total = base + priority + rent
 
 
 class Transaction:
@@ -209,3 +233,111 @@ class Transaction:
             for instruction in self.instructions
             if not instruction.is_ui_hidden
         ]
+
+    def calculate_fee(self) -> Fee:
+        number_of_signers = 0
+        for address in self.addresses:
+            if address[1] == AddressType.AddressSig:
+                number_of_signers += 1
+
+        base_fee = SOLANA_BASE_FEE_LAMPORTS * number_of_signers
+
+        unit_price = 0
+        is_unit_price_set = False
+        unit_limit = SOLANA_COMPUTE_UNIT_LIMIT
+        is_unit_limit_set = False
+
+        for instruction in self.instructions:
+            if instruction.program_id == COMPUTE_BUDGET_PROGRAM_ID:
+                if (
+                    instruction.instruction_id
+                    == COMPUTE_BUDGET_PROGRAM_ID_INS_SET_COMPUTE_UNIT_LIMIT
+                    and not is_unit_limit_set
+                ):
+                    unit_limit = instruction.units
+                    is_unit_limit_set = True
+                elif (
+                    instruction.instruction_id
+                    == COMPUTE_BUDGET_PROGRAM_ID_INS_SET_COMPUTE_UNIT_PRICE
+                    and not is_unit_price_set
+                ):
+                    unit_price = instruction.lamports
+                    is_unit_price_set = True
+
+        priority_fee = unit_price * unit_limit  # in microlamports
+        return Fee(
+            base=base_fee,
+            priority=(priority_fee + MICROLAMPORTS_PER_LAMPORT - 1)
+            // MICROLAMPORTS_PER_LAMPORT,
+            rent=self.calculate_rent(),
+        )
+
+    def get_account_address(self, account: Account) -> bytes:
+        if len(account) == 2:
+            return account[0]
+        else:
+            _, index, _ = account
+            return self.addresses[index][0]
+
+    def calculate_rent(self) -> int:
+        """
+        Returns max rent exemption in lamports.
+
+        To estimate rent exemption from a transaction we need to go over the instructions.
+        When new accounts are created, space must be allocated for them, rent exemption value depends on that space.
+
+        There are a handful of instruction that allocate space:
+        - System program create account instruction (the space data parameter)
+        - System program create account with seed instruction (the space data parameter)
+        - System program allocate instruction (the space data parameter)
+        - System program allocate with seed instruction (the space data parameter)
+        - Associated token account program create instruction (165 bytes for Token, 170-195 for Token22)
+        - Associated token account program create idempotent instruction (165 bytes for Token, 170-195 for Token22, might not allocate)
+
+        Associated token account program allocates space based on used extensions which must be enabled in the same transaction.
+        Currently, the token22 extensions aren't supported, so the max value of 195 bytes is assumed.
+        The min Token22 account size is the base Token account size plus some overhead.
+        The max Token22 account size is derived from the program source code:
+        https://github.com/solana-program/token-2022/blob/d9cfcf32cf5fbb3ee32f9f873d3fe3c94356e981/program/src/extension/mod.rs#L1299
+        Note that Token/Token22 programs don't allocate space by themselves, they only use preallocated accounts.
+        """
+        from ..constants import (
+            SOLANA_ACCOUNT_OVERHEAD_SIZE,
+            SOLANA_RENT_EXEMPTION_YEARS,
+            SOLANA_RENT_LAMPORTS_PER_BYTE_YEAR,
+            SOLANA_TOKEN22_MAX_ACCOUNT_SIZE,
+            SOLANA_TOKEN_ACCOUNT_SIZE,
+        )
+        from ..transaction.instructions import (
+            _TOKEN_2022_PROGRAM_ID,
+            _TOKEN_PROGRAM_ID,
+            is_atap_account_creation,
+            is_system_program_account_creation,
+        )
+
+        allocation = 0
+        for instruction in self.instructions:
+            if is_system_program_account_creation(instruction):
+                allocation += (
+                    instruction.parsed_data["space"] + SOLANA_ACCOUNT_OVERHEAD_SIZE
+                )
+            elif is_atap_account_creation(instruction):
+                spl_token_account = self.get_account_address(
+                    instruction.parsed_accounts["spl_token"]
+                )
+                if spl_token_account == base58.decode(_TOKEN_PROGRAM_ID):
+                    allocation += (
+                        SOLANA_TOKEN_ACCOUNT_SIZE + SOLANA_ACCOUNT_OVERHEAD_SIZE
+                    )
+                elif spl_token_account == base58.decode(_TOKEN_2022_PROGRAM_ID):
+                    allocation += (
+                        SOLANA_TOKEN22_MAX_ACCOUNT_SIZE + SOLANA_ACCOUNT_OVERHEAD_SIZE
+                    )
+
+        rent_exemption = (
+            allocation
+            * SOLANA_RENT_LAMPORTS_PER_BYTE_YEAR
+            * SOLANA_RENT_EXEMPTION_YEARS
+        )
+
+        return rent_exemption

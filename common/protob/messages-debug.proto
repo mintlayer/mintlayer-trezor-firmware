@@ -40,7 +40,7 @@ message DebugLinkDecision {
     }
 
     /**
-    * Structure representing model R button presses
+    * Structure representing button presses of UI Caesar
     */
     // TODO: probably delete the middle_btn as it is not a physical one
     enum DebugPhysicalButton {
@@ -85,7 +85,7 @@ message DebugLinkRecordScreen {
 }
 
 /**
- * Request: Computer asks for device state
+ * Request: Host asks for device state
  * @start
  * @next DebugLinkState
  */
@@ -110,6 +110,8 @@ message DebugLinkGetState {
     // trezor-core only - wait until current layout changes
     // changed in 2.6.4: multiple wait types instead of true/false.
     optional DebugWaitType wait_layout = 3 [default=IMMEDIATE];
+    // Responds immediately with an empty `DebugLinkState` (used for client-side synchronization).
+    optional bool return_empty_state = 4 [default=false];
 }
 
 /**
@@ -130,6 +132,29 @@ message DebugLinkState {
     optional uint32 reset_word_pos = 11;                    // index of mnemonic word the device is expecting during ResetDevice workflow
     optional management.BackupType mnemonic_type = 12;      // current mnemonic type (BIP-39/SLIP-39)
     repeated string tokens = 13;                            // current layout represented as a list of string tokens
+}
+
+/**
+ * Request: Host asks for device pairing info
+ * @start
+ * @next DebugLinkPairingInfo
+ */
+ message DebugLinkGetPairingInfo {
+    optional bytes channel_id = 1;              // ID of the THP channel to get pairing info from
+    optional bytes handshake_hash = 2;          // handshake hash of the THP channel
+    optional bytes nfc_secret_host = 3;         // host's NFC secret (In case of NFC pairing)
+}
+
+ /**
+ * Response: Device pairing info
+ * @end
+ */
+ message DebugLinkPairingInfo {
+    optional bytes channel_id = 1;              // ID of the THP channel the pairing info is from
+    optional bytes handshake_hash = 2;          // handshake hash of the THP channel
+    optional uint32 code_entry_code = 3;        // CodeEntry pairing code
+    optional bytes code_qr_code = 4;            // QrCode pairing code
+    optional bytes nfc_secret_trezor = 5;       // NFC secret used in NFC pairing
 }
 
 /**
@@ -232,4 +257,29 @@ message DebugLinkResetDebugEvents {
  * @next Success
  */
 message DebugLinkOptigaSetSecMax {
+}
+
+
+/**
+ * Request: Get GC heap information.
+ * @start
+ * @next DebugLinkGcInfo
+ */
+message DebugLinkGetGcInfo {
+}
+
+/**
+ * Response: GC heap information details.
+ * @end
+ */
+message DebugLinkGcInfo {
+    repeated DebugLinkGcInfoItem items = 1;
+
+    /**
+    * Key-value pair.
+    */
+    message DebugLinkGcInfoItem {
+        required string name = 1;
+        required uint64 value = 2;
+    }
 }

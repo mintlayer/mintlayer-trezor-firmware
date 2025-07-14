@@ -84,10 +84,6 @@ void display_set_unpriv_access(bool unpriv) {
   tz_set_sram_unpriv((uint32_t)physical_frame_buffer_1,
                      PHYSICAL_FRAME_BUFFER_SIZE, unpriv);
 #endif
-
-#ifdef USE_DMA2D
-  tz_set_dma2d_unpriv(unpriv);
-#endif
 }
 #endif  // USE_TRUSTZONE
 
@@ -135,7 +131,7 @@ void display_fb_clear(void) {
 static void bg_copy_callback(void) {
   display_driver_t *drv = &g_display_driver;
 
-  drv->update_pending = 1;
+  drv->update_pending = 2;
 
   fb_queue_put(&drv->empty_frames, fb_queue_take(&drv->ready_frames));
 }
@@ -174,9 +170,9 @@ void DISPLAY_TE_INTERRUPT_HANDLER(void) {
 bool display_get_frame_buffer(display_fb_info_t *fb) {
   display_driver_t *drv = &g_display_driver;
 
+  memset(fb, 0, sizeof(display_fb_info_t));
+
   if (!drv->initialized) {
-    fb->ptr = NULL;
-    fb->stride = 0;
     return false;
   }
 
@@ -185,8 +181,9 @@ bool display_get_frame_buffer(display_fb_info_t *fb) {
 
   fb->ptr = get_fb_ptr(fb_idx);
   fb->stride = DISPLAY_RESX * sizeof(uint16_t);
+  fb->size = PHYSICAL_FRAME_BUFFER_SIZE;
   // Enable access to the frame buffer from the unprivileged code
-  mpu_set_active_fb(fb->ptr, PHYSICAL_FRAME_BUFFER_SIZE);
+  mpu_set_active_fb(fb->ptr, fb->size);
 
   return true;
 }
@@ -267,13 +264,6 @@ void display_ensure_refreshed(void) {
       irq_unlock(irq_key);
       __WFI();
     } while (copy_pending);
-
-    // Wait until the display is fully refreshed
-    // (TE signal is low when the display is updating)
-    while (GPIO_PIN_RESET ==
-           HAL_GPIO_ReadPin(DISPLAY_TE_PORT, DISPLAY_TE_PIN)) {
-      __WFI();
-    }
   }
 #endif
 }
@@ -289,6 +279,11 @@ void display_fill(const gfx_bitblt_t *bb) {
   bb_new.dst_row = (uint16_t *)((uintptr_t)fb.ptr + fb.stride * bb_new.dst_y);
   bb_new.dst_stride = fb.stride;
 
+  if (!gfx_bitblt_check_dst_x(&bb_new, 16) ||
+      !gfx_bitblt_check_dst_y(&bb_new, fb.size)) {
+    return;
+  }
+
   gfx_rgb565_fill(&bb_new);
 }
 
@@ -302,6 +297,12 @@ void display_copy_rgb565(const gfx_bitblt_t *bb) {
   gfx_bitblt_t bb_new = *bb;
   bb_new.dst_row = (uint16_t *)((uintptr_t)fb.ptr + fb.stride * bb_new.dst_y);
   bb_new.dst_stride = fb.stride;
+
+  if (!gfx_bitblt_check_dst_x(&bb_new, 16) ||
+      !gfx_bitblt_check_src_x(&bb_new, 16) ||
+      !gfx_bitblt_check_dst_y(&bb_new, fb.size)) {
+    return;
+  }
 
   gfx_rgb565_copy_rgb565(&bb_new);
 }
@@ -317,21 +318,13 @@ void display_copy_mono1p(const gfx_bitblt_t *bb) {
   bb_new.dst_row = (uint16_t *)((uintptr_t)fb.ptr + fb.stride * bb_new.dst_y);
   bb_new.dst_stride = fb.stride;
 
-  gfx_rgb565_copy_mono1p(&bb_new);
-}
-
-void display_copy_mono4(const gfx_bitblt_t *bb) {
-  display_fb_info_t fb;
-
-  if (!display_get_frame_buffer(&fb)) {
+  if (!gfx_bitblt_check_dst_x(&bb_new, 16) ||
+      !gfx_bitblt_check_src_x(&bb_new, 1) ||
+      !gfx_bitblt_check_dst_y(&bb_new, fb.size)) {
     return;
   }
 
-  gfx_bitblt_t bb_new = *bb;
-  bb_new.dst_row = (uint16_t *)((uintptr_t)fb.ptr + fb.stride * bb_new.dst_y);
-  bb_new.dst_stride = fb.stride;
-
-  gfx_rgb565_copy_mono4(&bb_new);
+  gfx_rgb565_copy_mono1p(&bb_new);
 }
 
 #endif  // KERNEL_MODE

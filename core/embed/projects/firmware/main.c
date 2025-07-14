@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <trezor_model.h>
 #include <trezor_rtl.h>
 
 #include "py/builtin.h"
@@ -32,23 +33,105 @@
 #include "ports/stm32/gccollect.h"
 #include "ports/stm32/pendsv.h"
 
+#include <io/display.h>
+#include <sys/linker_utils.h>
 #include <sys/systask.h>
 #include <sys/system.h>
+#include <util/bl_check.h>
 #include <util/rsod.h>
 #include "rust_ui_common.h"
+
+#include <blake2s.h>
+
+#include "sys/bootutils.h"
 
 #ifdef USE_SECP256K1_ZKP
 #include "zkp_context.h"
 #endif
 
-int main(uint32_t cmd, void *arg) {
+#define CONCAT_NAME_HELPER(prefix, name, suffix) prefix##name##suffix
+#define CONCAT_NAME(name, var) CONCAT_NAME_HELPER(BOOTLOADER_, name, var)
+
+#if BOOTLOADER_QA
+// QA bootloaders
+#define BOOTLOADER_00 CONCAT_NAME(MODEL_INTERNAL_NAME_TOKEN, _QA_00)
+#define BOOTLOADER_FF CONCAT_NAME(MODEL_INTERNAL_NAME_TOKEN, _QA_FF)
+#else
+// normal bootloaders
+#define BOOTLOADER_00 CONCAT_NAME(MODEL_INTERNAL_NAME_TOKEN, _00)
+#define BOOTLOADER_FF CONCAT_NAME(MODEL_INTERNAL_NAME_TOKEN, _FF)
+#endif
+
+// symbols from bootloader.bin => bootloader.o
+extern const void _deflated_bootloader_start;
+extern const void _deflated_bootloader_size;
+
+#ifdef USE_NRF
+#include <io/nrf.h>
+
+extern const void nrf_app_start;
+extern const void nrf_app_end;
+extern const void nrf_app_size;
+
+#endif
+
+int main_func(uint32_t cmd, void *arg) {
   if (cmd == 1) {
     systask_postmortem_t *info = (systask_postmortem_t *)arg;
     rsod_gui(info);
     system_exit(0);
   }
 
-  screen_boot_stage_2();
+  bool fading = DISPLAY_JUMP_BEHAVIOR == DISPLAY_RESET_CONTENT;
+
+  bool update_required = false;
+
+#if PRODUCTION || BOOTLOADER_QA
+
+  // replace bootloader with the latest one
+  const uint8_t *data = (const uint8_t *)&_deflated_bootloader_start;
+  const size_t len = (size_t)&_deflated_bootloader_size;
+
+  uint8_t hash_00[] = BOOTLOADER_00;
+  uint8_t hash_FF[] = BOOTLOADER_FF;
+
+  // Check if the boardloader is valid and replace it if not
+  bool bl_update_required =
+      bl_check_check(hash_00, hash_FF, BLAKE2S_DIGEST_LENGTH);
+  update_required = update_required || bl_update_required;
+
+#endif
+
+#ifdef USE_NRF
+  bool nrf_update_required_ =
+      nrf_update_required(&nrf_app_start, (size_t)&nrf_app_size);
+  update_required = update_required || nrf_update_required_;
+#endif
+
+  if (update_required) {
+    screen_update();
+    fading = true;
+
+#if PRODUCTION || BOOTLOADER_QA
+    if (bl_update_required) {
+      bl_check_replace(data, len);
+    }
+#endif
+
+#ifdef USE_NRF
+    if (nrf_update_required_) {
+      nrf_update(&nrf_app_start, (size_t)&nrf_app_size);
+    }
+#endif
+  }
+
+#if PRODUCTION || BOOTLOADER_QA
+  if (bl_update_required) {
+    reboot_device();
+  }
+#endif
+
+  screen_boot_stage_2(fading);
 
 #ifdef USE_SECP256K1_ZKP
   ensure(sectrue * (zkp_context_init() == 0), NULL);
@@ -57,8 +140,9 @@ int main(uint32_t cmd, void *arg) {
   printf("CORE: Preparing stack\n");
   // Stack limit should be less than real stack size, so we have a chance
   // to recover from limit hit.
-  mp_stack_set_top(&_estack);
-  mp_stack_set_limit((char *)&_estack - (char *)&_sstack - 1024);
+  mp_stack_set_top(&_stack_section_end);
+  mp_stack_set_limit((char *)&_stack_section_end -
+                     (char *)&_stack_section_start - 1024);
 
 #if MICROPY_ENABLE_PYSTACK
   static mp_obj_t pystack[1024];
@@ -106,3 +190,22 @@ mp_obj_t mp_builtin_open(uint n_args, const mp_obj_t *args, mp_map_t *kwargs) {
   return mp_const_none;
 }
 MP_DEFINE_CONST_FUN_OBJ_KW(mp_builtin_open_obj, 1, mp_builtin_open);
+
+// `reset_handler` is the application entry point (first routine called
+// from kernel)
+__attribute((no_stack_protector)) void reset_handler(uint32_t cmd, void *arg,
+                                                     uint32_t random_value) {
+  // Initialize linker script defined sections (.bss, .data, ...)
+  init_linker_sections();
+
+  // Initialize stack protector
+  extern uint32_t __stack_chk_guard;
+  __stack_chk_guard = random_value;
+
+  // Now everything is perfectly initialized and we can do anything
+  // in C code
+
+  int main_result = main_func(cmd, arg);
+
+  system_exit(main_result);
+}

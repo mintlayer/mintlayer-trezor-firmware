@@ -3,12 +3,16 @@
 import os
 import tools, models
 
-TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T')
+TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T2T1')
 CMAKELISTS = int(ARGUMENTS.get('CMAKELISTS', 0))
 HW_REVISION = ARGUMENTS.get('HW_REVISION', None)
-MODEL_IDENTIFIER = models.get_model_identifier(TREZOR_MODEL)
 
-FEATURES_WANTED = ["sd_card"]
+FEATURES_WANTED = [
+    "display",
+    "pmic",
+    "sd_card",
+    "secure_domain",
+    ]
 
 CCFLAGS_MOD = ''
 CPPPATH_MOD = []
@@ -27,6 +31,7 @@ CPPPATH_MOD += [
 ]
 CPPDEFINES_MOD += [
     'KERNEL_MODE',
+    'SECURE_MODE',
     'AES_128',
     'AES_192',
     'USE_KECCAK',
@@ -57,7 +62,6 @@ SOURCE_MOD += [
     'embed/gfx/bitblt/gfx_bitblt_rgba8888.c',
     'embed/gfx/bitblt/gfx_bitblt_mono8.c',
     'embed/gfx/fonts/font_bitmap.c',
-    'embed/gfx/fonts/fonts.c',
     'embed/gfx/gfx_color.c',
     'embed/gfx/gfx_draw.c',
     'embed/gfx/terminal.c',
@@ -80,13 +84,15 @@ env = Environment(ENV=os.environ,
 
 FEATURES_AVAILABLE = models.configure_board(TREZOR_MODEL, HW_REVISION, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
 
-FILE_SUFFIX= env.get('ENV')['SUFFIX']
-
 SOURCE_BOARDLOADER = [
-    f"embed/sys/startup/{FILE_SUFFIX}/startup_stage_0.s",
     'embed/projects/boardloader/main.c',
+    'embed/projects/boardloader/bld_version.c',
 ]
 
+if 'sd_card' in FEATURES_AVAILABLE:
+    SOURCE_MOD += [
+    'embed/projects/boardloader/sd_update.c',
+    ]
 
 env.Replace(
     CAT='cat',
@@ -163,7 +169,7 @@ obj_program += env.Object(source=SOURCE_HAL)
 
 linkerscript_gen = env.Command(
     target='memory.ld',
-    source=[f'embed/models/{MODEL_IDENTIFIER}/memory.ld', env.get('ENV')['LINKER_SCRIPT'].format(target='boardloader')],
+    source=[f'embed/models/{TREZOR_MODEL}/memory.ld', env.get('ENV')['LINKER_SCRIPT'].format(target='boardloader')],
     action='$CAT $SOURCES > $TARGET',
 )
 
@@ -176,7 +182,7 @@ program_elf = env.Command(
 
 env.Depends(program_elf, linkerscript_gen)
 
-BINARY_NAME = f"build/boardloader/boardloader-{models.get_model_identifier(TREZOR_MODEL)}"
+BINARY_NAME = f"build/boardloader/boardloader-{TREZOR_MODEL}"
 BINARY_NAME += "-" + tools.get_version('embed/projects/boardloader/version.h')
 BINARY_NAME += "-" + tools.get_git_revision_short_hash()
 BINARY_NAME += "-dirty" if tools.get_git_modified() else ""

@@ -213,7 +213,7 @@ function createRowDiff(row) {
 
     // Process differences
     const difData = difCtx.createImageData(width, height);
-    options = {threshold: 0.0, includeAA: true};
+    options = {threshold: 0.0, includeAA: true, diffColor: [0, 255, 0], diffColorAlt: [255, 0, 0]};
     pixelmatch(recData.data, curData.data, difData.data, width, height, options);
     difCtx.putImageData(difData, 0, 0);
 
@@ -221,5 +221,14 @@ function createRowDiff(row) {
     row.querySelector("td:nth-child(3)").replaceChildren(difImg)
 }
 
+function showAllHidden() {
+    for (let elem of Array.from(document.getElementsByClassName("hidden"))) {
+        elem.classList.remove("hidden");
+    }
+    for (let elem of Array.from(document.getElementsByClassName("showLink"))) {
+        elem.remove();
+    }
+    return false;
+}
 
 window.onload = onLoad

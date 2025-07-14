@@ -129,7 +129,7 @@ if msg_type == MessageType.HelloWorldRequest:
 
 The above will make sure that the `msg` (of type `HelloWorldRequest`) will be supplied into the `hello_world` function we created.
 
-Lastly, running `make gen` in the root directory makes sure the new `misc/hello_world.py` module will be discovered. `core/src/all_modules.py` should be modified as a result.
+Lastly, running `make gen` in the root directory makes sure the new `misc/hello_world.py` module will be discovered.
 
 These are all the necessary code changes in `core`. For this code to work, we will still need to build it, but that will be done in Part 4. Next, we will focus on the client implementation.
 
@@ -154,7 +154,6 @@ if TYPE_CHECKING:
     from .protobuf import MessageType
 
 
-@expect(messages.HelloWorldResponse, field="text", ret_type=str)
 def say_hello(
     client: "TrezorClient",
     name: str,
@@ -166,8 +165,9 @@ def say_hello(
             name=name,
             amount=amount,
             show_display=show_display,
-        )
-    )
+        ),
+        expect=messages.HelloWorldResponse,
+    ).text
 ```
 
 Code above is sending `HelloWorldRequest` into Trezor and is expecting to get `HelloWorldResponse` back (from which it extracts the `text` string as a response).

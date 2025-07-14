@@ -35,14 +35,19 @@ const DEFAULT_BINDGEN_MACROS_COMMON: &[&str] = &[
     "-I../../vendor/micropython/lib/uzlib",
     "-I../rtl/inc",
     "-I../gfx/inc",
+    "-I../io/ble/inc",
     "-I../io/button/inc",
     "-I../io/display/inc",
     "-I../io/haptic/inc",
+    "-I../io/nrf/inc",
     "-I../io/touch/inc",
     "-I../io/rgb_led/inc",
     "-I../io/usb/inc",
     "-I../sec/entropy/inc",
     "-I../sys/time/inc",
+    "-I../sys/task/inc",
+    "-I../sys/power_manager/inc",
+    "-I../sys/irq/inc",
     "-I../util/flash/inc",
     "-I../util/translations/inc",
     "-I../models",
@@ -51,51 +56,41 @@ const DEFAULT_BINDGEN_MACROS_COMMON: &[&str] = &[
     "-DUSE_TOUCH",
     "-DUSE_HAPTIC",
     "-DUSE_RGB_LED",
+    "-DUSE_BLE",
+    "-DUSE_POWER_MANAGER",
+    "-DUSE_NRF",
+    "-DUSE_HW_JPEG_DECODER",
 ];
 
-#[cfg(feature = "model_tt")]
-const DEFAULT_BINDGEN_MACROS_T2T1: &[&str] = &[
-    "-DSTM32F427",
-    "-DTREZOR_MODEL_T",
-    "-DFLASH_BIT_ACCESS=1",
-    "-DFLASH_BLOCK_WORDS=1",
-    "-DTREZOR_BOARD=\"T2T1/boards/t2t1-unix.h\"",
-];
-#[cfg(not(feature = "model_tt"))]
-const DEFAULT_BINDGEN_MACROS_T2T1: &[&str] = &[];
+fn add_bindgen_macros<'a>(
+    clang_args: &mut Vec<String>,
+    envvar: Option<&'a str>,
+    test_envvar: Option<&'a str>,
+) {
+    if let Some(envvar) = envvar {
+        clang_args.extend(envvar.split(',').map(String::from));
+        return;
+    }
+    clang_args.extend(DEFAULT_BINDGEN_MACROS_COMMON.iter().map(|s| s.to_string()));
+    if let Some(envvar) = test_envvar {
+        clang_args.extend(envvar.split(',').map(String::from));
+        return;
+    }
 
-#[cfg(feature = "model_tr")]
-const DEFAULT_BINDGEN_MACROS_T2B1: &[&str] = &[
-    "-DSTM32F427",
-    "-DTREZOR_MODEL_R",
-    "-DFLASH_BIT_ACCESS=1",
-    "-DFLASH_BLOCK_WORDS=1",
-    "-DTREZOR_BOARD=\"T2B1/boards/t2b1-unix.h\"",
-];
-#[cfg(not(feature = "model_tr"))]
-const DEFAULT_BINDGEN_MACROS_T2B1: &[&str] = &[];
-
-#[cfg(feature = "model_mercury")]
-const DEFAULT_BINDGEN_MACROS_T3T1: &[&str] = &[
-    "-DSTM32U5",
-    "-DTREZOR_MODEL_T3T1",
-    "-DFLASH_BIT_ACCESS=0",
-    "-DFLASH_BLOCK_WORDS=4",
-    "-DTREZOR_BOARD=\"T3T1/boards/t3t1-unix.h\"",
-];
-#[cfg(not(feature = "model_mercury"))]
-const DEFAULT_BINDGEN_MACROS_T3T1: &[&str] = &[];
-
-fn add_bindgen_macros<'a>(clang_args: &mut Vec<&'a str>, envvar: Option<&'a str>) {
-    let default_macros = DEFAULT_BINDGEN_MACROS_COMMON
-        .iter()
-        .chain(DEFAULT_BINDGEN_MACROS_T2T1)
-        .chain(DEFAULT_BINDGEN_MACROS_T2B1)
-        .chain(DEFAULT_BINDGEN_MACROS_T3T1);
-
-    match envvar {
-        Some(envvar) => clang_args.extend(envvar.split(',')),
-        None => clang_args.extend(default_macros),
+    let mut model_dirs: Vec<&str> = vec![];
+    // always include Bolt as the baseline
+    model_dirs.push("../models/T2T1");
+    #[cfg(feature = "layout_caesar")]
+    model_dirs.push("../models/T3B1");
+    #[cfg(feature = "layout_delizia")]
+    model_dirs.push("../models/T3T1");
+    #[cfg(feature = "layout_eckhart")]
+    model_dirs.push("../models/T3W1");
+    for model_dir in model_dirs {
+        let macros = PathBuf::from(model_dir).join("test_bindgen_macros.txt");
+        let contents = std::fs::read_to_string(&macros)
+            .unwrap_or_else(|_| panic!("Failed to read {:?}", macros));
+        clang_args.extend(contents.split(",\n").map(String::from));
     }
 }
 
@@ -145,21 +140,27 @@ fn prepare_bindings() -> bindgen::Builder {
 
     let build_dir_include = format!("-I{}", build_dir());
 
-    let mut clang_args: Vec<&str> = Vec::new();
+    let mut clang_args: Vec<String> = Vec::new();
 
     let bindgen_macros_env = env::var("BINDGEN_MACROS").ok();
-    add_bindgen_macros(&mut clang_args, bindgen_macros_env.as_deref());
+    let test_macros_env = env::var("TEST_BINDGEN_MACROS").ok();
+    add_bindgen_macros(
+        &mut clang_args,
+        bindgen_macros_env.as_deref(),
+        test_macros_env.as_deref(),
+    );
 
     #[cfg(feature = "framebuffer")]
     {
         bindings = bindings.clang_args(&["-DFRAMEBUFFER"]);
     }
 
-    clang_args.push(&build_dir_include);
+    clang_args.push(build_dir_include);
 
     // Pass in correct include paths and defines.
     if is_firmware() {
-        clang_args.push("-nostdinc");
+        clang_args.push("-nostdinc".to_string());
+        clang_args.push("-fshort-enums".to_string()); // Make sure enums use the same size as in C
 
         // Append gcc-arm-none-eabi's include paths.
         let cc_output = Command::new("arm-none-eabi-gcc")
@@ -181,6 +182,8 @@ fn prepare_bindings() -> bindgen::Builder {
             .map(|s| format!("-I{}", s.trim()));
 
         bindings = bindings.clang_args(include_args);
+    } else {
+        clang_args.push("-fno-short-enums".to_string());
     }
 
     bindings = bindings.clang_args(&clang_args);
@@ -221,6 +224,7 @@ fn generate_micropython_bindings() {
         .allowlist_function("mp_obj_new_attrtuple")
         .allowlist_function("mp_obj_get_int_maybe")
         .allowlist_function("mp_obj_is_true")
+        .allowlist_function("mp_obj_get_type_str")
         .allowlist_function("mp_call_function_n_kw")
         .allowlist_function("trezor_obj_get_ll_checked")
         .allowlist_function("trezor_obj_str_from_rom_text")
@@ -277,11 +281,13 @@ fn generate_micropython_bindings() {
         .allowlist_var("mp_type_OverflowError")
         .allowlist_var("mp_type_ValueError")
         .allowlist_var("mp_type_TypeError")
+        .allowlist_var("mp_type_RuntimeError")
         // time
         .allowlist_function("mp_hal_ticks_ms")
         .allowlist_function("mp_hal_delay_ms")
         // debug
         .allowlist_function("mp_print_strn")
+        .allowlist_function("str_modulo_format")
         .allowlist_var("mp_plat_print")
         // typ
         .allowlist_var("mp_type_type")
@@ -353,8 +359,8 @@ fn generate_trezorhal_bindings() {
         .allowlist_function("display_set_backlight")
         .allowlist_function("display_get_backlight")
         .allowlist_function("display_wait_for_sync")
-        .allowlist_var("DISPLAY_RESX")
-        .allowlist_var("DISPLAY_RESY")
+        .allowlist_var("DISPLAY_RESX_")
+        .allowlist_var("DISPLAY_RESY_")
         .allowlist_type("display_fb_info_t")
         .allowlist_function("display_get_frame_buffer")
         .allowlist_function("display_fill")
@@ -378,10 +384,6 @@ fn generate_trezorhal_bindings() {
         .allowlist_function("gfx_mono8_blend_mono1p")
         .allowlist_function("gfx_mono8_blend_mono4")
         .allowlist_function("gfx_bitblt_wait")
-        // fonts
-        .allowlist_type("font_info_t")
-        .allowlist_function("get_font_info")
-        // .allowlist_function("font_get_glyph")
         // uzlib
         .allowlist_function("uzlib_uncompress_init")
         .allowlist_function("uzlib_uncompress")
@@ -401,19 +403,64 @@ fn generate_trezorhal_bindings() {
         // systick
         .allowlist_function("systick_delay_ms")
         .allowlist_function("systick_ms")
+        .allowlist_function("systick_us")
         // toif
         .allowlist_type("toif_format_t")
         //usb
-        .allowlist_function("usb_configured")
+        .allowlist_type("usb_event_t")
+        .allowlist_function("usb_get_state")
+        // ble
+        .allowlist_var("BLE_PAIRING_CODE_LEN")
+        .allowlist_var("BLE_RX_PACKET_SIZE")
+        .allowlist_var("BLE_TX_PACKET_SIZE")
+        .allowlist_var("BLE_ADV_NAME_LEN")
+        .allowlist_function("ble_get_state")
+        .allowlist_function("ble_get_event")
+        .allowlist_function("ble_issue_command")
+        .allowlist_function("ble_start")
+        .allowlist_function("ble_write")
+        .allowlist_function("ble_read")
+        .allowlist_type("ble_command_t")
+        .allowlist_type("ble_state_t")
+        .allowlist_type("ble_event_t")
         // touch
         .allowlist_function("touch_get_event")
         // button
         .allowlist_type("button_t")
+        .allowlist_type("button_event_t")
         .allowlist_function("button_get_event")
         // haptic
         .allowlist_type("haptic_effect_t")
         .allowlist_function("haptic_play")
-        .allowlist_function("haptic_play_custom");
+        .allowlist_function("haptic_play_custom")
+        // jpegdec
+        .allowlist_var("JPEGDEC_RGBA8888_BUFFER_SIZE")
+        .allowlist_var("JPEGDEC_MONO8_BUFFER_SIZE")
+        .allowlist_type("jpegdec_state_t")
+        .allowlist_type("jpegdec_image_t")
+        .allowlist_type("jpegdec_image_format_t")
+        .allowlist_type("jpegdec_slice_t")
+        .allowlist_function("jpegdec_open")
+        .allowlist_function("jpegdec_close")
+        .allowlist_function("jpegdec_process")
+        .allowlist_function("jpegdec_get_info")
+        .allowlist_function("jpegdec_get_slice_rgba8888")
+        .allowlist_function("jpegdec_get_slice_mono8")
+        // sysevent
+        .allowlist_type("syshandle_t")
+        .allowlist_type("sysevents_t")
+        .allowlist_function("sysevents_poll")
+        // power manager
+        .allowlist_type("pm_event_t")
+        .allowlist_function("pm_get_events")
+        .allowlist_function("pm_get_state")
+        // irq
+        .allowlist_function("irq_lock_fn")
+        .allowlist_function("irq_unlock_fn")
+        // nrf
+        .allowlist_function("nrf_send_uart_data")
+        // c_layout
+        .allowlist_type("c_layout_t");
 
     // Write the bindings to a file in the OUR_DIR.
     bindings
@@ -423,6 +470,7 @@ fn generate_trezorhal_bindings() {
         .unwrap();
 }
 
+#[cfg(feature = "crypto")]
 fn generate_crypto_bindings() {
     let out_path = env::var("OUT_DIR").unwrap();
 
@@ -495,4 +543,7 @@ fn link_core_objects() {
 
     println!("cargo:rustc-link-lib=SDL2");
     println!("cargo:rustc-link-lib=SDL2_image");
+
+    #[cfg(any(feature = "ui_jpeg", feature = "hw_jpeg_decoder"))]
+    println!("cargo:rustc-link-lib=jpeg");
 }

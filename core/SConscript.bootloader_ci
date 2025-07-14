@@ -3,12 +3,19 @@
 import os
 import tools, models, ui
 
-TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T')
+TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T2T1')
 CMAKELISTS = int(ARGUMENTS.get('CMAKELISTS', 0))
 HW_REVISION = ARGUMENTS.get('HW_REVISION', None)
-MODEL_IDENTIFIER = models.get_model_identifier(TREZOR_MODEL)
 
-FEATURES_WANTED = ["input", "rgb_led", "consumption_mask", "usb", "optiga"]
+FEATURES_WANTED = [
+    "consumption_mask",
+    "display",
+    "input",
+    "optiga",
+    "powerctl",
+    "rgb_led",
+    "usb",
+    ]
 
 CCFLAGS_MOD = ''
 CPPPATH_MOD = []
@@ -28,6 +35,7 @@ CPPPATH_MOD += [
 ]
 CPPDEFINES_MOD += [
     'KERNEL_MODE',
+    'SECURE_MODE',
     'AES_128',
     'AES_192',
     'USE_KECCAK',
@@ -62,7 +70,6 @@ SOURCE_MOD += [
     'embed/gfx/bitblt/gfx_bitblt_rgb565.c',
     'embed/gfx/bitblt/gfx_bitblt_rgba8888.c',
     'embed/gfx/fonts/font_bitmap.c',
-    'embed/gfx/fonts/fonts.c',
     'embed/gfx/gfx_color.c',
     'embed/gfx/gfx_draw.c',
     'embed/gfx/terminal.c',
@@ -84,7 +91,7 @@ SOURCE_NANOPB = [
     'vendor/nanopb/pb_encode.c',
 ]
 
-ui.init_ui(TREZOR_MODEL, "bootloader", CPPDEFINES_MOD, SOURCE_MOD, RUST_UI_FEATURES)
+ui.init_ui(TREZOR_MODEL, "bootloader", RUST_UI_FEATURES)
 
 env = Environment(
     ENV=os.environ,
@@ -96,15 +103,12 @@ env = Environment(
 
 FEATURES_AVAILABLE = models.configure_board(TREZOR_MODEL, HW_REVISION, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
 
-FILE_SUFFIX= env.get('ENV')['SUFFIX']
-
 SOURCE_BOOTLOADER = [
-    f'embed/sys/startup/{FILE_SUFFIX}/startup_stage_1.s',
     'embed/projects/bootloader_ci/header.S',
     'embed/projects/bootloader_ci/bootui.c',
     'embed/projects/bootloader_ci/main.c',
     'embed/projects/bootloader_ci/messages.c',
-    'embed/projects/bootloader_ci/protob/messages.pb.c',
+    'embed/projects/bootloader_ci/protob/pb/messages.pb.c',
     'embed/projects/bootloader_ci/version_check.c',
 ]
 
@@ -135,7 +139,7 @@ env.Replace(
     '-fstack-protector-strong '
     +  env.get('ENV')["CPU_CCFLAGS"] + CCFLAGS_MOD,
     CCFLAGS_QSTR='-DNO_QSTR -DN_X64 -DN_X86 -DN_THUMB',
-    LINKFLAGS=f'-T build/bootloader_ci/memory.ld -Wl,--gc-sections -Wl,-Map=build/bootloader_ci/bootloader.map -Wl,--warn-common',
+    LINKFLAGS=['-Tbuild/bootloader_ci/memory.ld', '-Wl,--gc-sections', '-Wl,-Map=build/bootloader_ci/bootloader.map', '-Wl,--warn-common', '-Wl,--print-memory-usage'],
     CPPPATH=[
         'embed/projects/bootloader_ci',
         'embed/projects/bootloader_ci/nanopb',
@@ -190,7 +194,7 @@ obj_program += env.Object(source=SOURCE_HAL)
 
 linkerscript_gen = env.Command(
     target='memory.ld',
-    source=[f'embed/models/{MODEL_IDENTIFIER}/memory.ld', env.get('ENV')['LINKER_SCRIPT'].format(target='bootloader')],
+    source=[f'embed/models/{TREZOR_MODEL}/memory.ld', env.get('ENV')['LINKER_SCRIPT'].format(target='bootloader')],
     action='$CAT $SOURCES > $TARGET',
 )
 
@@ -203,7 +207,7 @@ program_elf = env.Command(
 
 env.Depends(program_elf, linkerscript_gen)
 
-BINARY_NAME = f"build/bootloader_ci/bootloader_ci-{models.get_model_identifier(TREZOR_MODEL)}"
+BINARY_NAME = f"build/bootloader_ci/bootloader_ci-{TREZOR_MODEL}"
 BINARY_NAME += "-" + tools.get_version('embed/projects/bootloader_ci/version.h')
 BINARY_NAME += "-" + tools.get_git_revision_short_hash()
 BINARY_NAME += "-dirty" if tools.get_git_modified() else ""

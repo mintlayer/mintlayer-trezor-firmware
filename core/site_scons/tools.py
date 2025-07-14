@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 import subprocess
 import zlib
 from pathlib import Path
@@ -117,11 +118,85 @@ def embed_compressed_binary(obj_program, env, section, target_, file, build, sym
 
 
 def embed_raw_binary(obj_program, env, section, target_, file):
+
+    def redefine_sym(suffix):
+        src = (
+            "_binary_"
+            + file.replace("/", "_").replace(".", "_").replace("-", "_")
+            + "_"
+            + suffix
+        )
+        dest = f"{section}_{suffix}"
+        return f" --redefine-sym {src}={dest}"
+
     obj_program.extend(
         env.Command(
             target=target_,
             source=file,
             action="$OBJCOPY -I binary -O elf32-littlearm -B arm"
-            f" --rename-section .data=.{section}" + " $SOURCE $TARGET",
+            f" --rename-section .data=.{section}"
+            + redefine_sym("start")
+            + redefine_sym("end")
+            + redefine_sym("size")
+            + " $SOURCE $TARGET",
         )
     )
+
+
+def add_rust_lib(*, env, build, profile, features, all_paths, build_dir):
+    RUST_LIB = "trezor_lib"
+    RUST_TARGET = env.get("ENV")["RUST_TARGET"]
+
+    # Determine the profile build flags.
+    if profile == "release":
+        profile = "--release"
+        RUST_LIBDIR = f"build/{build}/rust/{RUST_TARGET}/release"
+    else:
+        profile = ""
+        RUST_LIBDIR = f"build/{build}/rust/{RUST_TARGET}/debug"
+    RUST_LIBPATH = f"{RUST_LIBDIR}/lib{RUST_LIB}.a"
+
+    def cargo_build():
+        lib_features = []
+        lib_features.extend(features)
+
+        cargo_opts = [
+            f"--target={RUST_TARGET}",
+            f"--target-dir=../../build/{build}/rust",
+            "--no-default-features",
+            "--features " + ",".join(lib_features),
+            "-Z build-std=core",
+            "-Z build-std-features=panic_immediate_abort",
+        ]
+        build_cmd = f"cargo build {profile} " + " ".join(cargo_opts)
+
+        unstable_rustc_flags = [
+            # see https://nnethercote.github.io/perf-book/type-sizes.html#measuring-type-sizes for more details
+            "print-type-sizes",
+            # Adds an ELF section with Rust functions' stack sizes. See the following links for more details:
+            # - https://doc.rust-lang.org/nightly/unstable-book/compiler-flags/emit-stack-sizes.html
+            # - https://blog.japaric.io/stack-analysis/
+            # - https://github.com/japaric/stack-sizes/
+            "emit-stack-sizes",
+        ]
+
+        env.Append(ENV={"RUSTFLAGS": " ".join(f"-Z {f}" for f in unstable_rustc_flags)})
+
+        bindgen_macros = get_bindgen_defines(env.get("CPPDEFINES"), all_paths)
+
+        return (
+            f"export BINDGEN_MACROS={shlex.quote(bindgen_macros)}; "
+            f"export BUILD_DIR='{build_dir}'; "
+            f"cd embed/rust; {build_cmd} > {build_dir}/rust-type-sizes.log"
+        )
+
+    rust = env.Command(
+        target=RUST_LIBPATH,
+        source="",
+        action=cargo_build(),
+    )
+
+    env.Append(LINKFLAGS=[f"-L{RUST_LIBDIR}"])
+    env.Append(LINKFLAGS=[f"-l{RUST_LIB}"])
+
+    return rust

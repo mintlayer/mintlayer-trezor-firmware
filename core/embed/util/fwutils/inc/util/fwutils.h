@@ -17,31 +17,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TREZORHAL_FWUTILS_H
-#define TREZORHAL_FWUTILS_H
+#pragma once
 
 #include <trezor_types.h>
 
-// Callback function for firmware hash calculation.
-typedef void (*firmware_hash_callback_t)(void* context, uint32_t progress,
-                                         uint32_t total);
-
-// Calculates hash of the firmware area.
+// (Re)starts calculation of the firmware hash
 //
-// `challenge` is a optional pointer to the challenge data.
+// `challenge` is a pointer to the challenge data (optional, can be NULL).
 // `challenge_len` is the length of the challenge data (1..32).
+//
+// Return 0 on success, -1 on error.
+int firmware_hash_start(const uint8_t* challenge, size_t challenge_len);
+
+// Continues with the firmware hash calculation.
+//
 // `hash` is a pointer to a buffer where the hash will be stored.
 // `hash_len` is size of the buffer (must be at least 32).
-// `callback` is an optional callback function that will be called during the
-// hash calculation.
-// `callback_context` is a pointer that will be passed to the callback function.
 //
-// Returns `sectrue` if the hash was calculated successfully, `secfalse`
-// otherwise.
-secbool firmware_calc_hash(const uint8_t* challenge, size_t challenge_len,
-                           uint8_t* hash, size_t hash_len,
-                           firmware_hash_callback_t callback,
-                           void* callback_context);
+// Return value between 0 and 100 indicates the progress of the hash
+// calculation. 100 means the hash was calculated successfully and
+// `hash` contains the hash. -1 means an error occurred during the
+int firmware_hash_continue(uint8_t* hash, size_t hash_len);
 
 // Reads the firmware vendor string from the header in the firmware area.
 //
@@ -52,13 +48,11 @@ secbool firmware_calc_hash(const uint8_t* challenge, size_t challenge_len,
 // otherwise.
 secbool firmware_get_vendor(char* buff, size_t buff_size);
 
-#ifdef KERNEL_MODE
+#ifdef SECURE_MODE
 
 // Invalidates the firmware by erasing the first 1KB of the firmware area.
 //
 // Note: only works when write access to firmware area is enabled by MPU
 void firmware_invalidate_header(void);
 
-#endif  // KERNEL_MODE
-
-#endif  // TREZORHAL_FWUTILS_H
+#endif  // SECURE_MODE

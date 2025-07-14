@@ -276,7 +276,7 @@ def test_sign_tx_large(client: Client):
     own_output_count = 30
     total_output_count = 1200
     output_denom = 10_000  # sats
-    max_expected_delay = 60  # seconds
+    max_expected_delay = 80  # seconds
 
     with client:
         btc.authorize_coinjoin(
@@ -457,7 +457,7 @@ def test_sign_tx_spend(client: Client):
         client.set_expected_responses(
             [
                 messages.ButtonRequest(code=B.Other),
-                messages.UnlockedPathRequest(),
+                messages.UnlockedPathRequest,
                 request_input(0),
                 request_output(0),
                 request_output(1),
@@ -531,7 +531,7 @@ def test_sign_tx_migration(client: Client):
         client.set_expected_responses(
             [
                 messages.ButtonRequest(code=B.Other),
-                messages.UnlockedPathRequest(),
+                messages.UnlockedPathRequest,
                 request_input(0),
                 request_input(1),
                 request_output(0),

@@ -37,7 +37,9 @@ def _assert_busy(client: Client, should_be_busy: bool, screen: str = "Homescreen
 
 @pytest.mark.setup_client(pin=PIN)
 def test_busy_state(client: Client):
-    _assert_busy(client, False, "Lockscreen")
+
+    screen = "Homescreen" if client.layout_type is LayoutType.Eckhart else "Lockscreen"
+    _assert_busy(client, False, screen)
     assert client.features.unlocked is False
 
     # Show busy dialog for 1 minute.
@@ -88,7 +90,7 @@ def test_busy_expiry_core(client: Client):
     _assert_busy(client, False)
 
 
-@pytest.mark.flaky(max_runs=5)
+@pytest.mark.flaky(retries=5)
 @pytest.mark.models("legacy")
 def test_busy_expiry_legacy(client: Client):
     _assert_busy(client, False)

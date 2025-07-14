@@ -13,6 +13,9 @@ def configure_board(
     sources: list[str],
     paths: list[str],
 ):
+    defines += (("MODEL_HEADER", '"T2B1/model_T2B1.h"'),)
+    defines += (("VERSIONS_HEADER", '"T2B1/versions.h"'),)
+
     # Set default revision if None
     revision = revision or 10
 
@@ -31,7 +34,7 @@ def configure_board(
 
 
 def get_model_ui() -> str:
-    return "tr"
+    return "caesar"
 
 
 def get_model_ui_conf() -> list[str]:

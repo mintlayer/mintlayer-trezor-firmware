@@ -137,8 +137,7 @@
   "bitcoin:TEST": {
     "type": "blockbook",
     "url": [
-      "https://tbtc1.trezor.io",
-      "https://tbtc2.trezor.io"
+      "https://tbtc4-1.trezor.io"
     ]
   },
   "bitcoin:VIPS": {
@@ -202,65 +201,81 @@
     "type": "blockbook",
     "url": [
       "https://eth1.trezor.io",
-      "https://eth2.trezor.io"
+      "https://eth2.trezor.io",
+      "https://eth3.trezor.io",
+      "https://eth4.trezor.io"
     ]
   },
   "misc:XRP": {
     "type": "ripple",
     "url": [
-      "wss://s1.ripple.com",
-      "wss://s-east.ripple.com",
-      "wss://s-west.ripple.com"
+      "wss://xrp1.trezor.io",
+      "wss://xrp2.trezor.io",
+      "wss://xrp3.trezor.io",
+      "wss://xrp4.trezor.io"
     ]
   },
   "misc:tXRP": {
     "type": "ripple",
     "url": [
-      "wss://s.altnet.rippletest.net"
+      "wss://txrp1.trezor.io"
     ]
   },
   "misc:ADA": {
     "type": "blockfrost",
     "url": [
-      "wss://trezor-cardano-mainnet.blockfrost.io"
+      "wss://ada1.trezor.io",
+      "wss://ada2.trezor.io"
     ]
   },
   "misc:tADA": {
     "type": "blockfrost",
     "url": [
-      "wss://trezor-cardano-preview.blockfrost.io"
+      "wss://tada1.trezor.io"
     ]
   },
   "misc:SOL": {
     "type": "solana",
     "url": [
-      "https://solana1.trezor.io",
-      "https://solana2.trezor.io",
-      "https://solana3.trezor.io",
-      "https://solana4.trezor.io"
+      "https://sol1.trezor.io",
+      "https://sol2.trezor.io",
+      "https://sol3.trezor.io",
+      "https://sol4.trezor.io"
   ]
   },
   "misc:DSOL": {
     "type": "solana",
     "url": [
-      "https://solana-dev.trezor.io"
+      "https://dsol1.trezor.io"
     ]
   },
   "eth:ETH:1": {
     "type": "blockbook",
-    "url": ["https://eth1.trezor.io", "https://eth2.trezor.io"]
+    "url": ["https://eth1.trezor.io", "https://eth2.trezor.io", "https://eth3.trezor.io", "https://eth4.trezor.io"]
   },
-  "eth:BNB:56": {
+  "eth:BSC:56": {
     "type": "blockbook",
-    "url": ["https://bsc1.trezor.io"]
+    "url": ["https://bsc1.trezor.io", "https://bsc2.trezor.io", "https://bsc3.trezor.io", "https://bsc4.trezor.io"]
+  },
+  "eth:ARB:42161": {
+    "type": "blockbook",
+    "url": ["https://arb1.trezor.io", "https://arb2.trezor.io", "https://arb3.trezor.io", "https://arb4.trezor.io"]
+  },
+  "eth:BASE:8453": {
+    "type": "blockbook",
+    "url": ["https://base1.trezor.io", "https://base2.trezor.io", "https://base3.trezor.io", "https://base4.trezor.io"]
+  },
+  "eth:OP:10": {
+    "type": "blockbook",
+    "url": ["https://op1.trezor.io", "https://op2.trezor.io", "https://op3.trezor.io", "https://op4.trezor.io"]
   },
   "eth:ETC:61": {
     "type": "blockbook",
     "url": ["https://etc1.trezor.io", "https://etc2.trezor.io"]
   },
-  "eth:MATIC:137": {
+  "eth:POL:137": {
     "type": "blockbook",
-    "url": ["https://matic1.trezor.io", "https://matic2.trezor.io"]
+    "url": ["https://pol1.trezor.io", "https://pol2.trezor.io", "https://pol3.trezor.io", "https://pol4.trezor.io"]
   },
   "eth:tHOL:17000": {
     "type": "blockbook",

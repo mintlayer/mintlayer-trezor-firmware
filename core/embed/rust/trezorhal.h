@@ -1,15 +1,31 @@
+
+
 #include <trezor_model.h>
 
-#include <gfx/fonts.h>
 #include <gfx/gfx_bitblt.h>
 #include <io/display.h>
 #include <io/usb.h>
 #include <rtl/secbool.h>
 #include <sec/entropy.h>
+#include <sys/irq.h>
+#include <sys/sysevent.h>
 #include <sys/systick.h>
 #include <util/flash.h>
 #include <util/translations.h>
+#include "rust_types.h"
 #include "storage.h"
+
+#ifdef USE_HW_JPEG_DECODER
+#include <gfx/jpegdec.h>
+#endif
+
+#ifdef USE_BLE
+#include <io/ble.h>
+#endif
+
+#ifdef USE_NRF
+#include <io/nrf.h>
+#endif
 
 #ifdef USE_BUTTON
 #include <io/button.h>
@@ -27,8 +43,16 @@
 #include <io/touch.h>
 #endif
 
+#ifdef USE_POWER_MANAGER
+#include <sys/power_manager.h>
+#endif
+
 #include "bip39.h"
 #include "rand.h"
 #include "slip39.h"
 
 #include "uzlib.h"
+
+// force bindgen to include these constants
+const uint32_t DISPLAY_RESX_ = DISPLAY_RESX;
+const uint32_t DISPLAY_RESY_ = DISPLAY_RESY;

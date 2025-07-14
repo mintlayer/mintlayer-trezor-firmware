@@ -19,7 +19,6 @@
 
 #include <trezor_model.h>
 
-#include <gfx/fonts.h>
 #include <gfx/gfx_draw.h>
 #include <io/display.h>
 
@@ -29,10 +28,6 @@
 ///     """
 ///     WIDTH: int  # display width in pixels
 ///     HEIGHT: int  # display height in pixels
-///     FONT_MONO: int  # id of monospace font
-///     FONT_NORMAL: int  # id of normal-width font
-///     FONT_DEMIBOLD: int  # id of demibold font
-///     FONT_BOLD_UPPER: int # id of bold-width-uppercased font
 
 typedef struct _mp_obj_Display_t {
   mp_obj_base_t base;
@@ -91,7 +86,7 @@ STATIC mp_obj_t mod_trezorui_Display_orientation(size_t n_args,
   if (n_args > 1) {
     deg = mp_obj_get_int(args[1]);
     if (deg != 0 && deg != 90 && deg != 180 && deg != 270) {
-      mp_raise_ValueError("Value must be 0, 90, 180 or 270");
+      mp_raise_ValueError(MP_ERROR_TEXT("Value must be 0, 90, 180 or 270"));
     }
     deg = display_set_orientation(deg);
   } else {
@@ -102,29 +97,6 @@ STATIC mp_obj_t mod_trezorui_Display_orientation(size_t n_args,
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_trezorui_Display_orientation_obj,
                                            1, 2,
                                            mod_trezorui_Display_orientation);
-
-/// def backlight(self, val: int | None = None) -> int:
-///     """
-///     Sets backlight intensity to the value specified in val.
-///     Call without the val parameter to just perform the read of the value.
-///     """
-STATIC mp_obj_t mod_trezorui_Display_backlight(size_t n_args,
-                                               const mp_obj_t *args) {
-  mp_int_t val;
-  if (n_args > 1) {
-    val = mp_obj_get_int(args[1]);
-    if (val < 0 || val > 255) {
-      mp_raise_ValueError("Value must be between 0 and 255");
-    }
-    val = display_set_backlight(val);
-  } else {
-    val = display_get_backlight();
-  }
-  return MP_OBJ_NEW_SMALL_INT(val);
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_trezorui_Display_backlight_obj,
-                                           1, 2,
-                                           mod_trezorui_Display_backlight);
 
 /// def save(self, prefix: str) -> None:
 ///     """
@@ -162,21 +134,11 @@ STATIC const mp_rom_map_elem_t mod_trezorui_Display_locals_dict_table[] = {
     {MP_ROM_QSTR(MP_QSTR_bar), MP_ROM_PTR(&mod_trezorui_Display_bar_obj)},
     {MP_ROM_QSTR(MP_QSTR_orientation),
      MP_ROM_PTR(&mod_trezorui_Display_orientation_obj)},
-    {MP_ROM_QSTR(MP_QSTR_backlight),
-     MP_ROM_PTR(&mod_trezorui_Display_backlight_obj)},
     {MP_ROM_QSTR(MP_QSTR_save), MP_ROM_PTR(&mod_trezorui_Display_save_obj)},
     {MP_ROM_QSTR(MP_QSTR_clear_save),
      MP_ROM_PTR(&mod_trezorui_Display_clear_save_obj)},
     {MP_ROM_QSTR(MP_QSTR_WIDTH), MP_ROM_INT(DISPLAY_RESX)},
     {MP_ROM_QSTR(MP_QSTR_HEIGHT), MP_ROM_INT(DISPLAY_RESY)},
-    {MP_ROM_QSTR(MP_QSTR_FONT_NORMAL), MP_ROM_INT(FONT_NORMAL)},
-    {MP_ROM_QSTR(MP_QSTR_FONT_DEMIBOLD), MP_ROM_INT(FONT_DEMIBOLD)},
-    {MP_ROM_QSTR(MP_QSTR_FONT_MONO), MP_ROM_INT(FONT_MONO)},
-#ifdef FONT_BOLD_UPPER
-    {MP_ROM_QSTR(MP_QSTR_FONT_BOLD_UPPER), MP_ROM_INT(FONT_BOLD_UPPER)},
-#else
-    {MP_ROM_QSTR(MP_QSTR_FONT_BOLD_UPPER), MP_ROM_INT(FONT_BOLD)},
-#endif
 };
 STATIC MP_DEFINE_CONST_DICT(mod_trezorui_Display_locals_dict,
                             mod_trezorui_Display_locals_dict_table);

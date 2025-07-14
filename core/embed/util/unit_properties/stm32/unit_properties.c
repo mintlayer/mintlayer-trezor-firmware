@@ -17,14 +17,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <util/unit_properties.h>
+
+#ifdef SECURE_MODE
+
 #include <trezor_bsp.h>
 #include <trezor_model.h>
 #include <trezor_rtl.h>
 
 #include <util/flash_otp.h>
-#include <util/unit_properties.h>
-
-#ifdef KERNEL_MODE
 
 // Unit properties driver structure
 typedef struct {
@@ -40,7 +41,7 @@ static unit_properties_driver_t g_unit_properties_driver = {
     .initialized = false,
 };
 
-#ifdef TREZOR_MODEL_T
+#ifdef TREZOR_MODEL_T2T1
 
 // Parse two digit number from the string.
 //
@@ -83,7 +84,7 @@ static bool get_production_date(int* year) {
   return true;
 }
 
-#endif  // TREZOR_MODEL_T
+#endif  // TREZOR_MODEL_T2T1
 
 // Reads and parses the unit properties from the OTP block.
 //
@@ -120,7 +121,7 @@ static bool detect_properties(unit_properties_t* props) {
   }
 
   props->sd_hotswap_enabled = true;
-#ifdef TREZOR_MODEL_T
+#ifdef TREZOR_MODEL_T2T1
   // Early produced TTs have a HW bug that prevents hotswapping of the SD card,
   // lets check the build data and decide based on that.
   int production_year;
@@ -159,7 +160,7 @@ void unit_properties_get(unit_properties_t* props) {
   *props = drv->cache;
 }
 
-#endif  // KERNEL_MODE
+#endif  // SECURE_MODE
 
 const unit_properties_t* unit_properties(void) {
   static bool cache_initialized = false;

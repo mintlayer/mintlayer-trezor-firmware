@@ -24,6 +24,7 @@
 
 #include <io/usb.h>
 #include <sec/random_delays.h>
+#include <sys/sysevent_source.h>
 #include <sys/systick.h>
 
 #include "usb_internal.h"
@@ -56,6 +57,11 @@ typedef struct {
   uint8_t state[USBD_CLASS_STATE_MAX_SIZE] __attribute__((aligned(8)));
 } usb_iface_t;
 
+// USB driver task local storage
+typedef struct {
+  usb_state_t state;
+} usb_driver_tls_t;
+
 typedef struct {
   // Set if the driver is initialized
   secbool initialized;
@@ -84,6 +90,9 @@ typedef struct {
   // Set to `sectrue` if the USB stack was ready sinced the last start
   secbool was_ready;
 
+  // Task local storage for USB driver
+  usb_driver_tls_t tls[SYSTASK_MAX_TASKS];
+
 } usb_driver_t;
 
 // USB driver instance
@@ -94,6 +103,7 @@ static usb_driver_t g_usb_driver = {
 // forward declarations of dispatch functions
 static const USBD_ClassTypeDef usb_class;
 static const USBD_DescriptorsTypeDef usb_descriptors;
+static const syshandle_vmt_t g_usb_handle_vmt;
 
 static secbool __wur check_desc_str(const char *s) {
   if (NULL == s) return secfalse;
@@ -118,8 +128,8 @@ secbool usb_init(const usb_dev_info_t *dev_info) {
   // Device descriptor
   drv->dev_desc.bLength = sizeof(usb_device_descriptor_t);
   drv->dev_desc.bDescriptorType = USB_DESC_TYPE_DEVICE;
-  drv->dev_desc.bcdUSB =
-      (sectrue == drv->usb21_enabled) ? 0x0210 : 0x0200;  // USB 2.1 or USB 2.0
+  // USB 2.1 or USB 2.0
+  drv->dev_desc.bcdUSB = (sectrue == drv->usb21_enabled) ? 0x0210 : 0x0200;
   drv->dev_desc.bDeviceClass = dev_info->device_class;
   drv->dev_desc.bDeviceSubClass = dev_info->device_subclass;
   drv->dev_desc.bDeviceProtocol = dev_info->device_protocol;
@@ -127,11 +137,12 @@ secbool usb_init(const usb_dev_info_t *dev_info) {
   drv->dev_desc.idVendor = dev_info->vendor_id;
   drv->dev_desc.idProduct = dev_info->product_id;
   drv->dev_desc.bcdDevice = dev_info->release_num;
-  drv->dev_desc.iManufacturer =
-      USBD_IDX_MFC_STR;  // Index of manufacturer string
-  drv->dev_desc.iProduct = USBD_IDX_PRODUCT_STR;  // Index of product string
-  drv->dev_desc.iSerialNumber =
-      USBD_IDX_SERIAL_STR;  // Index of serial number string
+  // Index of manufacturer string
+  drv->dev_desc.iManufacturer = USBD_IDX_MFC_STR;
+  // Index of product string
+  drv->dev_desc.iProduct = USBD_IDX_PRODUCT_STR;
+  // Index of serial number string
+  drv->dev_desc.iSerialNumber = USBD_IDX_SERIAL_STR;
   drv->dev_desc.bNumConfigurations = 1;
 
   // String table
@@ -158,18 +169,24 @@ secbool usb_init(const usb_dev_info_t *dev_info) {
   // Configuration descriptor
   drv->config_desc->bLength = sizeof(usb_config_descriptor_t);
   drv->config_desc->bDescriptorType = USB_DESC_TYPE_CONFIGURATION;
-  drv->config_desc->wTotalLength =
-      sizeof(usb_config_descriptor_t);  // will be updated later via
-                                        // usb_alloc_class_descriptors()
-  drv->config_desc->bNumInterfaces =
-      0;  // will be updated later via usb_set_iface_class()
+  // will be updated later via usb_alloc_class_descriptors()
+  drv->config_desc->wTotalLength = sizeof(usb_config_descriptor_t);
+  // will be updated later via usb_set_iface_class()
+  drv->config_desc->bNumInterfaces = 0;
   drv->config_desc->bConfigurationValue = 0x01;
   drv->config_desc->iConfiguration = 0;
-  drv->config_desc->bmAttributes =
-      0x80;  // 0x80 = bus powered; 0xC0 = self powered
-  drv->config_desc->bMaxPower = 0x32;  // Maximum Power Consumption in 2mA units
+  // 0x80 = bus powered; 0xC0 = self powered
+  drv->config_desc->bmAttributes = 0x80;
+  // Maximum Power Consumption in 2mA units
+  drv->config_desc->bMaxPower = 0x32;
 
+  // starting with this flag set, to avoid false warnings
   drv->initialized = sectrue;
+
+  if (!syshandle_register(SYSHANDLE_USB, &g_usb_handle_vmt, drv)) {
+    usb_deinit();
+    return secfalse;
+  }
 
   return sectrue;
 }
@@ -180,6 +197,8 @@ void usb_deinit(void) {
   if (drv->initialized != sectrue) {
     return;
   }
+
+  syshandle_unregister(SYSHANDLE_USB);
 
   usb_stop();
 
@@ -241,7 +260,7 @@ void usb_stop(void) {
   memset(&drv->dev_handle, 0, sizeof(drv->dev_handle));
 }
 
-secbool usb_configured(void) {
+static secbool usb_configured(void) {
   usb_driver_t *drv = &g_usb_driver;
 
   if (drv->initialized != sectrue) {
@@ -293,6 +312,33 @@ secbool usb_configured(void) {
   }
 
   return ready;
+}
+
+usb_event_t usb_get_event(void) {
+  usb_driver_t *drv = &g_usb_driver;
+
+  if (drv->initialized != sectrue) {
+    // The driver is not initialized
+    return USB_EVENT_NONE;
+  }
+
+  usb_state_t new_state;
+  usb_get_state(&new_state);
+
+  usb_driver_tls_t *tls = &drv->tls[systask_id(systask_active())];
+
+  if (new_state.configured != tls->state.configured) {
+    tls->state.configured = new_state.configured;
+    return new_state.configured ? USB_EVENT_CONFIGURED : USB_EVENT_DECONFIGURED;
+  }
+
+  return USB_EVENT_NONE;
+}
+
+void usb_get_state(usb_state_t *state) {
+  usb_state_t s = {0};
+  s.configured = (usb_configured() == sectrue);
+  *state = s;
 }
 
 // ==========================================================================
@@ -738,6 +784,41 @@ static const USBD_ClassTypeDef usb_class = {
     .GetOtherSpeedConfigDescriptor = usb_class_get_cfg_desc,
     .GetDeviceQualifierDescriptor = NULL,
     .GetUsrStrDescriptor = usb_class_get_usrstr_desc,
+};
+
+static void on_task_created(void *context, systask_id_t task_id) {
+  usb_driver_t *drv = (usb_driver_t *)context;
+  usb_driver_tls_t *tls = &drv->tls[task_id];
+  memset(tls, 0, sizeof(usb_driver_tls_t));
+}
+
+static void on_event_poll(void *context, bool read_awaited,
+                          bool write_awaited) {
+  UNUSED(context);
+  UNUSED(write_awaited);
+
+  if (read_awaited) {
+    usb_state_t new_state;
+    usb_get_state(&new_state);
+    syshandle_signal_read_ready(SYSHANDLE_USB, &new_state);
+  }
+}
+
+static bool on_check_read_ready(void *context, systask_id_t task_id,
+                                void *param) {
+  usb_driver_t *drv = (usb_driver_t *)context;
+  usb_driver_tls_t *tls = &drv->tls[task_id];
+
+  usb_state_t *new_state = (usb_state_t *)param;
+  return (new_state->configured != tls->state.configured);
+}
+
+static const syshandle_vmt_t g_usb_handle_vmt = {
+    .task_created = on_task_created,
+    .task_killed = NULL,
+    .check_read_ready = on_check_read_ready,
+    .check_write_ready = NULL,
+    .poll = on_event_poll,
 };
 
 #endif  // KERNEL_MODE

@@ -14,15 +14,18 @@
 # You should have received a copy of the License along with this library.
 # If not, see <https://www.gnu.org/licenses/lgpl-3.0.html>.
 
+from __future__ import annotations
+
 import typing as t
 from hashlib import blake2s
 
 from typing_extensions import Protocol, TypeGuard
 
 from .. import messages
-from ..tools import expect, session
+from ..tools import session
 from .core import VendorFirmware
 from .legacy import LegacyFirmware, LegacyV2Firmware
+from .models import Model
 
 # re-exports:
 if True:
@@ -44,14 +47,16 @@ if t.TYPE_CHECKING:
 
     class FirmwareType(Protocol):
         @classmethod
-        def parse(cls: t.Type[T], data: bytes) -> T: ...
+        def parse(cls: type[T], data: bytes) -> T: ...
 
         def verify(self, dev_keys: bool = False) -> None: ...
 
         def digest(self) -> bytes: ...
 
+        def model(self) -> Model | None: ...
 
-def parse(data: bytes) -> "FirmwareType":
+
+def parse(data: bytes) -> FirmwareType:
     try:
         if data[:4] == b"TRZR":
             return LegacyFirmware.parse(data)
@@ -65,7 +70,7 @@ def parse(data: bytes) -> "FirmwareType":
         raise FirmwareIntegrityError("Invalid firmware image") from e
 
 
-def is_onev2(fw: "FirmwareType") -> TypeGuard[LegacyFirmware]:
+def is_onev2(fw: FirmwareType) -> TypeGuard[LegacyFirmware]:
     return isinstance(fw, LegacyFirmware) and fw.embedded_v2 is not None
 
 
@@ -74,7 +79,7 @@ def is_onev2(fw: "FirmwareType") -> TypeGuard[LegacyFirmware]:
 
 @session
 def update(
-    client: "TrezorClient",
+    client: TrezorClient,
     data: bytes,
     progress_update: t.Callable[[int], t.Any] = lambda _: None,
 ):
@@ -106,6 +111,7 @@ def update(
         raise RuntimeError(f"Unexpected message {resp}")
 
 
-@expect(messages.FirmwareHash, field="hash", ret_type=bytes)
-def get_hash(client: "TrezorClient", challenge: t.Optional[bytes]):
-    return client.call(messages.GetFirmwareHash(challenge=challenge))
+def get_hash(client: TrezorClient, challenge: bytes | None) -> bytes:
+    return client.call(
+        messages.GetFirmwareHash(challenge=challenge), expect=messages.FirmwareHash
+    ).hash

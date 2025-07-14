@@ -39,7 +39,8 @@ Changelog](https://keepachangelog.com/en/1.0.0/) format:
 * `incompatible` (for backwards incompatible changes)
 
 Entries are added by creating files in the `.changelog.d` directory where the
-file name is `<number>.<type>` and contains single line describing the change.
+file name is `<number>.<type>` and contains single line describing the change,
+ending with a period.
 As an example, an entry describing bug fix for issue 1234 in Trezor T firmware
 is added by creating file `core/.changelog.d/1234.fixed`. The file can be
 formatted with markdown. If more entries are desired for single issue number and
@@ -65,12 +66,12 @@ message to exclude that commit from the check.
 ## Generating changelog at the time of release
 
 When it's time to release new version of a repository component the formatted
-changelog needs to be generated using the `tools/generate-changelog.py` script.
+changelog needs to be generated using the `tools/changelog.py generate` command.
 It accepts repo subdirectory and the version number as arguments and you can
 specify the release date if it's different from today's date:
 
 ```
-tools/generate-changelog.py --date "20th April 2021" legacy/firmware 1.10.0
+tools/changelog.py generate --date "20th April 2021" legacy/firmware 1.10.0
 ```
 
 ## Cherry-picking changes to release branch

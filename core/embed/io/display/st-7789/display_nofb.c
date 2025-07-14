@@ -22,15 +22,26 @@
 
 #include <io/display.h>
 
+#include "display_internal.h"
 #include "display_io.h"
 #include "display_panel.h"
 
 #ifdef KERNEL_MODE
 
 void display_refresh(void) {
-  // If the framebuffer is not used the, we do not need
+  // If the framebuffer is not used then, we do not need
   // to refresh the display explicitly as we write the data
   // directly to the display internal RAM.
+
+  // but still, we will wait before raising backlight
+  // to make sure the display is showing new content
+  display_driver_t* drv = &g_display_driver;
+
+  if (!drv->initialized) {
+    return;
+  }
+
+  drv->update_pending = 2;
 }
 
 void display_wait_for_sync(void) {
@@ -47,9 +58,46 @@ void display_wait_for_sync(void) {
 #endif
 }
 
+void display_ensure_refreshed(void) {
+#ifndef BOARDLOADER
+  display_driver_t* drv = &g_display_driver;
+
+  if (!drv->initialized) {
+    return;
+  }
+
+  while (drv->update_pending > 0) {
+    display_wait_for_sync();
+    drv->update_pending--;
+  }
+
+#endif
+}
+
 static inline void set_window(const gfx_bitblt_t* bb) {
   display_panel_set_window(bb->dst_x, bb->dst_y, bb->dst_x + bb->width - 1,
                            bb->dst_y + bb->height + 1);
+}
+
+// Checks if the destination rectangle is withing the display bounds
+static inline bool gfx_bitblt_check_dst_xy(const gfx_bitblt_t* bb) {
+  if (bb->dst_x + bb->width < bb->dst_x) {  // overflow check
+    return false;
+  }
+
+  if (bb->dst_x + bb->width > DISPLAY_RESX) {
+    return false;
+  }
+
+  if (bb->dst_y + bb->height < bb->dst_y) {  // overflow check
+    return false;
+  }
+
+  if (bb->dst_y + bb->height > DISPLAY_RESY) {
+    return false;
+  }
+
+  return true;
 }
 
 // For future notice, if we ever want to do a new model using progressive
@@ -61,6 +109,10 @@ static inline void set_window(const gfx_bitblt_t* bb) {
 // to one with DMA2D while copying the other to the display with DMA.
 
 void display_fill(const gfx_bitblt_t* bb) {
+  if (!gfx_bitblt_check_dst_xy(bb)) {
+    return;
+  }
+
   set_window(bb);
 
   uint16_t height = bb->height;
@@ -73,6 +125,10 @@ void display_fill(const gfx_bitblt_t* bb) {
 }
 
 void display_copy_rgb565(const gfx_bitblt_t* bb) {
+  if (!gfx_bitblt_check_dst_xy(bb) || !gfx_bitblt_check_src_x(bb, 16)) {
+    return;
+  }
+
   set_window(bb);
 
   uint16_t* src_ptr = (uint16_t*)bb->src_row + bb->src_x;
@@ -87,6 +143,10 @@ void display_copy_rgb565(const gfx_bitblt_t* bb) {
 }
 
 void display_copy_mono1p(const gfx_bitblt_t* bb) {
+  if (!gfx_bitblt_check_dst_xy(bb) || !gfx_bitblt_check_src_x(bb, 1)) {
+    return;
+  }
+
   set_window(bb);
 
   uint8_t* src = (uint8_t*)bb->src_row;
@@ -100,25 +160,6 @@ void display_copy_mono1p(const gfx_bitblt_t* bb) {
       ISSUE_PIXEL_DATA((data & mask) ? bb->src_fg : bb->src_bg);
     }
     src_ofs += bb->src_stride;
-  }
-}
-
-void display_copy_mono4(const gfx_bitblt_t* bb) {
-  set_window(bb);
-
-  const gfx_color16_t* gradient =
-      gfx_color16_gradient_a4(bb->src_fg, bb->src_bg);
-
-  uint8_t* src_row = (uint8_t*)bb->src_row;
-  uint16_t height = bb->height;
-
-  while (height-- > 0) {
-    for (int x = 0; x < bb->width; x++) {
-      uint8_t fg_data = src_row[(x + bb->src_x) / 2];
-      uint8_t fg_lum = (x + bb->src_x) & 1 ? fg_data >> 4 : fg_data & 0xF;
-      ISSUE_PIXEL_DATA(gradient[fg_lum]);
-    }
-    src_row += bb->src_stride / sizeof(*src_row);
   }
 }
 

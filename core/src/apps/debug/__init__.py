@@ -22,6 +22,8 @@ if __debug__:
         from trezor.messages import (
             DebugLinkDecision,
             DebugLinkEraseSdCard,
+            DebugLinkGcInfo,
+            DebugLinkGetGcInfo,
             DebugLinkGetState,
             DebugLinkOptigaSetSecMax,
             DebugLinkRecordScreen,
@@ -47,7 +49,7 @@ if __debug__:
             # Starting with "refresh00", allowing for 100 emulator restarts
             # without losing the order of the screenshots based on filename.
             display.save(
-                storage.save_screen_directory + f"/refresh{REFRESH_INDEX:0>2}-"
+                f"{storage.save_screen_directory.decode()}/refresh{REFRESH_INDEX:0>2}-"
             )
             return True
         return False
@@ -71,7 +73,9 @@ if __debug__:
                 )
 
     async def return_layout_change(
-        ctx: wire.protocol_common.Context, detect_deadlock: bool = False
+        ctx: wire.protocol_common.Context,
+        detect_deadlock: bool = False,
+        return_empty_state: bool = False,
     ) -> None:
         # set up the wait
         storage.layout_watcher = True
@@ -100,7 +104,7 @@ if __debug__:
 
         # send the message and reset the wait
         storage.layout_watcher = False
-        await ctx.write(_state())
+        await ctx.write(_state(return_empty_state))
 
     async def _layout_click(x: int, y: int, hold_ms: int = 0) -> None:
         assert isinstance(ui.CURRENT_LAYOUT, ui.Layout)
@@ -244,8 +248,11 @@ if __debug__:
         # If no exception was raised, the layout did not shut down. That means that it
         # just updated itself. The update is already live for the caller to retrieve.
 
-    def _state() -> DebugLinkState:
+    def _state(return_empty_state: bool = False) -> DebugLinkState:
         from trezor.messages import DebugLinkState
+
+        if return_empty_state:
+            return DebugLinkState()
 
         from apps.common import mnemonic, passphrase
 
@@ -269,18 +276,26 @@ if __debug__:
         msg: DebugLinkGetState,
     ) -> DebugLinkState | None:
         if msg.wait_layout == DebugWaitType.IMMEDIATE:
-            return _state()
+            return _state(msg.return_empty_state)
 
         assert DEBUG_CONTEXT is not None
         if msg.wait_layout == DebugWaitType.NEXT_LAYOUT:
             layout_change_box.clear()
-            return await return_layout_change(DEBUG_CONTEXT, detect_deadlock=False)
+            return await return_layout_change(
+                DEBUG_CONTEXT,
+                detect_deadlock=False,
+                return_empty_state=msg.return_empty_state,
+            )
 
         # default behavior: msg.wait_layout == DebugWaitType.CURRENT_LAYOUT
         if not layout_is_ready():
-            return await return_layout_change(DEBUG_CONTEXT, detect_deadlock=True)
+            return await return_layout_change(
+                DEBUG_CONTEXT,
+                detect_deadlock=True,
+                return_empty_state=msg.return_empty_state,
+            )
         else:
-            return _state()
+            return _state(msg.return_empty_state)
 
     async def dispatch_DebugLinkRecordScreen(msg: DebugLinkRecordScreen) -> Success:
         if msg.target_directory:
@@ -293,7 +308,7 @@ if __debug__:
             # so that the screenshots are not overwritten.
             global REFRESH_INDEX
             REFRESH_INDEX = msg.refresh_index
-            storage.save_screen_directory = msg.target_directory
+            storage.save_screen_directory[:] = msg.target_directory.encode()
             storage.save_screen = True
 
             # force repaint current layout, in order to take an initial screenshot
@@ -349,10 +364,20 @@ if __debug__:
         else:
             raise wire.UnexpectedMessage("Optiga not supported")
 
+    async def dispatch_DebugLinkGetGcInfo(
+        msg: DebugLinkGetGcInfo,
+    ) -> DebugLinkGcInfo:
+        from trezor.messages import DebugLinkGcInfo, DebugLinkGcInfoItem
+
+        return DebugLinkGcInfo(
+            items=[
+                DebugLinkGcInfoItem(name=name, value=value)
+                for name, value in utils.get_gc_info().items()
+            ]
+        )
+
     async def _no_op(_msg: Any) -> Success:
         return Success()
-
-    WIRE_BUFFER_DEBUG = bytearray(1024)
 
     async def handle_session(iface: WireInterface) -> None:
         from trezor import protobuf, wire
@@ -361,7 +386,7 @@ if __debug__:
 
         global DEBUG_CONTEXT
 
-        DEBUG_CONTEXT = ctx = CodecContext(iface, WIRE_BUFFER_DEBUG)
+        DEBUG_CONTEXT = ctx = CodecContext(iface, wire.BufferProvider(1024))
 
         if storage.layout_watcher:
             try:
@@ -428,6 +453,7 @@ if __debug__:
         MessageType.DebugLinkOptigaSetSecMax: dispatch_DebugLinkOptigaSetSecMax,
         MessageType.DebugLinkWatchLayout: _no_op,
         MessageType.DebugLinkResetDebugEvents: _no_op,
+        MessageType.DebugLinkGetGcInfo: dispatch_DebugLinkGetGcInfo,
     }
 
     def boot() -> None:

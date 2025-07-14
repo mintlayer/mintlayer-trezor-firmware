@@ -4,16 +4,26 @@ use core::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
 };
-#[cfg(feature = "touch")]
-use num_traits::{FromPrimitive, ToPrimitive};
-
-#[cfg(feature = "button")]
-use crate::ui::event::ButtonEvent;
-
-use crate::ui::{display::Color, shape::render_on_display};
+use num_traits::FromPrimitive;
 
 #[cfg(feature = "touch")]
 use crate::ui::{event::TouchEvent, geometry::Direction};
+#[cfg(feature = "touch")]
+use num_traits::ToPrimitive;
+
+#[cfg(feature = "ble")]
+use crate::ui::event::BLEEvent;
+
+#[cfg(feature = "button")]
+use crate::{
+    trezorhal::button::{PhysicalButton, PhysicalButtonEvent},
+    ui::event::ButtonEvent,
+};
+
+#[cfg(feature = "power_manager")]
+use crate::ui::event::PMEvent;
+
+use super::base::{Layout, LayoutState};
 use crate::{
     error::Error,
     maybe_trace::MaybeTrace,
@@ -35,13 +45,15 @@ use crate::{
             base::{AttachType, TimerToken},
             Component, Event, EventCtx, Never,
         },
-        display,
+        display::{self, Color},
         event::USBEvent,
+        shape::render_on_display,
         CommonUI, ModelUI,
     },
 };
 
-use super::base::{Layout, LayoutState};
+#[cfg(feature = "ui_debug")]
+use crate::ui::shape::Renderer;
 
 impl AttachType {
     fn to_obj(self) -> Obj {
@@ -130,7 +142,7 @@ where
             self.returned_value = Some(self.inner.msg_try_into_obj(msg));
             Some(LayoutState::Done)
         } else if matches!(event, Event::Attach(_)) {
-            Some(LayoutState::Attached(ctx.button_request().take()))
+            Some(LayoutState::Attached(ctx.button_request()))
         } else {
             None
         }
@@ -140,10 +152,19 @@ where
         self.returned_value.as_ref()
     }
 
-    fn paint(&mut self) {
+    fn paint(&mut self) -> Result<(), Error> {
+        #[cfg(feature = "ui_debug")]
+        let mut overflow: bool = false;
         render_on_display(None, Some(Color::black()), |target| {
             self.inner.render(target);
+            #[cfg(feature = "ui_debug")]
+            if target.should_raise_overflow_exception() {
+                overflow = true;
+            }
         });
+
+        // TODO: raise here, so we also test older layouts
+        Ok(())
     }
 }
 
@@ -299,15 +320,14 @@ impl LayoutObjInner {
 
     /// Run a paint pass over the component tree. Returns true if any component
     /// actually requested painting since last invocation of the function.
-    fn obj_paint_if_requested(&mut self) -> bool {
+    fn obj_paint_if_requested(&mut self) -> Result<bool, Error> {
         display::sync();
 
         if self.repaint != Repaint::None {
             self.repaint = Repaint::None;
-            self.root_mut().paint();
-            true
+            self.root_mut().paint().map(|_| true)
         } else {
-            false
+            Ok(false)
         }
     }
 
@@ -366,7 +386,7 @@ impl LayoutObj {
     }
 
     pub fn new_root(root: impl LayoutMaybeTrace + 'static) -> Result<Gc<Self>, Error> {
-        // SAFETY: This is a Python object and hase a base as first element
+        // SAFETY: This is a Python object and has a base as first element
         unsafe {
             Gc::new_with_custom_finaliser(Self {
                 base: Self::obj_type().as_base(),
@@ -388,6 +408,8 @@ impl LayoutObj {
                 Qstr::MP_QSTR_button_event => obj_fn_var!(3, 3, ui_layout_button_event).as_obj(),
                 Qstr::MP_QSTR_progress_event => obj_fn_var!(3, 3, ui_layout_progress_event).as_obj(),
                 Qstr::MP_QSTR_usb_event => obj_fn_var!(2, 2, ui_layout_usb_event).as_obj(),
+                Qstr::MP_QSTR_ble_event=> obj_fn_var!(3, 3, ui_layout_ble_event).as_obj(),
+                Qstr::MP_QSTR_pm_event=> obj_fn_2!(ui_layout_pm_event).as_obj(),
                 Qstr::MP_QSTR_timer => obj_fn_2!(ui_layout_timer).as_obj(),
                 Qstr::MP_QSTR_paint => obj_fn_1!(ui_layout_paint).as_obj(),
                 Qstr::MP_QSTR_request_complete_repaint => obj_fn_1!(ui_layout_request_complete_repaint).as_obj(),
@@ -437,7 +459,7 @@ impl TryFrom<Obj> for TimerToken {
 
     fn try_from(value: Obj) -> Result<Self, Self::Error> {
         let raw: u32 = value.try_into()?;
-        let this = Self::from_raw(raw);
+        let this = Self::from_raw(raw)?;
         Ok(this)
     }
 }
@@ -510,7 +532,13 @@ extern "C" fn ui_layout_button_event(n_args: usize, args: *const Obj) -> Obj {
             return Err(Error::TypeError);
         }
         let this: Gc<LayoutObj> = args[0].try_into()?;
-        let event = ButtonEvent::new(args[1].try_into()?, args[2].try_into()?)?;
+        let event_type_num: u8 = args[1].try_into()?;
+        let button_num: u8 = args[2].try_into()?;
+
+        let event_type = unwrap!(PhysicalButtonEvent::from_u8(event_type_num));
+        let button = unwrap!(PhysicalButton::from_u8(button_num));
+
+        let event = ButtonEvent::new(event_type, button)?;
         let msg = this.inner_mut().obj_event(Event::Button(event))?;
         Ok(msg)
     };
@@ -519,6 +547,45 @@ extern "C" fn ui_layout_button_event(n_args: usize, args: *const Obj) -> Obj {
 
 #[cfg(not(feature = "button"))]
 extern "C" fn ui_layout_button_event(_n_args: usize, _args: *const Obj) -> Obj {
+    Obj::const_none()
+}
+
+#[cfg(feature = "ble")]
+extern "C" fn ui_layout_ble_event(n_args: usize, args: *const Obj) -> Obj {
+    let block = |args: &[Obj], _kwargs: &Map| {
+        if args.len() != 3 {
+            return Err(Error::TypeError);
+        }
+        let this: Gc<LayoutObj> = args[0].try_into()?;
+
+        let event = BLEEvent::new(args[1].try_into()?, args[2].try_into_option()?)?;
+        let msg = this.inner_mut().obj_event(Event::BLE(event))?;
+        Ok(msg)
+    };
+    unsafe { util::try_with_args_and_kwargs(n_args, args, &Map::EMPTY, block) }
+}
+
+#[cfg(not(feature = "ble"))]
+extern "C" fn ui_layout_ble_event(_n_args: usize, _args: *const Obj) -> Obj {
+    Obj::const_none()
+}
+
+#[cfg(feature = "power_manager")]
+extern "C" fn ui_layout_pm_event(this: Obj, flags: Obj) -> Obj {
+    let block = || {
+        let this: Gc<LayoutObj> = this.try_into()?;
+        let flags: u32 = flags.try_into()?;
+
+        let event = PMEvent::from_packed_flags(flags);
+        let msg = this.inner_mut().obj_event(Event::PM(event))?;
+        Ok(msg)
+    };
+
+    unsafe { util::try_or_raise(block) }
+}
+
+#[cfg(not(feature = "power_manager"))]
+extern "C" fn ui_layout_pm_event(_this: Obj, _flags: Obj) -> Obj {
     Obj::const_none()
 }
 
@@ -544,7 +611,7 @@ extern "C" fn ui_layout_usb_event(n_args: usize, args: *const Obj) -> Obj {
             return Err(Error::TypeError);
         }
         let this: Gc<LayoutObj> = args[0].try_into()?;
-        let event = USBEvent::Connected(args[1].try_into()?);
+        let event = USBEvent::new(args[1].try_into()?)?;
         let msg = this.inner_mut().obj_event(Event::USB(event))?;
         Ok(msg)
     };
@@ -564,8 +631,8 @@ extern "C" fn ui_layout_timer(this: Obj, token: Obj) -> Obj {
 extern "C" fn ui_layout_paint(this: Obj) -> Obj {
     let block = || {
         let this: Gc<LayoutObj> = this.try_into()?;
-        let painted = this.inner_mut().obj_paint_if_requested().into();
-        Ok(painted)
+        let painted = this.inner_mut().obj_paint_if_requested();
+        Ok(painted?.into())
     };
     unsafe { util::try_or_raise(block) }
 }

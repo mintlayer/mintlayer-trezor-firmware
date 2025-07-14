@@ -243,11 +243,11 @@ static void display_sync_with_fb(display_driver_t *drv) {
   HAL_GPIO_WritePin(OLED_DC_PORT, OLED_DC_PIN, GPIO_PIN_RESET);
 }
 
-void display_init(display_content_mode_t mode) {
+bool display_init(display_content_mode_t mode) {
   display_driver_t *drv = &g_display_driver;
 
   if (drv->initialized) {
-    return;
+    return true;
   }
 
   memset(drv, 0, sizeof(display_driver_t));
@@ -318,13 +318,18 @@ void display_init(display_content_mode_t mode) {
     display_init_spi(drv);
   }
 
+  gfx_bitblt_init();
+
   drv->initialized = true;
+  return true;
 }
 
 void display_deinit(display_content_mode_t mode) {
   display_driver_t *drv = &g_display_driver;
 
   mpu_set_active_fb(NULL, 0);
+
+  gfx_bitblt_deinit();
 
   drv->initialized = false;
 }
@@ -386,15 +391,16 @@ int display_get_orientation(void) {
 bool display_get_frame_buffer(display_fb_info_t *fb) {
   display_driver_t *drv = &g_display_driver;
 
+  memset(fb, 0, sizeof(display_fb_info_t));
+
   if (!drv->initialized) {
-    fb->ptr = NULL;
-    fb->stride = 0;
     return false;
   } else {
     fb->ptr = &drv->framebuf[0];
+    fb->size = FRAME_BUFFER_SIZE;
     fb->stride = DISPLAY_RESX;
     // Enable access to the frame buffer from the unprivileged code
-    mpu_set_active_fb(fb->ptr, FRAME_BUFFER_SIZE);
+    mpu_set_active_fb(fb->ptr, fb->size);
     return true;
   }
 }
@@ -430,6 +436,11 @@ void display_fill(const gfx_bitblt_t *bb) {
   bb_new.dst_row = &(((uint8_t *)fb.ptr)[DISPLAY_RESX * bb_new.dst_y]);
   bb_new.dst_stride = DISPLAY_RESX;
 
+  if (!gfx_bitblt_check_dst_x(&bb_new, 8) ||
+      !gfx_bitblt_check_dst_y(&bb_new, fb.size)) {
+    return;
+  }
+
   gfx_mono8_fill(&bb_new);
 }
 
@@ -443,6 +454,12 @@ void display_copy_mono1p(const gfx_bitblt_t *bb) {
   gfx_bitblt_t bb_new = *bb;
   bb_new.dst_row = &(((uint8_t *)fb.ptr)[DISPLAY_RESX * bb_new.dst_y]);
   bb_new.dst_stride = DISPLAY_RESX;
+
+  if (!gfx_bitblt_check_dst_x(&bb_new, 8) ||
+      !gfx_bitblt_check_src_x(&bb_new, 1) ||
+      !gfx_bitblt_check_dst_y(&bb_new, fb.size)) {
+    return;
+  }
 
   gfx_mono8_copy_mono1p(&bb_new);
 }

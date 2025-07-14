@@ -21,6 +21,8 @@
 
 #include <trezor_types.h>
 
+#define DSI_LANE_BYTE_FREQ_HZ 62500000ULL
+
 #define VSYNC 4
 #define VBP 4
 #define VFP 660
@@ -32,6 +34,7 @@
 #define LCD_WIDTH 240
 #define LCD_HEIGHT 320
 
+#define LCD_X_OFFSET 0
 #define LCD_Y_OFFSET 0
 
 #define PANEL_DSI_MODE DSI_VID_MODE_NB_PULSES

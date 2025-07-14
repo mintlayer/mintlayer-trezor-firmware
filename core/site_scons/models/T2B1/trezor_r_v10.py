@@ -16,7 +16,12 @@ def configure(
     hw_revision = 10
     board = "T2B1/boards/trezor_r_v10.h"
 
-    defines += ["FRAMEBUFFER"]
+    defines += [
+        "FRAMEBUFFER",
+        ("DISPLAY_RESX", "128"),
+        ("DISPLAY_RESY", "64"),
+        ("LOCKABLE_BOOTLOADER", "1"),
+    ]
     features_available.append("framebuffer")
     features_available.append("display_mono")
 
@@ -41,11 +46,14 @@ def configure(
         ("USE_HSE", "1"),
     ]
 
-    sources += ["embed/io/display/vg-2864/display_driver.c"]
-    paths += ["embed/io/display/inc"]
+    if "display" in features_wanted:
+        sources += ["embed/io/display/vg-2864/display_driver.c"]
+        paths += ["embed/io/display/inc"]
+        defines += [("USE_DISPLAY", "1")]
 
     if "input" in features_wanted:
         sources += ["embed/io/button/stm32/button.c"]
+        sources += ["embed/io/button/button_poll.c"]
         paths += ["embed/io/button/inc"]
         features_available.append("button")
         defines += [("USE_BUTTON", "1")]
@@ -78,12 +86,14 @@ def configure(
         ]
         features_available.append("usb")
         paths += ["embed/io/usb/inc"]
+        defines += [("USE_USB", "1")]
 
     if "optiga" in features_wanted:
         sources += ["embed/io/i2c_bus/stm32f4/i2c_bus.c"]
         sources += ["embed/sec/optiga/stm32/optiga_hal.c"]
         sources += ["embed/sec/optiga/optiga.c"]
         sources += ["embed/sec/optiga/optiga_commands.c"]
+        sources += ["embed/sec/optiga/optiga_config.c"]
         sources += ["embed/sec/optiga/optiga_transport.c"]
         sources += ["vendor/trezor-crypto/hash_to_curve.c"]
         paths += ["embed/io/i2c_bus/inc"]

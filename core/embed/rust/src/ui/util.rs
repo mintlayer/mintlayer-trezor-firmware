@@ -15,50 +15,6 @@ impl<T, E> ResultExt for Result<T, E> {
     }
 }
 
-/// Constructs a string from a C string.
-///
-/// # Safety
-///
-/// The caller is responsible that the pointer is valid, which means that:
-/// (a) it points to a memory containing a valid C string (zero-terminated
-/// sequence of characters), and
-/// (b) that the pointer has appropriate lifetime.
-pub unsafe fn from_c_str<'a>(c_str: *const cty::c_char) -> Option<&'a str> {
-    if c_str.is_null() {
-        return None;
-    }
-    unsafe {
-        let bytes = core::ffi::CStr::from_ptr(c_str as _).to_bytes();
-        if bytes.is_ascii() {
-            Some(core::str::from_utf8_unchecked(bytes))
-        } else {
-            None
-        }
-    }
-}
-
-/// Construct str from a C array.
-///
-/// # Safety
-///
-/// The caller is responsible that the pointer is valid, which means that:
-/// (a) it points to a memory containing array of characters, with length `len`,
-/// and
-/// (b) that the pointer has appropriate lifetime.
-pub unsafe fn from_c_array<'a>(c_str: *const cty::c_char, len: usize) -> Option<&'a str> {
-    if c_str.is_null() {
-        return None;
-    }
-    unsafe {
-        let slice = core::slice::from_raw_parts(c_str as *const u8, len);
-        if slice.is_ascii() {
-            Some(core::str::from_utf8_unchecked(slice))
-        } else {
-            None
-        }
-    }
-}
-
 #[cfg(feature = "ui_debug")]
 static mut DISABLE_ANIMATION: bool = false;
 
@@ -107,7 +63,7 @@ pub fn split_two_lines(text: &str, text_font: Font, available_width: i16) -> (&s
 
     #[cfg(feature = "ui_debug")]
     if text_font.text_width(second_line) > available_width {
-        fatal_error!(&uformat!("Text too long: {}...!", &text[..15]));
+        fatal_error!(&uformat!(len: 128, "Text too long: '{}'", text));
     }
 
     (first_line, second_line)
@@ -159,6 +115,138 @@ macro_rules! include_res {
     };
 }
 pub(crate) use include_res;
+
+/// Pager helper for keeping track of the current page and total number of
+/// pages.
+///
+/// Page numbers are zero-based, so the values can be directly used for indexing
+/// arrays, etc. It always holds that `current < total`, and `total > 0`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(ufmt::derive::uDebug))]
+pub struct Pager {
+    /// Zero-based index of the current page.
+    current: u16,
+    /// Total number of pages.
+    total: u16,
+}
+
+impl Pager {
+    /// Create a new pager with the given total number of pages.
+    pub fn new(total: u16) -> Self {
+        debug_assert!(total > 0);
+        Self { current: 0, total }
+    }
+
+    /// Create a new pager with a single page.
+    pub fn single_page() -> Self {
+        Self::new(1)
+    }
+
+    /// Create a new pager with the given current page index.
+    pub fn with_current(mut self, current: u16) -> Self {
+        self.set_current(current);
+        self
+    }
+
+    /// Limit the size of the pager to the given number of pages.
+    pub fn with_limit(mut self, limit: u16) -> Self {
+        self.total = self.total.min(limit);
+        // update current to be within bounds
+        self.set_current(self.current);
+        self
+    }
+
+    /// Get the current page index.
+    pub fn current(&self) -> u16 {
+        self.current
+    }
+
+    /// Get the total number of pages.
+    pub fn total(&self) -> u16 {
+        self.total
+    }
+
+    /// Set the current page index.
+    pub fn set_current(&mut self, idx: u16) {
+        self.current = idx.min(self.last());
+    }
+
+    /// Get the last page index.
+    pub fn last(&self) -> u16 {
+        self.total.saturating_sub(1)
+    }
+
+    /// Check if the current page is the first one.
+    pub fn is_first(&self) -> bool {
+        self.current == 0
+    }
+
+    /// Check if the current page is the last one.
+    pub fn is_last(&self) -> bool {
+        self.current == self.last()
+    }
+
+    /// Check if the pager has a single page.
+    pub fn is_single(&self) -> bool {
+        self.total == 1
+    }
+
+    /// Check if there is a previous page for the current page.
+    pub fn has_prev(&self) -> bool {
+        !self.is_first()
+    }
+
+    /// Check if there is a next page for the current page.
+    pub fn has_next(&self) -> bool {
+        !self.is_last()
+    }
+
+    /// Get the index of the next page.
+    pub fn next(&self) -> u16 {
+        self.current.saturating_add(1).min(self.last())
+    }
+
+    /// Get the index of the previous page.
+    pub fn prev(&self) -> u16 {
+        self.current.saturating_sub(1)
+    }
+
+    /// Go to the next page.
+    ///
+    /// Returns true if this resulted in a move. False if we are already at the
+    /// last page.
+    pub fn goto_next(&mut self) -> bool {
+        let has_next = self.has_next();
+        self.current = self.next();
+        has_next
+    }
+
+    /// Go to the previous page.
+    ///
+    /// Returns true if this resulted in a move. False if we are already at the
+    /// first page.
+    pub fn goto_prev(&mut self) -> bool {
+        let has_prev = self.has_prev();
+        self.current = self.prev();
+        has_prev
+    }
+
+    /// Go to the first page.
+    pub fn goto_first(&mut self) {
+        self.current = 0;
+    }
+
+    /// Go to the last page.
+    pub fn goto_last(&mut self) {
+        self.current = self.last();
+    }
+}
+
+impl Default for Pager {
+    fn default() -> Self {
+        Self::single_page()
+    }
+}
 
 #[cfg(test)]
 mod tests {

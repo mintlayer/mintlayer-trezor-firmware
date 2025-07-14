@@ -4,7 +4,6 @@ from trezorlib import messages
 from trezorlib.debuglink import LayoutType
 from trezorlib.debuglink import TrezorClientDebugLink as Client
 
-from . import buttons
 from . import translations as TR
 from .click_tests.common import go_next
 from .common import BRGeneratorType, get_text_possible_pagination
@@ -26,7 +25,7 @@ class PinFlow:
         assert (yield).name == "pin_device"  # Enter PIN
         assert "PinKeyboard" in self.debug.read_layout().all_components()
         self.debug.input(pin)
-        if self.client.layout_type is LayoutType.TR:
+        if self.client.layout_type is LayoutType.Caesar:
             assert (yield).name == f"reenter_{what}"  # Reenter PIN
             assert (
                 TR.translate(f"{what}__reenter_to_confirm")
@@ -49,7 +48,7 @@ class BackupFlow:
     def confirm_new_wallet(self) -> BRGeneratorType:
         yield
         assert TR.reset__by_continuing in self.debug.read_layout().text_content()
-        if self.client.layout_type is LayoutType.TR:
+        if self.client.layout_type is LayoutType.Caesar:
             self.debug.press_right()
         self.debug.press_yes()
 
@@ -66,7 +65,7 @@ class RecoveryFlow:
     def confirm_recovery(self) -> BRGeneratorType:
         assert (yield).name == "recover_device"
         assert TR.reset__by_continuing in self._text_content()
-        if self.client.layout_type is LayoutType.TR:
+        if self.client.layout_type is LayoutType.Caesar:
             self.debug.press_right()
         self.debug.press_yes()
 
@@ -76,31 +75,31 @@ class RecoveryFlow:
         self.debug.press_yes()
 
     def setup_slip39_recovery(self, num_words: int) -> BRGeneratorType:
-        if self.client.layout_type is LayoutType.TR:
-            yield from self.tr_recovery_homescreen()
+        if self.client.layout_type is LayoutType.Caesar:
+            yield from self.recovery_homescreen_caesar()
         yield from self.input_number_of_words(num_words)
         yield from self.enter_any_share()
 
     def setup_repeated_backup_recovery(self, num_words: int) -> BRGeneratorType:
-        if self.client.layout_type is LayoutType.TR:
-            yield from self.tr_recovery_homescreen()
+        if self.client.layout_type is LayoutType.Caesar:
+            yield from self.recovery_homescreen_caesar()
         yield from self.input_number_of_words(num_words)
         yield from self.enter_your_backup()
 
     def setup_bip39_recovery(self, num_words: int) -> BRGeneratorType:
-        if self.client.layout_type is LayoutType.TR:
-            yield from self.tr_recovery_homescreen()
+        if self.client.layout_type is LayoutType.Caesar:
+            yield from self.recovery_homescreen_caesar()
         yield from self.input_number_of_words(num_words)
         yield from self.enter_your_backup()
 
-    def tr_recovery_homescreen(self) -> BRGeneratorType:
+    def recovery_homescreen_caesar(self) -> BRGeneratorType:
         yield
         assert TR.recovery__num_of_words in self._text_content()
         self.debug.press_yes()
 
     def enter_your_backup(self) -> BRGeneratorType:
         assert (yield).name == "recovery"
-        if self.debug.layout_type is LayoutType.Mercury:
+        if self.debug.layout_type in (LayoutType.Delizia, LayoutType.Eckhart):
             assert TR.recovery__enter_each_word in self._text_content()
         else:
             assert TR.recovery__enter_backup in self._text_content()
@@ -108,7 +107,7 @@ class RecoveryFlow:
             TR.recovery__title_dry_run.lower()
             in self.debug.read_layout().title().lower()
         )
-        if self.client.layout_type is LayoutType.TR and not is_dry_run:
+        if self.client.layout_type is LayoutType.Caesar and not is_dry_run:
             # Normal recovery has extra info (not dry run)
             self.debug.press_right()
             self.debug.press_right()
@@ -124,7 +123,7 @@ class RecoveryFlow:
             TR.recovery__title_dry_run.lower()
             in self.debug.read_layout().title().lower()
         )
-        if self.client.layout_type is LayoutType.TR and not is_dry_run:
+        if self.client.layout_type is LayoutType.Caesar and not is_dry_run:
             # Normal recovery has extra info (not dry run)
             self.debug.press_right()
             self.debug.press_right()
@@ -132,25 +131,7 @@ class RecoveryFlow:
 
     def abort_recovery(self, confirm: bool) -> BRGeneratorType:
         yield
-        if self.client.layout_type is LayoutType.TR:
-            assert TR.recovery__num_of_words in self._text_content()
-            self.debug.press_no()
-            yield
-            assert TR.recovery__wanna_cancel_recovery in self._text_content()
-            self.debug.press_right()
-            if confirm:
-                self.debug.press_yes()
-            else:
-                self.debug.press_no()
-        elif self.client.layout_type is LayoutType.Mercury:
-            assert TR.recovery__enter_each_word in self._text_content()
-            self.debug.click(buttons.CORNER_BUTTON)
-            self.debug.synchronize_at("VerticalMenu")
-            if confirm:
-                self.debug.click(buttons.VERTICAL_MENU[0])
-            else:
-                self.debug.click(buttons.CORNER_BUTTON)
-        else:
+        if self.client.layout_type is LayoutType.Bolt:
             assert TR.recovery__enter_any_share in self._text_content()
             self.debug.press_no()
             yield
@@ -159,10 +140,38 @@ class RecoveryFlow:
                 self.debug.press_yes()
             else:
                 self.debug.press_no()
+        elif self.client.layout_type is LayoutType.Caesar:
+            assert TR.recovery__num_of_words in self._text_content()
+            self.debug.press_no()
+            yield
+            assert TR.recovery__wanna_cancel_recovery in self._text_content()
+            self.debug.press_right()
+            if confirm:
+                self.debug.press_yes()
+            else:
+                self.debug.press_no()
+        elif self.client.layout_type in (LayoutType.Delizia, LayoutType.Eckhart):
+            assert TR.recovery__enter_each_word in self._text_content()
+            self.debug.click(self.debug.screen_buttons.menu())
+            self.debug.synchronize_at("VerticalMenu")
+            if confirm:
+                self.debug.click(self.debug.screen_buttons.vertical_menu_items()[0])
+            else:
+                self.debug.click(self.debug.screen_buttons.menu())
+        else:
+            raise ValueError("Unknown model!")
 
     def abort_recovery_between_shares(self) -> BRGeneratorType:
         yield
-        if self.client.layout_type is LayoutType.TR:
+        if self.client.layout_type is LayoutType.Bolt:
+            assert TR.regexp("recovery__x_of_y_entered_template").search(
+                self._text_content()
+            )
+            self.debug.press_no()
+            assert (yield).name == "abort_recovery"
+            assert TR.recovery__wanna_cancel_recovery in self._text_content()
+            self.debug.press_yes()
+        elif self.client.layout_type is LayoutType.Caesar:
             assert TR.regexp("recovery__x_of_y_entered_template").search(
                 self._text_content()
             )
@@ -171,35 +180,62 @@ class RecoveryFlow:
             assert TR.recovery__wanna_cancel_recovery in self._text_content()
             self.debug.press_right()
             self.debug.press_yes()
-        elif self.client.layout_type is LayoutType.Mercury:
+        elif self.client.layout_type is LayoutType.Delizia:
             assert TR.regexp("recovery__x_of_y_entered_template").search(
                 self._text_content()
             )
-            self.debug.click(buttons.CORNER_BUTTON)
+            self.debug.click(self.debug.screen_buttons.menu())
             self.debug.synchronize_at("VerticalMenu")
-            self.debug.click(buttons.VERTICAL_MENU[0])
+            self.debug.click(self.debug.screen_buttons.vertical_menu_items()[0])
             assert (yield).name == "abort_recovery"
-            layout = self.debug.swipe_up()
+            self.debug.swipe_up()
+            layout = self.debug.read_layout()
             assert layout.title() == TR.recovery__title_cancel_recovery
-            self.debug.click(buttons.TAP_TO_CONFIRM)
-        else:
+            self.debug.click(self.debug.screen_buttons.tap_to_confirm())
+        elif self.client.layout_type is LayoutType.Eckhart:
             assert TR.regexp("recovery__x_of_y_entered_template").search(
                 self._text_content()
             )
-            self.debug.press_no()
+            self.debug.click(self.debug.screen_buttons.menu())
+            self.debug.synchronize_at("VerticalMenu")
+            self.debug.click(self.debug.screen_buttons.vertical_menu_items()[1])
             assert (yield).name == "abort_recovery"
-            assert TR.recovery__wanna_cancel_recovery in self._text_content()
-            self.debug.press_yes()
+            layout = self.debug.read_layout()
+            assert layout.title() == TR.recovery__title
+            self.debug.click(self.debug.screen_buttons.ok())
+        else:
+            raise ValueError("Unknown model!")
 
-    def input_number_of_words(self, num_words: int) -> BRGeneratorType:
+    def share_info_between_shares(self) -> BRGeneratorType:
+        yield
+        if self.client.layout_type is LayoutType.Eckhart:
+            assert TR.regexp("recovery__x_of_y_entered_template").search(
+                self._text_content()
+            )
+            self.debug.click(self.debug.screen_buttons.menu())
+            self.debug.synchronize_at("VerticalMenu")
+            self.debug.click(self.debug.screen_buttons.vertical_menu_items()[0])
+            assert (yield).name == "recovery_share"
+            layout = self.debug.read_layout()
+            assert layout.title() == TR.words__recovery_share
+            self.debug.click(self.debug.screen_buttons.menu())
+            self.debug.click(self.debug.screen_buttons.menu())
+        else:
+            raise ValueError("Unsupported model!")
+
+    def input_number_of_words(self, num_words: int | None) -> BRGeneratorType:
         br = yield
         assert br.code == B.MnemonicWordCount
         assert br.name == "recovery_word_count"
-        if self.client.layout_type is LayoutType.TR:
+        if self.client.layout_type is LayoutType.Caesar:
             assert TR.word_count__title in self.debug.read_layout().title()
         else:
             assert TR.recovery__num_of_words in self._text_content()
-        self.debug.input(str(num_words))
+
+        if num_words is None:
+            self.debug.press_no()
+        else:
+            self.debug.input(str(num_words))
 
     def warning_invalid_recovery_seed(self) -> BRGeneratorType:
         br = yield
@@ -235,7 +271,12 @@ class RecoveryFlow:
 
     def success_share_group_entered(self) -> BRGeneratorType:
         assert (yield).name == "share_success"
-        assert TR.recovery__you_have_entered in self._text_content()
+        if self.client.layout_type is LayoutType.Eckhart:
+            assert TR.regexp("recovery__share_from_group_entered_template").search(
+                self._text_content()
+            )
+        else:
+            assert TR.recovery__you_have_entered in self._text_content()
         self.debug.press_yes()
 
     def success_wallet_recovered(self) -> BRGeneratorType:
@@ -249,7 +290,7 @@ class RecoveryFlow:
         assert br.code == B.Success
         text = get_text_possible_pagination(self.debug, br)
         # TODO: make sure the translations fit on one page
-        if self.client.layout_type not in (LayoutType.TT, LayoutType.Mercury):
+        if self.client.layout_type not in (LayoutType.Bolt, LayoutType.Delizia):
             assert TR.recovery__dry_run_bip39_valid_match in text
         self.debug.press_yes()
 
@@ -258,7 +299,7 @@ class RecoveryFlow:
         assert br.code == B.Success
         text = get_text_possible_pagination(self.debug, br)
         # TODO: make sure the translations fit on one page
-        if self.client.layout_type not in (LayoutType.TT, LayoutType.Mercury):
+        if self.client.layout_type not in (LayoutType.Bolt, LayoutType.Delizia):
             assert TR.recovery__dry_run_slip39_valid_match in text
         self.debug.press_yes()
 
@@ -267,7 +308,7 @@ class RecoveryFlow:
         assert br.code == B.Warning
         text = get_text_possible_pagination(self.debug, br)
         # TODO: make sure the translations fit on one page on TT
-        if self.client.layout_type not in (LayoutType.TT, LayoutType.Mercury):
+        if self.client.layout_type not in (LayoutType.Bolt, LayoutType.Delizia):
             assert TR.recovery__dry_run_slip39_valid_mismatch in text
         self.debug.press_yes()
 
@@ -276,7 +317,7 @@ class RecoveryFlow:
         assert br.code == B.Warning
         text = get_text_possible_pagination(self.debug, br)
         # TODO: make sure the translations fit on one page
-        if self.client.layout_type not in (LayoutType.TT, LayoutType.Mercury):
+        if self.client.layout_type not in (LayoutType.Bolt, LayoutType.Delizia):
             assert TR.recovery__dry_run_bip39_valid_mismatch in text
         self.debug.press_yes()
 
@@ -301,7 +342,7 @@ class RecoveryFlow:
 
     def input_all_slip39_shares(
         self,
-        shares: list[str],
+        shares: t.Sequence[str],
         has_groups: bool = False,
         click_info: bool = False,
     ) -> BRGeneratorType:
@@ -309,21 +350,26 @@ class RecoveryFlow:
             mnemonic = share.split(" ")
             yield from self.input_mnemonic(mnemonic)
 
+            # Caesar does not have the info button
+            if self.client.layout_type is LayoutType.Caesar:
+                click_info = False
+
             if index < len(shares) - 1:
                 if has_groups:
                     yield from self.success_share_group_entered()
 
                 yield from self.success_more_shares_needed(click_ok=not click_info)
                 if click_info:
-                    if self.client.layout_type is LayoutType.TT:
-                        yield from self.tt_click_info()
-                    elif self.client.layout_type is LayoutType.Mercury:
-                        yield from self.mercury_click_info()
-                    else:
-                        raise ValueError("Unknown model!")
+                    if self.client.layout_type is LayoutType.Bolt:
+                        yield from self.click_info_bolt()
+                    elif self.client.layout_type in (
+                        LayoutType.Delizia,
+                        LayoutType.Eckhart,
+                    ):
+                        yield from self.click_info_delizia_eckhart()
                     yield from self.success_more_shares_needed()
 
-    def tt_click_info(self) -> t.Generator[t.Any, t.Any, None]:
+    def click_info_bolt(self) -> t.Generator[t.Any, t.Any, None]:
         self.debug.press_info()
         br = yield
         assert br.name == "show_shares"
@@ -331,17 +377,25 @@ class RecoveryFlow:
             self.debug.swipe_up()
         self.debug.press_yes()
 
-    def mercury_click_info(self) -> BRGeneratorType:
+    def click_info_delizia_eckhart(self) -> BRGeneratorType:
         # Moving through the menu into the show_shares screen
-        self.debug.click(buttons.CORNER_BUTTON)
+        self.debug.click(self.debug.screen_buttons.menu())
         self.debug.synchronize_at("VerticalMenu")
-        self.debug.click(buttons.VERTICAL_MENU[0])
+        self.debug.click(self.debug.screen_buttons.vertical_menu_items()[0])
         br = yield
+        # Scroll through remaining share pages
+        assert br.pages is not None
+        for _ in range(br.pages - 1):
+            if self.client.layout_type is LayoutType.Delizia:
+                self.debug.swipe_up()
+            elif self.client.layout_type is LayoutType.Eckhart:
+                self.debug.click(self.debug.screen_buttons.ok())
+
         assert br.name == "show_shares"
         assert br.code == B.Other
         # Getting back to the homepage
-        self.debug.click(buttons.CORNER_BUTTON)
-        self.debug.click(buttons.CORNER_BUTTON)
+        self.debug.click(self.debug.screen_buttons.menu())
+        self.debug.click(self.debug.screen_buttons.menu())
 
 
 class EthereumFlow:
@@ -353,7 +407,12 @@ class EthereumFlow:
 
     def confirm_data(self, info: bool = False, cancel: bool = False) -> BRGeneratorType:
         assert (yield).name == "confirm_data"
-        assert self.debug.read_layout().title() == TR.ethereum__title_input_data
+        if self.client.layout_type is LayoutType.Eckhart:
+            TR.regexp("ethereum__title_all_input_data_template").fullmatch(
+                self.debug.read_layout().title().strip()
+            )
+        else:
+            assert TR.ethereum__title_input_data in self.debug.read_layout().title()
         if info:
             self.debug.press_info()
         elif cancel:
@@ -365,32 +424,64 @@ class EthereumFlow:
         br = yield
         assert br.name == "confirm_data"
         assert br.pages is not None
-        assert self.debug.read_layout().title() == TR.ethereum__title_input_data
-        for _ in range(br.pages):
+        if self.client.layout_type is LayoutType.Eckhart:
+            TR.regexp("ethereum__title_all_input_data_template").fullmatch(
+                self.debug.read_layout().title().strip()
+            )
+        else:
+            assert TR.ethereum__title_input_data in self.debug.read_layout().title()
+        for _ in range(br.pages - 1):
             self.debug.read_layout()
             go_next(self.debug)
-        self.debug.read_layout()
+        if self.client.layout_type in (LayoutType.Bolt, LayoutType.Caesar):
+            self.debug.read_layout()
+            go_next(self.debug)
+            self.debug.read_layout()
+        elif self.client.layout_type is LayoutType.Delizia:
+            self.debug.read_layout()
+            self.debug.click(self.debug.screen_buttons.tap_to_confirm())
+        elif self.client.layout_type is LayoutType.Eckhart:
+            self.debug.read_layout()
+            self.debug.click(self.debug.screen_buttons.ok())
 
     def paginate_data_go_back(self) -> BRGeneratorType:
         br = yield
         assert br.name == "confirm_data"
         assert br.pages is not None
         assert br.pages > 2
-        assert self.debug.read_layout().title() == TR.ethereum__title_input_data
-        if self.client.layout_type is LayoutType.TR:
-            self.debug.press_right()
-            self.debug.press_right()
-            self.debug.press_left()
-            self.debug.press_left()
-            self.debug.press_left()
-        elif self.client.layout_type in (LayoutType.TT, LayoutType.Mercury):
+        if self.client.layout_type is LayoutType.Eckhart:
+            TR.regexp("ethereum__title_all_input_data_template").fullmatch(
+                self.debug.read_layout().title().strip()
+            )
+        else:
+            assert TR.ethereum__title_input_data in self.debug.read_layout().title()
+        if self.client.layout_type is LayoutType.Bolt:
             self.debug.swipe_up()
             self.debug.swipe_up()
             self.debug.click(self.GO_BACK)
+        elif self.client.layout_type is LayoutType.Caesar:
+            self.debug.press_right()
+            self.debug.press_right()
+            self.debug.press_left()
+            self.debug.press_left()
+            self.debug.press_left()
+        elif self.client.layout_type is LayoutType.Delizia:
+            # Scroll to the last page data page
+            for _ in range(br.pages - 2):
+                self.debug.swipe_up()
+            # Close the menu wuth the cross button
+            self.debug.click(self.debug.screen_buttons.menu())
+        elif self.client.layout_type is LayoutType.Eckhart:
+            # Scroll to the last page
+            for _ in range(br.pages - 1):
+                self.debug.click(self.debug.screen_buttons.ok())
+            # Go back to the first page and then cancel
+            for _ in range(br.pages):
+                self.debug.click(self.debug.screen_buttons.cancel())
         else:
             raise ValueError(f"Unknown layout: {self.client.layout_type}")
 
-    def _confirm_tx_tt(
+    def _confirm_tx_bolt(
         self, cancel: bool, info: bool, go_back_from_summary: bool
     ) -> BRGeneratorType:
         assert (yield).name == "confirm_ethereum_tx"
@@ -398,6 +489,14 @@ class EthereumFlow:
         if cancel:
             self.debug.press_no()
             return
+        if info:
+            self.debug.press_info()
+            assert TR.words__account in self.debug.read_layout().text_content()
+            assert (
+                TR.address_details__derivation_path
+                in self.debug.read_layout().text_content()
+            )
+            self.debug.press_no()
 
         self.debug.press_yes()
         assert (yield).name == "confirm_ethereum_tx"
@@ -416,7 +515,7 @@ class EthereumFlow:
         self.debug.press_yes()
         assert (yield).name == "confirm_ethereum_tx"
 
-    def _confirm_tx_tr(
+    def _confirm_tx_caesar(
         self, cancel: bool, info: bool, go_back_from_summary: bool
     ) -> BRGeneratorType:
         assert (yield).name == "confirm_ethereum_tx"
@@ -445,13 +544,12 @@ class EthereumFlow:
         self.debug.press_middle()
         assert (yield).name == "confirm_ethereum_tx"
 
-    def _confirm_tx_mercury(
+    def _confirm_tx_delizia(
         self, cancel: bool, info: bool, go_back_from_summary: bool
     ) -> BRGeneratorType:
         assert (yield).name == "confirm_output"
         title = self.debug.read_layout().title()
         assert TR.words__address in title
-        assert TR.words__recipient in title
 
         if cancel:
             self.debug.press_no()
@@ -463,22 +561,75 @@ class EthereumFlow:
         assert layout.title() == TR.words__title_summary
         assert TR.send__maximum_fee in layout.text_content()
         if go_back_from_summary:
-            self.debug.press_no()
-            assert (yield).name == "confirm_ethereum_tx"
-            self.debug.press_yes()
-            assert (yield).name == "confirm_ethereum_tx"
+            # Get back to the address screen
+            self.debug.swipe_down()
+            title = self.debug.read_layout().title()
+            assert TR.words__address in title
+            # Get back to the summary screen
+            self.debug.swipe_up()
+            layout = self.debug.read_layout()
+            assert layout.title() == TR.words__title_summary
+            assert TR.send__maximum_fee in layout.text_content()
         if info:
-            self.debug.click(buttons.CORNER_BUTTON)
+            self.debug.click(self.debug.screen_buttons.menu())
             self.debug.synchronize_at("VerticalMenu")
-            self.debug.click(buttons.VERTICAL_MENU[0])
+            self.debug.click(self.debug.screen_buttons.vertical_menu_items()[0])
             text = self.debug.read_layout().text_content()
             assert TR.ethereum__gas_limit in text
             assert TR.ethereum__gas_price in text
-            self.debug.click(buttons.CORNER_BUTTON)
-            self.debug.click(buttons.CORNER_BUTTON)
+            self.debug.click(self.debug.screen_buttons.menu())
+            self.debug.click(self.debug.screen_buttons.menu())
         self.debug.swipe_up()
         self.debug.read_layout()
-        self.debug.click(buttons.TAP_TO_CONFIRM)
+        self.debug.click(self.debug.screen_buttons.tap_to_confirm())
+        assert (yield).name == "confirm_ethereum_tx"
+
+    def _confirm_tx_eckhart(
+        self, cancel: bool, info: bool, go_back_from_summary: bool
+    ) -> BRGeneratorType:
+
+        assert (yield).name == "confirm_output"
+        title_exp = (
+            TR.words__send
+            if self.client.layout_type is LayoutType.Eckhart
+            else TR.words__address
+        )
+        assert title_exp in self.debug.read_layout().title()
+        if cancel:
+            self.debug.press_no()
+            return
+
+        self.debug.click(self.debug.screen_buttons.ok())
+        assert (yield).name == "confirm_total"
+        layout = self.debug.read_layout()
+        title_exp = (
+            TR.words__send
+            if self.client.layout_type is LayoutType.Eckhart
+            else TR.words__title_summary
+        )
+        assert layout.title() == title_exp
+        assert TR.send__maximum_fee in layout.text_content()
+        if go_back_from_summary:
+            # Get back to the address screen
+            self.debug.click(self.debug.screen_buttons.cancel())
+            title = self.debug.read_layout().title()
+            assert title_exp in title
+            # Get back to the summary screen
+            self.debug.click(self.debug.screen_buttons.ok())
+            layout = self.debug.read_layout()
+            assert layout.title() == title_exp
+            assert TR.send__maximum_fee in layout.text_content()
+        if info:
+            self.debug.click(self.debug.screen_buttons.menu())
+            self.debug.synchronize_at("VerticalMenu")
+            self.debug.click(self.debug.screen_buttons.vertical_menu_items()[0])
+            text = self.debug.read_layout().text_content()
+            assert TR.ethereum__gas_limit in text
+            assert TR.ethereum__gas_price in text
+            self.debug.click(self.debug.screen_buttons.menu())
+            self.debug.click(self.debug.screen_buttons.menu())
+        self.debug.click(self.debug.screen_buttons.ok())
+        self.debug.read_layout()
         assert (yield).name == "confirm_ethereum_tx"
 
     def confirm_tx(
@@ -487,12 +638,14 @@ class EthereumFlow:
         info: bool = False,
         go_back_from_summary: bool = False,
     ) -> BRGeneratorType:
-        if self.client.layout_type is LayoutType.TT:
-            yield from self._confirm_tx_tt(cancel, info, go_back_from_summary)
-        elif self.client.layout_type is LayoutType.TR:
-            yield from self._confirm_tx_tr(cancel, info, go_back_from_summary)
-        elif self.client.layout_type is LayoutType.Mercury:
-            yield from self._confirm_tx_mercury(cancel, info, go_back_from_summary)
+        if self.client.layout_type is LayoutType.Bolt:
+            yield from self._confirm_tx_bolt(cancel, info, go_back_from_summary)
+        elif self.client.layout_type is LayoutType.Caesar:
+            yield from self._confirm_tx_caesar(cancel, info, go_back_from_summary)
+        elif self.client.layout_type is LayoutType.Delizia:
+            yield from self._confirm_tx_delizia(cancel, info, go_back_from_summary)
+        elif self.client.layout_type is LayoutType.Eckhart:
+            yield from self._confirm_tx_eckhart(cancel, info, go_back_from_summary)
         else:
             raise ValueError("Unknown model!")
 
@@ -513,11 +666,11 @@ class EthereumFlow:
             TR.ethereum__staking_unstake_intro,
             TR.ethereum__staking_claim_intro,
         )
-        if self.client.layout_type is LayoutType.TT:
+        if self.client.layout_type is LayoutType.Bolt:
             # confirm intro
             if info:
                 self.debug.click(
-                    buttons.CORNER_BUTTON,
+                    self.debug.screen_buttons.menu(),
                 )
                 assert self.debug.read_layout().title() in (
                     TR.ethereum__staking_stake_address,
@@ -538,18 +691,43 @@ class EthereumFlow:
 
             self.debug.press_yes()
 
-        elif self.client.layout_type is LayoutType.Mercury:
+        elif self.client.layout_type is LayoutType.Caesar:
             # confirm intro
             if info:
-                self.debug.click(buttons.CORNER_BUTTON)
-                self.debug.synchronize_at("VerticalMenu")
-                self.debug.click(buttons.VERTICAL_MENU[0])
+                self.debug.press_right()
                 assert self.debug.read_layout().title() in (
                     TR.ethereum__staking_stake_address,
                     TR.ethereum__staking_claim_address,
                 )
-                self.debug.click(buttons.CORNER_BUTTON)
-                self.debug.click(buttons.CORNER_BUTTON)
+                self.debug.press_left()
+            self.debug.press_middle()
+            yield
+
+            # confirm summary
+            if info:
+                self.debug.press_right()
+                assert TR.ethereum__gas_limit in self.debug.read_layout().text_content()
+                self.debug.press_right()
+                assert TR.ethereum__gas_price in self.debug.read_layout().text_content()
+                self.debug.press_left()
+                self.debug.press_left()
+            self.debug.press_middle()
+            yield
+
+            self.debug.press_yes()
+
+        elif self.client.layout_type is LayoutType.Delizia:
+            # confirm intro
+            if info:
+                self.debug.click(self.debug.screen_buttons.menu())
+                self.debug.synchronize_at("VerticalMenu")
+                self.debug.click(self.debug.screen_buttons.vertical_menu_items()[0])
+                assert self.debug.read_layout().title() in (
+                    TR.ethereum__staking_stake_address,
+                    TR.ethereum__staking_claim_address,
+                )
+                self.debug.click(self.debug.screen_buttons.menu())
+                self.debug.click(self.debug.screen_buttons.menu())
 
             self.debug.swipe_up()
             br = yield
@@ -558,40 +736,45 @@ class EthereumFlow:
 
             # confirm summary
             if info:
-                self.debug.click(buttons.CORNER_BUTTON)
+                self.debug.click(self.debug.screen_buttons.menu())
                 self.debug.synchronize_at("VerticalMenu")
-                self.debug.click(buttons.VERTICAL_MENU[0])
+                self.debug.click(self.debug.screen_buttons.vertical_menu_items()[0])
                 assert TR.ethereum__gas_limit in self.debug.read_layout().text_content()
                 assert TR.ethereum__gas_price in self.debug.read_layout().text_content()
-                self.debug.click(buttons.CORNER_BUTTON)
-                self.debug.click(buttons.CORNER_BUTTON)
+                self.debug.click(self.debug.screen_buttons.menu())
+                self.debug.click(self.debug.screen_buttons.menu())
             self.debug.swipe_up()
             # br = yield  # FIXME: no BR on sign transaction
 
             self.debug.press_yes()
 
-        elif self.client.layout_type is LayoutType.TR:
+        elif self.client.layout_type is LayoutType.Eckhart:
             # confirm intro
             if info:
-                self.debug.press_right()
+                self.debug.click(self.debug.screen_buttons.menu())
+                self.debug.synchronize_at("VerticalMenu")
+                self.debug.click(self.debug.screen_buttons.vertical_menu_items()[0])
                 assert self.debug.read_layout().title() in (
                     TR.ethereum__staking_stake_address,
                     TR.ethereum__staking_claim_address,
                 )
-                self.debug.press_left()
-            self.debug.press_middle()
-            yield
+                self.debug.click(self.debug.screen_buttons.menu())
+                self.debug.click(self.debug.screen_buttons.menu())
+
+            self.debug.click(self.debug.screen_buttons.ok())
+            br = yield
+            assert br.code == B.SignTx
+            assert br.name == "confirm_total"
 
             # confirm summary
             if info:
-                self.debug.press_right()
+                self.debug.click(self.debug.screen_buttons.menu())
+                self.debug.synchronize_at("VerticalMenu")
+                self.debug.click(self.debug.screen_buttons.vertical_menu_items()[0])
                 assert TR.ethereum__gas_limit in self.debug.read_layout().text_content()
-                self.debug.press_right()
                 assert TR.ethereum__gas_price in self.debug.read_layout().text_content()
-                self.debug.press_left()
-                self.debug.press_left()
-            self.debug.press_middle()
-            yield
+                self.debug.click(self.debug.screen_buttons.menu())
+                self.debug.click(self.debug.screen_buttons.menu())
 
             self.debug.press_yes()
 

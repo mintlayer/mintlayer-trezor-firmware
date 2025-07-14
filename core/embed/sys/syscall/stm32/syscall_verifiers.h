@@ -17,10 +17,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TREZORHAL_SYSCALL_VERIFIERS_H
-#define TREZORHAL_SYSCALL_VERIFIERS_H
+#pragma once
 
-#ifdef SYSCALL_DISPATCH
+#ifdef KERNEL
+
+// ---------------------------------------------------------------------
+#include <sys/sysevent.h>
+
+void sysevents_poll__verified(const sysevents_t *awaited,
+                              sysevents_t *signalled, uint32_t deadline);
 
 // ---------------------------------------------------------------------
 #include <sys/systask.h>
@@ -40,6 +45,14 @@ void system_exit_fatal__verified(const char *message, size_t message_len,
 void reboot_and_upgrade__verified(const uint8_t hash[32]);
 
 // ---------------------------------------------------------------------
+
+bool bl_check_check__verified(const uint8_t *hash_00, const uint8_t *hash_FF,
+                              size_t hash_len);
+
+#include <util/bl_check.h>
+void bl_check_replace__verified(const uint8_t *data, size_t len);
+
+// ---------------------------------------------------------------------
 #include <io/display.h>
 
 #ifdef FRAMEBUFFER
@@ -49,6 +62,10 @@ bool display_get_frame_buffer__verified(display_fb_info_t *fb);
 void display_fill__verified(const gfx_bitblt_t *bb);
 
 void display_copy_rgb565__verified(const gfx_bitblt_t *bb);
+
+// ---------------------------------------------------------------------
+#include <io/usb.h>
+void usb_get_state__verified(usb_state_t *state);
 
 // ---------------------------------------------------------------------
 #include <io/usb_hid.h>
@@ -174,14 +191,120 @@ void entropy_get__verified(uint8_t *buf);
 // ---------------------------------------------------------------------
 #include <util/fwutils.h>
 
-secbool firmware_calc_hash__verified(const uint8_t *challenge,
-                                     size_t challenge_len, uint8_t *hash,
-                                     size_t hash_len,
-                                     firmware_hash_callback_t callback,
-                                     void *callback_context);
+int firmware_hash_start__verified(const uint8_t *challenge,
+                                  size_t challenge_len);
+
+int firmware_hash_continue__verified(uint8_t *hash, size_t hash_len);
 
 secbool firmware_get_vendor__verified(char *buff, size_t buff_size);
 
-#endif  // SYSCALL_DISPATCH
+// ---------------------------------------------------------------------
+#ifdef USE_BLE
 
-#endif  // TREZORHAL_SYSCALL_VERIFIERS_H
+#include <io/ble.h>
+
+bool ble_issue_command__verified(ble_command_t *state);
+
+void ble_get_state__verified(ble_state_t *state);
+
+bool ble_get_event__verified(ble_event_t *event);
+
+bool ble_write__verified(const uint8_t *data, size_t len);
+
+secbool ble_read__verified(uint8_t *data, size_t len);
+
+#endif
+
+// ---------------------------------------------------------------------
+#ifdef USE_NRF
+
+#include <io/nrf.h>
+
+bool nrf_update_required__verified(const uint8_t *data, size_t len);
+
+bool nrf_update__verified(const uint8_t *data, size_t len);
+
+#endif
+// ---------------------------------------------------------------------
+
+#ifdef USE_POWER_MANAGER
+
+#include <sys/power_manager.h>
+
+pm_status_t pm_get_state__verified(pm_state_t *status);
+
+bool pm_get_events__verified(pm_event_t *event);
+
+#endif
+
+// ---------------------------------------------------------------------
+#ifdef USE_HW_JPEG_DECODER
+
+#include <gfx/jpegdec.h>
+
+jpegdec_state_t jpegdec_process__verified(jpegdec_input_t *input);
+
+bool jpegdec_get_info__verified(jpegdec_image_t *image);
+
+bool jpegdec_get_slice_rgba8888__verified(void *rgba8888,
+                                          jpegdec_slice_t *slice);
+
+bool jpegdec_get_slice_mono8__verified(void *mono8, jpegdec_slice_t *slice);
+
+#endif  // USE_HW_JPEG_DECODER
+
+// ---------------------------------------------------------------------
+#ifdef USE_DMA2D
+
+#include <gfx/dma2d_bitblt.h>
+
+bool dma2d_rgb565_fill__verified(const gfx_bitblt_t *bb);
+
+bool dma2d_rgb565_copy_mono4__verified(const gfx_bitblt_t *bb);
+
+bool dma2d_rgb565_copy_rgb565__verified(const gfx_bitblt_t *bb);
+
+bool dma2d_rgb565_blend_mono4__verified(const gfx_bitblt_t *bb);
+
+bool dma2d_rgb565_blend_mono8__verified(const gfx_bitblt_t *bb);
+
+bool dma2d_rgba8888_fill__verified(const gfx_bitblt_t *bb);
+
+bool dma2d_rgba8888_copy_mono4__verified(const gfx_bitblt_t *bb);
+
+bool dma2d_rgba8888_copy_rgb565__verified(const gfx_bitblt_t *bb);
+
+bool dma2d_rgba8888_copy_rgba8888__verified(const gfx_bitblt_t *bb);
+
+bool dma2d_rgba8888_blend_mono4__verified(const gfx_bitblt_t *bb);
+
+bool dma2d_rgba8888_blend_mono8__verified(const gfx_bitblt_t *bb);
+
+#endif
+
+// ---------------------------------------------------------------------
+#ifdef USE_BUTTON
+
+#include <io/button.h>
+
+bool button_get_event__verified(button_event_t *event);
+
+#endif
+
+// ---------------------------------------------------------------------
+#ifdef USE_TROPIC
+
+bool tropic_ping__verified(const uint8_t *msg_out, uint8_t *msg_in,
+                           uint16_t msg_len);
+
+bool tropic_get_cert__verified(uint8_t *buf, uint16_t buf_size);
+
+bool tropic_ecc_key_generate__verified(uint16_t slot_index);
+
+bool tropic_ecc_sign__verified(uint16_t key_slot_index, const uint8_t *dig,
+                               uint16_t dig_len, uint8_t *sig,
+                               uint16_t sig_len);
+
+#endif
+
+#endif  // KERNEL

@@ -6,7 +6,13 @@ use crate::{
     },
 };
 
-use super::{Bitmap, BitmapFormat, BitmapView, Canvas, DrawingCache, Renderer, Shape, ShapeClone};
+use super::{Canvas, DrawingCache, Renderer, Shape, ShapeClone};
+
+#[cfg(not(feature = "hw_jpeg_decoder"))]
+use super::{Bitmap, BitmapFormat, BitmapView};
+
+#[cfg(feature = "hw_jpeg_decoder")]
+use crate::{trezorhal::jpegdec::JpegDecoder, ui::display::Color};
 
 use without_alloc::alloc::LocalAllocLeakExt;
 
@@ -24,11 +30,12 @@ pub struct JpegImage<'a> {
     blur_radius: usize,
     /// Dimming of blurred image in range of 0..255 (default 255)
     dim: u8,
+    /// Final size calculated from JPEG headers
+    size: Offset,
     /// Set if blurring is pending
     /// (used only during image drawing).
+    #[cfg(not(feature = "hw_jpeg_decoder"))]
     blur_tag: Option<u32>,
-    /// Final size calculated from TOIF data
-    size: Offset,
 }
 
 impl<'a> JpegImage<'a> {
@@ -36,12 +43,14 @@ impl<'a> JpegImage<'a> {
         JpegImage {
             pos,
             align: Alignment2D::TOP_LEFT,
-            scale: 0,
-            dim: 255,
-            blur_radius: 0,
             jpeg,
-            blur_tag: None,
+            scale: 0,
+            blur_radius: 0,
+            dim: 255,
+
             size: Offset::zero(),
+            #[cfg(not(feature = "hw_jpeg_decoder"))]
+            blur_tag: None,
         }
     }
 
@@ -88,38 +97,54 @@ impl<'a> Shape<'a> for JpegImage<'a> {
     }
 
     fn cleanup(&mut self, _cache: &DrawingCache<'a>) {
-        self.blur_tag = None;
+        #[cfg(not(feature = "hw_jpeg_decoder"))]
+        {
+            self.blur_tag = None;
+        }
     }
 
-    /*
-    // Faster implementation suitable for DirectRenderer without blurring support
-    // (but is terribly slow on ProgressiveRenderer if slices are not aligned
-    //  to JPEG MCUs )
-    fn draw(&mut self, canvas: &mut dyn RgbCanvasEx, cache: &DrawingCache<'a>) {
-        let bounds = self.bounds(cache);
+    #[cfg(feature = "hw_jpeg_decoder")]
+    fn draw(&mut self, canvas: &mut dyn Canvas, cache: &DrawingCache<'a>) {
+        let bounds = self.bounds();
         let clip = canvas.viewport().relative_clip(bounds).clip;
 
-        // translate clip to JPEG relative coordinates
+        // Translate clip to JPEG relative coordinates
         let clip = clip.translate(-canvas.viewport().origin);
         let clip = clip.translate((-bounds.top_left()).into());
 
-        unwrap!(
-            cache.jpeg().decompress_mcu(
-                self.jpeg,
-                self.scale,
-                clip.top_left(),
-                &mut |mcu_r, mcu_bitmap| {
-                    // Draw single MCU
-                    canvas.draw_bitmap(mcu_r.translate(bounds.top_left().into()), mcu_bitmap);
-                    // Return true if we are not done yet
-                    mcu_r.x1 < clip.x1 || mcu_r.y1 < clip.y1
-                }
-            ),
-            "Invalid JPEG"
-        );
-    }*/
+        // Get temporary buffer for image decoding
+        let buff = &mut unwrap!(cache.image_buff(), "No image buffer");
+
+        let mut jpegdec = unwrap!(JpegDecoder::new(self.jpeg));
+        let _ = jpegdec.decode(&mut buff[..], &mut |slice_r, slice| {
+            let slice = slice.with_downscale(self.scale);
+            let slice_r = Rect {
+                x0: slice_r.x0 >> self.scale,
+                y0: slice_r.y0 >> self.scale,
+                x1: slice_r.x1 >> self.scale,
+                y1: slice_r.y1 >> self.scale,
+            };
+            // Draw single slice
+            canvas.draw_bitmap(slice_r.translate(bounds.top_left().into()), slice);
+            // Return true if we are not done yet
+            slice_r.x1 < clip.x1 || slice_r.y1 < clip.y1
+        });
+
+        if self.dim < 255 {
+            // Draw dimmed overlay.
+            // This solution is suboptimal and might be replaced by
+            // using faster alpha blending in the hardware.
+            canvas.fill_rect(bounds, Color::black(), 255 - self.dim);
+        }
+
+        if self.blur_radius > 0 {
+            // Blur the image
+            canvas.blur_rect(bounds, self.blur_radius, cache);
+        }
+    }
 
     // This is a little bit slower implementation suitable for ProgressiveRenderer
+    #[cfg(not(feature = "hw_jpeg_decoder"))]
     fn draw(&mut self, canvas: &mut dyn Canvas, cache: &DrawingCache<'a>) {
         let bounds = self.bounds();
         let clip = canvas.viewport().relative_clip(bounds).clip;
@@ -175,14 +200,14 @@ impl<'a> Shape<'a> for JpegImage<'a> {
                         if let Some(y) = blur.push_ready() {
                             if y < row_r.y1 {
                                 // should never fail
-                                blur.push(unwrap!(jpeg_slice.row(y - row_r.y0)));
+                                blur.push(unwrap!(jpeg_slice.row::<u16>(y - row_r.y0)));
                             } else {
                                 return true; // need more data
                             }
                         }
 
                         if let Some(y) = blur.pop_ready() {
-                            blur.pop(unwrap!(slice.row_mut(0)), Some(self.dim)); // should never fail
+                            blur.pop(unwrap!(slice.row_mut::<u16>(0)), Some(self.dim)); // should never fail
                             let dst_r = Rect::from_top_left_and_size(bounds.top_left(), jpeg_size)
                                 .translate(Offset::new(0, y));
                             canvas.draw_bitmap(dst_r, slice.view());

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from . import config
 
 if TYPE_CHECKING:
-    from typing import Any, Container
+    from typing import Any
 
     from trezor.ui import ProgressLayout
 
@@ -13,30 +13,35 @@ _progress_layout: ProgressLayout | None = None
 _started_with_empty_loader = False
 keepalive_callback: Any = None
 
-_ignore_loader_messages: Container[config.StorageMessage] = ()
+_ignore_loader_messages: bool = False
 
 
 def ignore_nonpin_loader_messages() -> None:
     global _ignore_loader_messages
-    _ignore_loader_messages = (
-        config.StorageMessage.PROCESSING_MSG,
-        config.StorageMessage.STARTING_MSG,
-    )
+    _ignore_loader_messages = True
 
 
 def allow_all_loader_messages() -> None:
     global _ignore_loader_messages
-    _ignore_loader_messages = ()
+    _ignore_loader_messages = False
 
 
-def render_empty_loader(message: config.StorageMessage, description: str = "") -> None:
-    """Render empty loader to prevent the screen appear to be frozen."""
+def render_empty_loader(
+    message: config.StorageMessage, description: str = "", danger: bool = False
+) -> None:
+    """Render empty loader to prevent the screen from appearing frozen.
+
+    Args:
+        message (config.StorageMessage): The message to display in the loader.
+        description (str, optional): Additional description to display. Defaults to an empty string.
+        danger (bool, optional): If True, renders the loader in a 'danger' style to indicate a critical operation (e.g. wipe device). Defaults to False.
+    """
     from trezor.ui.layouts.progress import pin_progress
 
     global _progress_layout
     global _started_with_empty_loader
 
-    _progress_layout = pin_progress(message, description)
+    _progress_layout = pin_progress(message, description, danger)
     _progress_layout.report(0, None)
 
     _started_with_empty_loader = True
@@ -49,7 +54,10 @@ def show_pin_timeout(
     from trezor.ui.layouts.progress import pin_progress
 
     # Possibility to ignore certain messages - not showing loader for them
-    if message in _ignore_loader_messages:
+    if _ignore_loader_messages and message in (
+        config.StorageMessage.PROCESSING_MSG,
+        config.StorageMessage.STARTING_MSG,
+    ):
         return False
 
     global _previous_seconds
@@ -91,5 +99,6 @@ def show_pin_timeout(
     # drop the layout when done so trezor.ui doesn't have to remain in memory
     if progress >= 1000:
         _progress_layout = None
+        _previous_remaining = None
 
     return False

@@ -22,9 +22,13 @@
 
 #include <io/button.h>
 #include <sys/irq.h>
+#include <sys/mpu.h>
+#include <sys/sysevent_source.h>
 
-#ifdef USE_POWERCTL
-#include <sys/wakeup_flags.h>
+#include "../button_poll.h"
+
+#ifdef USE_POWER_MANAGER
+#include <sys/power_manager.h>
 #endif
 
 #ifdef KERNEL_MODE
@@ -33,16 +37,6 @@
 typedef struct {
   bool initialized;
 
-#ifdef BTN_LEFT_PIN
-  bool left_down;
-#endif
-#ifdef BTN_RIGHT_PIN
-  bool right_down;
-#endif
-#ifdef BTN_POWER_PIN
-  bool power_down;
-#endif
-
 } button_driver_t;
 
 // Button driver instance
@@ -50,7 +44,7 @@ static button_driver_t g_button_driver = {
     .initialized = false,
 };
 
-static void button_setup_pin(GPIO_TypeDef *port, uint16_t pin) {
+static void button_setup_pin(GPIO_TypeDef* port, uint16_t pin) {
   GPIO_InitTypeDef GPIO_InitStructure = {0};
 
   GPIO_InitStructure.Mode = GPIO_MODE_INPUT;
@@ -61,7 +55,7 @@ static void button_setup_pin(GPIO_TypeDef *port, uint16_t pin) {
 }
 
 bool button_init(void) {
-  button_driver_t *drv = &g_button_driver;
+  button_driver_t* drv = &g_button_driver;
 
   if (drv->initialized) {
     return true;
@@ -98,99 +92,86 @@ bool button_init(void) {
   NVIC_EnableIRQ(BTN_EXTI_INTERRUPT_NUM);
 #endif  // BTN_EXTI_INTERRUPT_HANDLER
 
-  drv->initialized = true;
+  if (!button_poll_init()) {
+    goto cleanup;
+  }
 
+  drv->initialized = true;
   return true;
+
+cleanup:
+  button_deinit();
+  return false;
 }
 
-uint32_t button_get_event(void) {
-  button_driver_t *drv = &g_button_driver;
+void button_deinit(void) {
+  button_driver_t* drv = &g_button_driver;
+
+  button_poll_deinit();
+
+#ifdef BTN_EXIT_INTERRUPT_HANDLER
+  NVIC_DisableIRQ(BTN_EXTI_INTERRUPT_NUM);
+#endif
+
+  memset(drv, 0, sizeof(button_driver_t));
+}
+
+uint32_t button_get_state(void) {
+  button_driver_t* drv = &g_button_driver;
 
   if (!drv->initialized) {
     return 0;
   }
 
-#ifdef BTN_LEFT_PIN
-  bool left_down =
-      (GPIO_PIN_RESET == HAL_GPIO_ReadPin(BTN_LEFT_PORT, BTN_LEFT_PIN));
+  uint32_t state = 0;
 
-  if (drv->left_down != left_down) {
-    drv->left_down = left_down;
-    if (left_down) {
-      return BTN_EVT_DOWN | BTN_LEFT;
-    } else {
-      return BTN_EVT_UP | BTN_LEFT;
-    }
+#ifdef BTN_LEFT_PIN
+  if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(BTN_LEFT_PORT, BTN_LEFT_PIN)) {
+    state |= (1U << BTN_LEFT);
   }
 #endif
 
 #ifdef BTN_RIGHT_PIN
-  bool right_down =
-      (GPIO_PIN_RESET == HAL_GPIO_ReadPin(BTN_RIGHT_PORT, BTN_RIGHT_PIN));
-
-  if (drv->right_down != right_down) {
-    drv->right_down = right_down;
-    if (right_down) {
-      return BTN_EVT_DOWN | BTN_RIGHT;
-    } else {
-      return BTN_EVT_UP | BTN_RIGHT;
-    }
+  if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(BTN_RIGHT_PORT, BTN_RIGHT_PIN)) {
+    state |= (1U << BTN_RIGHT);
   }
 #endif
 
 #ifdef BTN_POWER_PIN
-  bool power_down =
-      (GPIO_PIN_RESET == HAL_GPIO_ReadPin(BTN_POWER_PORT, BTN_POWER_PIN));
-
-  if (drv->power_down != power_down) {
-    drv->power_down = power_down;
-    if (power_down) {
-      return BTN_EVT_DOWN | BTN_POWER;
-    } else {
-      return BTN_EVT_UP | BTN_POWER;
-    }
+  if (GPIO_PIN_RESET == HAL_GPIO_ReadPin(BTN_POWER_PORT, BTN_POWER_PIN)) {
+    state |= (1U << BTN_POWER);
   }
 #endif
-
-  return 0;
+  return state;
 }
 
 bool button_is_down(button_t button) {
-  button_driver_t *drv = &g_button_driver;
+  button_driver_t* drv = &g_button_driver;
 
   if (!drv->initialized) {
     return false;
   }
 
-  switch (button) {
-#ifdef BTN_LEFT_PIN
-    case BTN_LEFT:
-      return drv->left_down;
-#endif
-#ifdef BTN_RIGHT_PIN
-    case BTN_RIGHT:
-      return drv->right_down;
-#endif
-#ifdef BTN_POWER_PIN
-    case BTN_POWER:
-      return drv->power_down;
-#endif
-    default:
-      return false;
-  }
+  return (button_get_state() & (1 << button)) != 0;
 }
 
 #ifdef BTN_EXTI_INTERRUPT_HANDLER
 void BTN_EXTI_INTERRUPT_HANDLER(void) {
+  IRQ_LOG_ENTER();
+  mpu_mode_t mpu_mode = mpu_reconfig(MPU_MODE_DEFAULT);
+
   // button_driver_t *drv = &g_button_driver;
 
   // Clear the EXTI line pending bit
   __HAL_GPIO_EXTI_CLEAR_FLAG(BTN_EXTI_INTERRUPT_PIN);
 
-#ifdef USE_POWERCTL
+#ifdef USE_POWER_MANAGER
   // Inform the powerctl module about button press
-  wakeup_flags_set(WAKEUP_FLAG_BUTTON);
+  pm_wakeup_flags_set(PM_WAKEUP_FLAG_BUTTON);
 #endif
+
+  mpu_restore(mpu_mode);
+  IRQ_LOG_EXIT();
 }
 #endif
 

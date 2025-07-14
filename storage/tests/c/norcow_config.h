@@ -30,7 +30,7 @@
  * The length of the sector header in bytes. The header is preserved between
  * sector erasures.
  */
-#if defined TREZOR_MODEL_T
+#if defined TREZOR_MODEL_T2T1
 #define NORCOW_HEADER_LEN 0
 #elif defined TREZOR_MODEL_1
 #define NORCOW_HEADER_LEN (0x100)
@@ -41,6 +41,6 @@
 /*
  * Current storage version.
  */
-#define NORCOW_VERSION ((uint32_t)0x00000005)
+#define NORCOW_VERSION ((uint32_t)0x00000006)
 
 #endif

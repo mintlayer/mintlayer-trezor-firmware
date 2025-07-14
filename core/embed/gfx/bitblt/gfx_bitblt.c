@@ -17,13 +17,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "dma2d_bitblt.h"
+#include <gfx/dma2d_bitblt.h>
+
+#ifdef KERNEL_MODE
 
 void gfx_bitblt_init(void) {
 #if defined(USE_DMA2D) && !defined(TREZOR_EMULATOR)
   dma2d_init();
 #endif
 }
+
+void gfx_bitblt_deinit(void) {
+#if defined(USE_DMA2D) && !defined(TREZOR_EMULATOR)
+  dma2d_deinit();
+#endif
+}
+
+#endif  // KERNEL_MODE
 
 void gfx_bitblt_wait(void) {
 #if defined(USE_DMA2D) && !defined(TREZOR_EMULATOR)

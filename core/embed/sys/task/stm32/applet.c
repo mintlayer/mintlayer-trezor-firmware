@@ -30,7 +30,7 @@
 #include <sys/trustzone.h>
 #endif
 
-#ifdef SYSCALL_DISPATCH
+#ifdef KERNEL
 
 void applet_init(applet_t* applet, applet_header_t* header,
                  applet_layout_t* layout, applet_privileges_t* privileges) {
@@ -42,6 +42,8 @@ void applet_init(applet_t* applet, applet_header_t* header,
 }
 
 static void applet_clear_memory(applet_t* applet) {
+  mpu_set_active_applet(&applet->layout);
+
   if (applet->layout.data1.size > 0) {
     memset((void*)applet->layout.data1.start, 0, applet->layout.data1.size);
   }
@@ -56,8 +58,10 @@ bool applet_reset(applet_t* applet, uint32_t cmd, const void* arg,
   applet_clear_memory(applet);
 
   // Reset the applet task (stack pointer, etc.)
-  systask_init(&applet->task, applet->header->stack.start,
-               applet->header->stack.size, applet);
+  if (!systask_init(&applet->task, applet->header->stack.start,
+                    applet->header->stack.size, applet)) {
+    return false;
+  }
 
   // Copy the arguments onto the applet stack
   void* arg_copy = NULL;
@@ -102,10 +106,16 @@ void applet_run(applet_t* applet) {
 #endif
 
   systask_yield_to(&applet->task);
+}
 
+void applet_stop(applet_t* applet) {
 #ifdef USE_TRUSTZONE
   applet_set_unpriv(applet, false);
 #endif
+}
+
+bool applet_is_alive(applet_t* applet) {
+  return systask_is_alive(&applet->task);
 }
 
 applet_t* applet_active(void) {
@@ -118,4 +128,4 @@ applet_t* applet_active(void) {
   return (applet_t*)task->applet;
 }
 
-#endif  // SYSCALL_DISPATCH
+#endif  // KERNEL

@@ -17,22 +17,24 @@ mod generated {
     modules! {
         messages
         messages_bootloader
+        messages_ble
         messages_common
         messages_crypto
         messages_debug
+        messages_definitions
         messages_management
         messages_benchmark
+        messages_thp
         options
 
         "bitcoin" => messages_bitcoin
         "ethereum" => messages_ethereum
         "ethereum" => messages_ethereum_eip712
-        "ethereum" => messages_ethereum_definitions
-        "binance" => messages_binance
         "cardano" => messages_cardano
         "eos" => messages_eos
         "monero" => messages_monero
         "nem" => messages_nem
+        "nostr" => messages_nostr
         "ripple" => messages_ripple
         "solana" => messages_solana
         "stellar" => messages_stellar

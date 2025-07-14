@@ -21,7 +21,7 @@
 #include <trezor_model.h>
 #include <trezor_rtl.h>
 
-#ifdef KERNEL_MODE
+#ifdef SECURE_MODE
 
 #include <util/flash.h>
 #include <util/option_bytes.h>
@@ -77,10 +77,10 @@ _Static_assert(SECRET_SECTOR_START == 0, "secret sector start must be 0");
 
 #define FLASH_OPTR_VALUE                                                \
   (FLASH_OPTR_TZEN | FLASH_OPTR_PA15_PUPEN | FLASH_OPTR_nBOOT0 |        \
-   FLASH_OPTR_SRAM3_ECC | FLASH_OPTR_BKPRAM_ECC | FLASH_OPTR_DUALBANK | \
-   FLASH_OPTR_WWDG_SW | FLASH_OPTR_IWDG_STOP | FLASH_OPTR_IWDG_STDBY |  \
-   FLASH_OPTR_IWDG_SW | FLASH_OPTR_SRAM_RST | FLASH_OPTR_nRST_SHDW |    \
-   FLASH_OPTR_nRST_STDBY | FLASH_OPTR_nRST_STOP | WANT_BOR_LEVEL |      \
+   FLASH_OPTR_SRAM3_ECC | FLASH_OPTR_DUALBANK | FLASH_OPTR_WWDG_SW |    \
+   FLASH_OPTR_IWDG_STOP | FLASH_OPTR_IWDG_STDBY | FLASH_OPTR_IWDG_SW |  \
+   FLASH_OPTR_SRAM_RST | FLASH_OPTR_nRST_SHDW | FLASH_OPTR_nRST_STDBY | \
+   FLASH_OPTR_nRST_STOP | WANT_BOR_LEVEL |                              \
    (WANT_RDP_LEVEL << FLASH_OPTR_RDP_Pos))
 
 #define FALSH_SECBOOTADD0R_VALUE \
@@ -263,4 +263,4 @@ secbool flash_configure_option_bytes(void) {
   return secfalse;  // notify that we DID have to change the option bytes
 }
 
-#endif  // #ifdef KERNEL_MODE
+#endif  // SECURE_MODE

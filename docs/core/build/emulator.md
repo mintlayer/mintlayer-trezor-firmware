@@ -61,7 +61,7 @@ The protocol buffer compiler `protoc` is needed to (unsurprisingly) compile prot
 
 ## Rust
 
-You will require Rust and Cargo. The currently supported version is 1.64 nightly. The
+You will require Rust and Cargo. The currently supported version is 1.88 nightly. The
 recommended way to install both is with [`rustup`](https://rustup.rs/). Make sure you
 are up to date:
 
@@ -79,7 +79,7 @@ Run the build with:
 
 ```sh
 make build_unix                     # default
-make build_unix TREZOR_MODEL=R      # different model
+make build_unix TREZOR_MODEL=T2B1   # different model
 ```
 
 ## Run

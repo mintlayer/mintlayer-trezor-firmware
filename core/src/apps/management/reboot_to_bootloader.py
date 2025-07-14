@@ -1,3 +1,4 @@
+import utime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -44,12 +45,16 @@ async def install_upgrade(
     # send language data
     if language_data_length > 0:
         show_wait_text(TR.reboot_to_bootloader__just_a_moment)
-        await do_change_language(
-            language_data_length,
-            show_display=False,
-            expected_version=hdr.version,
-            report=lambda i: None,
-        )
+        try:
+            await do_change_language(
+                language_data_length,
+                show_display=False,
+                expected_version=hdr.version,
+                report=lambda i: None,
+            )
+        except MemoryError:
+            # Continue firmware upgrade even if language change failed
+            pass
 
     return BootCommand.INSTALL_UPGRADE, hdr.hash
 
@@ -92,6 +97,8 @@ async def reboot_to_bootloader(msg: RebootToBootloader) -> NoReturn:
     await ctx.write(Success(message="Rebooting"))
     # make sure the outgoing USB buffer is flushed
     await loop.wait(ctx.iface.iface_num() | io.POLL_WRITE)
+
+    utime.sleep_ms(10)
     # reboot to the bootloader, pass the firmware header hash if any
     utils.reboot_to_bootloader(boot_command, boot_args)
     raise RuntimeError

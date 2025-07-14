@@ -19,38 +19,15 @@
 
 #include <trezor_rtl.h>
 
-#include <gfx/fonts.h>
 #include <io/display.h>
 #include <io/display_utils.h>
 #include <rtl/mini_printf.h>
+
 #include "bootui.h"
-#include "rust_ui.h"
+#include "rust_ui_bootloader.h"
 #include "version.h"
 
 #define BACKLIGHT_NORMAL 150
-
-#define COLOR_BL_BG COLOR_WHITE  // background
-#define COLOR_BL_FG COLOR_BLACK  // foreground
-
-#ifdef RGB16
-#define COLOR_BL_FAIL RGB16(0xFF, 0x00, 0x00)     // red
-#define COLOR_BL_DONE RGB16(0x00, 0xAE, 0x0B)     // green
-#define COLOR_BL_PROCESS RGB16(0x4A, 0x90, 0xE2)  // blue
-#define COLOR_BL_GRAY RGB16(0x99, 0x99, 0x99)     // gray
-#else
-#define COLOR_BL_FAIL COLOR_BL_FG
-#define COLOR_BL_DONE COLOR_BL_FG
-#define COLOR_BL_PROCESS COLOR_BL_FG
-#define COLOR_BL_GRAY COLOR_BL_FG
-#endif
-
-#if !defined TREZOR_MODEL_R && !defined TREZOR_MODEL_T3B1
-#define BOOT_WAIT_HEIGHT 25
-#define BOOT_WAIT_Y_TOP (DISPLAY_RESY - BOOT_WAIT_HEIGHT)
-#else
-#define BOOT_WAIT_HEIGHT 12
-#define BOOT_WAIT_Y_TOP (DISPLAY_RESY - BOOT_WAIT_HEIGHT)
-#endif
 
 #define TOIF_LENGTH(ptr) ((*(uint32_t *)((ptr) + 8)) + 12)
 
@@ -69,6 +46,8 @@ static void format_ver(const char *format, uint32_t version, char *buffer,
 static bool initial_setup = true;
 
 void ui_set_initial_setup(bool initial) { initial_setup = initial; }
+
+bool ui_get_initial_setup(void) { return initial_setup; }
 
 #if defined USE_TOUCH
 #include <io/touch.h>
@@ -93,13 +72,11 @@ void ui_click(void) {
 
 void ui_click(void) {
   for (;;) {
-    button_get_event();
     if (button_is_down(BTN_LEFT) && button_is_down(BTN_RIGHT)) {
       break;
     }
   }
   for (;;) {
-    button_get_event();
     if (!button_is_down(BTN_LEFT) && !button_is_down(BTN_RIGHT)) {
       break;
     }
@@ -122,10 +99,6 @@ void ui_screen_boot(const vendor_header *const vhdr,
               vimg_len, wait);
 }
 
-// welcome UI
-
-void ui_screen_welcome(void) { screen_welcome(); }
-
 uint32_t ui_screen_intro(const vendor_header *const vhdr,
                          const image_header *const hdr, bool fw_ok) {
   char bld_ver[32];
@@ -136,17 +109,14 @@ uint32_t ui_screen_intro(const vendor_header *const vhdr,
   return screen_intro(bld_ver, vhdr->vstr, vhdr->vstr_len, ver_str, fw_ok);
 }
 
-uint32_t ui_screen_menu(secbool firmware_present) {
-  return screen_menu(firmware_present);
-}
-
 // install UI
 
-uint32_t ui_screen_install_confirm(const vendor_header *const vhdr,
-                                   const image_header *const hdr,
-                                   secbool should_keep_seed,
-                                   secbool is_newvendor, secbool is_newinstall,
-                                   int version_cmp) {
+confirm_result_t ui_screen_install_confirm(const vendor_header *const vhdr,
+                                           const image_header *const hdr,
+                                           secbool should_keep_seed,
+                                           secbool is_newvendor,
+                                           secbool is_newinstall,
+                                           int version_cmp) {
   uint8_t fingerprint[32];
   char ver_str[64];
   get_image_fingerprint(hdr, fingerprint);
@@ -172,7 +142,7 @@ void ui_screen_install_progress_upload(int pos) {
 
 // wipe UI
 
-uint32_t ui_screen_wipe_confirm(void) { return screen_wipe_confirm(); }
+confirm_result_t ui_screen_wipe_confirm(void) { return screen_wipe_confirm(); }
 
 void ui_screen_wipe(void) { screen_wipe_progress(0, true); }
 
@@ -190,7 +160,7 @@ void ui_screen_boot_stage_1(bool fading) { screen_boot_stage_1(fading); }
 // error UI
 void ui_screen_fail(void) { screen_install_fail(); }
 
-#ifdef USE_OPTIGA
+#ifdef LOCKABLE_BOOTLOADER
 uint32_t ui_screen_unlock_bootloader_confirm(void) {
   return screen_unlock_bootloader_confirm();
 }
@@ -203,3 +173,9 @@ void ui_screen_install_restricted(void) { screen_install_fail(); }
 void ui_fadein(void) { display_fade(0, BACKLIGHT_NORMAL, 1000); }
 
 void ui_fadeout(void) { display_fade(BACKLIGHT_NORMAL, 0, 500); }
+
+#ifdef USE_BLE
+uint32_t ui_screen_confirm_pairing(uint32_t code) {
+  return screen_confirm_pairing(code, initial_setup);
+}
+#endif

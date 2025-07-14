@@ -2,10 +2,9 @@ from typing import *
 
 
 # upymod/modtrezorutils/modtrezorutils-meminfo.h
-def meminfo(filename: str) -> None:
+def meminfo(filename: str | None) -> None:
     """Dumps map of micropython GC arena to a file.
-    The JSON file can be decoded by analyze.py
-    Only available in the emulator.
+    The JSON file can be decoded by analyze-memory-dump.py
      """
 
 
@@ -89,6 +88,59 @@ def sd_hotswap_enabled() -> bool:
 
 
 # upymod/modtrezorutils/modtrezorutils.c
+def presize_module(mod: module, n: int):
+    """
+    Ensure the module's dict is preallocated to an expected size.
+
+    This is used in modules like `trezor`, whose dict size depends not only
+    on the symbols defined in the file itself, but also on the number of
+    submodules that will be inserted into the module's namespace.
+    """
+
+
+# upymod/modtrezorutils/modtrezorutils.c
+def zero_unused_stack() -> None:
+    """
+    Zero unused stack memory.
+    """
+
+
+# upymod/modtrezorutils/modtrezorutils.c
+def estimate_unused_stack() -> int:
+    """
+    Estimate unused stack size.
+    """
+if __debug__:
+    def enable_oom_dump() -> None:
+        """
+        Dump GC info in case of an OOM.
+        """
+if __debug__:
+    def clear_gc_info() -> None:
+        """
+        Clear GC heap stats.
+        """
+if __debug__:
+    def get_gc_info() -> dict[str, int]:
+        """
+        Get GC heap stats, updated by `update_gc_info`.
+        """
+if __debug__:
+    def update_gc_info() -> None:
+        """
+        Update current GC heap statistics.
+        On emulator, also assert that free heap memory doesn't decrease.
+        Enabled only for frozen debug builds.
+        """
+if __debug__:
+    def check_heap_fragmentation() -> None:
+        """
+        Assert known sources for heap fragmentation.
+        Enabled only for frozen debug builds.
+        """
+
+
+# upymod/modtrezorutils/modtrezorutils.c
 def reboot_to_bootloader(
     boot_command : int = 0,
     boot_args : bytes | None = None,
@@ -122,6 +174,8 @@ SCM_REVISION: bytes
 """Git commit hash of the firmware."""
 VERSION: VersionTuple
 """Firmware version as a tuple (major, minor, patch, build)."""
+USE_BLE: bool
+"""Whether the hardware supports BLE."""
 USE_SD_CARD: bool
 """Whether the hardware supports SD card."""
 USE_BACKLIGHT: bool
@@ -130,10 +184,14 @@ USE_HAPTIC: bool
 """Whether the hardware supports haptic feedback."""
 USE_OPTIGA: bool
 """Whether the hardware supports Optiga secure element."""
+USE_TROPIC: bool
+"""Whether the hardware supports Tropic Square secure element."""
 USE_TOUCH: bool
 """Whether the hardware supports touch screen."""
 USE_BUTTON: bool
 """Whether the hardware supports two-button input."""
+USE_POWER_MANAGER: bool
+"""Whether the hardware has a battery."""
 MODEL: str
 """Model name."""
 MODEL_FULL_NAME: str
@@ -144,14 +202,18 @@ MODEL_USB_PRODUCT: str
 """USB Product name."""
 INTERNAL_MODEL: str
 """Internal model code."""
+HOMESCREEN_MAXSIZE: int
+"""Maximum size of user-uploaded homescreen in bytes."""
 EMULATOR: bool
 """Whether the firmware is running in the emulator."""
 BITCOIN_ONLY: bool
 """Whether the firmware is Bitcoin-only."""
 UI_LAYOUT: str
-"""UI layout identifier ("tt" for model T, "tr" for models One and R)."""
+"""UI layout identifier ("BOLT"-T, "CAESAR"-TS3, "DELIZIA"-TS5)."""
 USE_THP: bool
 """Whether the firmware supports Trezor-Host Protocol (version 2)."""
 if __debug__:
     DISABLE_ANIMATION: bool
     """Whether the firmware should disable animations."""
+    LOG_STACK_USAGE: bool
+    """Whether the firmware should log estimated stack usage."""
