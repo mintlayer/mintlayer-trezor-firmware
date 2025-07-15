@@ -73,7 +73,8 @@ jobs:
   # or contain `[no changelog]` in the commit message.
   changelog_check:
     name: Changelog check
-    if: ${{ github.ref != 'main' && github.event_name == 'pull_request' }}
+    # if: ${{ github.ref != 'main' && github.event_name == 'pull_request' }}
+    if: false # Disabled for Mintlayer repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -97,7 +98,8 @@ jobs:
   # Warn if core/embed/rust/Cargo.lock changed
   cargolock_check:
     name: Cargo.lock check
-    if: ${{ github.ref != 'main' && github.event_name == 'pull_request' }}
+    # if: ${{ github.ref != 'main' && github.event_name == 'pull_request' }}
+    if: false # Disabled for Mintlayer repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

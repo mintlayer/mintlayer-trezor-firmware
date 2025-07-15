@@ -60,6 +60,7 @@ test = [
     "debug",
     "glob",
     "micropython",
+    "mintlayer",
     "nrf",
     "optiga",
     "protobuf",
