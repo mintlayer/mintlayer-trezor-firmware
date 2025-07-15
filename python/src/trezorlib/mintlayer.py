@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 from . import messages
-from .tools import expect, session
+from .tools import session
 
 if TYPE_CHECKING:
     from .client import TrezorClient
@@ -26,23 +26,22 @@ if TYPE_CHECKING:
     from .tools import Address
 
 
-@expect(messages.MintlayerAddress, field="address", ret_type=str)
 def get_address(
     client: "TrezorClient",
     address_n: "Address",
     chain_type: int,
     show_display: bool = False,
     chunkify: bool = False,
-) -> "MessageType":
-
+) -> str:
     return client.call(
         messages.MintlayerGetAddress(
             address_n=address_n,
             chain_type=messages.MintlayerChainType(chain_type),
             show_display=show_display,
             chunkify=chunkify,
-        )
-    )
+        ),
+        expect=messages.MintlayerAddress,
+    ).address
 
 
 def get_public_key(
