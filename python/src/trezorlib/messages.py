@@ -262,7 +262,7 @@ class Capability(IntEnum):
     Brightness = 20
     Haptic = 21
     BLE = 22
-    NFC = 23,
+    NFC = 23
     Mintlayer = 24
 
 
@@ -5268,6 +5268,125 @@ class EthereumAccessList(protobuf.MessageType):
         self.address = address
 
 
+class EthereumSignTypedData(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 464
+    FIELDS = {
+        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        2: protobuf.Field("primary_type", "string", repeated=False, required=True),
+        3: protobuf.Field("metamask_v4_compat", "bool", repeated=False, required=False, default=True),
+        4: protobuf.Field("definitions", "EthereumDefinitions", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        primary_type: "str",
+        address_n: Optional[Sequence["int"]] = None,
+        metamask_v4_compat: Optional["bool"] = True,
+        definitions: Optional["EthereumDefinitions"] = None,
+    ) -> None:
+        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.primary_type = primary_type
+        self.metamask_v4_compat = metamask_v4_compat
+        self.definitions = definitions
+
+
+class EthereumTypedDataStructRequest(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 465
+    FIELDS = {
+        1: protobuf.Field("name", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        name: "str",
+    ) -> None:
+        self.name = name
+
+
+class EthereumTypedDataStructAck(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 466
+    FIELDS = {
+        1: protobuf.Field("members", "EthereumStructMember", repeated=True, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        members: Optional[Sequence["EthereumStructMember"]] = None,
+    ) -> None:
+        self.members: Sequence["EthereumStructMember"] = members if members is not None else []
+
+
+class EthereumTypedDataValueRequest(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 467
+    FIELDS = {
+        1: protobuf.Field("member_path", "uint32", repeated=True, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        member_path: Optional[Sequence["int"]] = None,
+    ) -> None:
+        self.member_path: Sequence["int"] = member_path if member_path is not None else []
+
+
+class EthereumTypedDataValueAck(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 468
+    FIELDS = {
+        1: protobuf.Field("value", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        value: "bytes",
+    ) -> None:
+        self.value = value
+
+
+class EthereumStructMember(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("type", "EthereumFieldType", repeated=False, required=True),
+        2: protobuf.Field("name", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        type: "EthereumFieldType",
+        name: "str",
+    ) -> None:
+        self.type = type
+        self.name = name
+
+
+class EthereumFieldType(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("data_type", "EthereumDataType", repeated=False, required=True),
+        2: protobuf.Field("size", "uint32", repeated=False, required=False, default=None),
+        3: protobuf.Field("entry_type", "EthereumFieldType", repeated=False, required=False, default=None),
+        4: protobuf.Field("struct_name", "string", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        data_type: "EthereumDataType",
+        size: Optional["int"] = None,
+        entry_type: Optional["EthereumFieldType"] = None,
+        struct_name: Optional["str"] = None,
+    ) -> None:
+        self.data_type = data_type
+        self.size = size
+        self.entry_type = entry_type
+        self.struct_name = struct_name
+
+
 class MintlayerGetAddress(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 10000
     FIELDS = {
@@ -6300,125 +6419,6 @@ class MintlayerTxOutput(protobuf.MessageType):
         self.data_deposit = data_deposit
         self.htlc = htlc
         self.create_order = create_order
-
-
-class EthereumSignTypedData(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 464
-    FIELDS = {
-        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
-        2: protobuf.Field("primary_type", "string", repeated=False, required=True),
-        3: protobuf.Field("metamask_v4_compat", "bool", repeated=False, required=False, default=True),
-        4: protobuf.Field("definitions", "EthereumDefinitions", repeated=False, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        primary_type: "str",
-        address_n: Optional[Sequence["int"]] = None,
-        metamask_v4_compat: Optional["bool"] = True,
-        definitions: Optional["EthereumDefinitions"] = None,
-    ) -> None:
-        self.address_n: Sequence["int"] = address_n if address_n is not None else []
-        self.primary_type = primary_type
-        self.metamask_v4_compat = metamask_v4_compat
-        self.definitions = definitions
-
-
-class EthereumTypedDataStructRequest(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 465
-    FIELDS = {
-        1: protobuf.Field("name", "string", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        name: "str",
-    ) -> None:
-        self.name = name
-
-
-class EthereumTypedDataStructAck(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 466
-    FIELDS = {
-        1: protobuf.Field("members", "EthereumStructMember", repeated=True, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        members: Optional[Sequence["EthereumStructMember"]] = None,
-    ) -> None:
-        self.members: Sequence["EthereumStructMember"] = members if members is not None else []
-
-
-class EthereumTypedDataValueRequest(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 467
-    FIELDS = {
-        1: protobuf.Field("member_path", "uint32", repeated=True, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        member_path: Optional[Sequence["int"]] = None,
-    ) -> None:
-        self.member_path: Sequence["int"] = member_path if member_path is not None else []
-
-
-class EthereumTypedDataValueAck(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 468
-    FIELDS = {
-        1: protobuf.Field("value", "bytes", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        value: "bytes",
-    ) -> None:
-        self.value = value
-
-
-class EthereumStructMember(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = None
-    FIELDS = {
-        1: protobuf.Field("type", "EthereumFieldType", repeated=False, required=True),
-        2: protobuf.Field("name", "string", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        type: "EthereumFieldType",
-        name: "str",
-    ) -> None:
-        self.type = type
-        self.name = name
-
-
-class EthereumFieldType(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = None
-    FIELDS = {
-        1: protobuf.Field("data_type", "EthereumDataType", repeated=False, required=True),
-        2: protobuf.Field("size", "uint32", repeated=False, required=False, default=None),
-        3: protobuf.Field("entry_type", "EthereumFieldType", repeated=False, required=False, default=None),
-        4: protobuf.Field("struct_name", "string", repeated=False, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        data_type: "EthereumDataType",
-        size: Optional["int"] = None,
-        entry_type: Optional["EthereumFieldType"] = None,
-        struct_name: Optional["str"] = None,
-    ) -> None:
-        self.data_type = data_type
-        self.size = size
-        self.entry_type = entry_type
-        self.struct_name = struct_name
 
 
 class MoneroTransactionSourceEntry(protobuf.MessageType):

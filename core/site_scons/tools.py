@@ -165,7 +165,7 @@ def add_rust_lib(*, env, build, profile, features, all_paths, build_dir):
             f"--target-dir=../../build/{build}/rust",
             "--no-default-features",
             "--features " + ",".join(lib_features),
-            "-Z build-std=core",
+            "-Z build-std=core,alloc",
             "-Z build-std-features=panic_immediate_abort",
         ]
         build_cmd = f"cargo build {profile} " + " ".join(cargo_opts)
