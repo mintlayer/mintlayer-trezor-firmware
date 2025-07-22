@@ -26,6 +26,8 @@ from trezorlib.debuglink import TrezorClientDebugLink as Client
 from trezorlib.exceptions import TrezorFailure
 from trezorlib.tools import parse_path
 
+from . import pytestmark  # noqa
+
 B = messages.ButtonRequestType
 
 
@@ -161,11 +163,6 @@ SIGN_TX_VECTORS = [
 CHAIN_TYPE_TO_COIN = {1: 19788, 2: 1, 3: 1, 4: 1}
 
 
-@pytest.mark.altcoin
-@pytest.mark.mintlayer
-@pytest.mark.setup_client(
-    mnemonic="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-)
 @pytest.mark.parametrize(
     "chain_type, multisig_addr, delegation_id, token_id, order_id, pool_id, vrf_public_key, input_commitments_version, sig1, sig2",
     SIGN_TX_VECTORS,
@@ -579,13 +576,12 @@ def test_mintlayer_sign_tx(
                     assert sig.signature.hex() == expected_sig
 
 
-@pytest.mark.altcoin
-@pytest.mark.mintlayer
-@pytest.mark.setup_client(
-    mnemonic="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-)
-def test_mintlayer_random_sign_tx(client: Client):
-    rng = make_rng()
+# Note: the UI output of these tests is checked by the UI tests (target test_emu_ui_multicore),
+# so they cannot use randomization that affects the UI. This is why we use an array of predefined
+# seeds instead of a random one.
+@pytest.mark.parametrize("seed", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+def test_mintlayer_random_sign_tx(client: Client, seed: int):
+    rng = make_rng_with_seed(seed)
 
     with client:
         num_inputs = rng.randint(1, 10)
@@ -694,11 +690,6 @@ def test_mintlayer_random_sign_tx(client: Client):
 CHAIN_TYPES = [1, 2, 3, 4]
 
 
-@pytest.mark.altcoin
-@pytest.mark.mintlayer
-@pytest.mark.setup_client(
-    mnemonic="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-)
 @pytest.mark.parametrize("chain_type", CHAIN_TYPES)
 def test_mintlayer_sign_tx_forbidden_path(client: Client, chain_type: int):
     coin = CHAIN_TYPE_TO_COIN[chain_type]
@@ -792,5 +783,9 @@ def test_mintlayer_sign_tx_forbidden_path(client: Client, chain_type: int):
 
 def make_rng() -> random.Random:
     seed = random.randint(0, sys.maxsize)
+    return make_rng_with_seed(seed)
+
+
+def make_rng_with_seed(seed: int) -> random.Random:
     print(f"Using rng seed {seed}")
     return random.Random(seed)

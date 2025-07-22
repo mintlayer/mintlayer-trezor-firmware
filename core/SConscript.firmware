@@ -502,7 +502,9 @@ env.Replace(
     ASPPFLAGS='$CFLAGS $CCFLAGS',
     )
 
-BYTECODE_OPTIMIZATION = {'0': '0', '1': '3'}[PYOPT]
+# Mintlayer: the optimization level for the PYOPT=0 case was upped to 1, because otherwise some debuglink-enabled
+# builds would fail due to flash overflow (e.g. it was the case for T3T1, where the overflow was about 3k bytes).
+BYTECODE_OPTIMIZATION = {'0': '1', '1': '3'}[PYOPT]
 
 env.Replace(
     HEADERTOOL='headertool',

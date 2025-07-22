@@ -6,6 +6,8 @@ from trezorlib.debuglink import TrezorClientDebugLink as Client
 from trezorlib.exceptions import TrezorFailure
 from trezorlib.tools import parse_path
 
+from . import pytestmark  # noqa
+
 M_ADDRESS = "mtc1qyumjs84s5nqgcp6nw9kwde9mn7akph6hgtulsdk"
 M_PK_ADDRESS = "mptc1qgpm7mud2tddualet6wxe9yglkzf92vup8ljxz2u4lajueqf696x4hs2ryf7j"
 M_SIGNATURE = "7d8a743ada09e7ca8e76cf99429385a1651a9738d96a78c6b601c49a7cb20896d076e1c4d4e8a514ad73f4b88fe115cb30b61e1c04fc96d999baeabd32f82fb2"
@@ -31,11 +33,6 @@ SIGN_TEST_VECTORS = [
 CHAIN_TYPE_TO_COIN = {1: 19788, 2: 1, 3: 1, 4: 1}
 
 
-@pytest.mark.altcoin
-@pytest.mark.mintlayer
-@pytest.mark.setup_client(
-    mnemonic="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-)
 @pytest.mark.parametrize(
     "chain_type, addr_type, expected_address, expected_signature", SIGN_TEST_VECTORS
 )
@@ -64,11 +61,6 @@ INVALID_PATH_TEST_VECTORS = itertools.product(
 )
 
 
-@pytest.mark.altcoin
-@pytest.mark.mintlayer
-@pytest.mark.setup_client(
-    mnemonic="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-)
 @pytest.mark.parametrize("chain_type, addr_type", INVALID_PATH_TEST_VECTORS)
 def test_mintlayer_sign_message_error_path(
     client: Client, chain_type: int, addr_type: str

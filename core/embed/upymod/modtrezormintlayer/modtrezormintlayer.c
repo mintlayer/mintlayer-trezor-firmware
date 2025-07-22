@@ -25,7 +25,7 @@
 
 #include TREZOR_BOARD
 
-// #if MICROPY_PY_TREZORMINTLAYER
+#if !BITCOIN_ONLY
 
 #include "modtrezormintlayer-input-comm.h"
 #include "modtrezormintlayer.h"
@@ -120,4 +120,4 @@ const mp_obj_module_t mp_module_trezormintlayer = {
 
 MP_REGISTER_MODULE(MP_QSTR_trezormintlayer, mp_module_trezormintlayer);
 
-// #endif  // MICROPY_PY_TREZORMINTLAYER
+#endif  // !BITCOIN_ONLY

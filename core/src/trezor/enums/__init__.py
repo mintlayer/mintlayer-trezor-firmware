@@ -234,7 +234,7 @@ if TYPE_CHECKING:
         Haptic = 21
         BLE = 22
         NFC = 23
-        Mintlayer = 24
+        Mintlayer = 99
 
     class SdProtectOperationType(IntEnum):
         DISABLE = 0
