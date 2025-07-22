@@ -324,6 +324,10 @@ class Mintlayer:
                 x = txi.order_command
                 nodes = nodes_for_addresses(x.addresses)
                 if x.fill:
+                    if len(nodes) > 0:
+                        # FillOrder v1 inputs must not be signed.
+                        raise DataError("Signature for FillOrder v1 input requested")
+
                     given = x.fill.initially_given
                     give_token_or_coin = (
                         given.token.token_id
@@ -532,14 +536,12 @@ class Mintlayer:
                     )
                 elif x.fill:
                     ord = x.fill
-                    destination = decode_nullable_address(ord.destination)
                     encoded_inp = (
                         mintlayer_utils.encode_fill_order_v1_order_command_input(
                             mintlayer_decode(
                                 ord.order_id, self.coininfo.prefixes.order
                             ),
                             ord.amount,
-                            destination,
                         )
                     )
                     encoded_inputs.append(encoded_inp)

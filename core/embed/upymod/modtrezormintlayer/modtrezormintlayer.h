@@ -186,32 +186,29 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(
     mod_trezormintlayer_utils_mintlayer_encode_freeze_order_order_command_input_obj,
     mod_trezormintlayer_utils_mintlayer_encode_freeze_order_order_command_input);
 
-/// def encode_fill_order_v1_order_command_input(order_id: bytes,
-/// amount: bytes, destination: bytes)
-/// -> bytes:
+/// def encode_fill_order_v1_order_command_input(
+///     order_id: bytes, amount: bytes
+/// ) -> bytes:
 ///     """
-///     encodes a fill order v1 order command from the order id, output
-///     amount and destination
+///     encodes a fill order v1 order command from the order id and output
+///     amount
 ///     """
 STATIC mp_obj_t
 mod_trezormintlayer_utils_mintlayer_encode_fill_order_v1_order_command_input(
-    mp_obj_t order_id_obj, mp_obj_t amount_obj, mp_obj_t destination_obj) {
+    mp_obj_t order_id_obj, mp_obj_t amount_obj) {
   mp_buffer_info_t order_id = {0};
   mp_get_buffer_raise(order_id_obj, &order_id, MP_BUFFER_READ);
   mp_buffer_info_t amount = {0};
   mp_get_buffer_raise(amount_obj, &amount, MP_BUFFER_READ);
-  mp_buffer_info_t destination = {0};
-  mp_get_buffer_raise(destination_obj, &destination, MP_BUFFER_READ);
 
   ByteArray arr = mintlayer_encode_fill_order_v1_order_command_input(
-      order_id.buf, order_id.len, amount.buf, amount.len, destination.buf,
-      destination.len);
+      order_id.buf, order_id.len, amount.buf, amount.len);
   handle_err(&arr);
 
   return mp_obj_new_bytes(arr.data, arr.len_or_err.len);
 }
 
-STATIC MP_DEFINE_CONST_FUN_OBJ_3(
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(
     mod_trezormintlayer_utils_mintlayer_encode_fill_order_v1_order_command_input_obj,
     mod_trezormintlayer_utils_mintlayer_encode_fill_order_v1_order_command_input);
 

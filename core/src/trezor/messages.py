@@ -4199,7 +4199,6 @@ if TYPE_CHECKING:
     class MintlayerFillOrderV1(protobuf.MessageType):
         order_id: "str"
         amount: "bytes"
-        destination: "str"
         initially_asked: "MintlayerOutputValue"
         initially_given: "MintlayerOutputValue"
 
@@ -4208,7 +4207,6 @@ if TYPE_CHECKING:
             *,
             order_id: "str",
             amount: "bytes",
-            destination: "str",
             initially_asked: "MintlayerOutputValue",
             initially_given: "MintlayerOutputValue",
         ) -> None:
