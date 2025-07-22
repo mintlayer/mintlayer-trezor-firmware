@@ -3,11 +3,11 @@ use heapless::Vec;
 use crate::{
     strutil::TString,
     ui::{
-        component::{Component, Event, EventCtx, Never, Paginate},
-        display::{toif::Icon, Color, Font},
+        component::{paginated::SinglePage, Component, Event, EventCtx, Never, PaginateFull},
+        display::{font::Font, toif::Icon, Color},
         geometry::{Alignment, Dimensions, Insets, LinearPlacement, Offset, Point, Rect},
-        shape,
-        shape::Renderer,
+        shape::{self, Renderer},
+        util::Pager,
     },
 };
 
@@ -52,6 +52,7 @@ pub struct Paragraphs<T> {
     offset: PageOffset,
     visible: Vec<TextLayoutProxy, MAX_LINES>,
     source: T,
+    pager: Pager,
 }
 
 impl<'a, T> Paragraphs<T>
@@ -67,6 +68,7 @@ where
             offset: PageOffset::default(),
             visible: Vec::new(),
             source,
+            pager: Pager::single_page(),
         }
     }
 
@@ -84,8 +86,10 @@ where
         &self.source
     }
 
-    pub fn inner_mut(&mut self) -> &mut T {
-        &mut self.source
+    pub fn mutate<R>(&mut self, func: impl Fn(&mut T) -> R) -> R {
+        let result = func(&mut self.source);
+        self.recalculate_pages();
+        result
     }
 
     pub fn area(&self) -> Rect {
@@ -99,12 +103,6 @@ where
             },
         );
         result.unwrap_or(self.area)
-    }
-
-    pub fn current_page(&self) -> usize {
-        self.break_pages()
-            .position(|offset| offset == self.offset)
-            .unwrap_or(0)
     }
 
     /// Update bounding boxes of paragraphs on the current page. First determine
@@ -128,26 +126,40 @@ where
         let full_height = area.height();
 
         while offset.par < source.size() {
-            let (next_offset, remaining_area, layout) = offset.advance(area, source, full_height);
-            if let Some(layout) = layout {
+            let advance = offset.advance(area, source, full_height);
+            if let Some(layout) = advance.layout {
                 unwrap!(visible.push(layout));
             }
-            if let Some(remaining_area) = remaining_area {
+            if let Some(remaining_area) = advance.remaining_area {
                 #[cfg(feature = "ui_debug")]
-                assert_eq!(next_offset.par, offset.par + 1);
+                assert_eq!(advance.offset.par, offset.par + 1);
                 area = remaining_area;
-                offset = next_offset;
+                offset = advance.offset;
             } else {
                 break;
             }
         }
     }
 
-    fn break_pages(&self) -> PageBreakIterator<T> {
+    fn break_pages_from(&self, offset: Option<PageOffset>) -> PageBreakIterator<T> {
         PageBreakIterator {
             paragraphs: self,
-            current: None,
+            current: offset,
         }
+    }
+
+    /// Break pages from the start of the document.
+    ///
+    /// The first pagebreak is at the start of the first screen.
+    fn break_pages_from_start(&self) -> PageBreakIterator<T> {
+        self.break_pages_from(None)
+    }
+
+    /// Break pages, continuing from the current page.
+    ///
+    /// The first pagebreak is at the start of the next screen.
+    fn break_pages_from_next(&self) -> PageBreakIterator<T> {
+        self.break_pages_from(Some(self.offset))
     }
 
     /// Iterate over visible layouts (bounding box, style) together
@@ -176,6 +188,27 @@ where
             chr = 0;
         }
     }
+
+    fn recalculate_pages(&mut self) {
+        if self.area.is_empty() {
+            return;
+        }
+        let total_pages = self.break_pages_from_start().count().max(1);
+        self.pager = Pager::new(total_pages as u16);
+        self.offset = PageOffset::default();
+        self.change_offset(self.offset);
+    }
+}
+
+impl<'a> Paragraphs<Paragraph<'a>> {
+    pub fn content(&self) -> &TString<'a> {
+        self.source.content()
+    }
+
+    pub fn update<T: Into<TString<'a>>>(&mut self, content: T) {
+        self.source.update(content);
+        self.recalculate_pages();
+    }
 }
 
 impl<'a, T> Component for Paragraphs<T>
@@ -185,8 +218,11 @@ where
     type Msg = Never;
 
     fn place(&mut self, bounds: Rect) -> Rect {
+        let recalc = self.area != bounds;
         self.area = bounds;
-        self.change_offset(self.offset);
+        if recalc {
+            self.recalculate_pages();
+        }
         self.area
     }
 
@@ -200,28 +236,38 @@ where
             &self.visible,
             self.offset,
             &mut |layout, content| {
-                layout.render_text(content, target);
+                layout.render_text(content, target, false);
             },
         )
     }
 }
 
-impl<'a, T> Paginate for Paragraphs<T>
+impl<'a, T> PaginateFull for Paragraphs<T>
 where
     T: ParagraphSource<'a>,
 {
-    fn page_count(&self) -> usize {
-        // There's always at least one page.
-        self.break_pages().count().max(1)
+    fn pager(&self) -> Pager {
+        self.pager
     }
 
-    fn change_page(&mut self, to_page: usize) {
-        if let Some(offset) = self.break_pages().nth(to_page) {
-            self.change_offset(offset)
+    fn change_page(&mut self, to_page: u16) {
+        use core::cmp::Ordering;
+
+        let offset = match to_page.cmp(&self.pager.current()) {
+            Ordering::Equal => return,
+            Ordering::Greater => self
+                .break_pages_from_next()
+                .nth((to_page - self.pager.current() - 1) as usize),
+            Ordering::Less => self.break_pages_from_start().nth(to_page as usize),
+        };
+        if let Some(offset) = offset {
+            self.change_offset(offset);
+            self.pager.set_current(to_page);
         } else {
             // Should not happen, set index to first paragraph and render empty page.
             self.offset = PageOffset::default();
-            self.visible.clear()
+            self.visible.clear();
+            self.pager.set_current(0);
         }
     }
 }
@@ -364,13 +410,20 @@ impl Dimensions for TextLayoutProxy {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 struct PageOffset {
     /// Index of paragraph.
     par: usize,
 
     /// Index of (the first byte of) the character in the paragraph.
     chr: usize,
+}
+
+/// Helper struct for `PageOffset::advance`
+struct PageOffsetAdvance {
+    offset: PageOffset,
+    remaining_area: Option<Rect>,
+    layout: Option<TextLayoutProxy>,
 }
 
 impl PageOffset {
@@ -389,29 +442,34 @@ impl PageOffset {
         area: Rect,
         source: &dyn ParagraphSource<'_>,
         full_height: i16,
-    ) -> (PageOffset, Option<Rect>, Option<TextLayoutProxy>) {
+    ) -> PageOffsetAdvance {
         let paragraph = source.at(self.par, self.chr);
 
         // Skip empty paragraphs.
         if paragraph.content().is_empty() {
             self.par += 1;
             self.chr = 0;
-            return (self, Some(area), None);
+            return PageOffsetAdvance {
+                offset: self,
+                remaining_area: Some(area),
+                layout: None,
+            };
         }
 
-        // Handle the `no_break` flag used to keep key-value pair on the same page.
-        if paragraph.no_break && self.chr == 0 {
-            if let Some(next_paragraph) =
-                (self.par + 1 < source.size()).then(|| source.at(self.par + 1, 0))
+        // Handle the `no_break` flag used to keep key-value pair on the same page:
+        // * no_break is set
+        // * we're at the start of a paragraph ("key")
+        // * there is a next paragraph ("value")
+        // then check if the pair fits on the next page.
+        if paragraph.no_break && self.chr == 0 && self.par + 1 < source.size() {
+            let next_paragraph = source.at(self.par + 1, 0);
+            if Self::should_place_pair_on_next_page(&paragraph, &next_paragraph, area, full_height)
             {
-                if Self::should_place_pair_on_next_page(
-                    &paragraph,
-                    &next_paragraph,
-                    area,
-                    full_height,
-                ) {
-                    return (self, None, None);
-                }
+                return PageOffsetAdvance {
+                    offset: self,
+                    remaining_area: None,
+                    layout: None,
+                };
             }
         }
 
@@ -442,11 +500,11 @@ impl PageOffset {
             }
         }
 
-        (
-            self,
-            Some(remaining_area).filter(|_| !page_full),
-            Some(layout).filter(|_| fit.height() > 0),
-        )
+        PageOffsetAdvance {
+            offset: self,
+            remaining_area: (!page_full).then_some(remaining_area),
+            layout: (fit.height() > 0).then_some(layout),
+        }
     }
 
     fn should_place_pair_on_next_page(
@@ -506,18 +564,17 @@ impl<'a, T: ParagraphSource<'a>> PageBreakIterator<'_, T> {
         let full_height = area.height();
 
         while offset.par < paragraphs.size() {
-            let (next_offset, remaining_area, _layout) =
-                offset.advance(area, paragraphs, full_height);
-            if next_offset.par >= paragraphs.size() {
+            let advance = offset.advance(area, paragraphs, full_height);
+            if advance.offset.par >= paragraphs.size() {
                 // Last page.
                 return None;
-            } else if let Some(remaining_area) = remaining_area {
+            } else if let Some(remaining_area) = advance.remaining_area {
                 #[cfg(feature = "ui_debug")]
-                assert_eq!(next_offset.par, offset.par + 1);
+                assert_eq!(advance.offset.par, offset.par + 1);
                 area = remaining_area;
-                offset = next_offset;
+                offset = advance.offset;
             } else {
-                return Some(next_offset);
+                return Some(advance.offset);
             }
         }
 
@@ -556,13 +613,15 @@ pub struct Checklist<T> {
     icon_current: Icon,
     icon_done: Icon,
     icon_done_color: Option<Color>,
-    show_numerals: bool,
+    numeral_font: Option<Font>,
     /// How wide will the left icon column be
     check_width: i16,
     /// Offset of the icon representing DONE
     done_offset: Offset,
     /// Offset of the icon representing CURRENT
     current_offset: Offset,
+    /// Offset of the numeral representing the ordinal number of the task
+    numeral_offset: Offset,
 }
 
 impl<'a, T> Checklist<T>
@@ -582,10 +641,11 @@ where
             icon_current,
             icon_done,
             icon_done_color: None,
-            show_numerals: false,
+            numeral_font: None,
             check_width: 0,
             done_offset: Offset::zero(),
             current_offset: Offset::zero(),
+            numeral_offset: Offset::zero(),
         }
     }
 
@@ -609,8 +669,13 @@ where
         self
     }
 
-    pub fn with_numerals(mut self) -> Self {
-        self.show_numerals = true;
+    pub fn with_numerals(mut self, numerals_font: Font) -> Self {
+        self.numeral_font = Some(numerals_font);
+        self
+    }
+
+    pub fn with_numeral_offset(mut self, offset: Offset) -> Self {
+        self.numeral_offset = offset;
         self
     }
 
@@ -625,9 +690,9 @@ where
                 self.render_icon(base + self.done_offset, self.icon_done, color, target)
             } else {
                 // current and future tasks - ordinal numbers or icon on current task
-                if self.show_numerals {
-                    let num_offset = Offset::new(4, Font::NORMAL.visible_text_height("1"));
-                    self.render_numeral(base + num_offset, i, l.style.text_color, target);
+                if let Some(font) = self.numeral_font {
+                    let offset = self.numeral_offset;
+                    self.render_numeral(base + offset, i, font, l.style.text_color, target);
                 } else if i == current_visible {
                     let color = l.style.text_color;
                     self.render_icon(base + self.current_offset, self.icon_current, color, target);
@@ -640,12 +705,12 @@ where
         &self,
         base_point: Point,
         n: usize,
+        font: Font,
         color: Color,
         target: &mut impl Renderer<'s>,
     ) {
         let numeral = uformat!("{}.", n + 1);
-        shape::Text::new(base_point, numeral.as_str())
-            .with_font(Font::SUB)
+        shape::Text::new(base_point, numeral.as_str(), font)
             .with_fg(color)
             .render(target);
     }
@@ -686,16 +751,7 @@ where
     }
 }
 
-impl<'a, T> Paginate for Checklist<T>
-where
-    T: ParagraphSource<'a>,
-{
-    fn page_count(&self) -> usize {
-        1
-    }
-
-    fn change_page(&mut self, _to_page: usize) {}
-}
+impl<T> SinglePage for Checklist<T> {}
 
 #[cfg(feature = "ui_debug")]
 impl<'a, T: ParagraphSource<'a>> crate::trace::Trace for Checklist<T> {

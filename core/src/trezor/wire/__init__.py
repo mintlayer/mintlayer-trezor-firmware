@@ -23,11 +23,11 @@ reads the message's header. When the message type is known the first handler is 
 
 """
 
-from micropython import const
 from typing import TYPE_CHECKING
 
-from trezor import log, loop, protobuf, utils
+from trezor import loop, protobuf, utils
 
+from .. import workflow
 from . import message_handler, protocol_common
 from .codec.codec_context import CodecContext
 from .context import UnexpectedMessageException
@@ -37,9 +37,8 @@ from .message_handler import failure
 # other packages.
 from .errors import *  # isort:skip # noqa: F401,F403
 
-_PROTOBUF_BUFFER_SIZE = const(8192)
-
-WIRE_BUFFER = bytearray(_PROTOBUF_BUFFER_SIZE)
+if __debug__:
+    from trezor import log
 
 if TYPE_CHECKING:
     from trezorio import WireInterface
@@ -52,13 +51,31 @@ if TYPE_CHECKING:
     LoadedMessageType = TypeVar("LoadedMessageType", bound=protobuf.MessageType)
 
 
+class BufferProvider:
+    def __init__(self, size: int) -> None:
+        self.buf = bytearray(size)
+
+    def take(self) -> bytearray | None:
+        if self.buf is None:
+            return None
+
+        buf = self.buf
+        self.buf = None
+        return buf
+
+
+# Reallocated once per session and shared between all wire interfaces.
+# Acquired by the first call to `CodecContext.read_from_wire()`.
+WIRE_BUFFER_PROVIDER = BufferProvider(8192)
+
+
 def setup(iface: WireInterface) -> None:
     """Initialize the wire stack on the provided WireInterface."""
     loop.schedule(handle_session(iface))
 
 
 async def handle_session(iface: WireInterface) -> None:
-    ctx = CodecContext(iface, WIRE_BUFFER)
+    ctx = CodecContext(iface, WIRE_BUFFER_PROVIDER)
     next_msg: protocol_common.Message | None = None
 
     # Take a mark of modules that are imported at this point, so we can
@@ -73,7 +90,7 @@ async def handle_session(iface: WireInterface) -> None:
                     msg = await ctx.read_from_wire()
                 except protocol_common.WireError as exc:
                     if __debug__:
-                        log.exception(__name__, exc)
+                        log.exception(__name__, exc, iface=iface)
                     await ctx.write(failure(exc))
                     continue
 
@@ -96,12 +113,14 @@ async def handle_session(iface: WireInterface) -> None:
                 # Log and ignore. The session handler can only exit explicitly in the
                 # following finally block.
                 if __debug__:
-                    log.exception(__name__, exc)
+                    log.exception(__name__, exc, iface=iface)
             finally:
                 # Unload modules imported by the workflow. Should not raise.
                 utils.unimport_end(modules)
 
                 if not do_not_restart:
+                    # Wait for all active workflows to finish.
+                    await workflow.join_all()
                     # Let the session be restarted from `main`.
                     loop.clear()
                     return  # pylint: disable=lost-exception
@@ -110,4 +129,4 @@ async def handle_session(iface: WireInterface) -> None:
             # Log and try again. The session handler can only exit explicitly via
             # loop.clear() above.
             if __debug__:
-                log.exception(__name__, exc)
+                log.exception(__name__, exc, iface=iface)

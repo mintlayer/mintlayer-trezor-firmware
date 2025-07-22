@@ -18,10 +18,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from trezorlib import device, messages
+from trezorlib import device, exceptions, messages
 
-from .. import buttons
-from ..common import WITH_MOCK_URANDOM
+from ..common import MOCK_GET_ENTROPY, LayoutType
 from . import recovery, reset
 from .common import go_next
 
@@ -33,8 +32,7 @@ pytestmark = pytest.mark.models("core")
 
 
 @pytest.mark.setup_client(uninitialized=True)
-@WITH_MOCK_URANDOM
-def test_repeated_backup(
+def test_repeated_backup_via_device(
     device_handler: "BackgroundDeviceHandler",
 ):
     features = device_handler.features()
@@ -43,10 +41,13 @@ def test_repeated_backup(
     assert features.initialized is False
 
     device_handler.run(
-        device.reset,
+        device.setup,
         strength=128,
         backup_type=messages.BackupType.Slip39_Basic,
         pin_protection=False,
+        passphrase_protection=False,
+        entropy_check_count=0,
+        _get_entropy=MOCK_GET_ENTROPY,
     )
 
     # confirm new wallet
@@ -58,17 +59,14 @@ def test_repeated_backup(
 
     # let's make a 1-of-1 backup to start with...
 
-    assert debug.model is not None
-    model_name: str = debug.model.internal_name
-
     # confirm checklist
     reset.confirm_read(debug)
     # shares=1
-    reset.set_selection(debug, buttons.reset_minus(model_name), 5 - 1)
+    reset.set_selection(debug, 1 - 5)
     # confirm checklist
     reset.confirm_read(debug)
     # threshold=1
-    reset.set_selection(debug, buttons.reset_plus(model_name), 0)
+    reset.set_selection(debug, 0)
     # confirm checklist
     reset.confirm_read(debug)
     # confirm backup warning
@@ -81,11 +79,10 @@ def test_repeated_backup(
     reset.confirm_read(debug)
     # confirm backup done
     reset.confirm_read(debug)
-    # Your backup is done
-    go_next(debug)
 
+    # retrieve the result to check that it does not raise a failure
+    device_handler.result()
     # great ... device is initialized, backup done, and we are not in recovery mode!
-    assert device_handler.result() == "Initialized"
     features = device_handler.features()
     assert features.backup_type is messages.BackupType.Slip39_Basic_Extendable
     assert features.initialized is True
@@ -109,8 +106,8 @@ def test_repeated_backup(
         "recovery__unlock_repeated_backup",
     )
 
-    # backup is enabled
-    assert device_handler.result().message == "Backup unlocked"
+    # check non-exception result
+    device_handler.result()
 
     # we are now in recovery mode
     features = device_handler.features()
@@ -129,20 +126,22 @@ def test_repeated_backup(
     # confirm checklist
     reset.confirm_read(debug)
     # shares=3
-    reset.set_selection(debug, buttons.reset_minus(model_name), 5 - 3)
+    reset.set_selection(debug, 3 - 5)
     # confirm checklist
     reset.confirm_read(debug)
     # threshold=2
-    reset.set_selection(debug, buttons.reset_minus(model_name), 1)
+    reset.set_selection(debug, 2 - 3)
     # confirm checklist
     reset.confirm_read(debug)
     # confirm backup warning
     reset.confirm_read(debug, middle_r=True)
 
     second_backup_2_of_3: list[str] = []
-    for _ in range(3):
+    for share in range(3):
         # read words
-        words = reset.read_words(debug, do_htc=False)
+        eckahrt = debug.layout_type is LayoutType.Eckhart
+        confirm_instruction = not eckahrt or share == 0
+        words = reset.read_words(debug, confirm_instruction=confirm_instruction)
 
         # confirm words
         reset.confirm_words(debug, words)
@@ -151,6 +150,9 @@ def test_repeated_backup(
         reset.confirm_read(debug)
 
         second_backup_2_of_3.append(" ".join(words))
+
+    # confirm backup success
+    reset.confirm_read(debug)
 
     # we are not in recovery mode anymore, because we finished the backup process!
     features = device_handler.features()
@@ -178,7 +180,8 @@ def test_repeated_backup(
         "recovery__unlock_repeated_backup",
     )
 
-    assert device_handler.result().message == "Backup unlocked"
+    # check non-exception result
+    device_handler.result()
 
     # we are now in recovery mode again!
     features = device_handler.features()
@@ -190,6 +193,28 @@ def test_repeated_backup(
 
     # but if we cancel the backup at this point...
     reset.cancel_backup(debug)
+
+    # ...we are out of recovery mode!
+    features = device_handler.features()
+    assert features.backup_type is messages.BackupType.Slip39_Basic_Extendable
+    assert features.initialized is True
+    assert features.backup_availability == messages.BackupAvailability.NotAvailable
+    assert features.no_backup is False
+    assert features.recovery_status == messages.RecoveryStatus.Nothing
+
+    # try to unlock backup yet again...
+    device_handler.run(
+        device.recover,
+        type=messages.RecoveryType.UnlockRepeatedBackup,
+    )
+
+    recovery.confirm_recovery(debug, "recovery__title_unlock_repeated_backup")
+
+    # but cancel on the word count selection screen!
+    recovery.cancel_select_number_of_words(debug, unlock_repeated_backup=True)
+
+    with pytest.raises(exceptions.Cancelled):
+        device_handler.result()
 
     # ...we are out of recovery mode!
     features = device_handler.features()

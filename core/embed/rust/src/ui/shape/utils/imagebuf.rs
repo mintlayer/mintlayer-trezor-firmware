@@ -16,7 +16,6 @@ struct AlignedBuffer {
 }
 
 /// Raw image buffer used by `ImageBuffer` instances.
-
 static mut IMAGE_BUFFER: AlignedBuffer = AlignedBuffer {
     bytes: [0; IMAGE_BUFFER_SIZE],
 };
@@ -61,7 +60,7 @@ where
         // to prevent that.
         unsafe {
             if IMAGE_BUFFER_LOCKED {
-                return Err(Error::AllocationFailed);
+                return Err(Error::RuntimeError(c"Image buffer locked"));
             }
 
             let bitmap =

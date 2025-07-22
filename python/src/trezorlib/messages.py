@@ -8,26 +8,6 @@ from typing import Sequence, Optional
 from . import protobuf
 
 
-class BinanceOrderType(IntEnum):
-    OT_UNKNOWN = 0
-    MARKET = 1
-    LIMIT = 2
-    OT_RESERVED = 3
-
-
-class BinanceOrderSide(IntEnum):
-    SIDE_UNKNOWN = 0
-    BUY = 1
-    SELL = 2
-
-
-class BinanceTimeInForce(IntEnum):
-    TIF_UNKNOWN = 0
-    GTE = 1
-    TIF_RESERVED = 2
-    IOC = 3
-
-
 class FailureType(IntEnum):
     UnexpectedMessage = 1
     ButtonExpected = 2
@@ -43,6 +23,10 @@ class FailureType(IntEnum):
     PinMismatch = 12
     WipeCodeMismatch = 13
     InvalidSession = 14
+    Busy = 15
+    ThpUnallocatedSession = 16
+    InvalidProtocol = 17
+    BufferError = 18
     FirmwareError = 99
 
 
@@ -277,7 +261,9 @@ class Capability(IntEnum):
     Translations = 19
     Brightness = 20
     Haptic = 21
-    Mintlayer = 22
+    BLE = 22
+    NFC = 23
+    Mintlayer = 99
 
 
 class SdProtectOperationType(IntEnum):
@@ -327,9 +313,10 @@ class DebugWaitType(IntEnum):
     CURRENT_LAYOUT = 2
 
 
-class EthereumDefinitionType(IntEnum):
-    NETWORK = 0
-    TOKEN = 1
+class DefinitionType(IntEnum):
+    ETHEREUM_NETWORK = 0
+    ETHEREUM_TOKEN = 1
+    SOLANA_TOKEN = 2
 
 
 class EthereumDataType(IntEnum):
@@ -443,6 +430,13 @@ class TezosBallotType(IntEnum):
     Pass = 2
 
 
+class ThpPairingMethod(IntEnum):
+    SkipPairing = 1
+    CodeEntry = 2
+    QrCode = 3
+    NFC = 4
+
+
 class MessageType(IntEnum):
     Initialize = 0
     Ping = 1
@@ -493,8 +487,8 @@ class MessageType(IntEnum):
     AuthenticateDevice = 97
     AuthenticityProof = 98
     ChangeLanguage = 990
-    TranslationDataRequest = 991
-    TranslationDataAck = 992
+    DataChunkRequest = 991
+    DataChunkAck = 992
     SetBrightness = 993
     SetU2FCounter = 63
     GetNextU2FCounter = 80
@@ -505,6 +499,7 @@ class MessageType(IntEnum):
     FirmwareUpload = 7
     FirmwareRequest = 8
     ProdTestT1 = 32
+    BleUnpair = 8001
     GetPublicKey = 11
     PublicKey = 12
     SignTx = 15
@@ -543,6 +538,10 @@ class MessageType(IntEnum):
     DebugLinkWatchLayout = 9006
     DebugLinkResetDebugEvents = 9007
     DebugLinkOptigaSetSecMax = 9008
+    DebugLinkGetGcInfo = 9009
+    DebugLinkGcInfo = 9010
+    DebugLinkGetPairingInfo = 9011
+    DebugLinkPairingInfo = 9012
     EthereumGetPublicKey = 450
     EthereumPublicKey = 451
     EthereumGetAddress = 56
@@ -667,16 +666,6 @@ class MessageType(IntEnum):
     EosTxActionRequest = 603
     EosTxActionAck = 604
     EosSignedTx = 605
-    BinanceGetAddress = 700
-    BinanceAddress = 701
-    BinanceGetPublicKey = 702
-    BinancePublicKey = 703
-    BinanceSignTx = 704
-    BinanceTxRequest = 705
-    BinanceTransferMsg = 706
-    BinanceOrderMsg = 707
-    BinanceCancelMsg = 708
-    BinanceSignedTx = 709
     WebAuthnListResidentCredentials = 800
     WebAuthnCredentials = 801
     WebAuthnAddResidentCredential = 802
@@ -687,6 +676,28 @@ class MessageType(IntEnum):
     SolanaAddress = 903
     SolanaSignTx = 904
     SolanaTxSignature = 905
+    ThpCreateNewSession = 1000
+    ThpPairingRequest = 1006
+    ThpPairingRequestApproved = 1007
+    ThpSelectMethod = 1008
+    ThpPairingPreparationsFinished = 1009
+    ThpCredentialRequest = 1010
+    ThpCredentialResponse = 1011
+    ThpEndRequest = 1012
+    ThpEndResponse = 1013
+    ThpCodeEntryCommitment = 1016
+    ThpCodeEntryChallenge = 1017
+    ThpCodeEntryCpaceTrezor = 1018
+    ThpCodeEntryCpaceHostTag = 1019
+    ThpCodeEntrySecret = 1020
+    ThpQrCodeTag = 1024
+    ThpQrCodeSecret = 1025
+    ThpNfcTagHost = 1032
+    ThpNfcTagTrezor = 1033
+    NostrGetPubkey = 2001
+    NostrPubkey = 2002
+    NostrSignEvent = 2003
+    NostrEventSignature = 2004
     BenchmarkListNames = 9100
     BenchmarkNames = 9101
     BenchmarkRun = 9102
@@ -748,236 +759,6 @@ class BenchmarkResult(protobuf.MessageType):
     ) -> None:
         self.value = value
         self.unit = unit
-
-
-class BinanceGetAddress(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 700
-    FIELDS = {
-        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
-        2: protobuf.Field("show_display", "bool", repeated=False, required=False, default=None),
-        3: protobuf.Field("chunkify", "bool", repeated=False, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        address_n: Optional[Sequence["int"]] = None,
-        show_display: Optional["bool"] = None,
-        chunkify: Optional["bool"] = None,
-    ) -> None:
-        self.address_n: Sequence["int"] = address_n if address_n is not None else []
-        self.show_display = show_display
-        self.chunkify = chunkify
-
-
-class BinanceAddress(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 701
-    FIELDS = {
-        1: protobuf.Field("address", "string", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        address: "str",
-    ) -> None:
-        self.address = address
-
-
-class BinanceGetPublicKey(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 702
-    FIELDS = {
-        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
-        2: protobuf.Field("show_display", "bool", repeated=False, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        address_n: Optional[Sequence["int"]] = None,
-        show_display: Optional["bool"] = None,
-    ) -> None:
-        self.address_n: Sequence["int"] = address_n if address_n is not None else []
-        self.show_display = show_display
-
-
-class BinancePublicKey(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 703
-    FIELDS = {
-        1: protobuf.Field("public_key", "bytes", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        public_key: "bytes",
-    ) -> None:
-        self.public_key = public_key
-
-
-class BinanceSignTx(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 704
-    FIELDS = {
-        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
-        2: protobuf.Field("msg_count", "uint32", repeated=False, required=True),
-        3: protobuf.Field("account_number", "sint64", repeated=False, required=True),
-        4: protobuf.Field("chain_id", "string", repeated=False, required=False, default=None),
-        5: protobuf.Field("memo", "string", repeated=False, required=False, default=None),
-        6: protobuf.Field("sequence", "sint64", repeated=False, required=True),
-        7: protobuf.Field("source", "sint64", repeated=False, required=True),
-        8: protobuf.Field("chunkify", "bool", repeated=False, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        msg_count: "int",
-        account_number: "int",
-        sequence: "int",
-        source: "int",
-        address_n: Optional[Sequence["int"]] = None,
-        chain_id: Optional["str"] = None,
-        memo: Optional["str"] = None,
-        chunkify: Optional["bool"] = None,
-    ) -> None:
-        self.address_n: Sequence["int"] = address_n if address_n is not None else []
-        self.msg_count = msg_count
-        self.account_number = account_number
-        self.sequence = sequence
-        self.source = source
-        self.chain_id = chain_id
-        self.memo = memo
-        self.chunkify = chunkify
-
-
-class BinanceTxRequest(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 705
-
-
-class BinanceTransferMsg(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 706
-    FIELDS = {
-        1: protobuf.Field("inputs", "BinanceInputOutput", repeated=True, required=False, default=None),
-        2: protobuf.Field("outputs", "BinanceInputOutput", repeated=True, required=False, default=None),
-        3: protobuf.Field("chunkify", "bool", repeated=False, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        inputs: Optional[Sequence["BinanceInputOutput"]] = None,
-        outputs: Optional[Sequence["BinanceInputOutput"]] = None,
-        chunkify: Optional["bool"] = None,
-    ) -> None:
-        self.inputs: Sequence["BinanceInputOutput"] = inputs if inputs is not None else []
-        self.outputs: Sequence["BinanceInputOutput"] = outputs if outputs is not None else []
-        self.chunkify = chunkify
-
-
-class BinanceOrderMsg(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 707
-    FIELDS = {
-        1: protobuf.Field("id", "string", repeated=False, required=False, default=None),
-        2: protobuf.Field("ordertype", "BinanceOrderType", repeated=False, required=True),
-        3: protobuf.Field("price", "sint64", repeated=False, required=True),
-        4: protobuf.Field("quantity", "sint64", repeated=False, required=True),
-        5: protobuf.Field("sender", "string", repeated=False, required=False, default=None),
-        6: protobuf.Field("side", "BinanceOrderSide", repeated=False, required=True),
-        7: protobuf.Field("symbol", "string", repeated=False, required=False, default=None),
-        8: protobuf.Field("timeinforce", "BinanceTimeInForce", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        ordertype: "BinanceOrderType",
-        price: "int",
-        quantity: "int",
-        side: "BinanceOrderSide",
-        timeinforce: "BinanceTimeInForce",
-        id: Optional["str"] = None,
-        sender: Optional["str"] = None,
-        symbol: Optional["str"] = None,
-    ) -> None:
-        self.ordertype = ordertype
-        self.price = price
-        self.quantity = quantity
-        self.side = side
-        self.timeinforce = timeinforce
-        self.id = id
-        self.sender = sender
-        self.symbol = symbol
-
-
-class BinanceCancelMsg(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 708
-    FIELDS = {
-        1: protobuf.Field("refid", "string", repeated=False, required=False, default=None),
-        2: protobuf.Field("sender", "string", repeated=False, required=False, default=None),
-        3: protobuf.Field("symbol", "string", repeated=False, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        refid: Optional["str"] = None,
-        sender: Optional["str"] = None,
-        symbol: Optional["str"] = None,
-    ) -> None:
-        self.refid = refid
-        self.sender = sender
-        self.symbol = symbol
-
-
-class BinanceSignedTx(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 709
-    FIELDS = {
-        1: protobuf.Field("signature", "bytes", repeated=False, required=True),
-        2: protobuf.Field("public_key", "bytes", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        signature: "bytes",
-        public_key: "bytes",
-    ) -> None:
-        self.signature = signature
-        self.public_key = public_key
-
-
-class BinanceInputOutput(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = None
-    FIELDS = {
-        1: protobuf.Field("address", "string", repeated=False, required=True),
-        2: protobuf.Field("coins", "BinanceCoin", repeated=True, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        address: "str",
-        coins: Optional[Sequence["BinanceCoin"]] = None,
-    ) -> None:
-        self.coins: Sequence["BinanceCoin"] = coins if coins is not None else []
-        self.address = address
-
-
-class BinanceCoin(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = None
-    FIELDS = {
-        1: protobuf.Field("amount", "sint64", repeated=False, required=True),
-        2: protobuf.Field("denom", "string", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        amount: "int",
-        denom: "str",
-    ) -> None:
-        self.amount = amount
-        self.denom = denom
 
 
 class Success(protobuf.MessageType):
@@ -2254,6 +2035,20 @@ class TxAckPrevExtraDataWrapper(protobuf.MessageType):
         self.extra_data_chunk = extra_data_chunk
 
 
+class BleUnpair(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 8001
+    FIELDS = {
+        1: protobuf.Field("all", "bool", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        all: Optional["bool"] = None,
+    ) -> None:
+        self.all = all
+
+
 class FirmwareErase(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 6
     FIELDS = {
@@ -3490,6 +3285,7 @@ class ApplySettings(protobuf.MessageType):
         10: protobuf.Field("experimental_features", "bool", repeated=False, required=False, default=None),
         11: protobuf.Field("hide_passphrase_from_host", "bool", repeated=False, required=False, default=None),
         13: protobuf.Field("haptic_feedback", "bool", repeated=False, required=False, default=None),
+        14: protobuf.Field("homescreen_length", "uint32", repeated=False, required=False, default=None),
     }
 
     def __init__(
@@ -3507,6 +3303,7 @@ class ApplySettings(protobuf.MessageType):
         experimental_features: Optional["bool"] = None,
         hide_passphrase_from_host: Optional["bool"] = None,
         haptic_feedback: Optional["bool"] = None,
+        homescreen_length: Optional["int"] = None,
     ) -> None:
         self.language = language
         self.label = label
@@ -3520,6 +3317,7 @@ class ApplySettings(protobuf.MessageType):
         self.experimental_features = experimental_features
         self.hide_passphrase_from_host = hide_passphrase_from_host
         self.haptic_feedback = haptic_feedback
+        self.homescreen_length = homescreen_length
 
 
 class ChangeLanguage(protobuf.MessageType):
@@ -3539,7 +3337,7 @@ class ChangeLanguage(protobuf.MessageType):
         self.show_display = show_display
 
 
-class TranslationDataRequest(protobuf.MessageType):
+class DataChunkRequest(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 991
     FIELDS = {
         1: protobuf.Field("data_length", "uint32", repeated=False, required=True),
@@ -3556,7 +3354,7 @@ class TranslationDataRequest(protobuf.MessageType):
         self.data_offset = data_offset
 
 
-class TranslationDataAck(protobuf.MessageType):
+class DataChunkAck(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 992
     FIELDS = {
         1: protobuf.Field("data_chunk", "bytes", repeated=False, required=True),
@@ -4051,13 +3849,13 @@ class UnlockPath(protobuf.MessageType):
 class UnlockedPathRequest(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 94
     FIELDS = {
-        1: protobuf.Field("mac", "bytes", repeated=False, required=False, default=None),
+        1: protobuf.Field("mac", "bytes", repeated=False, required=True),
     }
 
     def __init__(
         self,
         *,
-        mac: Optional["bytes"] = None,
+        mac: "bytes",
     ) -> None:
         self.mac = mac
 
@@ -4187,6 +3985,7 @@ class DebugLinkGetState(protobuf.MessageType):
         1: protobuf.Field("wait_word_list", "bool", repeated=False, required=False, default=None),
         2: protobuf.Field("wait_word_pos", "bool", repeated=False, required=False, default=None),
         3: protobuf.Field("wait_layout", "DebugWaitType", repeated=False, required=False, default=DebugWaitType.IMMEDIATE),
+        4: protobuf.Field("return_empty_state", "bool", repeated=False, required=False, default=False),
     }
 
     def __init__(
@@ -4195,10 +3994,12 @@ class DebugLinkGetState(protobuf.MessageType):
         wait_word_list: Optional["bool"] = None,
         wait_word_pos: Optional["bool"] = None,
         wait_layout: Optional["DebugWaitType"] = DebugWaitType.IMMEDIATE,
+        return_empty_state: Optional["bool"] = False,
     ) -> None:
         self.wait_word_list = wait_word_list
         self.wait_word_pos = wait_word_pos
         self.wait_layout = wait_layout
+        self.return_empty_state = return_empty_state
 
 
 class DebugLinkState(protobuf.MessageType):
@@ -4249,6 +4050,52 @@ class DebugLinkState(protobuf.MessageType):
         self.recovery_word_pos = recovery_word_pos
         self.reset_word_pos = reset_word_pos
         self.mnemonic_type = mnemonic_type
+
+
+class DebugLinkGetPairingInfo(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 9011
+    FIELDS = {
+        1: protobuf.Field("channel_id", "bytes", repeated=False, required=False, default=None),
+        2: protobuf.Field("handshake_hash", "bytes", repeated=False, required=False, default=None),
+        3: protobuf.Field("nfc_secret_host", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        channel_id: Optional["bytes"] = None,
+        handshake_hash: Optional["bytes"] = None,
+        nfc_secret_host: Optional["bytes"] = None,
+    ) -> None:
+        self.channel_id = channel_id
+        self.handshake_hash = handshake_hash
+        self.nfc_secret_host = nfc_secret_host
+
+
+class DebugLinkPairingInfo(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 9012
+    FIELDS = {
+        1: protobuf.Field("channel_id", "bytes", repeated=False, required=False, default=None),
+        2: protobuf.Field("handshake_hash", "bytes", repeated=False, required=False, default=None),
+        3: protobuf.Field("code_entry_code", "uint32", repeated=False, required=False, default=None),
+        4: protobuf.Field("code_qr_code", "bytes", repeated=False, required=False, default=None),
+        5: protobuf.Field("nfc_secret_trezor", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        channel_id: Optional["bytes"] = None,
+        handshake_hash: Optional["bytes"] = None,
+        code_entry_code: Optional["int"] = None,
+        code_qr_code: Optional["bytes"] = None,
+        nfc_secret_trezor: Optional["bytes"] = None,
+    ) -> None:
+        self.channel_id = channel_id
+        self.handshake_hash = handshake_hash
+        self.code_entry_code = code_entry_code
+        self.code_qr_code = code_qr_code
+        self.nfc_secret_trezor = nfc_secret_trezor
 
 
 class DebugLinkStop(protobuf.MessageType):
@@ -4374,6 +4221,110 @@ class DebugLinkResetDebugEvents(protobuf.MessageType):
 
 class DebugLinkOptigaSetSecMax(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 9008
+
+
+class DebugLinkGetGcInfo(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 9009
+
+
+class DebugLinkGcInfo(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 9010
+    FIELDS = {
+        1: protobuf.Field("items", "DebugLinkGcInfoItem", repeated=True, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        items: Optional[Sequence["DebugLinkGcInfoItem"]] = None,
+    ) -> None:
+        self.items: Sequence["DebugLinkGcInfoItem"] = items if items is not None else []
+
+
+class DebugLinkGcInfoItem(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("name", "string", repeated=False, required=True),
+        2: protobuf.Field("value", "uint64", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        name: "str",
+        value: "int",
+    ) -> None:
+        self.name = name
+        self.value = value
+
+
+class EthereumNetworkInfo(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("chain_id", "uint64", repeated=False, required=True),
+        2: protobuf.Field("symbol", "string", repeated=False, required=True),
+        3: protobuf.Field("slip44", "uint32", repeated=False, required=True),
+        4: protobuf.Field("name", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        chain_id: "int",
+        symbol: "str",
+        slip44: "int",
+        name: "str",
+    ) -> None:
+        self.chain_id = chain_id
+        self.symbol = symbol
+        self.slip44 = slip44
+        self.name = name
+
+
+class EthereumTokenInfo(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("address", "bytes", repeated=False, required=True),
+        2: protobuf.Field("chain_id", "uint64", repeated=False, required=True),
+        3: protobuf.Field("symbol", "string", repeated=False, required=True),
+        4: protobuf.Field("decimals", "uint32", repeated=False, required=True),
+        5: protobuf.Field("name", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        address: "bytes",
+        chain_id: "int",
+        symbol: "str",
+        decimals: "int",
+        name: "str",
+    ) -> None:
+        self.address = address
+        self.chain_id = chain_id
+        self.symbol = symbol
+        self.decimals = decimals
+        self.name = name
+
+
+class SolanaTokenInfo(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("mint", "bytes", repeated=False, required=True),
+        2: protobuf.Field("symbol", "string", repeated=False, required=True),
+        3: protobuf.Field("name", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        mint: "bytes",
+        symbol: "str",
+        name: "str",
+    ) -> None:
+        self.mint = mint
+        self.symbol = symbol
+        self.name = name
 
 
 class EosGetPublicKey(protobuf.MessageType):
@@ -4972,191 +4923,6 @@ class EosActionUnknown(protobuf.MessageType):
         self.data_chunk = data_chunk
 
 
-class EthereumNetworkInfo(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = None
-    FIELDS = {
-        1: protobuf.Field("chain_id", "uint64", repeated=False, required=True),
-        2: protobuf.Field("symbol", "string", repeated=False, required=True),
-        3: protobuf.Field("slip44", "uint32", repeated=False, required=True),
-        4: protobuf.Field("name", "string", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        chain_id: "int",
-        symbol: "str",
-        slip44: "int",
-        name: "str",
-    ) -> None:
-        self.chain_id = chain_id
-        self.symbol = symbol
-        self.slip44 = slip44
-        self.name = name
-
-
-class EthereumTokenInfo(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = None
-    FIELDS = {
-        1: protobuf.Field("address", "bytes", repeated=False, required=True),
-        2: protobuf.Field("chain_id", "uint64", repeated=False, required=True),
-        3: protobuf.Field("symbol", "string", repeated=False, required=True),
-        4: protobuf.Field("decimals", "uint32", repeated=False, required=True),
-        5: protobuf.Field("name", "string", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        address: "bytes",
-        chain_id: "int",
-        symbol: "str",
-        decimals: "int",
-        name: "str",
-    ) -> None:
-        self.address = address
-        self.chain_id = chain_id
-        self.symbol = symbol
-        self.decimals = decimals
-        self.name = name
-
-
-class EthereumDefinitions(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = None
-    FIELDS = {
-        1: protobuf.Field("encoded_network", "bytes", repeated=False, required=False, default=None),
-        2: protobuf.Field("encoded_token", "bytes", repeated=False, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        encoded_network: Optional["bytes"] = None,
-        encoded_token: Optional["bytes"] = None,
-    ) -> None:
-        self.encoded_network = encoded_network
-        self.encoded_token = encoded_token
-
-
-class EthereumSignTypedData(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 464
-    FIELDS = {
-        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
-        2: protobuf.Field("primary_type", "string", repeated=False, required=True),
-        3: protobuf.Field("metamask_v4_compat", "bool", repeated=False, required=False, default=True),
-        4: protobuf.Field("definitions", "EthereumDefinitions", repeated=False, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        primary_type: "str",
-        address_n: Optional[Sequence["int"]] = None,
-        metamask_v4_compat: Optional["bool"] = True,
-        definitions: Optional["EthereumDefinitions"] = None,
-    ) -> None:
-        self.address_n: Sequence["int"] = address_n if address_n is not None else []
-        self.primary_type = primary_type
-        self.metamask_v4_compat = metamask_v4_compat
-        self.definitions = definitions
-
-
-class EthereumTypedDataStructRequest(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 465
-    FIELDS = {
-        1: protobuf.Field("name", "string", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        name: "str",
-    ) -> None:
-        self.name = name
-
-
-class EthereumTypedDataStructAck(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 466
-    FIELDS = {
-        1: protobuf.Field("members", "EthereumStructMember", repeated=True, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        members: Optional[Sequence["EthereumStructMember"]] = None,
-    ) -> None:
-        self.members: Sequence["EthereumStructMember"] = members if members is not None else []
-
-
-class EthereumTypedDataValueRequest(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 467
-    FIELDS = {
-        1: protobuf.Field("member_path", "uint32", repeated=True, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        member_path: Optional[Sequence["int"]] = None,
-    ) -> None:
-        self.member_path: Sequence["int"] = member_path if member_path is not None else []
-
-
-class EthereumTypedDataValueAck(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 468
-    FIELDS = {
-        1: protobuf.Field("value", "bytes", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        value: "bytes",
-    ) -> None:
-        self.value = value
-
-
-class EthereumStructMember(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = None
-    FIELDS = {
-        1: protobuf.Field("type", "EthereumFieldType", repeated=False, required=True),
-        2: protobuf.Field("name", "string", repeated=False, required=True),
-    }
-
-    def __init__(
-        self,
-        *,
-        type: "EthereumFieldType",
-        name: "str",
-    ) -> None:
-        self.type = type
-        self.name = name
-
-
-class EthereumFieldType(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = None
-    FIELDS = {
-        1: protobuf.Field("data_type", "EthereumDataType", repeated=False, required=True),
-        2: protobuf.Field("size", "uint32", repeated=False, required=False, default=None),
-        3: protobuf.Field("entry_type", "EthereumFieldType", repeated=False, required=False, default=None),
-        4: protobuf.Field("struct_name", "string", repeated=False, required=False, default=None),
-    }
-
-    def __init__(
-        self,
-        *,
-        data_type: "EthereumDataType",
-        size: Optional["int"] = None,
-        entry_type: Optional["EthereumFieldType"] = None,
-        struct_name: Optional["str"] = None,
-    ) -> None:
-        self.data_type = data_type
-        self.size = size
-        self.entry_type = entry_type
-        self.struct_name = struct_name
-
-
 class EthereumGetPublicKey(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 450
     FIELDS = {
@@ -5468,6 +5234,23 @@ class EthereumTypedDataSignature(protobuf.MessageType):
         self.address = address
 
 
+class EthereumDefinitions(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("encoded_network", "bytes", repeated=False, required=False, default=None),
+        2: protobuf.Field("encoded_token", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        encoded_network: Optional["bytes"] = None,
+        encoded_token: Optional["bytes"] = None,
+    ) -> None:
+        self.encoded_network = encoded_network
+        self.encoded_token = encoded_token
+
+
 class EthereumAccessList(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
@@ -5483,6 +5266,125 @@ class EthereumAccessList(protobuf.MessageType):
     ) -> None:
         self.storage_keys: Sequence["bytes"] = storage_keys if storage_keys is not None else []
         self.address = address
+
+
+class EthereumSignTypedData(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 464
+    FIELDS = {
+        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        2: protobuf.Field("primary_type", "string", repeated=False, required=True),
+        3: protobuf.Field("metamask_v4_compat", "bool", repeated=False, required=False, default=True),
+        4: protobuf.Field("definitions", "EthereumDefinitions", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        primary_type: "str",
+        address_n: Optional[Sequence["int"]] = None,
+        metamask_v4_compat: Optional["bool"] = True,
+        definitions: Optional["EthereumDefinitions"] = None,
+    ) -> None:
+        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.primary_type = primary_type
+        self.metamask_v4_compat = metamask_v4_compat
+        self.definitions = definitions
+
+
+class EthereumTypedDataStructRequest(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 465
+    FIELDS = {
+        1: protobuf.Field("name", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        name: "str",
+    ) -> None:
+        self.name = name
+
+
+class EthereumTypedDataStructAck(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 466
+    FIELDS = {
+        1: protobuf.Field("members", "EthereumStructMember", repeated=True, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        members: Optional[Sequence["EthereumStructMember"]] = None,
+    ) -> None:
+        self.members: Sequence["EthereumStructMember"] = members if members is not None else []
+
+
+class EthereumTypedDataValueRequest(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 467
+    FIELDS = {
+        1: protobuf.Field("member_path", "uint32", repeated=True, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        member_path: Optional[Sequence["int"]] = None,
+    ) -> None:
+        self.member_path: Sequence["int"] = member_path if member_path is not None else []
+
+
+class EthereumTypedDataValueAck(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 468
+    FIELDS = {
+        1: protobuf.Field("value", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        value: "bytes",
+    ) -> None:
+        self.value = value
+
+
+class EthereumStructMember(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("type", "EthereumFieldType", repeated=False, required=True),
+        2: protobuf.Field("name", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        type: "EthereumFieldType",
+        name: "str",
+    ) -> None:
+        self.type = type
+        self.name = name
+
+
+class EthereumFieldType(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("data_type", "EthereumDataType", repeated=False, required=True),
+        2: protobuf.Field("size", "uint32", repeated=False, required=False, default=None),
+        3: protobuf.Field("entry_type", "EthereumFieldType", repeated=False, required=False, default=None),
+        4: protobuf.Field("struct_name", "string", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        data_type: "EthereumDataType",
+        size: Optional["int"] = None,
+        entry_type: Optional["EthereumFieldType"] = None,
+        struct_name: Optional["str"] = None,
+    ) -> None:
+        self.data_type = data_type
+        self.size = size
+        self.entry_type = entry_type
+        self.struct_name = struct_name
 
 
 class MintlayerGetAddress(protobuf.MessageType):
@@ -6653,13 +6555,13 @@ class MoneroGetAddress(protobuf.MessageType):
 class MoneroAddress(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 541
     FIELDS = {
-        1: protobuf.Field("address", "bytes", repeated=False, required=False, default=None),
+        1: protobuf.Field("address", "bytes", repeated=False, required=True),
     }
 
     def __init__(
         self,
         *,
-        address: Optional["bytes"] = None,
+        address: "bytes",
     ) -> None:
         self.address = address
 
@@ -6684,15 +6586,15 @@ class MoneroGetWatchKey(protobuf.MessageType):
 class MoneroWatchKey(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 543
     FIELDS = {
-        1: protobuf.Field("watch_key", "bytes", repeated=False, required=False, default=None),
-        2: protobuf.Field("address", "bytes", repeated=False, required=False, default=None),
+        1: protobuf.Field("watch_key", "bytes", repeated=False, required=True),
+        2: protobuf.Field("address", "bytes", repeated=False, required=True),
     }
 
     def __init__(
         self,
         *,
-        watch_key: Optional["bytes"] = None,
-        address: Optional["bytes"] = None,
+        watch_key: "bytes",
+        address: "bytes",
     ) -> None:
         self.watch_key = watch_key
         self.address = address
@@ -7857,6 +7759,100 @@ class NEMCosignatoryModification(protobuf.MessageType):
         self.public_key = public_key
 
 
+class NostrGetPubkey(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 2001
+    FIELDS = {
+        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        address_n: Optional[Sequence["int"]] = None,
+    ) -> None:
+        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+
+
+class NostrPubkey(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 2002
+    FIELDS = {
+        1: protobuf.Field("pubkey", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        pubkey: "bytes",
+    ) -> None:
+        self.pubkey = pubkey
+
+
+class NostrTag(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("key", "string", repeated=False, required=True),
+        2: protobuf.Field("value", "string", repeated=False, required=False, default=None),
+        3: protobuf.Field("extra", "string", repeated=True, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        key: "str",
+        extra: Optional[Sequence["str"]] = None,
+        value: Optional["str"] = None,
+    ) -> None:
+        self.extra: Sequence["str"] = extra if extra is not None else []
+        self.key = key
+        self.value = value
+
+
+class NostrSignEvent(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 2003
+    FIELDS = {
+        1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
+        2: protobuf.Field("created_at", "uint32", repeated=False, required=True),
+        3: protobuf.Field("kind", "uint32", repeated=False, required=True),
+        4: protobuf.Field("tags", "NostrTag", repeated=True, required=False, default=None),
+        5: protobuf.Field("content", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        created_at: "int",
+        kind: "int",
+        content: "str",
+        address_n: Optional[Sequence["int"]] = None,
+        tags: Optional[Sequence["NostrTag"]] = None,
+    ) -> None:
+        self.address_n: Sequence["int"] = address_n if address_n is not None else []
+        self.tags: Sequence["NostrTag"] = tags if tags is not None else []
+        self.created_at = created_at
+        self.kind = kind
+        self.content = content
+
+
+class NostrEventSignature(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 2004
+    FIELDS = {
+        1: protobuf.Field("pubkey", "bytes", repeated=False, required=True),
+        2: protobuf.Field("id", "bytes", repeated=False, required=True),
+        3: protobuf.Field("signature", "bytes", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        pubkey: "bytes",
+        id: "bytes",
+        signature: "bytes",
+    ) -> None:
+        self.pubkey = pubkey
+        self.id = id
+        self.signature = signature
+
+
 class RippleGetAddress(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 400
     FIELDS = {
@@ -8052,14 +8048,17 @@ class SolanaTxAdditionalInfo(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
     FIELDS = {
         1: protobuf.Field("token_accounts_infos", "SolanaTxTokenAccountInfo", repeated=True, required=False, default=None),
+        2: protobuf.Field("encoded_token", "bytes", repeated=False, required=False, default=None),
     }
 
     def __init__(
         self,
         *,
         token_accounts_infos: Optional[Sequence["SolanaTxTokenAccountInfo"]] = None,
+        encoded_token: Optional["bytes"] = None,
     ) -> None:
         self.token_accounts_infos: Sequence["SolanaTxTokenAccountInfo"] = token_accounts_infos if token_accounts_infos is not None else []
+        self.encoded_token = encoded_token
 
 
 class SolanaSignTx(protobuf.MessageType):
@@ -8945,8 +8944,68 @@ class TezosManagerTransfer(protobuf.MessageType):
         self.amount = amount
 
 
-class ThpCredentialMetadata(protobuf.MessageType):
+class ThpDeviceProperties(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("internal_model", "string", repeated=False, required=False, default=None),
+        2: protobuf.Field("model_variant", "uint32", repeated=False, required=False, default=None),
+        3: protobuf.Field("protocol_version_major", "uint32", repeated=False, required=False, default=None),
+        4: protobuf.Field("protocol_version_minor", "uint32", repeated=False, required=False, default=None),
+        5: protobuf.Field("pairing_methods", "ThpPairingMethod", repeated=True, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        pairing_methods: Optional[Sequence["ThpPairingMethod"]] = None,
+        internal_model: Optional["str"] = None,
+        model_variant: Optional["int"] = None,
+        protocol_version_major: Optional["int"] = None,
+        protocol_version_minor: Optional["int"] = None,
+    ) -> None:
+        self.pairing_methods: Sequence["ThpPairingMethod"] = pairing_methods if pairing_methods is not None else []
+        self.internal_model = internal_model
+        self.model_variant = model_variant
+        self.protocol_version_major = protocol_version_major
+        self.protocol_version_minor = protocol_version_minor
+
+
+class ThpHandshakeCompletionReqNoisePayload(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("host_pairing_credential", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        host_pairing_credential: Optional["bytes"] = None,
+    ) -> None:
+        self.host_pairing_credential = host_pairing_credential
+
+
+class ThpCreateNewSession(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1000
+    FIELDS = {
+        1: protobuf.Field("passphrase", "string", repeated=False, required=False, default=None),
+        2: protobuf.Field("on_device", "bool", repeated=False, required=False, default=None),
+        3: protobuf.Field("derive_cardano", "bool", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        passphrase: Optional["str"] = None,
+        on_device: Optional["bool"] = None,
+        derive_cardano: Optional["bool"] = None,
+    ) -> None:
+        self.passphrase = passphrase
+        self.on_device = on_device
+        self.derive_cardano = derive_cardano
+
+
+class ThpPairingRequest(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1006
     FIELDS = {
         1: protobuf.Field("host_name", "string", repeated=False, required=False, default=None),
     }
@@ -8957,6 +9016,219 @@ class ThpCredentialMetadata(protobuf.MessageType):
         host_name: Optional["str"] = None,
     ) -> None:
         self.host_name = host_name
+
+
+class ThpPairingRequestApproved(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1007
+
+
+class ThpSelectMethod(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1008
+    FIELDS = {
+        1: protobuf.Field("selected_pairing_method", "ThpPairingMethod", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        selected_pairing_method: Optional["ThpPairingMethod"] = None,
+    ) -> None:
+        self.selected_pairing_method = selected_pairing_method
+
+
+class ThpPairingPreparationsFinished(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1009
+
+
+class ThpCodeEntryCommitment(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1016
+    FIELDS = {
+        1: protobuf.Field("commitment", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        commitment: Optional["bytes"] = None,
+    ) -> None:
+        self.commitment = commitment
+
+
+class ThpCodeEntryChallenge(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1017
+    FIELDS = {
+        1: protobuf.Field("challenge", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        challenge: Optional["bytes"] = None,
+    ) -> None:
+        self.challenge = challenge
+
+
+class ThpCodeEntryCpaceTrezor(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1018
+    FIELDS = {
+        1: protobuf.Field("cpace_trezor_public_key", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        cpace_trezor_public_key: Optional["bytes"] = None,
+    ) -> None:
+        self.cpace_trezor_public_key = cpace_trezor_public_key
+
+
+class ThpCodeEntryCpaceHostTag(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1019
+    FIELDS = {
+        1: protobuf.Field("cpace_host_public_key", "bytes", repeated=False, required=False, default=None),
+        2: protobuf.Field("tag", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        cpace_host_public_key: Optional["bytes"] = None,
+        tag: Optional["bytes"] = None,
+    ) -> None:
+        self.cpace_host_public_key = cpace_host_public_key
+        self.tag = tag
+
+
+class ThpCodeEntrySecret(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1020
+    FIELDS = {
+        1: protobuf.Field("secret", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        secret: Optional["bytes"] = None,
+    ) -> None:
+        self.secret = secret
+
+
+class ThpQrCodeTag(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1024
+    FIELDS = {
+        1: protobuf.Field("tag", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        tag: Optional["bytes"] = None,
+    ) -> None:
+        self.tag = tag
+
+
+class ThpQrCodeSecret(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1025
+    FIELDS = {
+        1: protobuf.Field("secret", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        secret: Optional["bytes"] = None,
+    ) -> None:
+        self.secret = secret
+
+
+class ThpNfcTagHost(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1032
+    FIELDS = {
+        1: protobuf.Field("tag", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        tag: Optional["bytes"] = None,
+    ) -> None:
+        self.tag = tag
+
+
+class ThpNfcTagTrezor(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1033
+    FIELDS = {
+        1: protobuf.Field("tag", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        tag: Optional["bytes"] = None,
+    ) -> None:
+        self.tag = tag
+
+
+class ThpCredentialRequest(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1010
+    FIELDS = {
+        1: protobuf.Field("host_static_pubkey", "bytes", repeated=False, required=False, default=None),
+        2: protobuf.Field("autoconnect", "bool", repeated=False, required=False, default=None),
+        3: protobuf.Field("credential", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        host_static_pubkey: Optional["bytes"] = None,
+        autoconnect: Optional["bool"] = None,
+        credential: Optional["bytes"] = None,
+    ) -> None:
+        self.host_static_pubkey = host_static_pubkey
+        self.autoconnect = autoconnect
+        self.credential = credential
+
+
+class ThpCredentialResponse(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1011
+    FIELDS = {
+        1: protobuf.Field("trezor_static_pubkey", "bytes", repeated=False, required=False, default=None),
+        2: protobuf.Field("credential", "bytes", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        trezor_static_pubkey: Optional["bytes"] = None,
+        credential: Optional["bytes"] = None,
+    ) -> None:
+        self.trezor_static_pubkey = trezor_static_pubkey
+        self.credential = credential
+
+
+class ThpEndRequest(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1012
+
+
+class ThpEndResponse(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 1013
+
+
+class ThpCredentialMetadata(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = None
+    FIELDS = {
+        1: protobuf.Field("host_name", "string", repeated=False, required=False, default=None),
+        2: protobuf.Field("autoconnect", "bool", repeated=False, required=False, default=None),
+    }
+
+    def __init__(
+        self,
+        *,
+        host_name: Optional["str"] = None,
+        autoconnect: Optional["bool"] = None,
+    ) -> None:
+        self.host_name = host_name
+        self.autoconnect = autoconnect
 
 
 class ThpPairingCredential(protobuf.MessageType):

@@ -29,6 +29,18 @@ _Static_assert(VENDOR_HEADER_MAX_SIZE + IMAGE_HEADER_SIZE <= IMAGE_CHUNK_SIZE,
                "The size of the firmware headers must be less than or equal to "
                "IMAGE_CHUNK_SIZE");
 
+const uint8_t BOARDLOADER_KEY_M = 2;
+const uint8_t BOARDLOADER_KEY_N = 3;
+static const uint8_t * const BOARDLOADER_KEYS[] = {
+#if !PRODUCTION
+  (const uint8_t *)"\xdb\x99\x5f\xe2\x51\x69\xd1\x41\xca\xb9\xbb\xba\x92\xba\xa0\x1f\x9f\x2e\x1e\xce\x7d\xf4\xcb\x2a\xc0\x51\x90\xf3\x7f\xcc\x1f\x9d",
+  (const uint8_t *)"\x21\x52\xf8\xd1\x9b\x79\x1d\x24\x45\x32\x42\xe1\x5f\x2e\xab\x6c\xb7\xcf\xfa\x7b\x6a\x5e\xd3\x00\x97\x96\x0e\x06\x98\x81\xdb\x12",
+  (const uint8_t *)"\x22\xfc\x29\x77\x92\xf0\xb6\xff\xc0\xbf\xcf\xdb\x7e\xdb\x0c\x0a\xa1\x4e\x02\x5a\x36\x5e\xc0\xe3\x42\xe8\x6e\x38\x29\xcb\x74\xb6",
+#else
+    MODEL_BOARDLOADER_KEYS
+#endif
+};
+
 const uint8_t BOOTLOADER_KEY_M = 2;
 const uint8_t BOOTLOADER_KEY_N = 3;
 static const uint8_t * const BOOTLOADER_KEYS[] = {
@@ -96,7 +108,7 @@ const image_header *read_image_header(const uint8_t *const data,
 secbool check_image_model(const image_header *const hdr) {
   // abusing expiry field to break compatibility of non-TT images with existing
   // bootloaders/boardloaders
-#ifdef TREZOR_MODEL_T
+#ifdef TREZOR_MODEL_T2T1
   if (hdr->expiry == 0 && hdr->hw_model == 0 && hdr->hw_revision == 0) {
     // images for model TT older than this check
     return sectrue;
@@ -195,7 +207,7 @@ secbool __wur read_vendor_header(const uint8_t *const data,
 }
 
 secbool check_vendor_header_model(const vendor_header *const vhdr) {
-#ifdef TREZOR_MODEL_T
+#ifdef TREZOR_MODEL_T2T1
   if (vhdr->hw_model == 0) {
     // vendor headers for model T have this field set to 0
     return sectrue;
@@ -263,18 +275,11 @@ secbool check_image_contents(const image_header *const hdr, uint32_t firstskip,
   }
 
   // Check the firmware integrity, calculate and compare hashes
-  size_t offset = IMAGE_CODE_ALIGN(firstskip);
-  size_t end_offset = offset + hdr->codelen;
 
-  // Check area between headers and code
-  uint32_t padding_size = offset - firstskip;
-  const uint8_t *addr =
-      (uint8_t *)flash_area_get_address(area, firstskip, padding_size);
-  for (size_t i = 0; i < padding_size; i++) {
-    if (*addr++ != 0) {
-      return secfalse;
-    }
-  }
+  // check hashes of image chunks
+  // we hash the image including the padding to the end of the area
+  size_t offset = firstskip;
+  size_t end_offset = offset + hdr->codelen;
 
   while (offset < end_offset) {
     size_t bytes_to_check = MIN(IMAGE_CHUNK_SIZE - (offset % IMAGE_CHUNK_SIZE),
@@ -391,4 +396,9 @@ secbool check_firmware_header(const uint8_t *header, size_t header_size,
   IMAGE_HASH_CALC(header, vhdr.hdrlen + ihdr->hdrlen, info->hash);
 
   return sectrue;
+}
+
+secbool check_bootloader_header_sig(const image_header *const hdr) {
+  return check_image_header_sig(hdr, BOARDLOADER_KEY_M, BOARDLOADER_KEY_N,
+                                BOARDLOADER_KEYS);
 }

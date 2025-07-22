@@ -48,8 +48,8 @@ trezor_message_impl! {
     AuthenticateDevice => MessageType_AuthenticateDevice,
     AuthenticityProof => MessageType_AuthenticityProof,
     ChangeLanguage => MessageType_ChangeLanguage,
-    TranslationDataRequest => MessageType_TranslationDataRequest,
-    TranslationDataAck => MessageType_TranslationDataAck,
+    DataChunkRequest => MessageType_DataChunkRequest,
+    DataChunkAck => MessageType_DataChunkAck,
     SetBrightness => MessageType_SetBrightness,
     SetU2FCounter => MessageType_SetU2FCounter,
     GetNextU2FCounter => MessageType_GetNextU2FCounter,
@@ -60,6 +60,7 @@ trezor_message_impl! {
     FirmwareUpload => MessageType_FirmwareUpload,
     FirmwareRequest => MessageType_FirmwareRequest,
     ProdTestT1 => MessageType_ProdTestT1,
+    BleUnpair => MessageType_BleUnpair,
     CipherKeyValue => MessageType_CipherKeyValue,
     CipheredKeyValue => MessageType_CipheredKeyValue,
     SignIdentity => MessageType_SignIdentity,
@@ -82,24 +83,32 @@ trezor_message_impl! {
     DebugLinkWatchLayout => MessageType_DebugLinkWatchLayout,
     DebugLinkResetDebugEvents => MessageType_DebugLinkResetDebugEvents,
     DebugLinkOptigaSetSecMax => MessageType_DebugLinkOptigaSetSecMax,
+    DebugLinkGetGcInfo => MessageType_DebugLinkGetGcInfo,
+    DebugLinkGcInfo => MessageType_DebugLinkGcInfo,
+    DebugLinkGetPairingInfo => MessageType_DebugLinkGetPairingInfo,
+    DebugLinkPairingInfo => MessageType_DebugLinkPairingInfo,
+    ThpCreateNewSession => MessageType_ThpCreateNewSession,
+    ThpPairingRequest => MessageType_ThpPairingRequest,
+    ThpPairingRequestApproved => MessageType_ThpPairingRequestApproved,
+    ThpSelectMethod => MessageType_ThpSelectMethod,
+    ThpPairingPreparationsFinished => MessageType_ThpPairingPreparationsFinished,
+    ThpCredentialRequest => MessageType_ThpCredentialRequest,
+    ThpCredentialResponse => MessageType_ThpCredentialResponse,
+    ThpEndRequest => MessageType_ThpEndRequest,
+    ThpEndResponse => MessageType_ThpEndResponse,
+    ThpCodeEntryCommitment => MessageType_ThpCodeEntryCommitment,
+    ThpCodeEntryChallenge => MessageType_ThpCodeEntryChallenge,
+    ThpCodeEntryCpaceTrezor => MessageType_ThpCodeEntryCpaceTrezor,
+    ThpCodeEntryCpaceHostTag => MessageType_ThpCodeEntryCpaceHostTag,
+    ThpCodeEntrySecret => MessageType_ThpCodeEntrySecret,
+    ThpQrCodeTag => MessageType_ThpQrCodeTag,
+    ThpQrCodeSecret => MessageType_ThpQrCodeSecret,
+    ThpNfcTagHost => MessageType_ThpNfcTagHost,
+    ThpNfcTagTrezor => MessageType_ThpNfcTagTrezor,
     BenchmarkListNames => MessageType_BenchmarkListNames,
     BenchmarkNames => MessageType_BenchmarkNames,
     BenchmarkRun => MessageType_BenchmarkRun,
     BenchmarkResult => MessageType_BenchmarkResult,
-}
-
-#[cfg(feature = "binance")]
-trezor_message_impl! {
-    BinanceGetAddress => MessageType_BinanceGetAddress,
-    BinanceAddress => MessageType_BinanceAddress,
-    BinanceGetPublicKey => MessageType_BinanceGetPublicKey,
-    BinancePublicKey => MessageType_BinancePublicKey,
-    BinanceSignTx => MessageType_BinanceSignTx,
-    BinanceTxRequest => MessageType_BinanceTxRequest,
-    BinanceTransferMsg => MessageType_BinanceTransferMsg,
-    BinanceOrderMsg => MessageType_BinanceOrderMsg,
-    BinanceCancelMsg => MessageType_BinanceCancelMsg,
-    BinanceSignedTx => MessageType_BinanceSignedTx,
 }
 
 #[cfg(feature = "bitcoin")]
@@ -247,6 +256,14 @@ trezor_message_impl! {
     NEMSignedTx => MessageType_NEMSignedTx,
     NEMDecryptMessage => MessageType_NEMDecryptMessage,
     NEMDecryptedMessage => MessageType_NEMDecryptedMessage,
+}
+
+#[cfg(feature = "nostr")]
+trezor_message_impl! {
+    NostrGetPubkey => MessageType_NostrGetPubkey,
+    NostrPubkey => MessageType_NostrPubkey,
+    NostrSignEvent => MessageType_NostrSignEvent,
+    NostrEventSignature => MessageType_NostrEventSignature,
 }
 
 #[cfg(feature = "ripple")]

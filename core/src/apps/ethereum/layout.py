@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from trezor import TR, ui
+from trezor import TR
 from trezor.enums import ButtonRequestType
 from trezor.ui.layouts import (
     confirm_blob,
@@ -24,6 +24,54 @@ if TYPE_CHECKING:
         EthereumNetworkInfo,
         EthereumStructMember,
         EthereumTokenInfo,
+    )
+
+
+async def require_confirm_approve(
+    to_bytes: bytes,
+    value: int | None,
+    address_n: list[int],
+    maximum_fee: str,
+    fee_info_items: Iterable[tuple[str, str]],
+    chain_id: int,
+    network: EthereumNetworkInfo,
+    token: EthereumTokenInfo,
+    token_address: bytes,
+    chunkify: bool,
+) -> None:
+    from trezor.ui.layouts import confirm_ethereum_approve
+
+    from apps.ethereum.sc_constants import APPROVE_KNOWN_ADDRESSES as KNOWN_ADDRESSES
+
+    from . import networks, tokens
+
+    if to_bytes in KNOWN_ADDRESSES:
+        to_str = KNOWN_ADDRESSES[to_bytes]
+        chunkify = False
+    else:
+        to_str = address_from_bytes(to_bytes, network)
+    chain_id_str = f"{chain_id} ({hex(chain_id)})"
+    token_address_str = address_from_bytes(token_address, network)
+    total_amount = (
+        format_ethereum_amount(value, token, network) if value is not None else None
+    )
+    account, account_path = get_account_and_path(address_n)
+
+    await confirm_ethereum_approve(
+        to_str,
+        token is tokens.UNKNOWN_TOKEN,
+        token_address_str,
+        token.symbol,
+        network is networks.UNKNOWN_NETWORK,
+        chain_id_str,
+        network.name,
+        value == 0,
+        total_amount,
+        account,
+        account_path,
+        maximum_fee,
+        fee_info_items,
+        chunkify=chunkify,
     )
 
 
@@ -141,36 +189,30 @@ async def require_confirm_claim(
     )
 
 
-async def require_confirm_unknown_token(address_bytes: bytes) -> None:
-    from ubinascii import hexlify
-
-    from trezor.ui.layouts import (
-        confirm_address,
-        confirm_ethereum_unknown_contract_warning,
-    )
+async def require_confirm_unknown_token() -> None:
+    from trezor.ui.layouts import confirm_ethereum_unknown_contract_warning
 
     await confirm_ethereum_unknown_contract_warning()
 
-    contract_address_hex = "0x" + hexlify(address_bytes).decode()
-    await confirm_address(
-        TR.words__address,
-        contract_address_hex,
-        subtitle=TR.ethereum__token_contract,
-        verb=TR.buttons__continue,
-        br_name="unknown_token",
-        br_code=ButtonRequestType.SignTx,
-    )
 
-
-def require_confirm_address(address_bytes: bytes) -> Awaitable[None]:
+def require_confirm_address(
+    address_bytes: bytes,
+    title: str | None = None,
+    subtitle: str | None = None,
+    verb: str | None = None,
+    br_name: str | None = None,
+) -> Awaitable[None]:
     from ubinascii import hexlify
 
     from trezor.ui.layouts import confirm_address
 
     address_hex = "0x" + hexlify(address_bytes).decode()
     return confirm_address(
-        TR.ethereum__title_signing_address,
+        title or TR.ethereum__title_signing_address,
         address_hex,
+        subtitle=subtitle,
+        verb=verb,
+        br_name=br_name,
         br_code=ButtonRequestType.SignTx,
     )
 
@@ -180,7 +222,8 @@ def require_confirm_other_data(data: bytes, data_total: int) -> Awaitable[None]:
         "confirm_data",
         TR.ethereum__title_input_data,
         data,
-        TR.ethereum__data_size_template.format(data_total),
+        description=TR.ethereum__data_size_template.format(data_total),
+        subtitle=TR.ethereum__title_all_input_data_template.format(data_total),
         verb=TR.buttons__confirm,
         verb_cancel=TR.send__cancel_sign,
         br_code=ButtonRequestType.SignTx,
@@ -214,9 +257,9 @@ async def should_show_domain(name: bytes, version: bytes) -> bool:
     domain_version = decode_typed_data(version, "string")
 
     para = (
-        (ui.NORMAL, TR.ethereum__name_and_version),
-        (ui.DEMIBOLD, domain_name),
-        (ui.DEMIBOLD, domain_version),
+        (TR.ethereum__name_and_version, False),
+        (domain_name, False),
+        (domain_version, False),
     )
     return await should_show_more(
         TR.ethereum__title_confirm_domain,
@@ -243,12 +286,9 @@ async def should_show_struct(
     contains_plural = f"{TR.words__contains} {plural}"
 
     para = (
-        (ui.DEMIBOLD, description),
-        (
-            ui.NORMAL,
-            contains_plural,
-        ),
-        (ui.NORMAL, ", ".join(field.name for field in data_members)),
+        (description, False),
+        (contains_plural, False),
+        (", ".join(field.name for field in data_members), False),
     )
     return await should_show_more(
         title,
@@ -268,7 +308,7 @@ async def should_show_array(
     # Leaving english plural form because of dynamic noun - data_type
     plural = format_plural_english("{count} {plural}", size, data_type)
     array_of_plural = f"{TR.words__array_of} {plural}"
-    para = ((ui.NORMAL, array_of_plural),)
+    para = ((array_of_plural, False),)
     return await should_show_more(
         limit_str(".".join(parent_objects)),
         para,

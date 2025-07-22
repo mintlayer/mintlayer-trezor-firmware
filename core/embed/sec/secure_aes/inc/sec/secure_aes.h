@@ -17,10 +17,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TREZOR_HAL_SECURE_AES_H
-#define TREZOR_HAL_SECURE_AES_H
+#pragma once
 
 #include <trezor_types.h>
+
+#ifdef KERNEL
+#include <sys/applet.h>
+#endif
 
 // only some of the keys are supported depending on execution environment
 typedef enum {
@@ -33,6 +36,15 @@ typedef enum {
 // Initializes secure AES module
 secbool secure_aes_init(void);
 
+// Sets the applet to be used for AES operation
+// with unprivileged key (XORK_SN).
+#ifdef KERNEL
+void secure_aes_set_applet(applet_t* applet);
+#endif
+
+// Deinitializes secure AES module
+void secure_aes_deinit(void);
+
 // Encrypts a block of data using AES-256 ECB and HW key (DHUK, BHK or XORK)
 // For optimal speed input and output should be aligned to 32 bits, size is in
 // bytes
@@ -44,5 +56,3 @@ secbool secure_aes_ecb_encrypt_hw(const uint8_t* input, size_t size,
 // bytes
 secbool secure_aes_ecb_decrypt_hw(const uint8_t* input, size_t size,
                                   uint8_t* output, secure_aes_keysel_t key);
-
-#endif  // TREZOR_HAL_SECURE_AES_H

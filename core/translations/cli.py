@@ -76,7 +76,7 @@ def _version_str(version: tuple[int, ...]) -> str:
 
 
 def make_tree_info(merkle_root: bytes) -> UnsignedInfo:
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.UTC)
     commit = (
         subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=HERE)
         .decode("ascii")
@@ -124,14 +124,8 @@ class TranslationsDir:
     def _lang_path(self, lang: str) -> Path:
         return self.path / f"{lang}.json"
 
-    def load_lang(self, lang: str, model_groups: bool = True) -> translations.JsonDef:
-        json_def = json.loads(self._lang_path(lang).read_text())
-        # special-case for T2B1 and T3B1, so that we keep the info in one place instead
-        # of duplicating it in two entries, risking a desync
-        if model_groups and (fonts_safe3 := json_def.get("fonts", {}).get("##Safe3")) is not None:
-            json_def["fonts"]["T2B1"] = fonts_safe3
-            json_def["fonts"]["T3B1"] = fonts_safe3
-        return json_def
+    def load_lang(self, lang: str) -> translations.JsonDef:
+        return json.loads(self._lang_path(lang).read_text())
 
     def save_lang(self, lang: str, data: translations.JsonDef) -> None:
         self._lang_path(lang).write_text(
@@ -150,7 +144,7 @@ class TranslationsDir:
     def update_version_from_h(self, check: bool = False) -> VersionTuple:
         version = _version_from_version_h()
         for lang in self.all_languages():
-            blob_json = self.load_lang(lang, model_groups=False)
+            blob_json = self.load_lang(lang)
             blob_version = translations.version_from_json(
                 blob_json["header"]["version"]
             )
@@ -165,11 +159,10 @@ class TranslationsDir:
 
     def generate_single_blob(
         self,
-        lang: str,
+        blob_json: translations.JsonDef,
         model: models.TrezorModel,
         version: VersionTuple | None,
     ) -> translations.TranslationsBlob:
-        blob_json = self.load_lang(lang)
         blob_version = translations.version_from_json(blob_json["header"]["version"])
         return translations.blob_from_defs(
             blob_json, self.order, model, version or blob_version, self.fonts_dir
@@ -185,9 +178,12 @@ class TranslationsDir:
             if lang == "en":
                 continue
 
+            blob_json = self.load_lang(lang)
+            translations.check_blob(blob_json)
+
             for model in ALL_MODELS:
                 try:
-                    blob = self.generate_single_blob(lang, model, version)
+                    blob = self.generate_single_blob(blob_json, model, version)
                     blob_version = blob.header.firmware_version
                     if common_version is None:
                         common_version = blob_version

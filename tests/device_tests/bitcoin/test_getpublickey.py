@@ -18,7 +18,7 @@ import pytest
 
 from trezorlib import btc, messages
 from trezorlib.debuglink import TrezorClientDebugLink as Client
-from trezorlib.exceptions import TrezorFailure
+from trezorlib.exceptions import Cancelled, TrezorFailure
 from trezorlib.tools import parse_path
 
 from ... import bip32
@@ -116,6 +116,17 @@ def test_get_public_node(client: Client, coin_name, xpub_magic, path, xpub):
     assert bip32.serialize(res.node, xpub_magic) == xpub
 
 
+@pytest.mark.parametrize("coin_name, xpub_magic, path, xpub", VECTORS_BITCOIN)
+def test_get_public_node_cancel_show(client: Client, coin_name, xpub_magic, path, xpub):
+    def input_flow():
+        yield
+        client.cancel()
+
+    with pytest.raises(Cancelled), client:
+        client.set_input_flow(input_flow)
+        btc.get_public_node(client, path, coin_name=coin_name, show_display=True)
+
+
 @pytest.mark.models("core")
 @pytest.mark.parametrize("coin_name, xpub_magic, path, xpub", VECTORS_BITCOIN)
 def test_get_public_node_show(client: Client, coin_name, xpub_magic, path, xpub):
@@ -132,6 +143,39 @@ def test_get_public_node_show(client: Client, coin_name, xpub_magic, path, xpub)
 def test_invalid_path(client: Client, coin_name, path):
     with pytest.raises(TrezorFailure, match="Forbidden key path"):
         btc.get_public_node(client, path, coin_name=coin_name)
+
+
+@pytest.mark.models("legacy")
+@pytest.mark.parametrize("coin_name, xpub_magic, path, xpub", VECTORS_BITCOIN)
+def test_get_public_node_show_legacy(client: Client, coin_name, xpub_magic, path, xpub):
+    def input_flow():
+        yield
+        client.debug.press_no()  # show QR code
+        yield
+        client.debug.press_no()  # back to text
+        yield
+        client.debug.press_no()  # show QR code
+        yield
+        client.debug.press_yes()  # next xpub page
+        yield
+        client.debug.press_no()  # show QR code again
+        yield
+        client.debug.press_no()  # back to text
+        yield
+        client.debug.press_yes()  # finish the flow
+        yield
+
+    with client:
+        # test XPUB display flow (without showing QR code)
+        res = btc.get_public_node(client, path, coin_name=coin_name, show_display=True)
+        assert res.xpub == xpub
+        assert bip32.serialize(res.node, xpub_magic) == xpub
+
+        # test XPUB QR code display using the input flow above
+        client.set_input_flow(input_flow)
+        res = btc.get_public_node(client, path, coin_name=coin_name, show_display=True)
+        assert res.xpub == xpub
+        assert bip32.serialize(res.node, xpub_magic) == xpub
 
 
 def test_slip25_path(client: Client):

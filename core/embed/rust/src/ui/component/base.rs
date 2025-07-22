@@ -1,6 +1,7 @@
 use heapless::Vec;
 
 use crate::{
+    error::Error,
     strutil::{ShortString, TString},
     time::Duration,
     ui::{
@@ -11,8 +12,12 @@ use crate::{
     },
 };
 
+#[cfg(feature = "ble")]
+use crate::ui::event::BLEEvent;
 #[cfg(feature = "button")]
 use crate::ui::event::ButtonEvent;
+#[cfg(feature = "power_manager")]
+use crate::ui::event::PMEvent;
 use crate::ui::event::USBEvent;
 #[cfg(feature = "touch")]
 use crate::ui::{
@@ -319,6 +324,10 @@ pub enum Event {
     Button(ButtonEvent),
     #[cfg(feature = "touch")]
     Touch(TouchEvent),
+    #[cfg(feature = "ble")]
+    BLE(BLEEvent),
+    #[cfg(feature = "power_manager")]
+    PM(PMEvent),
     USB(USBEvent),
     /// Previously requested timer was triggered. This invalidates the timer
     /// token (another timer has to be requested).
@@ -355,53 +364,68 @@ pub enum EventPropagation {
 pub struct TimerToken(u32);
 
 impl TimerToken {
-    /// Value of an invalid (or missing) token.
-    pub const INVALID: TimerToken = TimerToken(0);
-    /// Reserved value of the animation frame timer.
-    pub const ANIM_FRAME: TimerToken = TimerToken(1);
-
-    /// Starting token value
-    const STARTING_TOKEN: u32 = 2;
-
-    pub const fn from_raw(raw: u32) -> Self {
-        Self(raw)
+    pub const fn from_raw(raw: u32) -> Result<Self, Error> {
+        if raw == Timer::INVALID_TOKEN_VALUE || raw > Timer::TOKEN_BITMASK {
+            return Err(Error::ValueError(c"Invalid token"));
+        }
+        Ok(Self(raw))
     }
 
     pub const fn into_raw(self) -> u32 {
         self.0
     }
+}
+#[derive(Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "debug", derive(ufmt::derive::uDebug))]
+pub struct Timer(u32);
 
-    pub fn next_token() -> Self {
-        static mut NEXT_TOKEN: TimerToken = Self(TimerToken::STARTING_TOKEN);
+impl Timer {
+    /// Value of an invalid (or missing) token.
+    const INVALID_TOKEN_VALUE: u32 = 0;
+
+    /// Reserved value of the animation frame timer.
+    const ANIM_FRAME: TimerToken = TimerToken(1);
+
+    /// Starting token value
+    const STARTING_TOKEN: u32 = 2;
+
+    const IS_RUNNING_BITMASK: u32 = 1 << 31;
+    const TOKEN_BITMASK: u32 = Timer::IS_RUNNING_BITMASK - 1;
+
+    fn next_token() -> u32 {
+        static mut NEXT_TOKEN: u32 = Timer::STARTING_TOKEN;
 
         // SAFETY: we are in single-threaded environment
         let token = unsafe { NEXT_TOKEN };
+        debug_assert!(token >= Timer::STARTING_TOKEN);
+        debug_assert!(token <= Timer::TOKEN_BITMASK);
         let next = {
-            if token.0 == u32::MAX {
-                TimerToken(Self::STARTING_TOKEN)
+            if token == Timer::TOKEN_BITMASK {
+                Self::STARTING_TOKEN
             } else {
-                TimerToken(token.0 + 1)
+                token + 1
             }
         };
         // SAFETY: we are in single-threaded environment
         unsafe { NEXT_TOKEN = next };
         token
     }
-}
 
-#[cfg_attr(feature = "debug", derive(ufmt::derive::uDebug))]
-pub struct Timer {
-    token: TimerToken,
-    running: bool,
-}
-
-impl Timer {
-    /// Create a new timer.
+    /// Create a new stopped timer.
     pub const fn new() -> Self {
-        Self {
-            token: TimerToken::INVALID,
-            running: false,
-        }
+        Self(Timer::INVALID_TOKEN_VALUE)
+    }
+
+    const fn token(&self) -> TimerToken {
+        TimerToken(self.0 & Timer::TOKEN_BITMASK)
+    }
+
+    const fn is_invalid(&self) -> bool {
+        self.token().0 == Timer::INVALID_TOKEN_VALUE
+    }
+
+    pub const fn is_running(&self) -> bool {
+        self.0 & Timer::IS_RUNNING_BITMASK != 0
     }
 
     /// Start this timer for a given duration.
@@ -409,11 +433,11 @@ impl Timer {
     /// Requests the internal timer token to be scheduled to `duration` from
     /// now. If the timer was already running, its token is rescheduled.
     pub fn start(&mut self, ctx: &mut EventCtx, duration: Duration) {
-        if self.token == TimerToken::INVALID {
-            self.token = TimerToken::next_token();
+        if self.is_invalid() {
+            self.0 = Timer::next_token(); // new stopped timer
         }
-        self.running = true;
-        ctx.register_timer(self.token, duration);
+        self.0 |= Timer::IS_RUNNING_BITMASK;
+        ctx.register_timer(self.token(), duration);
     }
 
     /// Stop the timer.
@@ -422,7 +446,7 @@ impl Timer {
     /// means that _some_ scheduled task might keep running, but this timer
     /// will not trigger when that task expires.
     pub fn stop(&mut self) {
-        self.running = false;
+        self.0 &= Timer::TOKEN_BITMASK;
     }
 
     /// Check if the timer has expired.
@@ -430,8 +454,8 @@ impl Timer {
     /// Returns `true` if the given event is a timer event and the token matches
     /// the internal token of this timer.
     pub fn expire(&mut self, event: Event) -> bool {
-        if self.running && event == Event::Timer(self.token) {
-            self.running = false;
+        if self.is_running() && event == Event::Timer(self.token()) {
+            self.stop();
             true
         } else {
             false
@@ -454,7 +478,7 @@ pub struct EventCtx {
 
 impl EventCtx {
     /// Timer token dedicated for animation frames.
-    pub const ANIM_FRAME_TIMER: TimerToken = TimerToken(1);
+    pub const ANIM_FRAME_TIMER: TimerToken = Timer::ANIM_FRAME;
 
     /// How long into the future we should schedule the animation frame timer.
     const ANIM_FRAME_DURATION: Duration = Duration::from_millis(1);
@@ -598,6 +622,7 @@ pub enum FlowMsg {
     Confirmed,
     Cancelled,
     Info,
+    Next,
     Choice(usize),
     Text(ShortString),
 }
@@ -610,7 +635,7 @@ impl TryFrom<FlowMsg> for crate::micropython::obj::Obj {
         use crate::ui::layout::result;
 
         match val {
-            FlowMsg::Confirmed => Ok(result::CONFIRMED.as_obj()),
+            FlowMsg::Confirmed | FlowMsg::Next => Ok(result::CONFIRMED.as_obj()),
             FlowMsg::Cancelled => Ok(result::CANCELLED.as_obj()),
             FlowMsg::Info => Ok(result::INFO.as_obj()),
             FlowMsg::Choice(i) => i.try_into(),

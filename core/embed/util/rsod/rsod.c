@@ -110,7 +110,7 @@ void rsod_terminal(const systask_postmortem_t* pminfo) {
 
 #ifdef FANCY_FATAL_ERROR
 
-#include "rust_ui.h"
+#include "rust_ui_common.h"
 
 void rsod_gui(const systask_postmortem_t* pminfo) {
   const char* title = RSOD_DEFAULT_TITLE;
@@ -142,8 +142,11 @@ void rsod_gui(const systask_postmortem_t* pminfo) {
       if (message[0] == '\0') {
         mini_snprintf(message_buf, sizeof(message_buf), "%s:%u",
                       pminfo->fatal.file, (unsigned int)pminfo->fatal.line);
-        message = message_buf;
+      } else {
+        mini_snprintf(message_buf, sizeof(message_buf), "%s\n%s:%u", message,
+                      pminfo->fatal.file, (unsigned int)pminfo->fatal.line);
       }
+      message = message_buf;
       break;
 
     case TASK_TERM_REASON_FAULT:
@@ -177,8 +180,8 @@ static void init_and_show_rsod(const systask_postmortem_t* pminfo) {
   rsod_terminal(pminfo);
 #endif
 
-  // Wait for the user to manually power off the device
-  secure_shutdown();
+  // Reboots or halts (if RSOD_INFINITE_LOOP is defined)
+  reboot_or_halt_after_rsod();
 }
 
 // Universal panic handler

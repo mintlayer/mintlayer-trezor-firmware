@@ -14,6 +14,7 @@
 # You should have received a copy of the License along with this library.
 # If not, see <https://www.gnu.org/licenses/lgpl-3.0.html>.
 
+import os
 import tempfile
 from collections import defaultdict
 from pathlib import Path
@@ -66,13 +67,24 @@ def get_tags() -> Dict[str, List[str]]:
 ALL_TAGS = get_tags()
 
 
+def _get_port(worker_id: int) -> int:
+    """Get a unique port for this worker process on which it can run.
+
+    Guarantees to be unique because each worker has a unique ID.
+    #0=>20000, #1=>20003, #2=>20006, etc.
+    """
+    # One emulator instance occupies 3 consecutive ports:
+    # 1. normal link, 2. debug link and 3. webauthn fake interface
+    return 20000 + worker_id * 3
+
+
 class EmulatorWrapper:
     def __init__(
         self,
         gen: str,
         tag: Optional[str] = None,
         storage: Optional[bytes] = None,
-        port: Optional[int] = None,
+        worker_id: int = 0,
         headless: bool = True,
         auto_interact: bool = True,
         main_args: Sequence[str] = ("-m", "main"),
@@ -91,6 +103,11 @@ class EmulatorWrapper:
         else:
             workdir = None
 
+        logs_dir = os.environ.get("TREZOR_PYTEST_LOGS_DIR")
+        logfile = None
+        if logs_dir:
+            logfile = Path(logs_dir) / f"trezor-{worker_id}.log"
+
         if gen == "legacy":
             self.emulator = LegacyEmulator(
                 executable,
@@ -98,6 +115,7 @@ class EmulatorWrapper:
                 storage=storage,
                 headless=headless,
                 auto_interact=auto_interact,
+                logfile=logfile,
             )
         elif gen == "core":
             self.emulator = CoreEmulator(
@@ -105,10 +123,11 @@ class EmulatorWrapper:
                 self.profile_dir.name,
                 storage=storage,
                 workdir=workdir,
-                port=port,
+                port=_get_port(worker_id),
                 headless=headless,
                 auto_interact=auto_interact,
                 main_args=main_args,
+                logfile=logfile,
             )
         else:
             raise ValueError(

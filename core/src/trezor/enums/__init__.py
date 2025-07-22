@@ -7,23 +7,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from enum import IntEnum
 
-    class BinanceOrderType(IntEnum):
-        OT_UNKNOWN = 0
-        MARKET = 1
-        LIMIT = 2
-        OT_RESERVED = 3
-
-    class BinanceOrderSide(IntEnum):
-        SIDE_UNKNOWN = 0
-        BUY = 1
-        SELL = 2
-
-    class BinanceTimeInForce(IntEnum):
-        TIF_UNKNOWN = 0
-        GTE = 1
-        TIF_RESERVED = 2
-        IOC = 3
-
     class FailureType(IntEnum):
         UnexpectedMessage = 1
         ButtonExpected = 2
@@ -39,6 +22,10 @@ if TYPE_CHECKING:
         PinMismatch = 12
         WipeCodeMismatch = 13
         InvalidSession = 14
+        Busy = 15
+        ThpUnallocatedSession = 16
+        InvalidProtocol = 17
+        BufferError = 18
         FirmwareError = 99
 
     class ButtonRequestType(IntEnum):
@@ -245,7 +232,9 @@ if TYPE_CHECKING:
         Translations = 19
         Brightness = 20
         Haptic = 21
-        Mintlayer = 22
+        BLE = 22
+        NFC = 23
+        Mintlayer = 99
 
     class SdProtectOperationType(IntEnum):
         DISABLE = 0
@@ -286,9 +275,10 @@ if TYPE_CHECKING:
         NEXT_LAYOUT = 1
         CURRENT_LAYOUT = 2
 
-    class EthereumDefinitionType(IntEnum):
-        NETWORK = 0
-        TOKEN = 1
+    class DefinitionType(IntEnum):
+        ETHEREUM_NETWORK = 0
+        ETHEREUM_TOKEN = 1
+        SOLANA_TOKEN = 2
 
     class EthereumDataType(IntEnum):
         UINT = 1
@@ -384,6 +374,12 @@ if TYPE_CHECKING:
         Nay = 1
         Pass = 2
 
+    class ThpPairingMethod(IntEnum):
+        SkipPairing = 1
+        CodeEntry = 2
+        QrCode = 3
+        NFC = 4
+
     class MessageType(IntEnum):
         Initialize = 0
         Ping = 1
@@ -434,8 +430,8 @@ if TYPE_CHECKING:
         AuthenticateDevice = 97
         AuthenticityProof = 98
         ChangeLanguage = 990
-        TranslationDataRequest = 991
-        TranslationDataAck = 992
+        DataChunkRequest = 991
+        DataChunkAck = 992
         SetBrightness = 993
         SetU2FCounter = 63
         GetNextU2FCounter = 80
@@ -446,6 +442,7 @@ if TYPE_CHECKING:
         FirmwareUpload = 7
         FirmwareRequest = 8
         ProdTestT1 = 32
+        BleUnpair = 8001
         GetPublicKey = 11
         PublicKey = 12
         SignTx = 15
@@ -484,6 +481,10 @@ if TYPE_CHECKING:
         DebugLinkWatchLayout = 9006
         DebugLinkResetDebugEvents = 9007
         DebugLinkOptigaSetSecMax = 9008
+        DebugLinkGetGcInfo = 9009
+        DebugLinkGcInfo = 9010
+        DebugLinkGetPairingInfo = 9011
+        DebugLinkPairingInfo = 9012
         EthereumGetPublicKey = 450
         EthereumPublicKey = 451
         EthereumGetAddress = 56
@@ -608,16 +609,6 @@ if TYPE_CHECKING:
         EosTxActionRequest = 603
         EosTxActionAck = 604
         EosSignedTx = 605
-        BinanceGetAddress = 700
-        BinanceAddress = 701
-        BinanceGetPublicKey = 702
-        BinancePublicKey = 703
-        BinanceSignTx = 704
-        BinanceTxRequest = 705
-        BinanceTransferMsg = 706
-        BinanceOrderMsg = 707
-        BinanceCancelMsg = 708
-        BinanceSignedTx = 709
         WebAuthnListResidentCredentials = 800
         WebAuthnCredentials = 801
         WebAuthnAddResidentCredential = 802
@@ -628,6 +619,28 @@ if TYPE_CHECKING:
         SolanaAddress = 903
         SolanaSignTx = 904
         SolanaTxSignature = 905
+        ThpCreateNewSession = 1000
+        ThpPairingRequest = 1006
+        ThpPairingRequestApproved = 1007
+        ThpSelectMethod = 1008
+        ThpPairingPreparationsFinished = 1009
+        ThpCredentialRequest = 1010
+        ThpCredentialResponse = 1011
+        ThpEndRequest = 1012
+        ThpEndResponse = 1013
+        ThpCodeEntryCommitment = 1016
+        ThpCodeEntryChallenge = 1017
+        ThpCodeEntryCpaceTrezor = 1018
+        ThpCodeEntryCpaceHostTag = 1019
+        ThpCodeEntrySecret = 1020
+        ThpQrCodeTag = 1024
+        ThpQrCodeSecret = 1025
+        ThpNfcTagHost = 1032
+        ThpNfcTagTrezor = 1033
+        NostrGetPubkey = 2001
+        NostrPubkey = 2002
+        NostrSignEvent = 2003
+        NostrEventSignature = 2004
         BenchmarkListNames = 9100
         BenchmarkNames = 9101
         BenchmarkRun = 9102

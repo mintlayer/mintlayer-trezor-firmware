@@ -1,12 +1,15 @@
 from typing import TYPE_CHECKING
 
+from .definitions import Definitions
+from .transaction.parse import parse_pubkey
+
 if TYPE_CHECKING:
     from enum import IntEnum
     from typing import Any, Callable, Generic, TypeVar
 
+    from trezor.messages import SolanaTxAdditionalInfo, SolanaTxTokenAccountInfo
     from trezor.utils import BufferReader
-
-    from .transaction import Instruction
+    from typing_extensions import Self
 
     Address = tuple[bytes, "AddressType"]
     AddressReference = tuple[bytes, int, "AddressType"]
@@ -38,23 +41,19 @@ class PropertyTemplate(Generic[T]):
     def __init__(
         self,
         name: str,
-        is_authority: bool,
-        is_optional: bool,
+        optional: bool,
         parse: Callable[[BufferReader], T],
-        format: Callable[[Instruction, T], str],
+        format: Callable[..., str],
+        args: tuple[str, ...],
     ) -> None:
         self.name = name
-        self.is_authority = is_authority
-        self.is_optional = is_optional
+        self.optional = optional
         self.parse = parse
         self.format = format
+        self.args = args
 
-
-class AccountTemplate:
-    def __init__(self, name: str, is_authority: bool, optional: bool) -> None:
-        self.name = name
-        self.is_authority = is_authority
-        self.optional = optional
+    def is_pubkey(self) -> bool:
+        return self.parse is parse_pubkey
 
 
 class UIProperty:
@@ -63,11 +62,32 @@ class UIProperty:
         parameter: str | None,
         account: str | None,
         display_name: str,
-        is_authority: bool,
         default_value_to_hide: Any | None,
     ) -> None:
         self.parameter = parameter
         self.account = account
         self.display_name = display_name
-        self.is_authority = is_authority
         self.default_value_to_hide = default_value_to_hide
+
+
+class AdditionalTxInfo:
+    def __init__(
+        self,
+        token_accounts_infos: list[SolanaTxTokenAccountInfo],
+        definitions: Definitions,
+    ) -> None:
+        self.token_accounts_infos = token_accounts_infos
+        self.definitions = definitions
+
+    @classmethod
+    def from_solana_tx_additional_info(
+        cls,
+        additional_info: SolanaTxAdditionalInfo | None,
+    ) -> Self:
+        if not additional_info:
+            return cls(token_accounts_infos=[], definitions=Definitions())
+
+        return cls(
+            token_accounts_infos=additional_info.token_accounts_infos,
+            definitions=Definitions.from_encoded(additional_info.encoded_token),
+        )

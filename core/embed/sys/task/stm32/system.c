@@ -20,29 +20,31 @@
 #include <trezor_bsp.h>
 #include <trezor_rtl.h>
 
+#include <rtl/mini_printf.h>
+#include <sys/bootargs.h>
 #include <sys/bootutils.h>
+#include <sys/linker_utils.h>
 #include <sys/mpu.h>
+#include <sys/stack_utils.h>
+#include <sys/syscall_ipc.h>
 #include <sys/systask.h>
 #include <sys/system.h>
 #include <sys/systick.h>
 #include <sys/systimer.h>
+#include <sys/sysutils.h>
 
 #ifdef USE_SDRAM
 #include <sys/sdram.h>
 #endif
 
-#if defined(TREZOR_MODEL_T) && (!defined(BOARDLOADER))
+#if defined(TREZOR_MODEL_T2T1) && (!defined(BOARDLOADER))
 #include "../stm32f4/startup_init.h"
-#endif
-
-#ifndef HardFault_IRQn
-#define HardFault_IRQn (-13)  // not defined in stm32lib/cmsis/stm32429xx.h
 #endif
 
 #ifdef KERNEL_MODE
 
 void system_init(systask_error_handler_t error_handler) {
-#if defined(TREZOR_MODEL_T) && (!defined(BOARDLOADER))
+#if defined(TREZOR_MODEL_T2T1) && (!defined(BOARDLOADER))
   // Early boardloader versions on Model T initialized the CPU clock to 168MHz.
   // We need to set it to the STM32F429's maximum - 180MHz.
   set_core_clock(CLOCK_180_MHZ);
@@ -55,6 +57,9 @@ void system_init(systask_error_handler_t error_handler) {
   systask_scheduler_init(error_handler);
   systick_init();
   systimer_init();
+#ifdef KERNEL
+  syscall_ipc_init();
+#endif
 }
 
 void system_deinit(void) {
@@ -78,261 +83,131 @@ void system_exit_fatal_ex(const char* message, size_t message_len,
   systask_exit_fatal(NULL, message, message_len, file, file_len, line);
 }
 
-__attribute__((used)) static void emergency_reset(void) {
-  // TODO: reset peripherals (at least DMA, DMA2D)
+__attribute((noreturn, no_stack_protector)) static void
+system_emergency_rescue_phase_2(uint32_t arg1, uint32_t arg2) {
+  systask_error_handler_t error_handler = (systask_error_handler_t)arg1;
 
-  // Disable all NVIC interrupts and clear pending flags
-  // so later the global interrupt can be re-enabled without
-  // firing any pending interrupt
-  for (int irqn = 0; irqn < 255; irqn++) {
-    NVIC_DisableIRQ(irqn);
-    NVIC_ClearPendingIRQ(irqn);
+  // Reset peripherals (so we are sure that no DMA is pending)
+  reset_peripherals_and_interrupts();
+
+  // Althought MPU is disabled, we need to change MPU driver state
+  mpu_reconfig(MPU_MODE_DISABLED);
+
+  // Copy bootargs to our stack
+  boot_args_t bootargs;
+  bootargs_get_args(&bootargs);
+
+  // Clear unused part of our stack
+  clear_unused_stack();
+
+  // Save stack protector guard for later
+  extern uint32_t __stack_chk_guard;
+  uint32_t stack_chk_guard = __stack_chk_guard;
+
+  // Clear all memory except our stack.
+  // NOTE: This also clear bootargs, if the model doesn't support
+  // showing RSOD in the bootloader startup.
+  memregion_t region = MEMREGION_ALL_RUNTIME_RAM;
+  MEMREGION_DEL_SECTION(&region, _stack_section);
+#ifdef USE_BOOTARGS_RSOD
+  MEMREGION_DEL_SECTION(&region, _bootargs_ram);
+#endif
+  memregion_fill(&region, 0);
+
+  // Reinitialize .bss, .data, ...
+  init_linker_sections();
+
+  // Reinitialize stack protector guard
+  __stack_chk_guard = stack_chk_guard;
+
+  // Now we can safely enable interrupts again
+  __enable_fault_irq();
+
+  // Ensure we are in thread mode
+  ensure_thread_mode();
+
+  // Now everything is perfectly initialized and we can do anything
+  // in C code
+
+  if (error_handler != NULL) {
+    error_handler(&bootargs.pminfo);
+    // We reach this point only if error_handler returns that's
+    // not expected to happen. We clear the memory again and reboot.
+    reboot_device();
   }
 
-  // Disable SysTick
-  SysTick->CTRL = 0;
-
-  // Clear PENDSV flag to prevent the PendSV_Handler call
-  SCB->ICSR &= ~SCB_ICSR_PENDSVSET_Msk;
-
-  // Clear SCB->SHCSR exception flags so we can return back
-  // to thread mode without any exception active
-
-  uint32_t preserved_flag = 0;
-
-  switch ((__get_IPSR() & IPSR_ISR_Msk) - 16) {
-    case MemoryManagement_IRQn:
-      preserved_flag = SCB_SHCSR_MEMFAULTACT_Msk;
-      break;
-    case BusFault_IRQn:
-      preserved_flag = SCB_SHCSR_BUSFAULTACT_Msk;
-      break;
-    case UsageFault_IRQn:
-      preserved_flag = SCB_SHCSR_USGFAULTACT_Msk;
-      break;
-    case PendSV_IRQn:
-      preserved_flag = SCB_SHCSR_PENDSVACT_Msk;
-      break;
-    case SysTick_IRQn:
-      preserved_flag = SCB_SHCSR_SYSTICKACT_Msk;
-      break;
-    case SVCall_IRQn:
-      preserved_flag = SCB_SHCSR_SVCALLACT_Msk;
-      break;
-    case HardFault_IRQn:
-    default:
-      break;
-  }
-
-  const uint32_t cleared_flags =
-      SCB_SHCSR_MEMFAULTACT_Msk | SCB_SHCSR_BUSFAULTACT_Msk |
-      SCB_SHCSR_USGFAULTACT_Msk | SCB_SHCSR_SVCALLACT_Msk |
-      SCB_SHCSR_MONITORACT_Msk | SCB_SHCSR_PENDSVACT_Msk |
-      SCB_SHCSR_SYSTICKACT_Msk;
-
-  SCB->SHCSR &= ~(cleared_flags & ~preserved_flag);
+  // We reach this point only if error_handler is NULL
+  // (if USE_BOOTARGS_RSOD is defined we leave postmortem info
+  // in bootargs, so it can be used by the bootloader)
+  NVIC_SystemReset();
 }
 
-__attribute((naked, no_stack_protector)) void system_emergency_rescue(
+__attribute((naked, noreturn, no_stack_protector)) void system_emergency_rescue(
     systask_error_handler_t error_handler, const systask_postmortem_t* pminfo) {
-  extern uint32_t __stack_chk_guard;
+  // Save `pminfo` to bootargs so it isn't overwritten by succesive call
+  bootargs_set(BOOT_COMMAND_SHOW_RSOD, pminfo, sizeof(*pminfo));
 
-  __asm__ volatile(
-      "MOV     R5, R1              \n"  // R5 = pminfo
-      "MOV     R6, R0              \n"  // R6 = error_handler
-
-      "CPSID   I                   \n"  // Disable interrupts
-
-      // --------------------------------------------------------------
-      // Disable MPU
-      // --------------------------------------------------------------
-
-      "DMB     0xF                 \n"  // Data memory barrier
-      "LDR     R0, =0xE000ED94     \n"  // MPU->CTRL
-      "MOV     R1, #0              \n"
-      "STR     R1, [R0]            \n"  // Disable MPU
-
-      // --------------------------------------------------------------
-      // Setup new stack
-      // --------------------------------------------------------------
-
-      "LDR     R0, =_estack        \n"  // Setup new stack
-      "MSR     MSP, R0             \n"  // Set MSP
-#if defined(__ARM_ARCH_8M_MAIN__) || defined(__ARM_ARCH_8M_BASE__)
-      "LDR     R0, =_sstack        \n"
-      "ADD     R0, R0, #256        \n"  // Add safety margin
-      "MSR     MSPLIM, R0          \n"  // Set MSPLIM
-#endif
-
-      // --------------------------------------------------------------
-      // Copy pminfo to new stack
-      // --------------------------------------------------------------
-
-      "LDR     R2, =%[PMINFO_SIZE] \n"  // Copy pminfo to new stack
-      "SUB     SP, R2              \n"  // Allocate space for pminfo
-      "MOV     R0, SP              \n"  // Destination
-      "MOV     R1, R5              \n"  // Source
-      "MOV     R5, R0              \n"  // R5 = pminfo on the new stack
-      "BL      memcpy              \n"
-
-      // --------------------------------------------------------------
-      // Save stack protector guard
-      // --------------------------------------------------------------
-
-      "LDR     R0, =%[STK_GUARD]   \n"  // Save stack protector guard
-      "LDR     R7, [R0]            \n"  // R7 = __stack_chk_guard
-
-      // --------------------------------------------------------------
-      // Clear .bss, initialize .data, ...
-      // --------------------------------------------------------------
-
-      "LDR     R0, =bss_start      \n"  // Clear .bss
-      "MOV     R1, #0              \n"
-      "LDR     R2, =bss_end        \n"
-      "SUB     R2, R2, R0          \n"
-      "BL      memset              \n"
-
-      "LDR     R0, =data_vma       \n"  // Initialize .data
-      "LDR     R1, =data_lma       \n"
-      "LDR     R2, =data_size      \n"
-      "BL      memcpy              \n"
-
-#ifdef STM32U5
-      "LDR     R0, =confidential_vma   \n"  // Initialize .confidental
-      "LDR     R1, =confidential_lma   \n"
-      "LDR     R2, =confidential_size  \n"
-      "BL      memcpy                  \n"
-#endif
-
-      // --------------------------------------------------------------
-      // Restore stack protector guard
-      // --------------------------------------------------------------
-
-      "LDR     R0, =%[STK_GUARD]   \n"  // Restore stack protector guard
-      "STR     R7, [R0]            \n"
-
-      // --------------------------------------------------------------
-      // Reset critical hardware so we can safely enable interrupts
-      // --------------------------------------------------------------
-
-      "BL      emergency_reset     \n"
-
-      "CPSIE   I                   \n"  // Re-enable interrupts
-
-      // --------------------------------------------------------------
-      // Clear all VFP registers
-      // --------------------------------------------------------------
-
-      "LDR     R1, = 0xE000EF34    \n"  // FPU->FPCCR
-      "LDR     R0, [R1]            \n"
-      "BIC     R0, R0, #1          \n"  // Clear LSPACT to suppress lazy
-                                        // stacking
-      "STR     R0, [R1]            \n"
-
-      // TODO: clear VFP registers (maybe for ARMV7-M only)
-
-      // --------------------------------------------------------------
-      // Clear R7-R11 registers
-      // --------------------------------------------------------------
-
-      "MOV     R0, #0              \n"
-      "MOV     R7, R0              \n"
-      "MOV     R8, R0              \n"
-      "MOV     R9, R0              \n"
-      "MOV     R10, R0             \n"
-      "MOV     R11, R0             \n"
-
-      // --------------------------------------------------------------
-      // Check if we are in thread mode and if yes, jump to error_handler
-      // --------------------------------------------------------------
-
-      "LDR      R1, =0x1FF         \n"  // Get lower 9 bits of IPSR
-      "MRS      R0, IPSR           \n"
-      "ANDS     R0, R0, R1         \n"
-      "CMP      R0, #0             \n"  // == 0 if in thread mode
-      "ITTT     EQ                 \n"
-      "MOVEQ    R0, R5             \n"  // R0 = pminfo
-      "LDREQ    LR, =secure_shutdown\n"
-      "BXEQ     R6                 \n"  // jump to error_handler directly
-
-      // --------------------------------------------------------------
-      // Return from exception to thread mode
-      // --------------------------------------------------------------
-
-      "MOV     R0, SP              \n"  // Align stack pointer to 8 bytes
-      "AND     R0, R0, #~7         \n"
-      "MOV     SP, R0              \n"
-      "SUB     SP, SP, #32         \n"  // Allocate space for the stack frame
-
-      "MOV     R0, #0              \n"
-      "STR     R5, [SP, #0]        \n"  // future R0 = pminfo
-      "STR     R0, [SP, #4]        \n"  // future R1 = 0
-      "STR     R0, [SP, #8]        \n"  // future R2 = 0
-      "STR     R0, [SP, #12]       \n"  // future R3 = 0
-      "STR     R0, [SP, #16]       \n"  // future R12 = 0
-      "LDR     R1, =secure_shutdown\n"
-      "STR     R0, [SP, #20]       \n"  // future LR = secure_shutdown()
-      "BIC     R6, R6, #1          \n"
-      "STR     R6, [SP, #24]       \n"  // return address = error_handler()
-      "LDR     R1, = 0x01000000    \n"  // THUMB bit set
-      "STR     R1, [SP, #28]       \n"  // future xPSR
-
-      "MOV     R4, R0              \n"  // Clear registers R4-R6
-      "MOV     R5, R0              \n"  // (R7-R11 are already cleared)
-      "MOV     R6, R0              \n"
-
-      "MRS     R0, CONTROL         \n"  // Clear SPSEL to use MSP for thread
-      "BIC     R0, R0, #3          \n"  // Clear nPRIV to run in privileged mode
-      "MSR     CONTROL, R1         \n"
-
-      "LDR     LR, = 0xFFFFFFF9    \n"  // Return to Secure Thread mode, use MSP
-      "BX      LR                  \n"
-      :  // no output
-      : [PMINFO_SIZE] "i"(sizeof(systask_postmortem_t)),
-        [STK_GUARD] "i"(&__stack_chk_guard)
-      :  // no clobber
-  );
+  call_with_new_stack((uint32_t)error_handler, 0, true,
+                      system_emergency_rescue_phase_2);
 }
 
 #endif  // KERNEL_MODE
 
 #ifdef STM32U5
 const char* system_fault_message(const system_fault_t* fault) {
+  static char message[48] = {0};
+  const char* fault_type = "FAULT";
   switch (fault->irqn) {
     case HardFault_IRQn:
-      return "(HF)";
+      fault_type = "HF";
+      break;
     case MemoryManagement_IRQn:
-      return "(MM)";
+      fault_type = "MM";
+      break;
     case BusFault_IRQn:
-      return "(BF)";
+      fault_type = "BF";
+      break;
     case UsageFault_IRQn:
-      return (fault->cfsr & SCB_CFSR_STKOF_Msk) ? "(SO)" : "(UF)";
+      fault_type = (fault->cfsr & SCB_CFSR_STKOF_Msk) ? "SO" : "UF";
+      break;
     case SecureFault_IRQn:
-      return "(SF)";
+      fault_type = "SF";
+      break;
     case GTZC_IRQn:
-      return "(IA)";
+      fault_type = "IA";
+      break;
     case NonMaskableInt_IRQn:
-      return "(CS)";
-    default:
-      return "(FAULT)";
+      fault_type = "CS";
+      break;
   }
+  mini_snprintf(message, sizeof(message), "%s @ 0x%08X", fault_type,
+                (unsigned int)fault->pc);
+  return message;
 }
 #else   // STM32U5
 const char* system_fault_message(const system_fault_t* fault) {
+  static char message[48] = {0};
+  const char* fault_type = "FAULT";
   switch (fault->irqn) {
     case HardFault_IRQn:
-      return "(HF)";
+      fault_type = "HF";
+      break;
     case MemoryManagement_IRQn:
-      return (fault->sp < fault->sp_lim) ? "(SO)" : "(MM)";
+      fault_type = (fault->sp < fault->sp_lim) ? "SO" : "MM";
+      break;
     case BusFault_IRQn:
-      return "(BF)";
+      fault_type = "BF";
+      break;
     case UsageFault_IRQn:
-      return "(UF)";
+      fault_type = "UF";
+      break;
     case NonMaskableInt_IRQn:
-      return "(CS)";
-    default:
-      return "(FAULT)";
+      fault_type = "CS";
+      break;
   }
+  mini_snprintf(message, sizeof(message), "%s @ 0x%08X", fault_type,
+                (unsigned int)fault->pc);
+  return message;
 }
 #endif  // STM32U5
 

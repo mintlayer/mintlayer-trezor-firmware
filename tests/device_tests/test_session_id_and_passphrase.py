@@ -399,9 +399,13 @@ def test_hide_passphrase_from_host(client: Client):
             yield
             content = client.debug.read_layout().text_content().lower()
             assert TR.passphrase__from_host_not_shown[:50].lower() in content
-            if client.layout_type in (LayoutType.TT, LayoutType.Mercury):
+            if client.layout_type in (
+                LayoutType.Bolt,
+                LayoutType.Delizia,
+                LayoutType.Eckhart,
+            ):
                 client.debug.press_yes()
-            elif client.layout_type is LayoutType.TR:
+            elif client.layout_type is LayoutType.Caesar:
                 client.debug.press_right()
                 client.debug.press_right()
                 client.debug.press_yes()
@@ -439,7 +443,15 @@ def test_hide_passphrase_from_host(client: Client):
             client.debug.press_yes()
 
             yield
-            assert client.debug.read_layout().title() == TR.passphrase__title_confirm
+
+            title = client.debug.read_layout().title()
+            assert any(
+                needle in title
+                for needle in [
+                    TR.passphrase__hidden_wallet,
+                    TR.passphrase__title_confirm,
+                ]
+            )
             assert passphrase in client.debug.read_layout().text_content()
             client.debug.press_yes()
 

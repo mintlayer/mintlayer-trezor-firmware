@@ -22,6 +22,7 @@ from trezorlib.exceptions import TrezorFailure
 from trezorlib.tools import parse_path
 
 from ...input_flows import InputFlowShowXpubQRCode
+from . import pytestmark  # noqa
 
 GET_PUBLIC_KEY_VECTORS = [
     (
@@ -49,11 +50,6 @@ GET_PUBLIC_KEY_VECTORS = [
 CHAIN_TYPE_TO_COIN = {1: 19788, 2: 1, 3: 1, 4: 1}
 
 
-@pytest.mark.altcoin
-@pytest.mark.mintlayer
-@pytest.mark.setup_client(
-    mnemonic="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-)
 @pytest.mark.parametrize("chain_type, pub_key, chain_code", GET_PUBLIC_KEY_VECTORS)
 def test_mintlayer_get_public_key(
     client: Client, chain_type: int, pub_key: str, chain_code: str
@@ -79,11 +75,6 @@ def test_mintlayer_get_public_key(
 CHAIN_TYPES = [1, 2, 3, 4]
 
 
-@pytest.mark.altcoin
-@pytest.mark.mintlayer
-@pytest.mark.setup_client(
-    mnemonic="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-)
 @pytest.mark.parametrize("chain_type", CHAIN_TYPES)
 def test_mintlayer_get_public_key_forbidden_path(client: Client, chain_type: int):
     coin = CHAIN_TYPE_TO_COIN[chain_type]

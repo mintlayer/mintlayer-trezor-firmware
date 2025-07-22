@@ -17,43 +17,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TREZORHAL_APPLET_H
-#define TREZORHAL_APPLET_H
+#pragma once
 
 #include <trezor_types.h>
 
-#ifdef SYSCALL_DISPATCH
+#ifdef KERNEL
 
 #include <sys/systask.h>
 
 // Applet entry point
 typedef void (*applet_startup_t)(const char* args, uint32_t random);
 
-typedef struct {
-  uint32_t start;
-  uint32_t size;
-} memory_area_t;
-
 // Applet header found at the beginning of the applet binary
 typedef struct {
   // Stack area
-  memory_area_t stack;
+  mpu_area_t stack;
   // Applet entry point
   applet_startup_t startup;
+  // Coreapp specific data
+  struct {
+    // Unprivileged SAES input buffer
+    void* saes_input;
+    // Unprivileged SAES output buffer
+    void* saes_output;
+    // Unprivileged SAES callback
+    void* saes_callback;
+  } coreapp;
 } applet_header_t;
-
-// Applet memory layout
-typedef struct {
-  // Read/write data area #1
-  memory_area_t data1;
-  // Read/write data area #2
-  memory_area_t data2;
-  // Read-only code area #1
-  memory_area_t code1;
-  // Read-only code area #2
-  memory_area_t code2;
-
-} applet_layout_t;
 
 // Applet privileges
 typedef struct {
@@ -90,11 +80,15 @@ bool applet_reset(applet_t* applet, uint32_t cmd, const void* arg,
 // Runs the applet and waits until it finishes.
 void applet_run(applet_t* applet);
 
+// Release all resources help by the applet
+void applet_stop(applet_t* applet);
+
+// Returns `true` if the applet task is alive.
+bool applet_is_alive(applet_t* applet);
+
 // Returns the currently active applet.
 //
 // Returns `NULL` if no applet is currently active.
 applet_t* applet_active(void);
 
-#endif  // SYSCALL_DISPATCH
-
-#endif  // TREZORHAL_APPLET_H
+#endif  // KERNEL

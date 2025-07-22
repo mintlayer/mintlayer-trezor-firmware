@@ -3,19 +3,20 @@ name = "trezor-firmware"
 version = "0.0.0"
 description = ""
 authors = ["SatoshiLabs <info@satoshilabs.com>"]
+package-mode = false
 
 [tool.poetry.dependencies]
 # all
-python = "^3.8.1"
+python = "^3.9"
 trezor = {path = "./python", develop = true}
+tvl = {path = "./vendor/ts-tvl", develop = true}
 scons = "*"
 protobuf = "*"
 nanopb = "^0.4.3"
 
 ## test tools
 pytest = "^8"
-coverage = "<5"  # coverage 5+ uses binary sqlite format
-flaky = ">3.6.1"  # https://github.com/box/flaky/issues/156
+coverage = "5.5"
 pytest-ordering = "*"
 pytest-random-order = "*"
 pytest-timeout = "*"
@@ -54,7 +55,7 @@ graphviz = "*"
 click = "^8"
 requests = "^2.32"
 termcolor = "*"
-Pillow = ">=10.0.1"
+Pillow = ">=11"
 
 # crypto
 ecdsa = "^0.16"
@@ -76,10 +77,13 @@ toiftool = {path = "./python/tools/toiftool", develop = true, python = ">=3.8"}
 trezor-pylint-plugin = {path = "./tools/trezor-pylint-plugin", develop = true}
 trezor-core-tools = {path = "./core/tools", develop = true}
 flake8-annotations = "^3.1.1"
+pyelftools = "^0.32"
+pytest-retry = "^1.7.0"
 
 [tool.poetry.dev-dependencies]
 scan-build = "*"
 towncrier = "^23.6.0"
+wheel = ">0.45"
 #freetype-py = "^2.3.0"
 
 [build-system]
@@ -101,5 +105,5 @@ extra_standard_library = [
   "trezorconfig",
   "trezorcrypto",
 ]
-known_first_party = ["trezorlib", "apps", "coin_info", "marketcap", "ui_tests", "gitlab"]
+known_first_party = ["trezorlib", "apps", "coin_info", "marketcap", "ui_tests"]
 known_third_party = ["trezor", "storage"]

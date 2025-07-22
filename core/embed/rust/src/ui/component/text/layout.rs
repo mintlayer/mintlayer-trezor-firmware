@@ -7,7 +7,7 @@ use crate::ui::{
 
 const ELLIPSIS: &str = "...";
 
-#[derive(Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum LineBreaking {
     /// Break line only at whitespace, if possible. If we don't find any
     /// whitespace, break words.
@@ -19,7 +19,7 @@ pub enum LineBreaking {
     BreakWordsNoHyphen,
 }
 
-#[derive(Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum PageBreaking {
     /// Stop after hitting the bottom-right edge of the bounds.
     Cut,
@@ -54,7 +54,7 @@ pub struct TextLayout {
 }
 
 /// Configuration for chunkifying the text into smaller parts.
-#[derive(Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub struct Chunks {
     /// How many characters will be grouped in one chunk.
     pub chunk_size: usize,
@@ -79,7 +79,7 @@ impl Chunks {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub struct TextStyle {
     /// Text font ID.
     pub text_font: Font,
@@ -232,21 +232,35 @@ impl TextLayout {
     }
 
     /// Draw as much text as possible on the current screen.
-    pub fn render_text<'s>(&self, text: &str, target: &mut impl Renderer<'s>) -> LayoutFit {
-        self.render_text_with_alpha(text, target, 255)
+    pub fn render_text<'s>(
+        &self,
+        text: &str,
+        target: &mut impl Renderer<'s>,
+        must_fit: bool,
+    ) -> LayoutFit {
+        self.render_text_with_alpha(text, target, 255, must_fit)
     }
+
     /// Draw as much text as possible on the current screen.
     pub fn render_text_with_alpha<'s>(
         &self,
         text: &str,
         target: &mut impl Renderer<'s>,
         alpha: u8,
+        _must_fit: bool,
     ) -> LayoutFit {
-        self.layout_text(
+        let fit = self.layout_text(
             text,
             &mut self.initial_cursor(),
             &mut TextRenderer::new(target).with_alpha(alpha),
-        )
+        );
+
+        #[cfg(feature = "ui_debug")]
+        if _must_fit && matches!(fit, LayoutFit::OutOfBounds { .. }) {
+            target.raise_overflow_exception();
+        }
+
+        fit
     }
 
     /// Loop through the `text` and try to fit it on the current screen,
@@ -292,6 +306,8 @@ impl TextLayout {
                 sink.prev_page_ellipsis(*cursor, self);
                 cursor.x += self.style.prev_page_ellipsis_width();
             }
+            // Ignore leading '\r' character if the above ellipsis has been drawn
+            remaining_text = remaining_text.strip_prefix('\r').unwrap_or(remaining_text);
         }
 
         while !remaining_text.is_empty() {
@@ -511,16 +527,14 @@ where
     R: Renderer<'s>,
 {
     fn text(&mut self, cursor: Point, layout: &TextLayout, text: &str) {
-        shape::Text::new(cursor, text)
-            .with_font(layout.style.text_font)
+        shape::Text::new(cursor, text, layout.style.text_font)
             .with_fg(layout.style.text_color)
             .with_alpha(self.alpha)
             .render(self.renderer);
     }
 
     fn hyphen(&mut self, cursor: Point, layout: &TextLayout) {
-        shape::Text::new(cursor, "-")
-            .with_font(layout.style.text_font)
+        shape::Text::new(cursor, "-", layout.style.text_font)
             .with_fg(layout.style.hyphen_color)
             .with_alpha(self.alpha)
             .render(self.renderer);
@@ -535,8 +549,7 @@ where
                 .with_alpha(self.alpha)
                 .render(self.renderer);
         } else {
-            shape::Text::new(cursor, ELLIPSIS)
-                .with_font(layout.style.text_font)
+            shape::Text::new(cursor, ELLIPSIS, layout.style.text_font)
                 .with_fg(layout.style.ellipsis_color)
                 .with_alpha(self.alpha)
                 .render(self.renderer);
@@ -551,8 +564,7 @@ where
                 .with_alpha(self.alpha)
                 .render(self.renderer);
         } else {
-            shape::Text::new(cursor, ELLIPSIS)
-                .with_font(layout.style.text_font)
+            shape::Text::new(cursor, ELLIPSIS, layout.style.text_font)
                 .with_fg(layout.style.ellipsis_color)
                 .with_alpha(self.alpha)
                 .render(self.renderer);

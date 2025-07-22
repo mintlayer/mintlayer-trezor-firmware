@@ -36,6 +36,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Initialize and update ts-tvl
+        run: |
+          git submodule update --init --recursive vendor/ts-tvl
       - uses: ./.github/actions/environment
       - name: "Run style check"
         run: nix-shell --run "poetry run make style_check"
@@ -70,7 +73,8 @@ jobs:
   # or contain `[no changelog]` in the commit message.
   changelog_check:
     name: Changelog check
-    if: ${{ github.ref != 'main' && github.event_name == 'pull_request' }}
+    # if: ${{ github.ref != 'main' && github.event_name == 'pull_request' }}
+    if: false # Disabled for Mintlayer repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,7 +87,7 @@ jobs:
   # Checking the format of release commit messages.
   release_commit_msg_check:
     name: Release commit message check
-    if: ${{ startsWith(github.ref, 'refs/tags/release/') && github.repository == 'trezor/trezor-firmware' }}
+    if: ${{ startsWith(github.ref, 'refs/heads/release/') && github.repository == 'trezor/trezor-firmware' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -94,7 +98,8 @@ jobs:
   # Warn if core/embed/rust/Cargo.lock changed
   cargolock_check:
     name: Cargo.lock check
-    if: ${{ github.ref != 'main' && github.event_name == 'pull_request' }}
+    # if: ${{ github.ref != 'main' && github.event_name == 'pull_request' }}
+    if: false # Disabled for Mintlayer repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -116,12 +121,12 @@ jobs:
           comment-author: 'github-actions[bot]'
           body-includes: cargolock-comment-${{ github.workflow }}
 
-      # - name: Create comment
-      #   uses: peter-evans/create-or-update-comment@v4
-      #   if: ${{ env.cargo_modified == '1' && steps.fc.outputs.comment-id == '' }}
-      #   with:
-      #     issue-number: ${{ github.event.pull_request.number }}
-      #     body: |
-      #       <!-- cargolock-comment-${{ github.workflow }} -->
-      #       ${{ env.CARGOLOCK_COMMENT }}
-      #     edit-mode: replace
+      - name: Create comment
+        uses: peter-evans/create-or-update-comment@v4
+        if: ${{ env.cargo_modified == '1' && steps.fc.outputs.comment-id == '' }}
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            <!-- cargolock-comment-${{ github.workflow }} -->
+            ${{ env.CARGOLOCK_COMMENT }}
+          edit-mode: replace

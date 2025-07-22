@@ -76,8 +76,8 @@ fn mintlayer_encode_input_commitment_v1_for_produce_block_from_stake_utxo_impl(
 ) -> Result<SighashInputCommitment, MintlayerErrorCode> {
     let utxo = TxOutput::decode_all(&mut &encoded_utxo[..])
         .map_err(|_| MintlayerErrorCode::InvalidEncodedUtxo)?;
-    let staker_balance = Amount::from_bytes_be(staker_balance_amount.as_ref())
-        .ok_or(MintlayerErrorCode::InvalidAmount)?;
+    let staker_balance =
+        Amount::from_bytes_be(staker_balance_amount).ok_or(MintlayerErrorCode::InvalidAmount)?;
 
     Ok(SighashInputCommitment::ProduceBlockFromStakeUtxo {
         utxo,

@@ -21,6 +21,7 @@ import logging
 import re
 import textwrap
 import time
+import warnings
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime
@@ -44,10 +45,10 @@ from mnemonic import Mnemonic
 
 from . import mapping, messages, models, protobuf
 from .client import TrezorClient
-from .exceptions import TrezorFailure
+from .exceptions import TrezorFailure, UnexpectedMessageError
 from .log import DUMP_BYTES
 from .messages import DebugWaitType
-from .tools import expect
+from .transport import Timeout
 
 if TYPE_CHECKING:
     from typing_extensions import Protocol
@@ -60,13 +61,15 @@ if TYPE_CHECKING:
     ]
 
     AnyDict = Dict[str, Any]
+    Coords = Tuple[int, int]
 
     class InputFunc(Protocol):
         def __call__(
             self,
             hold_ms: int | None = None,
-            wait: bool | None = None,
-        ) -> "LayoutContent": ...
+        ) -> "None": ...
+
+    InputFlowType = Generator[None, messages.ButtonRequest, None]
 
 
 EXPECTED_RESPONSES_CONTEXT_LINES = 3
@@ -76,21 +79,30 @@ LOG = logging.getLogger(__name__)
 
 class LayoutType(Enum):
     T1 = auto()
-    TT = auto()
-    TR = auto()
-    Mercury = auto()
+    Bolt = auto()
+    Caesar = auto()
+    Delizia = auto()
+    Eckhart = auto()
 
     @classmethod
     def from_model(cls, model: models.TrezorModel) -> "LayoutType":
         if model in (models.T2T1,):
-            return cls.TT
+            return cls.Bolt
         if model in (models.T2B1, models.T3B1):
-            return cls.TR
+            return cls.Caesar
         if model in (models.T3T1,):
-            return cls.Mercury
+            return cls.Delizia
+        if model in (models.T3W1,):
+            return cls.Eckhart
         if model in (models.T1B1,):
             return cls.T1
         raise ValueError(f"Unknown model: {model}")
+
+    def __str__(self) -> str:
+        return self.name
+
+    def __repr__(self) -> str:
+        return f"LayoutType.{self.name}"
 
 
 class UnstructuredJSONReader:
@@ -227,7 +239,13 @@ class LayoutContent(UnstructuredJSONReader):
         """What is on the screen, in one long string, so content can be
         asserted regardless of newlines. Also getting rid of possible ellipsis.
         """
-        content = self.screen_content().replace("\n", " ")
+        content = self.screen_content()
+
+        # Fix line-broken hyphenated words: 'Back- ups' -> 'Backups'
+        content = re.sub(r"-\s+", "", content)
+
+        # Replace remaining newlines with space
+        content = content.replace("\n", " ")
         if content.endswith("..."):
             content = content[:-3]
         if content.startswith("..."):
@@ -308,7 +326,18 @@ class LayoutContent(UnstructuredJSONReader):
 
     def button_contents(self) -> list[str]:
         """Getting list of button contents."""
-        buttons = self.find_unique_value_by_key("buttons", default={}, only_type=dict)
+
+        if self.action_bar() != "":
+            # ActionBar is used in Eckhart layout
+            buttons = self.find_unique_value_by_key(
+                "ActionBar", default={}, only_type=dict
+            )
+            button_keys = ("left_button", "", "right_button")
+        else:
+            buttons = self.find_unique_value_by_key(
+                "buttons", default={}, only_type=dict
+            )
+            button_keys = ("left_btn", "middle_btn", "right_btn")
 
         def get_button_content(btn_key: str) -> str:
             button_obj = buttons.get(btn_key, {})
@@ -325,7 +354,6 @@ class LayoutContent(UnstructuredJSONReader):
             # default value
             return "-"
 
-        button_keys = ("left_btn", "middle_btn", "right_btn")
         return [get_button_content(btn_key) for btn_key in button_keys]
 
     def seed_words(self) -> list[str]:
@@ -392,6 +420,20 @@ class LayoutContent(UnstructuredJSONReader):
             return ""
         return footer.get("description", "") + " " + footer.get("instruction", "")
 
+    def action_bar(self) -> str:
+        action_bar = self.find_unique_object_with_key_and_value(
+            "component", "ActionBar"
+        )
+        if not action_bar:
+            return ""
+        right_button = action_bar.get("right_button", "")
+        left_button = action_bar.get("left_button", "")
+        if isinstance(left_button, dict):
+            left_button = left_button.get("text", "")
+        if isinstance(right_button, dict):
+            right_button = right_button.get("text", "")
+        return left_button + " " + right_button
+
 
 def multipage_content(layouts: list[LayoutContent]) -> str:
     """Get overall content from multiple-page layout."""
@@ -412,11 +454,10 @@ def _make_input_func(
     def input_func(
         self: "DebugLink",
         hold_ms: int | None = None,
-        wait: bool | None = None,
-    ) -> LayoutContent:
+    ) -> None:
         __tracebackhide__ = True  # for pytest # pylint: disable=W0612
         decision.hold_ms = hold_ms
-        return self._decision(decision, wait=wait)
+        self._decision(decision)
 
     return input_func  # type: ignore [Parameter name mismatch]
 
@@ -438,14 +479,10 @@ class DebugLink:
         self.t1_screenshot_directory: Path | None = None
         self.t1_screenshot_counter = 0
 
-        # Optional file for saving text representation of the screen
-        self.screen_text_file: Path | None = None
-        self.last_screen_content = ""
-
         self.waiting_for_layout_change = False
-        self.layout_dirty = True
 
         self.input_wait_type = DebugWaitType.IMMEDIATE
+        self.prev_gc_info: dict[str, int] = {}
 
     @property
     def legacy_ui(self) -> bool:
@@ -463,6 +500,11 @@ class DebugLink:
         return self.version >= (2, 8, 6)
 
     @property
+    def has_gc_info(self) -> bool:
+        """Supports DebugLinkGetGcInfo RPC."""
+        return self.version >= (2, 8, 11)
+
+    @property
     def responds_to_debuglink_in_usb_tiny(self) -> bool:
         """Whether a Trezor One can respond to DebugLinkGetState while waiting
         for a Button/Pin/Passphrase Ack."""
@@ -473,10 +515,13 @@ class DebugLink:
         assert self.model is not None
         return LayoutType.from_model(self.model)
 
-    def set_screen_text_file(self, file_path: Path | None) -> None:
-        if file_path is not None:
-            file_path.write_bytes(b"")
-        self.screen_text_file = file_path
+    @property
+    def screen_buttons(self) -> ScreenButtons:
+        return ScreenButtons(self.layout_type)
+
+    @property
+    def button_actions(self) -> ButtonActions:
+        return ButtonActions(self.layout_type)
 
     def open(self) -> None:
         self.transport.begin_session()
@@ -501,8 +546,8 @@ class DebugLink:
         )
         self.transport.write(msg_type, msg_bytes)
 
-    def _read(self) -> protobuf.MessageType:
-        ret_type, ret_bytes = self.transport.read()
+    def _read(self, timeout: float | None = None) -> protobuf.MessageType:
+        ret_type, ret_bytes = self.transport.read(timeout=timeout)
         LOG.log(
             DUMP_BYTES,
             f"received type {ret_type} ({len(ret_bytes)} bytes): {ret_bytes.hex()}",
@@ -521,9 +566,9 @@ class DebugLink:
         )
         return msg
 
-    def _call(self, msg: protobuf.MessageType) -> Any:
+    def _call(self, msg: protobuf.MessageType, timeout: float | None = None) -> Any:
         self._write(msg)
-        return self._read()
+        return self._read(timeout=timeout)
 
     def state(self, wait_type: DebugWaitType | None = None) -> messages.DebugLinkState:
         if wait_type is None:
@@ -539,8 +584,19 @@ class DebugLink:
             raise TrezorFailure(result)
         return result
 
-    def read_layout(self) -> LayoutContent:
-        return LayoutContent(self.state().tokens)
+    def read_layout(self, wait: bool | None = None) -> LayoutContent:
+        """
+        Force waiting for the layout by setting `wait=True`. Force not waiting by
+        setting `wait=False` -- useful when, e.g., you are causing the next layout to be
+        deliberately delayed.
+        """
+        if wait is True:
+            wait_type = DebugWaitType.CURRENT_LAYOUT
+        elif wait is False:
+            wait_type = DebugWaitType.IMMEDIATE
+        else:
+            wait_type = None
+        return LayoutContent(self.state(wait_type=wait_type).tokens)
 
     def wait_layout(self, wait_for_external_change: bool = False) -> LayoutContent:
         # Next layout change will be caused by external event
@@ -554,18 +610,12 @@ class DebugLink:
         obj = self._call(
             messages.DebugLinkGetState(wait_layout=DebugWaitType.NEXT_LAYOUT)
         )
-        self.layout_dirty = True
         if isinstance(obj, messages.Failure):
             raise TrezorFailure(obj)
         return LayoutContent(obj.tokens)
 
     @contextmanager
-    def wait_for_layout_change(self) -> Iterator[LayoutContent]:
-        # set up a dummy layout content object to be yielded
-        layout_content = LayoutContent(
-            ["DUMMY CONTENT, WAIT UNTIL THE END OF THE BLOCK :("]
-        )
-
+    def wait_for_layout_change(self) -> Iterator[None]:
         # make sure some current layout is up by issuing a dummy GetState
         self.state()
 
@@ -575,17 +625,13 @@ class DebugLink:
         # allow the block to proceed
         self.waiting_for_layout_change = True
         try:
-            yield layout_content
+            yield
         finally:
             self.waiting_for_layout_change = False
-            self.layout_dirty = True
 
         # wait for the reply
         resp = self._read()
         assert isinstance(resp, messages.DebugLinkState)
-
-        # replace contents of the yielded object with the new thing
-        layout_content.__init__(resp.tokens)
 
     def reset_debug_events(self) -> None:
         # Only supported on TT and above certain version
@@ -632,8 +678,8 @@ class DebugLink:
 
     def _decision(
         self, decision: messages.DebugLinkDecision, wait: bool | None = None
-    ) -> LayoutContent:
-        """Send a debuglink decision and returns the resulting layout.
+    ) -> None:
+        """Send a debuglink decision.
 
         If hold_ms is set, an additional 200ms is added to account for processing
         delays. (This is needed for hold-to-confirm to trigger reliably.)
@@ -654,20 +700,35 @@ class DebugLink:
         deliberately delayed.
         """
         if not self.allow_interactions:
-            return self.wait_layout()
+            self.wait_layout()
+            return
 
         if decision.hold_ms is not None:
             decision.hold_ms += 200
 
         self._write(decision)
-        self.layout_dirty = True
+        if self.model is models.T1B1:
+            return
+
         if wait is True:
             wait_type = DebugWaitType.CURRENT_LAYOUT
         elif wait is False:
             wait_type = DebugWaitType.IMMEDIATE
         else:
             wait_type = self.input_wait_type
-        return self._snapshot_core(wait_type)
+
+        # When the call below returns, we know that `decision` has been processed in Core.
+        # XXX Due to a bug, the reply may get lost at the end of a workflow.
+        # We assume that no single input event takes more than 5 seconds to process,
+        # and give up waiting after that.
+        try:
+            msg = messages.DebugLinkGetState(
+                wait_layout=wait_type,
+                return_empty_state=True,
+            )
+            self._call(msg, timeout=5)
+        except Timeout as e:
+            LOG.warning("timeout waiting for DebugLinkState: %s", e)
 
     press_yes = _make_input_func(button=messages.DebugButton.YES)
     """Confirm current layout. See `_decision` for more details."""
@@ -694,58 +755,19 @@ class DebugLink:
     )
     """Press right button. See `_decision` for more details."""
 
-    def input(self, word: str, wait: bool | None = None) -> LayoutContent:
+    def input(self, word: str) -> None:
         """Send text input to the device. See `_decision` for more details."""
-        return self._decision(messages.DebugLinkDecision(input=word), wait)
+        self._decision(messages.DebugLinkDecision(input=word))
 
     def click(
         self,
         click: Tuple[int, int],
         hold_ms: int | None = None,
         wait: bool | None = None,
-    ) -> LayoutContent:
+    ) -> None:
         """Send a click to the device. See `_decision` for more details."""
         x, y = click
-        return self._decision(
-            messages.DebugLinkDecision(x=x, y=y, hold_ms=hold_ms), wait
-        )
-
-    def _snapshot_core(
-        self, wait_type: DebugWaitType = DebugWaitType.IMMEDIATE
-    ) -> LayoutContent:
-        """Save text and image content of the screen to relevant directories."""
-        # skip the snapshot if we are on T1
-        if self.model is models.T1B1:
-            return LayoutContent([])
-
-        # take the snapshot
-        state = self.state(wait_type)
-        layout = LayoutContent(state.tokens)
-
-        if state.tokens and self.layout_dirty:
-            # save it, unless we already did or unless it's empty
-            self.save_debug_screen(layout.visible_screen())
-            self.layout_dirty = False
-
-        # return the layout
-        return layout
-
-    def save_debug_screen(self, screen_content: str) -> None:
-        if self.screen_text_file is None:
-            return
-
-        if not self.screen_text_file.exists():
-            self.screen_text_file.write_bytes(b"")
-
-        # Not writing the same screen twice
-        if screen_content == self.last_screen_content:
-            return
-
-        self.last_screen_content = screen_content
-
-        with open(self.screen_text_file, "a") as f:
-            f.write(screen_content)
-            f.write("\n" + 80 * "/" + "\n")
+        self._decision(messages.DebugLinkDecision(x=x, y=y, hold_ms=hold_ms), wait=wait)
 
     def stop(self) -> None:
         self._write(messages.DebugLinkStop())
@@ -775,9 +797,10 @@ class DebugLink:
         else:
             self.t1_take_screenshots = False
 
-    @expect(messages.DebugLinkMemory, field="memory", ret_type=bytes)
-    def memory_read(self, address: int, length: int) -> protobuf.MessageType:
-        return self._call(messages.DebugLinkMemoryRead(address=address, length=length))
+    def memory_read(self, address: int, length: int) -> bytes:
+        return self._call(
+            messages.DebugLinkMemoryRead(address=address, length=length)
+        ).memory
 
     def memory_write(self, address: int, memory: bytes, flash: bool = False) -> None:
         self._write(
@@ -787,9 +810,11 @@ class DebugLink:
     def flash_erase(self, sector: int) -> None:
         self._write(messages.DebugLinkFlashErase(sector=sector))
 
-    @expect(messages.Success)
     def erase_sd_card(self, format: bool = True) -> messages.Success:
-        return self._call(messages.DebugLinkEraseSdCard(format=format))
+        res = self._call(messages.DebugLinkEraseSdCard(format=format))
+        if not isinstance(res, messages.Success):
+            raise UnexpectedMessageError(messages.Success, res)
+        return res
 
     def snapshot_legacy(self) -> None:
         """Snapshot the current state of the device."""
@@ -804,7 +829,7 @@ class DebugLink:
             self._save_screenshot_t1(state.layout)
 
     def _save_screenshot_t1(self, data: bytes) -> None:
-        if self.t1_screenshot_directory is None:
+        if self.t1_screenshot_directory is None or not self.t1_take_screenshots:
             return
 
         from PIL import Image
@@ -826,6 +851,36 @@ class DebugLink:
         )
         im.save(img_location)
         self.t1_screenshot_counter += 1
+
+    def check_gc_info(self, fail_on_gc_leak: bool = True):
+        """Fetch GC heap information and check for leaks."""
+        if not self.has_gc_info:
+            return
+
+        resp = self._call(messages.DebugLinkGetGcInfo())
+        while not isinstance(resp, messages.DebugLinkGcInfo):
+            resp = self._read()
+
+        info = dict(sorted((item.name, item.value) for item in resp.items))
+        if info["total"]:
+            LOG.debug(
+                "GC info: free=%.2f%% max_free=%.2f%%",
+                100 * info["free"] / info["total"],
+                100 * info["max_free"] / info["total"],
+            )
+
+        prev_info = self.prev_gc_info
+        self.prev_gc_info = info
+
+        if not prev_info:
+            return
+        # Free heap memory should not decrease
+        if info["free"] < prev_info["free"]:
+            msg = f"GC leak found: {prev_info} -> {info}"
+            if fail_on_gc_leak:
+                raise AssertionError(msg)
+            else:
+                warnings.warn(msg)
 
 
 del _make_input_func
@@ -875,13 +930,23 @@ class DebugUI:
             # Paginating (going as further as possible) and pressing Yes
             if br.pages is not None:
                 for _ in range(br.pages - 1):
-                    self.debuglink.swipe_up(wait=True)
+                    if self.debuglink.model is models.T3W1:
+                        self.debuglink.click(self.debuglink.screen_buttons.ok())
+                    else:
+                        self.debuglink.swipe_up()
+
             if self.debuglink.model is models.T3T1:
                 layout = self.debuglink.read_layout()
                 if "PromptScreen" in layout.all_components():
                     self.debuglink.press_yes()
                 elif "SwipeContent" in layout.all_components():
                     self.debuglink.swipe_up()
+                else:
+                    self.debuglink.press_yes()
+            elif self.debuglink.model is models.T3W1:
+                layout = self.debuglink.read_layout()
+                if "TextScreen" in layout.all_components():
+                    self.debuglink.click(self.debuglink.screen_buttons.ok())
                 else:
                     self.debuglink.press_yes()
             else:
@@ -1106,7 +1171,7 @@ class TrezorClientDebugLink(TrezorClient):
             return msg
 
     def set_input_flow(
-        self, input_flow: Generator[None, messages.ButtonRequest | None, None]
+        self, input_flow: InputFlowType | Callable[[], InputFlowType]
     ) -> None:
         """Configure a sequence of input events for the current with-block.
 
@@ -1140,7 +1205,7 @@ class TrezorClientDebugLink(TrezorClient):
         if not hasattr(input_flow, "send"):
             raise RuntimeError("input_flow should be a generator function")
         self.ui.input_flow = input_flow
-        input_flow.send(None)  # start the generator
+        next(input_flow)  # start the generator
 
     def watch_layout(self, watch: bool = True) -> None:
         """Enable or disable watching layout changes.
@@ -1162,7 +1227,7 @@ class TrezorClientDebugLink(TrezorClient):
         self.in_with_statement = True
         return self
 
-    def __exit__(self, exc_type: Any, value: Any, traceback: Any) -> None:
+    def __exit__(self, exc_type: Any, value: Any, _traceback: Any) -> None:
         __tracebackhide__ = True  # for pytest # pylint: disable=W0612
 
         # copy expected/actual responses before clearing them
@@ -1185,10 +1250,11 @@ class TrezorClientDebugLink(TrezorClient):
         elif isinstance(input_flow, Generator):
             # Propagate the exception through the input flow, so that we see in
             # traceback where it is stuck.
-            input_flow.throw(exc_type, value, traceback)
+            input_flow.throw(value)
 
     def set_expected_responses(
-        self, expected: list[Union["ExpectedMessage", Tuple[bool, "ExpectedMessage"]]]
+        self,
+        expected: Sequence[Union["ExpectedMessage", Tuple[bool, "ExpectedMessage"]]],
     ) -> None:
         """Set a sequence of expected responses to client calls.
 
@@ -1350,7 +1416,6 @@ class TrezorClientDebugLink(TrezorClient):
         raise RuntimeError("Unexpected call")
 
 
-@expect(messages.Success, field="message", ret_type=str)
 def load_device(
     client: "TrezorClient",
     mnemonic: Union[str, Iterable[str]],
@@ -1360,7 +1425,8 @@ def load_device(
     skip_checksum: bool = False,
     needs_backup: bool = False,
     no_backup: bool = False,
-) -> protobuf.MessageType:
+    _skip_init_device: bool = False,
+) -> None:
     if isinstance(mnemonic, str):
         mnemonic = [mnemonic]
 
@@ -1371,7 +1437,7 @@ def load_device(
             "Device is initialized already. Call device.wipe() and try again."
         )
 
-    resp = client.call(
+    client.call(
         messages.LoadDevice(
             mnemonics=mnemonics,
             pin=pin,
@@ -1380,25 +1446,26 @@ def load_device(
             skip_checksum=skip_checksum,
             needs_backup=needs_backup,
             no_backup=no_backup,
-        )
+        ),
+        expect=messages.Success,
     )
-    client.init_device()
-    return resp
+    if not _skip_init_device:
+        client.init_device()
 
 
 # keep the old name for compatibility
 load_device_by_mnemonic = load_device
 
 
-@expect(messages.Success, field="message", ret_type=str)
-def prodtest_t1(client: "TrezorClient") -> protobuf.MessageType:
+def prodtest_t1(client: "TrezorClient") -> None:
     if client.features.bootloader_mode is not True:
         raise RuntimeError("Device must be in bootloader mode")
 
-    return client.call(
+    client.call(
         messages.ProdTestT1(
             payload=b"\x00\xFF\x55\xAA\x66\x99\x33\xCCABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\x00\xFF\x55\xAA\x66\x99\x33\xCC"
-        )
+        ),
+        expect=messages.Success,
     )
 
 
@@ -1450,6 +1517,375 @@ def _is_emulator(debug_client: "TrezorClientDebugLink") -> bool:
     return debug_client.features.fw_vendor == "EMULATOR"
 
 
-@expect(messages.Success, field="message", ret_type=str)
-def optiga_set_sec_max(client: "TrezorClient") -> protobuf.MessageType:
-    return client.call(messages.DebugLinkOptigaSetSecMax())
+def optiga_set_sec_max(client: "TrezorClient") -> None:
+    client.call(messages.DebugLinkOptigaSetSecMax(), expect=messages.Success)
+
+
+class ScreenButtons:
+    def __init__(self, layout_type: LayoutType):
+        assert layout_type in (LayoutType.Bolt, LayoutType.Delizia, LayoutType.Eckhart)
+        self.layout_type = layout_type
+
+    def _width(self) -> int:
+        if self.layout_type in (LayoutType.Bolt, LayoutType.Delizia):
+            return 240
+        elif self.layout_type is LayoutType.Eckhart:
+            return 380
+        else:
+            raise ValueError("Wrong layout type")
+
+    def _height(self) -> int:
+        if self.layout_type in (LayoutType.Bolt, LayoutType.Delizia):
+            return 240
+        elif self.layout_type is LayoutType.Eckhart:
+            return 520
+        else:
+            raise ValueError("Wrong layout type")
+
+    def _grid(self, dim: int, grid_cells: int, cell: int) -> int:
+        assert cell < grid_cells
+        step = dim // grid_cells
+        ofs = step // 2
+        return cell * step + ofs
+
+    # 3 columns, 4 rows, 1st row is input area
+    def _grid35(self, x: int, y: int) -> Coords:
+        assert x < 3, y < 5
+        return self._grid(self._width(), 3, x), self._grid(self._height(), 5, y)
+
+    def _grid55(self, x: int, y: int) -> Coords:
+        assert x < 5, y < 5
+        return self._grid(self._width(), 5, x), self._grid(self._height(), 5, y)
+
+    # TODO: do not expose this
+    # 3 columns, 3 rows, 1st row is input area
+    def grid34(self, x: int, y: int) -> Coords:
+        assert x < 3, y < 4
+        return self._grid(self._width(), 3, x), self._grid(self._height(), 4, y)
+
+    # 2 columns, 3 rows, first two are header and description
+    def _grid25(self, x: int, y: int) -> Coords:
+        assert x < 2, y < 5
+        return self._grid(self._width(), 2, x), self._grid(self._height(), 5, y)
+
+    # Horizontal coordinates
+    def _left(self) -> int:
+        return self._grid(self._width(), 3, 0)
+
+    def _mid(self) -> int:
+        return self._grid(self._width(), 3, 1)
+
+    def _right(self) -> int:
+        return self._grid(self._width(), 3, 2)
+
+    # Vertical coordinates
+    def _top(self) -> int:
+        return self._grid(self._height(), 6, 0)
+
+    def _bottom(self) -> int:
+        return self._grid(self._height(), 6, 5)
+
+    # Buttons
+
+    # Right bottom
+    def ok(self) -> Coords:
+        return (self._right(), self._bottom())
+
+    # Left bottom
+    def cancel(self) -> Coords:
+        return (self._left(), self._bottom())
+
+    # Mid bottom
+    def info(self) -> Coords:
+        return (self._mid(), self._bottom())
+
+    # Menu/close menu button
+    def menu(self) -> Coords:
+        return self._grid55(4, 0)
+
+    # Center of the screen
+    def tap_to_confirm(self) -> Coords:
+        assert self.layout_type is LayoutType.Delizia
+        return (self._grid(self._width(), 1, 0), self._grid(self._width(), 1, 0))
+
+    # Yes/No decision component
+    def ui_yes(self) -> Coords:
+        if self.layout_type is LayoutType.Delizia:
+            return self.grid34(2, 2)
+        elif self.layout_type is LayoutType.Eckhart:
+            return self.ok()
+        else:
+            raise ValueError("Wrong layout type")
+
+    def ui_no(self) -> Coords:
+        if self.layout_type is LayoutType.Delizia:
+            return self.grid34(0, 2)
+        elif self.layout_type is LayoutType.Eckhart:
+            return self.cancel()
+        else:
+            raise ValueError("Wrong layout type")
+
+    # +/- buttons in number input component
+    def number_input_minus(self) -> Coords:
+        if self.layout_type is LayoutType.Bolt:
+            return (self._left(), self._grid(self._height(), 5, 1))
+        elif self.layout_type is LayoutType.Delizia:
+            return (self._left(), self._grid(self._height(), 5, 3))
+        elif self.layout_type is LayoutType.Eckhart:
+            return self.grid34(0, 2)
+        else:
+            raise ValueError("Wrong layout type")
+
+    def number_input_plus(self) -> Coords:
+        if self.layout_type is LayoutType.Bolt:
+            return (self._right(), self._grid(self._height(), 5, 1))
+        elif self.layout_type is LayoutType.Delizia:
+            return (self._right(), self._grid(self._height(), 5, 3))
+        elif self.layout_type is LayoutType.Eckhart:
+            return self.grid34(2, 2)
+        else:
+            raise ValueError("Wrong layout type")
+
+    def word_count_all_word(self, word_count: int) -> Coords:
+        assert word_count in (12, 18, 20, 24, 33)
+        if self.layout_type is LayoutType.Bolt:
+            coords_map = {
+                12: self.grid34(0, 2),
+                18: self.grid34(1, 2),
+                20: self.grid34(2, 2),
+                24: self.grid34(1, 3),
+                33: self.grid34(2, 3),
+            }
+        elif self.layout_type is LayoutType.Delizia:
+            coords_map = {
+                12: self.grid34(0, 1),
+                18: self.grid34(2, 1),
+                20: self.grid34(0, 2),
+                24: self.grid34(2, 2),
+                33: self.grid34(2, 3),
+            }
+        elif self.layout_type is LayoutType.Eckhart:
+            coords_map = {
+                12: self._grid35(0, 2),
+                18: self._grid35(2, 2),
+                20: self._grid35(0, 3),
+                24: self._grid35(2, 3),
+                33: self._grid35(2, 4),
+            }
+        else:
+            raise ValueError("Wrong layout type")
+
+        return coords_map[word_count]
+
+    def word_count_all_cancel(self) -> Coords:
+        if self.layout_type is LayoutType.Bolt:
+            return self.grid34(0, 3)
+        elif self.layout_type is LayoutType.Delizia:
+            return self.grid34(0, 3)
+        elif self.layout_type is LayoutType.Eckhart:
+            return self._grid35(0, 4)
+        else:
+            raise ValueError("Wrong layout type")
+
+    def word_count_repeated_word(self, word_count: int) -> Coords:
+        assert word_count in (20, 33)
+        if self.layout_type is LayoutType.Bolt:
+            coords_map = {
+                20: self.grid34(1, 2),
+                33: self.grid34(2, 2),
+            }
+        elif self.layout_type is LayoutType.Delizia:
+            coords_map = {
+                20: self.grid34(0, 1),
+                33: self.grid34(2, 1),
+            }
+        elif self.layout_type is LayoutType.Eckhart:
+            coords_map = {
+                20: self._grid35(1, 2),
+                33: self._grid35(1, 3),
+            }
+        else:
+            raise ValueError("Wrong layout type")
+
+        return coords_map[word_count]
+
+    def word_count_repeated_cancel(self) -> Coords:
+        if self.layout_type is LayoutType.Bolt:
+            return self.grid34(0, 2)
+        elif self.layout_type is LayoutType.Delizia:
+            return self.grid34(0, 3)
+        elif self.layout_type is LayoutType.Eckhart:
+            return self._grid35(1, 4)
+        else:
+            raise ValueError("Wrong layout type")
+
+    # select word component buttons
+    def word_check_words(self) -> "list[Coords]":
+        if self.layout_type in (LayoutType.Bolt, LayoutType.Delizia):
+            return [
+                (self._mid(), self._grid(self._height(), 4, 1)),
+                (self._mid(), self._grid(self._height(), 4, 2)),
+                (self._mid(), self._grid(self._height(), 4, 3)),
+            ]
+        elif self.layout_type is LayoutType.Eckhart:
+            return [
+                (self._mid(), self._grid(self._height(), 5, 2)),
+                (self._mid(), self._grid(self._height(), 5, 3)),
+                (self._mid(), self._grid(self._height(), 5, 4)),
+            ]
+        else:
+            raise ValueError("Wrong layout type")
+
+    # vertical menu buttons
+    def vertical_menu_items(self) -> "list[Coords]":
+        if self.layout_type is LayoutType.Delizia:
+            return [
+                (self._mid(), self._grid(self._height(), 4, 1)),
+                (self._mid(), self._grid(self._height(), 4, 2)),
+                (self._mid(), self._grid(self._height(), 4, 3)),
+            ]
+        elif self.layout_type is LayoutType.Eckhart:
+            return [
+                (self._mid(), self._grid(self._height(), 5, 1)),
+                (self._mid(), self._grid(self._height(), 5, 2)),
+                (self._mid(), self._grid(self._height(), 5, 3)),
+            ]
+        else:
+            raise ValueError("Wrong layout type")
+
+    # Pin/passphrase keyboards
+    def pin_passphrase_index(self, idx: int) -> Coords:
+        assert idx < 10
+        if idx == 9:
+            idx = 10  # last digit is in the middle
+        return self.pin_passphrase_grid(idx % 3, idx // 3)
+
+    def pin_passphrase_grid(self, x: int, y: int) -> Coords:
+        y += 1  # first line is empty
+        return self._grid35(x, y)
+
+    # PIN/passphrase input
+    def pin_passphrase_input(self) -> Coords:
+        return (self._mid(), self._top())
+
+    def pin_passphrase_erase(self) -> Coords:
+        return self.pin_passphrase_grid(0, 3)
+
+    def passphrase_confirm(self) -> Coords:
+        if self.layout_type in (LayoutType.Bolt, LayoutType.Eckhart):
+            return self.pin_passphrase_grid(2, 3)
+        elif self.layout_type is LayoutType.Delizia:
+            return self._grid55(4, 0)
+        else:
+            raise ValueError("Wrong layout type")
+
+    def pin_confirm(self) -> Coords:
+        return self.pin_passphrase_grid(2, 3)
+
+    # Mnemonic keyboard
+    def mnemonic_from_index(self, idx: int) -> Coords:
+        assert idx < 9
+        return self.mnemonic_grid(idx)
+
+    def mnemonic_grid(self, idx: int) -> Coords:
+        grid_x = idx % 3
+        grid_y = idx // 3 + 1  # first line is empty
+        if self.layout_type in (LayoutType.Bolt, LayoutType.Delizia):
+            return self.grid34(grid_x, grid_y)
+        elif self.layout_type is LayoutType.Eckhart:
+            return self._grid35(grid_x, grid_y)
+        else:
+            raise ValueError("Wrong layout type")
+
+    def mnemonic_erase(self) -> Coords:
+        if self.layout_type in (LayoutType.Bolt, LayoutType.Delizia):
+            return (self._left(), self._top())
+        elif self.layout_type is LayoutType.Eckhart:
+            return self._grid35(0, 4)
+        else:
+            raise ValueError("Wrong layout type")
+
+    def mnemonic_confirm(self) -> Coords:
+        if self.layout_type in (LayoutType.Bolt, LayoutType.Delizia):
+            return (self._mid(), self._top())
+        elif self.layout_type is LayoutType.Eckhart:
+            return self._grid35(2, 4)
+        else:
+            raise ValueError("Wrong layout type")
+
+
+BUTTON_LETTERS_BIP39 = ("abc", "def", "ghi", "jkl", "mno", "pqr", "stu", "vwx", "yz")
+BUTTON_LETTERS_SLIP39 = ("ab", "cd", "ef", "ghij", "klm", "nopq", "rs", "tuv", "wxyz")
+
+# fmt: off
+PASSPHRASE_LOWERCASE_BOLT = (" ", "abc", "def", "ghi", "jkl", "mno", "pqrs", "tuv", "wxyz", "*#")
+PASSPHRASE_LOWERCASE_DE = ("abc", "def", "ghi", "jkl", "mno", "pq", "rst", "uvw", "xyz", " *#")
+PASSPHRASE_UPPERCASE_BOLT = (" ", "ABC", "DEF", "GHI", "JKL", "MNO", "PQRS", "TUV", "WXYZ", "*#")
+PASSPHRASE_UPPERCASE_DE = ("ABC", "DEF", "GHI", "JKL", "MNO", "PQ", "RST", "UVW", "XYZ", " *#")
+PASSPHRASE_DIGITS = ("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+PASSPHRASE_SPECIAL = ("_<>", ".:@", "/|\\", "!()", "+%&", "-[]", "?{}", ",'`", ";\"~", "$^=")
+# fmt: on
+
+
+class ButtonActions:
+    def __init__(self, layout_type: LayoutType):
+        self.buttons = ScreenButtons(layout_type)
+
+    def _passphrase_choices(self, char: str) -> "tuple[str, ...]":
+        if char in " *#" or char.islower():
+            if self.buttons.layout_type is LayoutType.Bolt:
+                return PASSPHRASE_LOWERCASE_BOLT
+            elif self.buttons.layout_type in (LayoutType.Delizia, LayoutType.Eckhart):
+                return PASSPHRASE_LOWERCASE_DE
+            else:
+                raise ValueError("Wrong layout type")
+        elif char.isupper():
+            if self.buttons.layout_type is LayoutType.Bolt:
+                return PASSPHRASE_UPPERCASE_BOLT
+            elif self.buttons.layout_type in (LayoutType.Delizia, LayoutType.Eckhart):
+                return PASSPHRASE_UPPERCASE_DE
+            else:
+                raise ValueError("Wrong layout type")
+        elif char.isdigit():
+            return PASSPHRASE_DIGITS
+        else:
+            return PASSPHRASE_SPECIAL
+
+    def passphrase(self, char: str) -> Tuple[Coords, int]:
+        choices = self._passphrase_choices(char)
+        idx = next(i for i, letters in enumerate(choices) if char in letters)
+        click_amount = choices[idx].index(char) + 1
+        return self.buttons.pin_passphrase_index(idx), click_amount
+
+    def type_word(self, word: str, is_slip39: bool = False) -> Iterator[Coords]:
+        if is_slip39:
+            yield from self._type_word_slip39(word)
+        else:
+            yield from self._type_word_bip39(word)
+
+    def _type_word_slip39(self, word: str) -> Iterator[Coords]:
+        for l in word:
+            idx = next(
+                i for i, letters in enumerate(BUTTON_LETTERS_SLIP39) if l in letters
+            )
+            yield self.buttons.mnemonic_from_index(idx)
+
+    def _type_word_bip39(self, word: str) -> Iterator[Coords]:
+        coords_prev: Coords | None = None
+        for letter in word:
+            time.sleep(0.1)  # not being so quick to miss something
+            coords, amount = self._letter_coords_and_amount(letter)
+            # If the button is the same as for the previous letter,
+            # waiting a second before pressing it again.
+            if coords == coords_prev:
+                time.sleep(1.1)
+            coords_prev = coords
+            for _ in range(amount):
+                yield coords
+
+    def _letter_coords_and_amount(self, letter: str) -> Tuple[Coords, int]:
+        idx = next(
+            i for i, letters in enumerate(BUTTON_LETTERS_BIP39) if letter in letters
+        )
+        click_amount = BUTTON_LETTERS_BIP39[idx].index(letter) + 1
+        return self.buttons.mnemonic_from_index(idx), click_amount

@@ -137,6 +137,23 @@ MAKO_FILTERS = {
     "black_repr": black_repr_filter,
 }
 
+ALTCOIN_PREFIXES = (
+    "cardano",
+    "eos",
+    "ethereum",
+    "fido",
+    "monero",
+    "nem",
+    "nostr",
+    "ripple",
+    "solana",
+    "stellar",
+    "tezos",
+    "u2f",
+)
+
+DEBUG_PREFIXES = ("debug",)
+
 
 def render_file(
     src: Path, dst: Path, coins: CoinsInfo, support_info: SupportInfo, models: list[str]
@@ -153,9 +170,11 @@ def render_file(
     result = template.render(
         support_info=support_info,
         supported_on=make_support_filter(support_info),
-        ethereum_defs_timestamp=int(eth_defs_date.timestamp()),
+        defs_timestamp=int(eth_defs_date.timestamp()),
         THIS_FILE=this_file,
         ROOT=ROOT,
+        ALTCOIN_PREFIXES=ALTCOIN_PREFIXES,
+        DEBUG_PREFIXES=DEBUG_PREFIXES,
         **coins,
         **MAKO_FILTERS,
         ALL_MODELS=models,

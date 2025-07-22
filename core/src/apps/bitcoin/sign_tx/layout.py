@@ -99,24 +99,17 @@ async def confirm_output(
         if output.address_n and not output.multisig:
             from trezor import utils
 
-            # Showing the account string only for model_tr layout
+            # Showing the account string only for layout Caesar (TS3)
             # TODO expose layout_type so that we can check for it, instead of listing
             # all models that use the layout?
-            show_account_str = (
-                # pylint: disable-next=consider-using-in
-                utils.INTERNAL_MODEL == "T2B1"
-                or utils.INTERNAL_MODEL == "T3B1"
-            )
+            show_account_str = utils.UI_LAYOUT == "CAESAR"
             script_type = CHANGE_OUTPUT_TO_INPUT_SCRIPT_TYPES[output.script_type]
-            address_label = (
-                address_n_to_name(
-                    coin,
-                    output.address_n,
-                    script_type,
-                    show_account_str=show_account_str,
-                )
-                or f"{TR.send__address_path} {address_n_to_str(output.address_n)}"
-            )
+            address_label = address_n_to_name(
+                coin,
+                output.address_n,
+                script_type,
+                show_account_str=show_account_str,
+            ) or address_n_to_str(output.address_n)
 
         layout = layouts.confirm_output(
             address_short,
@@ -290,38 +283,29 @@ async def confirm_unverified_external_input() -> None:
 
 
 async def confirm_multiple_accounts() -> None:
-    await layouts.show_warning(
-        "sending_from_multiple_accounts",
-        TR.send__from_multiple_accounts,
-        TR.words__continue_anyway_question,
-        button=TR.buttons__continue,
-        br_code=ButtonRequestType.SignTx,
-    )
+    await layouts.confirm_multiple_accounts_warning()
 
 
 async def confirm_nondefault_locktime(lock_time: int, lock_time_disabled: bool) -> None:
     from trezor.strings import format_timestamp
 
     if lock_time_disabled:
-        await layouts.show_warning(
-            "nondefault_locktime",
-            TR.bitcoin__locktime_no_effect,
-            TR.words__continue_anyway_question,
-            button=TR.buttons__continue,
-            br_code=ButtonRequestType.SignTx,
-        )
+        await layouts.lock_time_disabled_warning()
     else:
         if lock_time < _LOCKTIME_TIMESTAMP_MIN_VALUE:
             text = TR.bitcoin__locktime_set_to_blockheight
             value = str(lock_time)
+            is_data = True
         else:
             text = TR.bitcoin__locktime_set_to
             value = format_timestamp(lock_time)
+            is_data = False
         await layouts.confirm_value(
             TR.bitcoin__confirm_locktime,
             value,
             text,
             "nondefault_locktime",
+            is_data=is_data,
             br_code=ButtonRequestType.SignTx,
             verb=TR.buttons__confirm,
         )

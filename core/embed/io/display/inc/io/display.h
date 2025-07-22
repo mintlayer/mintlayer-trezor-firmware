@@ -17,8 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TREZORHAL_XDISPLAY_H
-#define TREZORHAL_XDISPLAY_H
+#pragma once
 
 #include <trezor_types.h>
 
@@ -44,8 +43,6 @@
 // MIPI            -
 //                 - STM32U5A9J-DK Discovery Board
 
-#ifdef KERNEL_MODE
-
 // Specifies how display content should be handled during
 // initialization or deinitialization.
 typedef enum {
@@ -55,11 +52,15 @@ typedef enum {
   DISPLAY_RETAIN_CONTENT
 } display_content_mode_t;
 
+#ifdef KERNEL_MODE
+
 // Initializes the display controller.
 //
 // If `mode` is `DISPLAY_RETAIN_CONTENT`, ensure the driver was previously
 // initialized and `display_deinit(DISPLAY_RETAIN_CONTENT)` was called.
-void display_init(display_content_mode_t mode);
+//
+// Returns `true` if the initialization was successful.
+bool display_init(display_content_mode_t mode);
 
 // Deinitializes the display controller.
 //
@@ -107,9 +108,10 @@ int display_get_orientation(void);
 typedef struct {
   // Pointer to the top-left pixel
   void *ptr;
+  // Framebuffer size in bytes
+  size_t size;
   // Stride in bytes
   size_t stride;
-
 } display_fb_info_t;
 
 // Provides pointer to the inactive (writeable) framebuffer.
@@ -148,9 +150,6 @@ void display_fill(const gfx_bitblt_t *bb);
 // Copies an RGB565 bitmap.
 // This function is supported by RGB displays only.
 void display_copy_rgb565(const gfx_bitblt_t *bb);
-// Copies a MONO4 bitmap (supported only with RGB displays).
-// This function is supported by RGB displays only.
-void display_copy_mono4(const gfx_bitblt_t *bb);
 // Copies a MONO1P bitmap.
 // This function is supported by all types of displays.
 void display_copy_mono1p(const gfx_bitblt_t *bb);
@@ -161,5 +160,3 @@ void display_copy_mono1p(const gfx_bitblt_t *bb);
 const char *display_save(const char *prefix);
 void display_clear_save(void);
 #endif
-
-#endif  // TREZORHAL_XDISPLAY_H

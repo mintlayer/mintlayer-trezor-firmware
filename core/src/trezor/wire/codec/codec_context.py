@@ -2,15 +2,20 @@ from typing import TYPE_CHECKING, Awaitable, Container
 
 from storage import cache_codec
 from storage.cache_common import DataCache, InvalidSessionError
-from trezor import log, protobuf
+from trezor import protobuf
 from trezor.wire.codec import codec_v1
 from trezor.wire.context import UnexpectedMessageException
+from trezor.wire.message_handler import wrap_protobuf_load
 from trezor.wire.protocol_common import Context, Message
+
+if __debug__:
+    from trezor import log
+
 
 if TYPE_CHECKING:
     from typing import TypeVar
 
-    from trezor.wire import WireInterface
+    from .. import BufferProvider, WireInterface
 
     LoadedMessageType = TypeVar("LoadedMessageType", bound=protobuf.MessageType)
 
@@ -21,14 +26,20 @@ class CodecContext(Context):
     def __init__(
         self,
         iface: WireInterface,
-        buffer: bytearray,
+        buffer_provider: BufferProvider,
     ) -> None:
-        self.buffer = buffer
+        self.buffer_provider = buffer_provider
+        self._buffer = None
         super().__init__(iface)
+
+    def _get_buffer(self) -> bytearray | None:
+        if self._buffer is None:
+            self._buffer = self.buffer_provider.take()
+        return self._buffer
 
     def read_from_wire(self) -> Awaitable[Message]:
         """Read a whole message from the wire without parsing it."""
-        return codec_v1.read_message(self.iface, self.buffer)
+        return codec_v1.read_message(self.iface, self._get_buffer)
 
     async def read(
         self,
@@ -38,9 +49,9 @@ class CodecContext(Context):
         if __debug__:
             log.debug(
                 __name__,
-                "%d: expect: %s",
-                self.iface.iface_num(),
+                "expect: %s",
                 expected_type.MESSAGE_NAME if expected_type else expected_types,
+                iface=self.iface,
             )
 
         # Load the full message into a buffer, parse out type and data payload
@@ -57,23 +68,21 @@ class CodecContext(Context):
         if __debug__:
             log.debug(
                 __name__,
-                "%d: read: %s",
-                self.iface.iface_num(),
+                "read: %s",
                 expected_type.MESSAGE_NAME,
+                iface=self.iface,
             )
 
         # look up the protobuf class and parse the message
-        from ..message_handler import wrap_protobuf_load
-
         return wrap_protobuf_load(msg.data, expected_type)
 
     async def write(self, msg: protobuf.MessageType) -> None:
         if __debug__:
             log.debug(
                 __name__,
-                "%d: write: %s",
-                self.iface.iface_num(),
+                "write: %s",
                 msg.MESSAGE_NAME,
+                iface=self.iface,
             )
 
         # cannot write message without wire type
@@ -81,10 +90,15 @@ class CodecContext(Context):
 
         msg_size = protobuf.encoded_length(msg)
 
-        if msg_size <= len(self.buffer):
-            # reuse preallocated
-            buffer = self.buffer
-        else:
+        buffer = self._get_buffer()
+        if buffer is None:
+            if msg_size > 128:
+                raise IOError
+            # allow sending small responses (for error reporting when another session is in progress)
+            buffer = bytearray(msg_size)
+
+        # try to reuse reallocated buffer
+        if msg_size > len(buffer):
             # message is too big, we need to allocate a new buffer
             buffer = bytearray(msg_size)
 

@@ -18,14 +18,20 @@ def configure(
 
     features_available.append("framebuffer")
     features_available.append("display_rgb565")
-    defines += [("DISPLAY_RGB565", "1")]
-    defines += [("FRAMEBUFFER", "1")]
-    defines += [("USE_RGB_COLORS", "1")]
+    defines += [
+        ("DISPLAY_RGB565", "1"),
+        ("FRAMEBUFFER", "1"),
+        ("USE_RGB_COLORS", "1"),
+        ("DISPLAY_RESX", "240"),
+        ("DISPLAY_RESY", "240"),
+        ("LOCKABLE_BOOTLOADER", "1"),
+    ]
 
     mcu = "STM32U585xx"
     linker_script = """embed/sys/linker/stm32u58/{target}.ld"""
+    memory_layout = "memory.ld"
 
-    stm32u5_common_files(env, defines, sources, paths)
+    stm32u5_common_files(env, features_wanted, defines, sources, paths)
 
     env.get("ENV")[
         "CPU_ASFLAGS"
@@ -42,25 +48,29 @@ def configure(
         ("HW_REVISION", str(hw_revision)),
     ]
 
-    sources += ["embed/io/display/st-7789/display_fb.c"]
-    sources += ["embed/io/display/st-7789/display_driver.c"]
-    sources += ["embed/io/display/st-7789/display_io.c"]
-    sources += ["embed/io/display/st-7789/display_panel.c"]
-    sources += ["embed/io/display/st-7789/panels/lx154a2482.c"]
-    sources += ["embed/io/display/fb_queue/fb_queue.c"]
-    paths += ["embed/io/display/inc"]
+    if "display" in features_wanted:
+        sources += ["embed/io/display/st-7789/display_fb.c"]
+        sources += ["embed/io/display/st-7789/display_driver.c"]
+        sources += ["embed/io/display/st-7789/display_io.c"]
+        sources += ["embed/io/display/st-7789/display_panel.c"]
+        sources += ["embed/io/display/st-7789/panels/lx154a2482.c"]
+        sources += ["embed/io/display/fb_queue/fb_queue.c"]
+        paths += ["embed/io/display/inc"]
+        defines += [("USE_DISPLAY", "1")]
 
-    sources += ["embed/io/display/backlight/stm32/backlight_pwm.c"]
-    features_available.append("backlight")
-    defines += [("USE_BACKLIGHT", "1")]
+        features_available.append("backlight")
+        defines += [("USE_BACKLIGHT", "1")]
+        sources += ["embed/io/backlight/stm32/tps61043.c"]
+        paths += ["embed/io/backlight/inc"]
 
-    env_constraints = env.get("CONSTRAINTS")
-    if not (env_constraints and "limited_util_s" in env_constraints):
-        sources += ["embed/io/display/bg_copy/stm32u5/bg_copy.c"]
+        env_constraints = env.get("CONSTRAINTS")
+        if not (env_constraints and "limited_util_s" in env_constraints):
+            sources += ["embed/io/display/bg_copy/stm32u5/bg_copy.c"]
 
     if "input" in features_wanted:
         sources += ["embed/io/i2c_bus/stm32u5/i2c_bus.c"]
         sources += ["embed/io/touch/ft6x36/ft6x36.c"]
+        sources += ["embed/io/touch/touch_poll.c"]
         sources += ["embed/io/touch/ft6x36/panels/lx154a2422cpt23.c"]
         paths += ["embed/io/i2c_bus/inc"]
         paths += ["embed/io/touch/inc"]
@@ -106,6 +116,7 @@ def configure(
         ]
         features_available.append("usb")
         paths += ["embed/io/usb/inc"]
+        defines += [("USE_USB", "1")]
 
     if "dma2d" in features_wanted:
         defines += [("USE_DMA2D", "1")]
@@ -116,18 +127,23 @@ def configure(
         sources += ["embed/sec/optiga/stm32/optiga_hal.c"]
         sources += ["embed/sec/optiga/optiga.c"]
         sources += ["embed/sec/optiga/optiga_commands.c"]
+        sources += ["embed/sec/optiga/optiga_config.c"]
         sources += ["embed/sec/optiga/optiga_transport.c"]
         sources += ["vendor/trezor-crypto/hash_to_curve.c"]
         paths += ["embed/sec/optiga/inc"]
         features_available.append("optiga")
         defines += [("USE_OPTIGA", "1")]
 
+    if "hw_revision" in features_wanted:
+        defines += [("USE_HW_REVISION", "1")]
+        paths += ["embed/util/hw_revision/inc"]
+        sources += ["embed/util/hw_revision/stm32/hw_revision.c"]
+
     defines += [
         ("USE_HASH_PROCESSOR", "1"),
         ("USE_STORAGE_HWKEY", "1"),
         ("USE_TAMPER", "1"),
         ("USE_FLASH_BURST", "1"),
-        ("USE_RESET_TO_BOOT", "1"),
         ("USE_OEM_KEYS_CHECK", "1"),
         ("USE_PVD", "1"),
     ]
@@ -135,8 +151,6 @@ def configure(
     env.get("ENV")["TREZOR_BOARD"] = board
     env.get("ENV")["MCU_TYPE"] = mcu
     env.get("ENV")["LINKER_SCRIPT"] = linker_script
-
-    defs = env.get("CPPDEFINES_IMPLICIT")
-    defs += ["__ARM_FEATURE_CMSE=3"]
+    env.get("ENV")["MEMORY_LAYOUT"] = memory_layout
 
     return features_available

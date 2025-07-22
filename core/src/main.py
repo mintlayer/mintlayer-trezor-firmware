@@ -11,13 +11,13 @@ import trezor
 # trezor.utils import only C modules
 from trezor import utils
 # we need space for 30 items in the trezor module
-utils.presize_module("trezor", 30)
+utils.presize_module(trezor, 30)
 
 # storage imports storage.common, storage.cache and storage.device.
 # These import trezor, trezor.config (which is a C module), trezor.utils, and each other.
 import storage
 # we will need space for 12 items in the storage module
-utils.presize_module("storage", 12)
+utils.presize_module(storage, 12)
 
 if not utils.BITCOIN_ONLY:
     # storage.fido2 only imports C modules
@@ -36,11 +36,8 @@ import trezor.pin  # noqa: F401
 # usb imports trezor.utils and trezor.io which is a C module
 import usb
 
-# create an unimport manager that will be reused in the main loop
-unimport_manager = utils.unimport()
-
 # unlock the device, unload the boot module afterwards
-with unimport_manager:
+with utils.unimport():
     import boot
     del boot
 
@@ -49,7 +46,16 @@ import storage.device
 
 usb.bus.open(storage.device.get_device_id())
 
+
+# enable BLE, allow connections
+if utils.USE_BLE:
+    with utils.unimport():
+        import ble  # noqa: F401
+        del ble
+
+
 # run the endless loop
+unimport_manager = utils.unimport()
 while True:
     with unimport_manager:
         import session  # noqa: F401

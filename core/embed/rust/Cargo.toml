@@ -6,11 +6,12 @@ edition = "2021"
 build = "build.rs"
 
 [features]
-default = ["model_tt"]
+default = ["layout_bolt"]
 crypto = ["zeroize"]
-model_tt = ["jpeg"]
-model_tr = []
-model_mercury = ["jpeg", "dma2d"]
+layout_bolt = []
+layout_caesar = []
+layout_delizia = []
+layout_eckhart = []
 micropython = []
 protobuf = ["micropython"]
 ui = []
@@ -20,27 +21,36 @@ display_mono = []
 display_rgb565 = ["ui_antialiasing"]
 display_rgba8888 = ["ui_antialiasing"]
 ui_debug = []
+ui_debug_overlay = []
 ui_antialiasing = []
 ui_blurring = []
-ui_jpeg_decoder = ["jpeg"]
 ui_image_buffer = []
 ui_color_32bit = []
 ui_overlay = []
 ui_empty_lock = []
+ui_jpeg = []
+hw_jpeg_decoder = []
 bootloader = []
+prodtest = []
 button = []
 touch = []
 clippy = []
-jpeg = []
 debug = ["ui_debug"]
 sbu = []
 haptic = []
 sd_card = []
 rgb_led = []
+power_manager = []
+pmic = []
 backlight = []
 usb = []
 optiga = []
+ble = []
+nrf = []
+smp = []
+tropic = []
 translations = ["crypto"]
+secmon_layout = []
 test = [
     "backlight",
     "button",
@@ -50,12 +60,15 @@ test = [
     "debug",
     "glob",
     "micropython",
+    "mintlayer",
+    "nrf",
     "optiga",
     "protobuf",
+    "smp",
     "touch",
     "translations",
     "ui",
-    "ui_jpeg_decoder",
+    "ui_jpeg",
     "ui_blurring",
     "ui_image_buffer",
     "ui_overlay",
@@ -89,6 +102,7 @@ split-debuginfo = "off"
 debug = 2
 
 [dependencies]
+cfg-if = { version = "1.0" }
 qrcodegen = { version = "1.8.0", path = "../../vendor/QR-Code-generator/rust-no-heap" }
 spin = { version = "0.9.8", features = ["rwlock"], default-features = false }
 trezor-tjpgdec = { version = "0.1.0", path = "../../../rust/trezor-tjpgdec" }
@@ -114,15 +128,15 @@ version = "0.2.2"
 [dependencies.heapless]
 version = "0.8.0"
 features = ["ufmt"]
-default_features = false
+default-features = false
 
 [dependencies.num-traits]
-version = "0.2.18"
-default_features = false
+version = "0.2.19"
+default-features = false
 features = ["libm"]
 
 [dependencies.num-derive]
-version = "0.3.3"
+version = "0.4.2"
 
 [dependencies.static-alloc]
 version = "0.2.4"
@@ -144,12 +158,16 @@ version = "0.3.0"
 default-features = false
 features = ["libm"]
 
+[dependencies.minicbor]
+version = "1.0.0"
+default-features = false
+
 
 # Build dependencies
 
 [build-dependencies.bindgen]
 version = "0.69.4"
-default_features = false
+default-features = false
 features = ["runtime"]
 
 # Build dependencies used for linking the test binary

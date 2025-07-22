@@ -22,6 +22,12 @@ class LayoutObj(Generic[T]):
     if utils.USE_BUTTON:
         def button_event(self, event: int, button: int) -> LayoutState | None:
             """Receive a button event `event` for button `button`."""
+    if utils.USE_BLE:
+        def ble_event(self, event: int, data: bytes) -> LayoutState | None:
+            """Receive a BLE events."""
+    if utils.USE_POWER_MANAGER:
+        def pm_event(self, flags: int) -> LayoutState | None:
+            """Receive a power management event with packed flags."""
     def progress_event(self, value: int, description: str) -> LayoutState | None:
         """Receive a progress event."""
     def usb_event(self, connected: bool) -> LayoutState | None:
@@ -81,6 +87,16 @@ def disable_animation(disable: bool) -> None:
 
 
 # rust/src/ui/api/firmware_micropython.rs
+def backlight_set(level: int) -> None:
+    """Set backlight to desired level."""
+
+
+# rust/src/ui/api/firmware_micropython.rs
+def backlight_fade(level: int) -> None:
+    """Fade backlight to desired level."""
+
+
+# rust/src/ui/api/firmware_micropython.rs
 def confirm_action(
     *,
     title: str,
@@ -112,40 +128,46 @@ def confirm_address(
 
 
 # rust/src/ui/api/firmware_micropython.rs
-def confirm_blob(
+def confirm_value(
     *,
     title: str,
-    data: str | bytes,
+    value: str | bytes,
     description: str | None,
-    text_mono: bool = True,
+    is_data: bool = True,
     extra: str | None = None,
     subtitle: str | None = None,
     verb: str | None = None,
     verb_cancel: str | None = None,
-    verb_info: str | None = None,
     info: bool = True,
     hold: bool = False,
     chunkify: bool = False,
     page_counter: bool = False,
     prompt_screen: bool = False,
     cancel: bool = False,
+    warning_footer: str | None = None,
 ) -> LayoutObj[UiResult]:
-    """Confirm byte sequence data."""
+    """Confirm a generic piece of information on the screen.
+    The value can either be human readable text (`is_data=False`)
+    or something else - like an address or a blob of data.
+    The difference between the two kinds of values
+    is both in the font and in the linebreak strategy."""
 
 
 # rust/src/ui/api/firmware_micropython.rs
-def confirm_blob_intro(
+def confirm_value_intro(
     *,
     title: str,
-    data: str | bytes,
+    value: str | bytes,
     subtitle: str | None = None,
     verb: str | None = None,
     verb_cancel: str | None = None,
+    hold: bool = False,
     chunkify: bool = False,
 ) -> LayoutObj[UiResult]:
-    """Confirm byte sequence data by showing only the first page of the data
-    and instructing the user to access the menu in order to view all the data,
-    which can then be confirmed using confirm_blob."""
+    """Similar to `confirm_value`, but only the first page is shown.
+    This function is intended as a building block for a higher level `confirm_blob`
+    abstraction which can paginate the blob, show just the first page
+    and instruct the user to view the complete blob if they wish."""
 
 
 # rust/src/ui/api/firmware_micropython.rs
@@ -227,17 +249,19 @@ def confirm_more(
     title: str,
     button: str,
     button_style_confirm: bool = False,
-    items: Iterable[tuple[int, str | bytes]],
+    hold: bool = False,
+    items: Iterable[tuple[str | bytes, bool]],
 ) -> LayoutObj[UiResult]:
     """Confirm long content with the possibility to go back from any page.
-    Meant to be used with confirm_with_info on model TT and TR."""
+    Meant to be used with confirm_with_info on UI Bolt and Caesar."""
 
 
 # rust/src/ui/api/firmware_micropython.rs
 def confirm_properties(
     *,
     title: str,
-    items: list[tuple[str | None, str | bytes | None, bool]],
+    items: list[tuple[str | None, str | bytes | None, bool | None]],
+    subtitle: str | None = None,
     hold: bool = False,
 ) -> LayoutObj[UiResult]:
     """Confirm list of key-value pairs. The third component in the tuple should be True if
@@ -252,12 +276,13 @@ def confirm_reset_device(recovery: bool) -> LayoutObj[UiResult]:
 # rust/src/ui/api/firmware_micropython.rs
 def confirm_summary(
     *,
-    amount: str,
-    amount_label: str,
+    amount: str | None,
+    amount_label: str | None,
     fee: str,
     fee_label: str,
     title: str | None = None,
     account_items: Iterable[tuple[str, str]] | None = None,
+    account_title: str | None = None,
     extra_items: Iterable[tuple[str, str]] | None = None,
     extra_title: str | None = None,
     verb_cancel: str | None = None,
@@ -266,34 +291,16 @@ def confirm_summary(
 
 
 # rust/src/ui/api/firmware_micropython.rs
-def confirm_value(
-    *,
-    title: str,
-    value: str,
-    description: str | None,
-    subtitle: str | None,
-    verb: str | None = None,
-    verb_info: str | None = None,
-    verb_cancel: str | None = None,
-    info_button: bool = False,
-    hold: bool = False,
-    chunkify: bool = False,
-    text_mono: bool = True,
-) -> LayoutObj[UiResult]:
-    """Confirm value. Merge of confirm_total and confirm_output."""
-
-
-# rust/src/ui/api/firmware_micropython.rs
 def confirm_with_info(
     *,
     title: str,
-    button: str,
-    info_button: str,
+    items: Iterable[tuple[str | bytes, bool]],
+    verb: str,
+    verb_info: str,
     verb_cancel: str | None = None,
-    items: Iterable[tuple[int, str | bytes]],
 ) -> LayoutObj[UiResult]:
     """Confirm given items but with third button. Always single page
-    without scrolling. In mercury, the button is placed in
+    without scrolling. In Delizia, the button is placed in
     context menu."""
 
 
@@ -304,7 +311,7 @@ def continue_recovery_homepage(
     subtext: str | None,
     button: str | None,
     recovery_type: RecoveryType,
-    show_instructions: bool = False,  # unused on TT
+    show_instructions: bool = False,  # unused on bolt
     remaining_shares: Iterable[tuple[str, str]] | None = None,
 ) -> LayoutObj[UiResult]:
     """Device recovery homescreen."""
@@ -316,15 +323,18 @@ def flow_confirm_output(
     title: str | None,
     subtitle: str | None,
     message: str,
+    description: str | None,
+    extra: str | None,
     amount: str | None,
     chunkify: bool,
     text_mono: bool,
+    account_title: str,
     account: str | None,
     account_path: str | None,
     br_code: ButtonRequestType,
     br_name: str,
-    address: str | None,
-    address_title: str | None,
+    address_item: (str, str) | None,
+    extra_item: (str, str) | None,
     summary_items: Iterable[tuple[str, str]] | None = None,
     fee_items: Iterable[tuple[str, str]] | None = None,
     summary_title: str | None = None,
@@ -357,7 +367,6 @@ def flow_get_address(
     account: str | None,
     path: str | None,
     xpubs: list[tuple[str, str]],
-    title_success: str,
     br_code: ButtonRequestType,
     br_name: str,
 ) -> LayoutObj[UiResult]:
@@ -414,6 +423,18 @@ def request_number(
 
 
 # rust/src/ui/api/firmware_micropython.rs
+def request_duration(
+    *,
+    title: str,
+    duration_ms: int,
+    min_ms: int,
+    max_ms: int,
+    description: str | None = None,
+) -> LayoutObj[tuple[UiResult, int]]:
+    """Duration input with + and - buttons, optional static description. """
+
+
+# rust/src/ui/api/firmware_micropython.rs
 def request_pin(
     *,
     prompt: str,
@@ -448,9 +469,9 @@ def select_word(
 def select_word_count(
     *,
     recovery_type: RecoveryType,
-) -> LayoutObj[int | str]:  # TR returns str
+) -> LayoutObj[int | str | UIResult]:  # TR returns str
     """Select a mnemonic word count from the options: 12, 18, 20, 24, or 33.
-    For unlocking a repeated backup, select from 20 or 33."""
+    For unlocking a repeated backup, select between 20 and 33."""
 
 
 # rust/src/ui/api/firmware_micropython.rs
@@ -490,6 +511,7 @@ def show_danger(
     title: str,
     description: str,
     value: str = "",
+    menu_title: str | None = None,
     verb_cancel: str | None = None,
 ) -> LayoutObj[UiResult]:
     """Warning modal that makes it easier to cancel than to continue."""
@@ -519,12 +541,54 @@ def show_group_share_success(
 def show_homescreen(
     *,
     label: str | None,
-    hold: bool,
     notification: str | None,
     notification_level: int = 0,
+    lockable: bool,
     skip_first_paint: bool,
 ) -> LayoutObj[UiResult]:
     """Idle homescreen."""
+
+
+# rust/src/ui/api/firmware_micropython.rs
+def show_device_menu(
+    *,
+    failed_backup: bool,
+    firmware_version: str,
+    device_name: str,
+    paired_devices: Iterable[str],
+    auto_lock_delay: str,
+) -> LayoutObj[UiResult | DeviceMenuResult | tuple[DeviceMenuResult, int]]:
+    """Show the device menu."""
+
+
+# rust/src/ui/api/firmware_micropython.rs
+def show_pairing_device_name(
+    *,
+    device_name: str,
+) -> LayoutObj[UiResult]:
+    """Pairing device: first screen (device name).
+    Returns if BLEEvent::PairingRequest is received."""
+
+
+# rust/src/ui/api/firmware_micropython.rs
+def show_ble_pairing_code(
+    *,
+    title: str,
+    description: str,
+    code: str,
+) -> LayoutObj[UiResult]:
+    """BLE pairing: second screen (pairing code).
+    Returns on BLEEvent::{PairingCanceled, Disconnected}."""
+
+
+# rust/src/ui/api/firmware_micropython.rs
+def show_thp_pairing_code(
+    *,
+    title: str,
+    description: str,
+    code: str,
+) -> LayoutObj[UiResult]:
+    """THP pairing: second screen (pairing code)."""
 
 
 # rust/src/ui/api/firmware_micropython.rs
@@ -571,6 +635,7 @@ def show_progress(
     description: str,
     indeterminate: bool = False,
     title: str | None = None,
+    danger: bool = False,
 ) -> LayoutObj[UiResult]:
     """Show progress loader. Please note that the number of lines reserved on screen for
     description is determined at construction time. If you want multiline descriptions
@@ -607,13 +672,15 @@ def show_share_words(
 
 
 # rust/src/ui/api/firmware_micropython.rs
-def show_share_words_mercury(
+def show_share_words_extended(
     *,
     words: Iterable[str],
     subtitle: str | None,
     instructions: Iterable[str],
+    instructions_verb: str | None,
     text_footer: str | None,
     text_confirm: str,
+    text_check: str,
 ) -> LayoutObj[UiResult]:
     """Show mnemonic for wallet backup preceded by an instruction screen and followed by a
     confirmation screen."""
@@ -635,7 +702,7 @@ def show_success(
     title: str,
     button: str,
     description: str = "",
-    allow_cancel: bool = True,
+    allow_cancel: bool = False,
     time_ms: int = 0,
 ) -> LayoutObj[UiResult]:
     """Success modal. No buttons shown when `button` is empty string."""
@@ -654,9 +721,9 @@ def show_warning(
     value: str = "",
     description: str = "",
     allow_cancel: bool = True,
-    danger: bool = False,  # unused on TT
+    danger: bool = False,  # unused on bolt
 ) -> LayoutObj[UiResult]:
-    """Warning modal. TT: No buttons shown when `button` is empty string. TR: middle button and centered text."""
+    """Warning modal. Bolt: No buttons shown when `button` is empty string. Caesar: middle button and centered text."""
 
 
 # rust/src/ui/api/firmware_micropython.rs
@@ -691,3 +758,15 @@ class LayoutState:
     ATTACHED: "ClassVar[LayoutState]"
     TRANSITIONING: "ClassVar[LayoutState]"
     DONE: "ClassVar[LayoutState]"
+
+
+# rust/src/ui/api/firmware_micropython.rs
+class DeviceMenuResult:
+    """Result of a device menu operation."""
+    BackupFailed: ClassVar[DeviceMenuResult]
+    DevicePair: ClassVar[DeviceMenuResult]
+    DeviceDisconnect: ClassVar[DeviceMenuResult]
+    CheckBackup: ClassVar[DeviceMenuResult]
+    WipeDevice: ClassVar[DeviceMenuResult]
+    ScreenBrightness: ClassVar[DeviceMenuResult]
+    AutoLockDelay: ClassVar[DeviceMenuResult]

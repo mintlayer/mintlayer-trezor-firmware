@@ -21,8 +21,14 @@
 #include <trezor_rtl.h>
 
 #include <sec/rng.h>
+#include <sys/bootargs.h>
 #include <sys/bootutils.h>
+#include <sys/linker_utils.h>
+#include <sys/stack_utils.h>
+#include <sys/system.h>
 #include <sys/systick.h>
+#include <sys/sysutils.h>
+
 #include "startup_init.h"
 
 #ifdef KERNEL_MODE
@@ -52,7 +58,7 @@ typedef struct {
 #endif
 
 #if defined STM32F427xx || defined STM32F429xx
-#ifdef TREZOR_MODEL_T
+#ifdef TREZOR_MODEL_T2T1
 #define DEFAULT_FREQ 168U
 #define DEFAULT_PLLQ 7U
 #define DEFAULT_PLLP 0U  // P = 2 (two bits, 00 means PLLP = 2)
@@ -183,22 +189,22 @@ void SystemInit(void) {
   __HAL_RCC_GPIOD_CLK_ENABLE();
 }
 
-#ifdef TREZOR_MODEL_T
+#ifdef TREZOR_MODEL_T2T1
 void set_core_clock(clock_settings_t settings) {
-  /* Enable HSI clock */
+  // Enable HSI clock
   RCC->CR |= RCC_CR_HSION;
 
-  /* Wait till HSI is ready */
+  // Wait till HSI is ready
   while (!(RCC->CR & RCC_CR_HSIRDY))
     ;
 
-  /* Select HSI clock as main clock */
+  // Select HSI clock as main clock
   RCC->CFGR = (RCC->CFGR & ~(RCC_CFGR_SW)) | RCC_CFGR_SW_HSI;
 
-  /* Disable PLL */
+  // Disable PLL
   RCC->CR &= ~RCC_CR_PLLON;
 
-  /* Set PLL settings */
+  // Set PLL settings
   clock_conf_t conf = clock_conf[settings];
   RCC->PLLCFGR =
       (RCC_PLLCFGR_RST_VALUE & ~RCC_PLLCFGR_PLLQ & ~RCC_PLLCFGR_PLLSRC &
@@ -209,14 +215,14 @@ void set_core_clock(clock_settings_t settings) {
       (conf.plln << RCC_PLLCFGR_PLLN_Pos) | (conf.pllm << RCC_PLLCFGR_PLLM_Pos);
   SystemCoreClock = conf.freq * 1000000U;
 
-  /* Enable PLL */
+  // Enable PLL
   RCC->CR |= RCC_CR_PLLON;
 
-  /* Wait till PLL is ready */
+  // Wait till PLL is ready
   while (!(RCC->CR & RCC_CR_PLLRDY))
     ;
 
-  /* Enable PLL as main clock */
+  // Enable PLL as main clock
   RCC->CFGR = (RCC->CFGR & ~(RCC_CFGR_SW)) | RCC_CFGR_SW_PLL;
 
   systick_update_freq();
@@ -230,23 +236,65 @@ void set_core_clock(clock_settings_t settings) {
 }
 #endif
 
-// reference RM0090 section 35.12.1 Figure 413
-#define USB_OTG_HS_DATA_FIFO_RAM (USB_OTG_HS_PERIPH_BASE + 0x20000U)
-#define USB_OTG_HS_DATA_FIFO_SIZE (4096U)
+__attribute((no_stack_protector)) void reset_handler(void) {
+#ifdef BOOTLOADER
+  uint32_t r11_value;
+  // Copy the value of R11 to the local variable r11_value
+  __asm__ volatile("MOV %0, R11" : "=r"(r11_value));
+#endif
 
-// Clears USB FIFO memory to prevent data leakage of sensitive information
-__attribute((used)) void clear_otg_hs_memory(void) {
-  // use the HAL version due to section 2.1.6 of STM32F42xx Errata sheet
-  __HAL_RCC_USB_OTG_HS_CLK_ENABLE();  // enable USB_OTG_HS peripheral clock so
-                                      // that the peripheral memory is
-                                      // accessible
-  memset_reg(
-      (volatile void *)USB_OTG_HS_DATA_FIFO_RAM,
-      (volatile void *)(USB_OTG_HS_DATA_FIFO_RAM + USB_OTG_HS_DATA_FIFO_SIZE),
-      0);
+  // Now .bss, .data are not initialized yet - we need to be
+  // careful with global variables. They are not initialized,
+  // contain random values and will be rewritten in the succesive
+  // code
 
-  __HAL_RCC_USB_OTG_HS_CLK_DISABLE();  // disable USB OTG_HS peripheral clock as
-                                       // the peripheral is not needed right now
+  // Initialize system clocks
+  SystemInit();
+
+  // Clear unused part of stack
+  clear_unused_stack();
+
+  // Initialize random number generator
+  rng_init();
+
+  // Clear all memory except stack.
+  // Keep also bootargs in bootloader and boardloader.
+  memregion_t region = MEMREGION_ALL_STARTUP_RAM;
+
+  MEMREGION_DEL_SECTION(&region, _stack_section);
+#ifdef BOOTLOADER
+  MEMREGION_DEL_SECTION(&region, _bootargs_ram);
+#endif
+
+#ifdef BOARDLOADER
+  memregion_fill(&region, rng_get());
+#endif
+  memregion_fill(&region, 0);
+
+  // Initialize .bss, .data, ...
+  init_linker_sections();
+
+  // Initialize stack protector guard value
+  extern uint32_t __stack_chk_guard;
+  __stack_chk_guard = rng_get();
+
+  // Now everything is perfectly initialized and we can do anything
+  // in C code
+
+  clear_otg_hs_memory();
+
+#ifdef BOOTLOADER
+  bootargs_init(r11_value);
+#endif
+
+  // Enable interrupts and fault handlers
+  __enable_fault_irq();
+
+  // Run application
+  extern int main(void);
+  int main_result = main();
+
+  system_exit(main_result);
 }
 
 #endif  // KERNEL_MODE

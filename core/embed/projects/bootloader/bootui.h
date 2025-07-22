@@ -17,23 +17,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __BOOTUI_H__
-#define __BOOTUI_H__
+#pragma once
 
 #include <trezor_types.h>
 
 #include <util/image.h>
 
-typedef enum {
-  SCREEN_INTRO = 0,
-  SCREEN_MENU = 1,
-  SCREEN_WIPE_CONFIRM = 2,
-  SCREEN_FINGER_PRINT = 3,
-  SCREEN_WAIT_FOR_HOST = 4,
-  SCREEN_WELCOME = 5,
-} screen_t;
+#include "rust_ui_bootloader.h"
 
-// Displays a warning screeen before jumping to the untrusted firmware
+// Displays a warning screen before jumping to the untrusted firmware
 //
 // Shows vendor image, vendor string and firmware version
 // and optional message to the user (see `wait` argument)
@@ -51,23 +43,20 @@ void ui_screen_boot(const vendor_header* const vhdr,
 // the user presses a button, touches the display
 void ui_click(void);
 
-void ui_screen_welcome(void);
-
 uint32_t ui_screen_intro(const vendor_header* const vhdr,
                          const image_header* const hdr, bool fw_ok);
 
-uint32_t ui_screen_menu(secbool firmware_present);
-
-uint32_t ui_screen_install_confirm(const vendor_header* const vhdr,
-                                   const image_header* const hdr,
-                                   secbool shold_keep_seed,
-                                   secbool is_newvendor, secbool is_newinstall,
-                                   int version_cmp);
+confirm_result_t ui_screen_install_confirm(const vendor_header* const vhdr,
+                                           const image_header* const hdr,
+                                           secbool shold_keep_seed,
+                                           secbool is_newvendor,
+                                           secbool is_newinstall,
+                                           int version_cmp);
 void ui_screen_install_start();
 void ui_screen_install_progress_erase(int pos, int len);
 void ui_screen_install_progress_upload(int pos);
 
-uint32_t ui_screen_wipe_confirm(void);
+confirm_result_t ui_screen_wipe_confirm(void);
 void ui_screen_wipe(void);
 void ui_screen_wipe_progress(int pos, int len);
 
@@ -78,18 +67,14 @@ void ui_screen_fail(void);
 void ui_fadein(void);
 void ui_fadeout(void);
 void ui_set_initial_setup(bool initial);
+bool ui_get_initial_setup(void);
 
 void ui_screen_boot_stage_1(bool fading);
 
-#ifdef USE_OPTIGA
+#ifdef LOCKABLE_BOOTLOADER
 uint32_t ui_screen_unlock_bootloader_confirm(void);
 #endif
 
-// clang-format off
-#define INPUT_CANCEL 0x01        // Cancel button
-#define INPUT_CONFIRM 0x02       // Confirm button
-#define INPUT_LONG_CONFIRM 0x04  // Long Confirm button
-#define INPUT_INFO 0x08          // Info icon
-// clang-format on
-
+#ifdef USE_BLE
+uint32_t ui_screen_confirm_pairing(uint32_t code);
 #endif

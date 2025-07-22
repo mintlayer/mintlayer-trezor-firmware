@@ -1,9 +1,3 @@
-use crate::micropython::ffi;
-use core::{
-    alloc::{GlobalAlloc, Layout},
-    ptr::null_mut,
-};
-
 use ml_common::{
     AccountCommand, AccountCommandTag, AccountOutPoint, AccountSpending, Amount, Destination,
     HashedTimelockContract, HtlcSecretHash, IsTokenFreezable, IsTokenUnfreezable, Metadata,
@@ -158,13 +152,13 @@ fn mintlayer_encode_token_account_command_input_impl(
         AccountCommandTag::UnmintTokens => AccountCommand::UnmintTokens(token_id),
         AccountCommandTag::LockTokenSupply => AccountCommand::LockTokenSupply(token_id),
         AccountCommandTag::FreezeToken => {
-            let is_token_unfreezabe = IsTokenUnfreezable::decode_all(&mut data.as_ref())
+            let is_token_unfreezabe = IsTokenUnfreezable::decode_all(&mut &*data)
                 .map_err(|_| MintlayerErrorCode::InvalidIsTokenUnfreezable)?;
             AccountCommand::FreezeToken(token_id, is_token_unfreezabe)
         }
         AccountCommandTag::UnfreezeToken => AccountCommand::UnfreezeToken(token_id),
         AccountCommandTag::ChangeTokenAuthority => {
-            let destination = Destination::decode_all(&mut data.as_ref())
+            let destination = Destination::decode_all(&mut &*data)
                 .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
             AccountCommand::ChangeTokenAuthority(token_id, destination)
         }
@@ -273,7 +267,7 @@ fn mintlayer_encode_fill_order_account_command_input_impl(
     );
     let amount = parse_amount(coin_amount)?;
 
-    let destination = Destination::decode_all(&mut destination_bytes.as_ref())
+    let destination = Destination::decode_all(&mut &*destination_bytes)
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
     let account_command = AccountCommand::FillOrder(order_id, amount, destination);
     let tx_input = TxInput::AccountCommand(nonce, account_command);
@@ -316,7 +310,7 @@ fn mintlayer_encode_fill_order_v1_order_command_input_impl(
     );
     let amount = parse_amount(coin_amount)?;
 
-    let destination = Destination::decode_all(&mut destination_bytes.as_ref())
+    let destination = Destination::decode_all(&mut &*destination_bytes)
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
     let order_command = OrderAccountCommand::FillOrder(order_id, amount, destination);
     let tx_input = TxInput::OrderAccountCommand(order_command);
@@ -379,7 +373,7 @@ extern "C" fn mintlayer_encode_transfer_output(
 
     let destination_bytes =
         unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
-    let destination = match Destination::decode_all(&mut destination_bytes.as_ref()) {
+    let destination = match Destination::decode_all(&mut &*destination_bytes) {
         Ok(destination) => destination,
         Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
     };
@@ -412,7 +406,7 @@ extern "C" fn mintlayer_encode_lock_then_transfer_output(
 
     let destination_bytes =
         unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
-    let destination = match Destination::decode_all(&mut destination_bytes.as_ref()) {
+    let destination = match Destination::decode_all(&mut &*destination_bytes) {
         Ok(destination) => destination,
         Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
     };
@@ -520,11 +514,11 @@ fn mintlayer_encode_create_stake_pool_output_impl(
             .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
     );
     let pledge = parse_amount(pledge_coin_amount)?;
-    let staker = Destination::decode_all(&mut staker_destination_bytes.as_ref())
+    let staker = Destination::decode_all(&mut &*staker_destination_bytes)
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
-    let vrf_public_key = VRFPublicKeyHolder::decode_all(&mut vrf_public_key.as_ref())
+    let vrf_public_key = VRFPublicKeyHolder::decode_all(&mut &*vrf_public_key)
         .map_err(|_| MintlayerErrorCode::InvalidVrfPublicKey)?;
-    let decommission_key = Destination::decode_all(&mut decommission_destination_bytes.as_ref())
+    let decommission_key = Destination::decode_all(&mut &*decommission_destination_bytes)
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
     let cost_per_block = parse_amount(cost_per_block_coin_amount)?;
     let txo = TxOutput::CreateStakePool(
@@ -556,7 +550,7 @@ extern "C" fn mintlayer_encode_produce_from_stake_output(
 
     let destination_bytes =
         unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
-    let destination = match Destination::decode_all(&mut destination_bytes.as_ref()) {
+    let destination = match Destination::decode_all(&mut &*destination_bytes) {
         Ok(destination) => destination,
         Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
     };
@@ -581,7 +575,7 @@ extern "C" fn mintlayer_encode_create_delegation_id_output(
 
     let destination_bytes =
         unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
-    let destination = match Destination::decode_all(&mut destination_bytes.as_ref()) {
+    let destination = match Destination::decode_all(&mut &*destination_bytes) {
         Ok(destination) => destination,
         Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
     };
@@ -663,7 +657,7 @@ fn mintlayer_encode_issue_fungible_token_output_impl(
 ) -> Result<TxOutput, MintlayerErrorCode> {
     let token_ticker = token_ticker.to_vec();
     let metadata_uri = metadata_uri.to_vec();
-    let authority = Destination::decode_all(&mut authority_bytes.as_ref())
+    let authority = Destination::decode_all(&mut &*authority_bytes)
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
     let is_freezable = IsTokenFreezable::from_u8(is_freezable)
         .ok_or(MintlayerErrorCode::InvalidIsTokenFreezable)?;
@@ -751,6 +745,7 @@ extern "C" fn mintlayer_encode_issue_nft_output(
     handle_err_or_encode(res)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn mintlayer_encode_issue_nft_output_impl(
     token_id: &[u8],
     creator_data_len: u32,
@@ -785,7 +780,7 @@ fn mintlayer_encode_issue_nft_output_impl(
     let additional_metadata_uri = additional_metadata_uri.to_vec();
     let media_uri = media_uri.to_vec();
     let media_hash = media_hash.to_vec();
-    let destination = Destination::decode_all(&mut destination_bytes.as_ref())
+    let destination = Destination::decode_all(&mut &*destination_bytes)
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
     let issuance = NftIssuance::V0(NftIssuanceV0 {
         metadata: Metadata {
@@ -873,9 +868,9 @@ fn mintlayer_encode_htlc_output_impl(
     lock_amount: u64,
     value: OutputValue,
 ) -> Result<TxOutput, MintlayerErrorCode> {
-    let refund_key = Destination::decode_all(&mut refund_destination_bytes.as_ref())
+    let refund_key = Destination::decode_all(&mut &*refund_destination_bytes)
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
-    let spend_key = Destination::decode_all(&mut spend_destination_bytes.as_ref())
+    let spend_key = Destination::decode_all(&mut &*spend_destination_bytes)
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
     let secret_hash = HtlcSecretHash(
         hash.try_into()
@@ -936,7 +931,7 @@ extern "C" fn mintlayer_encode_create_order_output(
 
     let destination_bytes =
         unsafe { core::slice::from_raw_parts(destination_data, destination_data_len as usize) };
-    let destination = match Destination::decode_all(&mut destination_bytes.as_ref()) {
+    let destination = match Destination::decode_all(&mut &*destination_bytes) {
         Ok(destination) => destination,
         Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
     };
@@ -962,26 +957,31 @@ extern "C" fn mintlayer_encode_compact_length(length: u32) -> ByteArray {
     encode_to_byte_array(&len)
 }
 
-struct CustomAllocator;
+// Note: can't use this allocator globally in tests, because allocations start
+// to happen too early (before main).
+#[cfg(not(test))]
+mod global_alloc {
+    use core::alloc::{GlobalAlloc, Layout};
 
-unsafe impl GlobalAlloc for CustomAllocator {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        unsafe {
-            let ptr_void = ffi::gc_alloc(layout.size(), 0); // Call ffi::gc_alloc
-            if ptr_void.is_null() {
-                return null_mut();
+    use crate::micropython::ffi::{gc_alloc, gc_free};
+
+    struct CustomAllocator;
+
+    unsafe impl GlobalAlloc for CustomAllocator {
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            unsafe { gc_alloc(layout.size(), 0).cast() }
+        }
+
+        unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
+            unsafe {
+                gc_free(ptr.cast());
             }
-            ptr_void as *mut u8 // Cast the pointer to *mut u8
         }
     }
 
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
-        // Implement deallocation logic here if needed
-    }
+    #[global_allocator]
+    static GLOBAL_ALLOCATOR: CustomAllocator = CustomAllocator;
 }
-
-#[global_allocator]
-static GLOBAL_ALLOCATOR: CustomAllocator = CustomAllocator;
 
 fn handle_err_or_encode<T: Encode>(x: Result<T, MintlayerErrorCode>) -> ByteArray {
     match x {
@@ -1003,5 +1003,20 @@ fn encode_to_byte_array<T: Encode>(x: &T) -> ByteArray {
     ByteArray {
         data: ptr_data,
         len_or_err: LenOrError { len },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic() {
+        let hash: [u8; 32] = [0; 32];
+        let result = mintlayer_encode_utxo_input(hash.as_ptr(), 32, 123, 1);
+        assert!(result.data != core::ptr::null());
+
+        let result = mintlayer_encode_utxo_input(hash.as_ptr(), 31, 123, 1);
+        assert!(result.data == core::ptr::null());
     }
 }

@@ -30,6 +30,9 @@ def test_capabilities(client: Client):
     assert (messages.Capability.Translations in client.features.capabilities) == (
         client.model is not models.T1B1
     )
+    assert (messages.Capability.BLE in client.features.capabilities) == (
+        client.model is models.T3W1
+    )
 
 
 def test_ping(client: Client):
@@ -45,7 +48,7 @@ def test_device_id_same(client: Client):
     # ID must be at least 12 characters
     assert len(id1) >= 12
 
-    # Every resulf of UUID must be the same
+    # Every result of UUID must be the same
     assert id1 == id2
 
 

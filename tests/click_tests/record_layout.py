@@ -10,12 +10,10 @@ import inspect
 import sys
 import threading
 import time
-from pathlib import Path
 
 import click
 
 from trezorlib import (
-    binance,
     btc,
     cardano,
     cosi,
@@ -35,14 +33,7 @@ from trezorlib.cli.trezorctl import cli as main
 
 from trezorlib import cli, debuglink, protobuf  # isort:skip
 
-
-# make /tests part of sys.path so that we can import buttons.py as a module
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(ROOT))
-import buttons  # isort:skip
-
 MODULES = (
-    binance,
     btc,
     cardano,
     cosi,
@@ -91,7 +82,8 @@ CLICKS_HELP = """\
 Type 'y' or just press Enter to click the right button (usually "OK")
 Type 'n' to click the left button (usually "Cancel")
 Type a digit (0-9) to click the appropriate button as if on a numpad.
-Type 'g1,2' to click button in column 1 and row 2 of 3x5 grid (letter A on mnemonic keyboard).
+Type 'm1,2' to click button in column 1 and row 2 of mnemonic keyboard (letter J).
+Type 'p2,1' to click button in column 2 and row 1 of pin/passphrase keyboard (letter D).
 Type 'i 1234' to send text "1234" without clicking (useful for PIN, passphrase, etc.)
 Type 'u' or 'j' to swipe up, 'd' or 'k' to swipe down.
 Type 'confirm' for hold-to-confirm (or a confirmation signal without clicking).
@@ -138,25 +130,27 @@ def send_clicks(dest):
                 input_str = key[2:]
                 output = f"debug.input({input_str!r})"
                 DEBUGLINK.input(input_str)
-            elif key.startswith("g"):
+            elif key.startswith("m"):
                 x, y = [int(s) - 1 for s in key[1:].split(",")]
-                output = f"debug.click(buttons.grid35({x}, {y}))"
-                DEBUGLINK.click(buttons.grid35(x, y))
+                output = (
+                    f"debug.click(DEBUGLINK.screen_buttons.mnemonic_grid({x}, {y}))"
+                )
+                DEBUGLINK.click(DEBUGLINK.screen_buttons.mnemonic_grid(x, y))
+
+            elif key.startswith("p"):
+                x, y = [int(s) - 1 for s in key[1:].split(",")]
+                output = f"debug.click(DEBUGLINK.screen_buttons.pin_passphrase_grid({x}, {y}))"
+                DEBUGLINK.click(DEBUGLINK.screen_buttons.pin_passphrase_grid(x, y))
             elif key == "y":
-                output = "debug.click(buttons.OK)"
-                DEBUGLINK.click(buttons.OK)
+                output = "debug.click(DEBUGLINK.screen_buttons.ok())"
+                DEBUGLINK.click(DEBUGLINK.screen_buttons.ok())
             elif key == "n":
-                output = "debug.click(buttons.CANCEL)"
-                DEBUGLINK.click(buttons.CANCEL)
+                output = "debug.click(DEBUGLINK.screen_buttons.cancel())"
+                DEBUGLINK.click(DEBUGLINK.screen_buttons.cancel())
             elif key in "0123456789":
-                if key == "0":
-                    x, y = 1, 4
-                else:
-                    i = int(key) - 1
-                    x = i % 3
-                    y = 3 - (i // 3)  # trust me
-                output = f"debug.click(buttons.grid35({x}, {y}))"
-                DEBUGLINK.click(buttons.grid35(x, y))
+                index = int(key)
+                output = f"debug.click(DEBUGLINK.screen_buttons.pin_passphrase_index({index}))"
+                DEBUGLINK.click(DEBUGLINK.screen_buttons.pin_passphrase_index(index))
             elif key == "stop":
                 return
             else:

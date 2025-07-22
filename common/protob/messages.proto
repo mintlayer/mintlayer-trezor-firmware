@@ -70,8 +70,8 @@ enum MessageType {
     MessageType_AuthenticateDevice = 97 [(bitcoin_only) = true, (wire_out) = true];
     MessageType_AuthenticityProof = 98 [(bitcoin_only) = true, (wire_in) = true];
     MessageType_ChangeLanguage = 990 [(bitcoin_only) = true, (wire_in) = true];
-    MessageType_TranslationDataRequest = 991 [(bitcoin_only) = true, (wire_out) = true];
-    MessageType_TranslationDataAck = 992 [(bitcoin_only) = true, (wire_in) = true];
+    MessageType_DataChunkRequest = 991 [(bitcoin_only) = true, (wire_out) = true];
+    MessageType_DataChunkAck = 992 [(bitcoin_only) = true, (wire_in) = true];
     MessageType_SetBrightness = 993 [(bitcoin_only) = true, (wire_in) = true];
 
     MessageType_SetU2FCounter = 63 [(wire_in) = true];
@@ -79,7 +79,6 @@ enum MessageType {
     MessageType_NextU2FCounter = 81 [(wire_out) = true];
 
     // Deprecated messages, kept for protobuf compatibility.
-    // Both are marked wire_out so that we don't need to implement incoming handler for legacy
     MessageType_Deprecated_PassphraseStateRequest = 77 [deprecated = true];
     MessageType_Deprecated_PassphraseStateAck = 78 [deprecated = true];
 
@@ -88,6 +87,9 @@ enum MessageType {
     MessageType_FirmwareUpload = 7 [(bitcoin_only) = true, (wire_in) = true, (wire_bootloader) = true];
     MessageType_FirmwareRequest = 8 [(bitcoin_only) = true, (wire_out) = true, (wire_bootloader) = true];
     MessageType_ProdTestT1 = 32 [(bitcoin_only) = true, (wire_in) = true, (wire_bootloader) = true];
+
+    // BLE
+    MessageType_BleUnpair = 8001 [(bitcoin_only) = true, (wire_in) = true];
 
     // Bitcoin
     MessageType_GetPublicKey = 11 [(bitcoin_only) = true, (wire_in) = true];
@@ -134,6 +136,10 @@ enum MessageType {
     MessageType_DebugLinkWatchLayout = 9006 [(bitcoin_only) = true, (wire_debug_in) = true];
     MessageType_DebugLinkResetDebugEvents = 9007 [(bitcoin_only) = true, (wire_debug_in) = true];
     MessageType_DebugLinkOptigaSetSecMax = 9008 [(bitcoin_only) = true, (wire_debug_in) = true];
+    MessageType_DebugLinkGetGcInfo = 9009 [(bitcoin_only) = true, (wire_debug_in) = true];
+    MessageType_DebugLinkGcInfo = 9010 [(bitcoin_only) = true, (wire_debug_out) = true];
+    MessageType_DebugLinkGetPairingInfo = 9011 [(bitcoin_only) = true, (wire_debug_in) = true];
+    MessageType_DebugLinkPairingInfo = 9012 [(bitcoin_only) = true, (wire_debug_out) = true];
 
     // Ethereum
     MessageType_EthereumGetPublicKey = 450 [(wire_in) = true];
@@ -295,17 +301,8 @@ enum MessageType {
     MessageType_EosTxActionAck = 604 [(wire_in) = true];
     MessageType_EosSignedTx = 605 [(wire_out) = true];
 
-    // Binance
-    MessageType_BinanceGetAddress = 700 [(wire_in) = true];
-    MessageType_BinanceAddress = 701 [(wire_out) = true];
-    MessageType_BinanceGetPublicKey = 702 [(wire_in) = true];
-    MessageType_BinancePublicKey = 703 [(wire_out) = true];
-    MessageType_BinanceSignTx = 704 [(wire_in) = true];
-    MessageType_BinanceTxRequest = 705 [(wire_out) = true];
-    MessageType_BinanceTransferMsg = 706 [(wire_in) = true];
-    MessageType_BinanceOrderMsg = 707 [(wire_in) = true];
-    MessageType_BinanceCancelMsg = 708 [(wire_in) = true];
-    MessageType_BinanceSignedTx = 709 [(wire_out) = true];
+    // BNB Beacon Chain (deprecated)
+    reserved 700 to 709;
 
     // WebAuthn
     MessageType_WebAuthnListResidentCredentials = 800 [(wire_in) = true];
@@ -322,7 +319,34 @@ enum MessageType {
     MessageType_SolanaTxSignature = 905 [(wire_out) = true];
 
     // THP
-    reserved 1000 to 1099; // See messages-thp.proto
+    MessageType_ThpCreateNewSession = 1000 [(bitcoin_only) = true, (wire_in) = true];
+    reserved 1001 to 1005;  // never appeared in a release, reserved for future use
+    MessageType_ThpPairingRequest = 1006 [(bitcoin_only) = true];
+    MessageType_ThpPairingRequestApproved = 1007 [(bitcoin_only) = true];
+    MessageType_ThpSelectMethod = 1008 [(bitcoin_only) = true];
+    MessageType_ThpPairingPreparationsFinished = 1009 [(bitcoin_only) = true];
+    MessageType_ThpCredentialRequest = 1010 [(bitcoin_only) = true];
+    MessageType_ThpCredentialResponse = 1011 [(bitcoin_only) = true];
+    MessageType_ThpEndRequest = 1012 [(bitcoin_only) = true];
+    MessageType_ThpEndResponse = 1013 [(bitcoin_only) = true];
+    reserved 1014 to 1015;
+    MessageType_ThpCodeEntryCommitment = 1016 [(bitcoin_only) = true];
+    MessageType_ThpCodeEntryChallenge = 1017 [(bitcoin_only) = true];
+    MessageType_ThpCodeEntryCpaceTrezor = 1018 [(bitcoin_only) = true];
+    MessageType_ThpCodeEntryCpaceHostTag = 1019 [(bitcoin_only) = true];
+    MessageType_ThpCodeEntrySecret = 1020 [(bitcoin_only) = true];
+    reserved 1021 to 1023;
+    MessageType_ThpQrCodeTag = 1024 [(bitcoin_only) = true];
+    MessageType_ThpQrCodeSecret = 1025 [(bitcoin_only) = true];
+    reserved 1026 to 1031;
+    MessageType_ThpNfcTagHost = 1032 [(bitcoin_only) = true];
+    MessageType_ThpNfcTagTrezor = 1033 [(bitcoin_only) = true];
+
+    // Nostr
+    MessageType_NostrGetPubkey = 2001 [(wire_in) = true];
+    MessageType_NostrPubkey = 2002 [(wire_out) = true];
+    MessageType_NostrSignEvent = 2003 [(wire_in) = true];
+    MessageType_NostrEventSignature = 2004 [(wire_out) = true];
 
     // Benchmark
     MessageType_BenchmarkListNames = 9100 [(bitcoin_only) = true];

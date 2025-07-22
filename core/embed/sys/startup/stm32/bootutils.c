@@ -21,18 +21,29 @@
 #include <trezor_model.h>
 #include <trezor_rtl.h>
 
-#include <io/display.h>
 #include <sys/bootargs.h>
 #include <sys/bootutils.h>
 #include <sys/irq.h>
+#include <sys/linker_utils.h>
 #include <sys/mpu.h>
+#include <sys/stack_utils.h>
+#include <sys/systick.h>
+#include <sys/sysutils.h>
 #include <util/image.h>
 
-#ifdef TREZOR_MODEL_T
-#include "../stm32f4/startup_init.h"
+#ifdef STM32F4
+#include <io/display.h>
 #endif
 
-#ifdef KERNEL_MODE
+// Battery powered devices (USE_POWER_MANAGER) should not stall
+// after showing RSOD, as it would drain the battery.
+#ifdef USE_POWER_MANAGER
+#ifdef RSOD_INFINITE_LOOP
+#error "RSOD_INFINITE_LOOP is not supported on battery powered devices"
+#endif
+#endif
+
+#ifdef SECURE_MODE
 
 #ifdef STM32U5
 // Persistent variable that holds the 'command' for the next reboot.
@@ -68,12 +79,6 @@ void bootargs_set(boot_command_t command, const void* args, size_t args_size) {
   mpu_restore(mode);
 }
 
-#ifdef BOOTLOADER
-// Contains the current boot command saved during bootloader startup.
-boot_command_t g_boot_command_saved;
-
-boot_command_t bootargs_get_command() { return g_boot_command_saved; }
-
 void bootargs_get_args(boot_args_t* dest) {
   mpu_mode_t mode = mpu_reconfig(MPU_MODE_BOOTARGS);
 
@@ -81,142 +86,193 @@ void bootargs_get_args(boot_args_t* dest) {
 
   mpu_restore(mode);
 }
+
+#ifdef BOOTLOADER
+// Contains the current boot command saved during bootloader startup.
+boot_command_t g_boot_command_saved;
+
+boot_command_t bootargs_get_command() { return g_boot_command_saved; }
+
+void bootargs_init(uint32_t r11_register) {
+#ifdef STM32U5
+  g_boot_command_saved = g_boot_command;
+  g_boot_command = BOOT_COMMAND_NONE;
+#else
+  g_boot_command_saved = r11_register;
+#endif
+}
 #endif
 
-// Deletes all secrets and SRAM2 where stack is located
-// to prevent stack smashing error, do not return from function calling this
-#ifdef STM32U5
-static inline void __attribute__((always_inline)) delete_secrets(void) {
-  __disable_irq();
+#ifdef RSOD_INFINITE_LOOP
+// Continuation of `reboot_with_args`
+static void halt_device_phase_2(uint32_t arg1, uint32_t arg2) {
+  // We are now running on a new stack. We cannot be sure about
+  // any variables in the .bss and .data sections, so we must
+  // be careful and avoid using them altogether.
 
-  // Disable SAES peripheral clock, so that we don't get tamper events
-  __HAL_RCC_SAES_CLK_DISABLE();
+  // Reset peripherals (so we are sure that no DMA is pending)
+  // and disable all interrupts and clear all pending ones
+  reset_peripherals_and_interrupts();
 
-  TAMP->CR2 |= TAMP_CR2_BKERASE;
-}
-#endif  // STM32U5
+  // Clear unused part of stack
+  clear_unused_stack();
+
+  // Clear all memory except stack and bootargs
+  memregion_t region = MEMREGION_ALL_RUNTIME_RAM;
+  MEMREGION_DEL_SECTION(&region, _stack_section);
+  MEMREGION_DEL_SECTION(&region, _bootargs_ram);
+  memregion_fill(&region, 0);
 
 #ifdef STM32F4
-// Ensure that we are running in privileged thread mode.
-//
-// This function is used only on STM32F4, where a direct jump to the
-// bootloader is performed. It checks if we are in handler mode, and
-// if so, it switches to privileged thread mode.
-__attribute((naked, no_stack_protector)) static void ensure_thread_mode(void) {
-  __asm__ volatile(
-      // --------------------------------------------------------------
-      // Check if we are in handler mode
-      // --------------------------------------------------------------
+  clear_otg_hs_memory();
+#endif
 
-      "LDR      R1, =0x1FF         \n"  // Get lower 9 bits of IPSR
-      "MRS      R0, IPSR           \n"
-      "ANDS     R0, R0, R1         \n"
-      "CMP      R0, #0             \n"  // == 0 if in thread mode
-      "IT       EQ                 \n"
-      "BXEQ     LR                 \n"  // return if in thread mode
-
-      // --------------------------------------------------------------
-      // Disable FP registers lazy stacking
-      // --------------------------------------------------------------
-
-      "LDR     R1, = 0xE000EF34    \n"  // FPU->FPCCR
-      "LDR     R0, [R1]            \n"
-      "BIC     R0, R0, #1          \n"  // Clear LSPACT to suppress lazy
-                                        // stacking
-      "STR     R0, [R1]            \n"
-
-      // --------------------------------------------------------------
-      // Exit handler mode, enter thread mode
-      // --------------------------------------------------------------
-
-      "MOV     R0, SP              \n"  // Align stack pointer to 8 bytes
-      "AND     R0, R0, #~7         \n"
-      "MOV     SP, R0              \n"
-      "SUB     SP, SP, #32         \n"  // Allocate space for the stack frame
-
-      "MOV     R0, #0              \n"
-      "STR     R0, [SP, #0]        \n"  // future R0 = 0
-      "STR     R0, [SP, #4]        \n"  // future R1 = 0
-      "STR     R0, [SP, #8]        \n"  // future R2 = 0
-      "STR     R0, [SP, #12]       \n"  // future R3 = 0
-      "STR     R12, [SP, #16]      \n"  // future R12 = R12
-      "STR     LR, [SP, #20]       \n"  // future LR = LR
-      "BIC     LR, LR, #1          \n"
-      "STR     LR, [SP, #24]       \n"  // return address = LR
-      "LDR     R0, = 0x01000000    \n"  // THUMB bit set
-      "STR     R0, [SP, #28]       \n"  // future xPSR
-
-      "MRS     R0, CONTROL         \n"  // Clear SPSEL to use MSP for thread
-      "BIC     R0, R0, #3          \n"  // Clear nPRIV to run in privileged mode
-      "MSR     CONTROL, R0         \n"
-
-      "LDR     LR, = 0xFFFFFFF9    \n"  // Return to Secure Thread mode, use MSP
-      "BX      LR                  \n");
+  while (true)
+    ;  // Infinite loop
 }
-#endif  // STM32F4
 
-// Reboots the device with the given boot command and arguments
-static void __attribute__((noreturn))
-reboot_with_args(boot_command_t command, const void* args, size_t args_size) {
-  bootargs_set(command, args, args_size);
+__attribute__((noreturn)) static void halt_device(void) {
+  // Clear bootargs to prevent the bootloader doing anything
+  // unexpected when if the device is reset during the halt.
+  bootargs_set(BOOT_COMMAND_NONE, NULL, 0);
 
-#ifdef STM32U5
-  delete_secrets();
+  // Disable interrupts, MPU, clear all registers and set up a new stack
+  // (on STM32U5 it also clear all CPU secrets and SRAM2).
+  call_with_new_stack(0, 0, true, halt_device_phase_2);
+}
+#endif  // RSOD_INFINITE_LOOP
+
+// Continuation of `reboot_with_args`
+static void reboot_with_args_phase_2(uint32_t arg1, uint32_t arg2) {
+  // We are now running on a new stack. We cannot be sure about
+  // any variables in the .bss and .data sections, so we must
+  // be careful and avoid using them altogether.
+
+  // Reset peripherals (so we are sure that no DMA is pending)
+  // and disable all interrupts and clear all pending ones
+  reset_peripherals_and_interrupts();
+
+  // Clear unused part of stack
+  clear_unused_stack();
+
+  // Clear all memory except stack and bootargs
+  memregion_t region = MEMREGION_ALL_RUNTIME_RAM;
+  MEMREGION_DEL_SECTION(&region, _stack_section);
+  MEMREGION_DEL_SECTION(&region, _bootargs_ram);
+  memregion_fill(&region, 0);
+
+#if defined STM32U5
   NVIC_SystemReset();
+#elif defined STM32F4
+  boot_command_t command = arg1;
+  clear_otg_hs_memory();
+  if (command == BOOT_COMMAND_NONE) {
+    NVIC_SystemReset();
+  } else {
+#ifndef FIXED_HW_DEINIT
+    SysTick_Config(HAL_RCC_GetSysClockFreq() / 1000U);
+    NVIC_SetPriority(SysTick_IRQn, 0);
+#endif
+    jump_to_vectbl(BOOTLOADER_START + IMAGE_HEADER_SIZE, command);
+  }
 #else
-  display_deinit(DISPLAY_RESET_CONTENT);
-  ensure_compatible_settings();
-
-  mpu_reconfig(MPU_MODE_DISABLED);
-
-  ensure_thread_mode();
-
-  // from util.s
-  extern void jump_to_with_flag(uint32_t address, uint32_t reset_flag);
-  jump_to_with_flag(BOOTLOADER_START + IMAGE_HEADER_SIZE, g_boot_command);
-  for (;;)
-    ;
+#error Unsupported platform
 #endif
 }
 
-void reboot_to_bootloader(void) {
+// Reboots the device with the given boot command and arguments
+__attribute__((noreturn)) static void reboot_with_args(boot_command_t command,
+                                                       const void* args,
+                                                       size_t args_size) {
+  // Set bootargs area to the new command and arguments
+  bootargs_set(command, args, args_size);
+
+#ifdef STM32F4
+  // We are going to jump directly to the bootloader, so we need to
+  // ensure that the device is in a compatible state. Following lines
+  // ensure the display is properly deinitialized, CPU frequency is
+  // properly set and we are running in privileged thread mode.
+  display_deinit(DISPLAY_RESET_CONTENT);
+  ensure_compatible_settings();
+  ensure_thread_mode();
+#endif
+
+  // Disable interrupts, MPU, clear all registers and set up a new stack
+  // (on STM32U5 it also clear all CPU secrets and SRAM2).
+  call_with_new_stack(command, 0, true, reboot_with_args_phase_2);
+}
+
+__attribute__((noreturn)) void reboot_to_bootloader(void) {
   reboot_with_args(BOOT_COMMAND_STOP_AND_WAIT, NULL, 0);
 }
 
-void reboot_and_upgrade(const uint8_t hash[32]) {
+__attribute__((noreturn)) void reboot_and_upgrade(const uint8_t hash[32]) {
   reboot_with_args(BOOT_COMMAND_INSTALL_UPGRADE, hash, 32);
 }
 
-void reboot_device(void) {
-  bootargs_set(BOOT_COMMAND_NONE, NULL, 0);
-
-#ifdef STM32U5
-  delete_secrets();
-#endif
-
-  NVIC_SystemReset();
+__attribute__((noreturn)) void reboot_device(void) {
+  reboot_with_args(BOOT_COMMAND_REBOOT, NULL, 0);
 }
 
-void __attribute__((noreturn)) secure_shutdown(void) {
-  display_deinit(DISPLAY_RETAIN_CONTENT);
-
-#ifdef STM32U5
-  delete_secrets();
-#endif
-  // from util.s
-  extern void shutdown_privileged(void);
-  shutdown_privileged();
-
-  for (;;)
-    ;
+__attribute__((noreturn)) void reboot_to_off(void) {
+  reboot_with_args(BOOT_COMMAND_POWER_OFF, NULL, 0);
 }
 
-void ensure_compatible_settings(void) {
-#ifdef TREZOR_MODEL_T
-  // Early version of bootloader on T2T1 expects 168 MHz core clock.
-  // So we need to set it here before handover to the bootloader.
-  set_core_clock(CLOCK_168_MHZ);
+__attribute__((noreturn)) void reboot_with_rsod(
+    const systask_postmortem_t* pminfo) {
+  // Set bootargs area to the new command and arguments
+  reboot_with_args(BOOT_COMMAND_SHOW_RSOD, pminfo, sizeof(*pminfo));
+}
+
+__attribute__((noreturn)) void reboot_or_halt_after_rsod(void) {
+#ifndef RSOD_INFINITE_LOOP
+  systick_delay_ms(10 * 1000);
 #endif
+#ifdef RSOD_INFINITE_LOOP
+  halt_device();
+#else
+  reboot_device();
+#endif
+}
+
+#endif  // SECURE_MODE
+
+#ifdef KERNEL_MODE
+
+static void jump_to_next_stage_phase_2(uint32_t arg1, uint32_t arg2) {
+  // We are now running on a new stack. We cannot be sure about
+  // any variables in the .bss and .data sections, so we must
+  // be careful and avoid using them altogether.
+
+  // Reset peripherals (so we are sure that no DMA is pending)
+  // and disable all interrupts and clear all pending ones
+  reset_peripherals_and_interrupts();
+
+  // Clear unused part of stack
+  clear_unused_stack();
+
+  // Clear all memory except stack and bootargs
+  memregion_t region = MEMREGION_ALL_RUNTIME_RAM;
+  MEMREGION_DEL_SECTION(&region, _stack_section);
+  MEMREGION_DEL_SECTION(&region, _bootargs_ram);
+  memregion_fill(&region, 0);
+
+  // Jump to reset vector of the next stage
+  jump_to_vectbl(arg1, 0);
+}
+
+void __attribute__((noreturn)) jump_to_next_stage(uint32_t vectbl_address) {
+#ifdef STM32F4
+  // Ensure the display is properly deinitialized, CPU frequency is
+  // properly set. It's needed for backward compatibility with the older
+  // firmware.
+  display_deinit(DISPLAY_JUMP_BEHAVIOR);
+  ensure_compatible_settings();
+#endif
+
+  // Disable interrupts, MPU, clear all registers and set up a new stack
+  // (on STM32U5 it also clear all CPU secrets and SRAM2).
+  call_with_new_stack(vectbl_address, 0, false, jump_to_next_stage_phase_2);
 }
 
 #endif  // KERNEL_MODE

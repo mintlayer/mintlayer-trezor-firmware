@@ -17,6 +17,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+// Turning off the stack protector for this file significantly improves
+// the performance of the syscall dispatching and interrupt handling.
+#pragma GCC optimize("no-stack-protector")
+
 #include <trezor_bsp.h>
 #include <trezor_model.h>
 #include <trezor_rtl.h>
@@ -127,35 +131,43 @@ static void mpu_set_attributes(void) {
 _Static_assert(NORCOW_SECTOR_SIZE == STORAGE_1_MAXSIZE, "norcow misconfigured");
 _Static_assert(NORCOW_SECTOR_SIZE == STORAGE_2_MAXSIZE, "norcow misconfigured");
 
+// PERIPH_SIZE covers secure peripherals only (+16MB of FMC1)
+// PERIPH_SIZE_EXT covers both secure and non-secure peripherals (+16MB of FMC1)
+// The extended size is used in a special case - MPU_MODE_OTP - when access
+// to non-secure FLASH controller registers is required.
+
 #ifdef STM32U585xx
-// Extended peripheral block to cover FMC1 that's used for display
-// 512M of periherals + 16M for FMC1 area that follows
-#define PERIPH_SIZE (SIZE_512M + SIZE_16M)
+// On STM32U585, we need to add an additional 16M for FMC1 which
+// follows the peripherals in the memory map.
+
+#define PERIPH_SIZE (SIZE_256M + SIZE_16M)
+#define PERIPH_SIZE_EXT (SIZE_512M + SIZE_16M)
 #else
-#define PERIPH_SIZE SIZE_512M
+#define PERIPH_SIZE SIZE_256M
+#define PERIPH_SIZE_EXT SIZE_512M
 #endif
 
 #define OTP_AND_ID_SIZE 0x800
 
-#ifdef KERNEL
-
-extern uint8_t _uflash_start;
-extern uint8_t _uflash_end;
-#define KERNEL_FLASH_U_START (uint32_t) & _uflash_start
-#define KERNEL_FLASH_U_SIZE ((uint32_t) & _uflash_end - KERNEL_FLASH_U_START)
-
+#ifdef SECMON
 extern uint32_t _codelen;
-#define KERNEL_SIZE (uint32_t) & _codelen
-
-#define KERNEL_FLASH_START KERNEL_START
-#define KERNEL_FLASH_SIZE (KERNEL_SIZE - KERNEL_FLASH_U_SIZE)
-
-#define COREAPP_FLASH_START \
-  (COREAPP_CODE_ALIGN(KERNEL_FLASH_START + KERNEL_SIZE) - KERNEL_FLASH_U_SIZE)
-#define COREAPP_FLASH_SIZE \
-  (FIRMWARE_MAXSIZE - (COREAPP_FLASH_START - KERNEL_FLASH_START))
-
+#define SECMON_START FIRMWARE_START_S
+#define SECMON_SIZE (uint32_t) & _codelen
 #endif
+
+#ifdef KERNEL
+extern uint32_t _kernel_flash_start;
+extern uint32_t _kernel_flash_end;
+
+#ifdef USE_SECMON_LAYOUT
+#define KERNEL_START ((uint32_t) & _kernel_flash_start)
+#else
+#define KERNEL_START FIRMWARE_START
+#endif
+
+#define KERNEL_END COREAPP_CODE_ALIGN((uint32_t) & _kernel_flash_end)
+#define KERNEL_SIZE (KERNEL_END - KERNEL_START)
+#endif  // KERNEL
 
 typedef struct {
   // Set if the driver is initialized
@@ -175,8 +187,21 @@ mpu_driver_t g_mpu_driver = {
     .mode = MPU_MODE_DISABLED,
 };
 
+static inline void mpu_disable(void) {
+  __DMB();
+  SCB->SHCSR &= ~SCB_SHCSR_MEMFAULTENA_Msk;
+  MPU->CTRL = 0;
+}
+
+static inline void mpu_enable(void) {
+  MPU->CTRL = LL_MPU_CTRL_HARDFAULT_NMI | MPU_CTRL_ENABLE_Msk;
+  SCB->SHCSR |= SCB_SHCSR_MEMFAULTENA_Msk;
+  __DSB();
+  __ISB();
+}
+
 static void mpu_init_fixed_regions(void) {
-  // Regions #0 to #5 are fixed for all targets
+  // Regions #0 to #4 are fixed for all targets
 
   // clang-format off
 #if defined(BOARDLOADER)
@@ -186,44 +211,50 @@ static void mpu_init_fixed_regions(void) {
   SET_REGION( 2, BOOTLOADER_START,         BOOTLOADER_MAXSIZE,  FLASH_DATA,  YES,    NO );
   SET_REGION( 3, FIRMWARE_START,           FIRMWARE_MAXSIZE,    FLASH_DATA,  YES,    NO );
   SET_REGION( 4, AUX1_RAM_START,           AUX1_RAM_SIZE,       SRAM,        YES,    NO );
-#endif
-#if defined(BOOTLOADER)
+#elif defined(BOOTLOADER)
   //   REGION    ADDRESS                   SIZE                TYPE       WRITE   UNPRIV
   SET_REGION( 0, BOOTLOADER_START,         BOOTLOADER_MAXSIZE, FLASH_CODE,   NO,    NO );
   SET_REGION( 1, MAIN_RAM_START,           MAIN_RAM_SIZE,      SRAM,        YES,    NO );
   SET_REGION( 2, FIRMWARE_START,           FIRMWARE_MAXSIZE,   FLASH_DATA,  YES,    NO );
   DIS_REGION( 3 );
   SET_REGION( 4, AUX1_RAM_START,           AUX1_RAM_SIZE ,     SRAM,        YES,    NO );
-#endif
-#if defined(KERNEL)
+#elif defined(KERNEL)
   //   REGION    ADDRESS                   SIZE                TYPE       WRITE   UNPRIV
-  SET_REGRUN( 0, KERNEL_FLASH_START,       KERNEL_FLASH_SIZE,  FLASH_CODE,   NO,    NO ); // Kernel Code
+  SET_REGRUN( 0, KERNEL_START,             KERNEL_SIZE,        FLASH_CODE,   NO,    NO ); // Kernel Code
   SET_REGION( 1, MAIN_RAM_START,           MAIN_RAM_SIZE,      SRAM,        YES,    NO ); // Kernel RAM
-  SET_REGRUN( 2, COREAPP_FLASH_START,      COREAPP_FLASH_SIZE, FLASH_CODE,   NO,   YES ); // CoreApp Code
-  SET_REGION( 3, AUX1_RAM_START,           AUX1_RAM_SIZE,      SRAM,        YES,   YES ); // CoraApp RAM
-#ifdef STM32U585xx
-  SET_REGION( 4, AUX2_RAM_START,           AUX2_RAM_SIZE,      SRAM,        YES,   YES ); // CoraAPP RAM2
-#else
-  DIS_REGION( 4 );
-#endif
-#endif
-#if defined(FIRMWARE)
+  DIS_REGION( 2 ); // reserved for applets
+  DIS_REGION( 3 ); // reserved for applets
+  DIS_REGION( 4 ); // reserved for applets
+
+#elif defined(FIRMWARE)
   //   REGION    ADDRESS                   SIZE                TYPE       WRITE   UNPRIV
   SET_REGION( 0, FIRMWARE_START,           FIRMWARE_MAXSIZE,   FLASH_CODE,   NO,    NO );
   SET_REGION( 1, MAIN_RAM_START,           MAIN_RAM_SIZE,      SRAM,        YES,    NO );
   DIS_REGION( 2 );
   DIS_REGION( 3 );
   SET_REGION( 4, AUX1_RAM_START,           AUX1_RAM_SIZE,      SRAM,        YES,    NO );
-#endif
-#if defined(TREZOR_PRODTEST)
+#elif defined(TREZOR_PRODTEST)
   SET_REGION( 0, FIRMWARE_START,           1024,               FLASH_DATA,  YES,    NO );
   SET_REGION( 1, FIRMWARE_START + 1024,    FIRMWARE_MAXSIZE - 1024, FLASH_CODE,   NO,    NO );
   SET_REGION( 2, MAIN_RAM_START,           MAIN_RAM_SIZE,     SRAM,        YES,    NO );
+#ifdef AUX2_RAM_START
+  SET_REGION( 3, AUX2_RAM_START,           AUX2_RAM_SIZE,     SRAM,        YES,    NO );
+#else
   DIS_REGION( 3 );
+#endif
   SET_REGION( 4, AUX1_RAM_START,           AUX1_RAM_SIZE,     SRAM,        YES,    NO );
+
+#elif defined(SECMON)
+  SET_REGRUN( 0, SECMON_START,             SECMON_SIZE,       FLASH_CODE,   NO,    NO );
+  SET_REGION( 1, SECMON_RAM_START,         SECMON_RAM_SIZE,   SRAM,        YES,    NO );
+  SET_REGION( 2, MAIN_RAM_START,           MAIN_RAM_SIZE,     SRAM,        YES,    NO );
+  SET_REGION( 3, FIRMWARE_START,           FIRMWARE_MAXSIZE,  FLASH_DATA,  YES,    NO );
+  SET_REGION( 4, AUX1_RAM_START,           AUX1_RAM_SIZE,     SRAM,        YES,    NO );
+#else
+  #error "Unknown build target"
 #endif
 
-  // Regions #6 and #7 are banked
+  // Regions #5 to #7 are banked
 
   DIS_REGION( 5 );
   DIS_REGION( 6 );
@@ -240,7 +271,7 @@ void mpu_init(void) {
 
   irq_key_t irq_key = irq_lock();
 
-  HAL_MPU_Disable();
+  mpu_disable();
 
   mpu_set_attributes();
 
@@ -262,7 +293,51 @@ mpu_mode_t mpu_get_mode(void) {
   return drv->mode;
 }
 
-void mpu_set_active_fb(void* addr, size_t size) {
+void mpu_set_active_applet(applet_layout_t* layout) {
+  mpu_driver_t* drv = &g_mpu_driver;
+
+  if (!drv->initialized) {
+    return;
+  }
+
+  irq_key_t irq_key = irq_lock();
+
+  mpu_disable();
+
+  if (layout != NULL) {
+    // clang-format off
+    if (layout->code1.start != 0 && layout->code1.size != 0) {
+      SET_REGRUN( 2, layout->code1.start, layout->code1.size, FLASH_CODE, NO, YES );
+    } else {
+      DIS_REGION( 2 );
+    }
+
+    if (layout->data1.start != 0 && layout->data1.size != 0) {
+      SET_REGRUN( 3, layout->data1.start, layout->data1.size, SRAM, YES, YES );
+    } else {
+      DIS_REGION( 3 );
+    }
+
+    if (layout->data2.start != 0 && layout->data2.size != 0) {
+      SET_REGRUN( 4, layout->data2.start, layout->data2.size, SRAM, YES, YES );
+    } else {
+      DIS_REGION( 4 );
+    }
+    // clang-format on
+  } else {
+    DIS_REGION(2);
+    DIS_REGION(3);
+    DIS_REGION(4);
+  }
+
+  if (drv->mode != MPU_MODE_DISABLED) {
+    mpu_enable();
+  }
+
+  irq_unlock(irq_key);
+}
+
+void mpu_set_active_fb(const void* addr, size_t size) {
   mpu_driver_t* drv = &g_mpu_driver;
 
   if (!drv->initialized) {
@@ -279,6 +354,25 @@ void mpu_set_active_fb(void* addr, size_t size) {
   mpu_reconfig(drv->mode);
 }
 
+bool mpu_inside_active_fb(const void* addr, size_t size) {
+  mpu_driver_t* drv = &g_mpu_driver;
+
+  if (!drv->initialized) {
+    return false;
+  }
+
+  irq_key_t lock = irq_lock();
+
+  bool result =
+      ((uintptr_t)addr + size >= (uintptr_t)addr) &&  // overflow check
+      ((uintptr_t)addr >= drv->active_fb_addr) &&
+      ((uintptr_t)addr + size <= drv->active_fb_addr + drv->active_fb_size);
+
+  irq_unlock(lock);
+
+  return result;
+}
+
 mpu_mode_t mpu_reconfig(mpu_mode_t mode) {
   mpu_driver_t* drv = &g_mpu_driver;
 
@@ -290,16 +384,13 @@ mpu_mode_t mpu_reconfig(mpu_mode_t mode) {
 
   irq_key_t irq_key = irq_lock();
 
-  HAL_MPU_Disable();
+  mpu_disable();
 
   // Region #5 is banked
 
   // clang-format off
   switch (mode) {
-    case MPU_MODE_SAES:
-      //      REGION   ADDRESS                 SIZE                   TYPE       WRITE   UNPRIV
-      SET_REGION( 5, PERIPH_BASE_NS,           PERIPH_SIZE,           PERIPHERAL,  YES,    YES ); // Peripherals - SAES, TAMP
-      break;
+    case MPU_MODE_APP_SAES:
     case MPU_MODE_APP:
       if (drv->active_fb_addr != 0) {
         SET_REGRUN( 5, drv->active_fb_addr,    drv->active_fb_size,   SRAM,        YES,    YES ); // Frame buffer
@@ -346,6 +437,7 @@ mpu_mode_t mpu_reconfig(mpu_mode_t mode) {
     case MPU_MODE_ASSETS:
       SET_REGION( 6, ASSETS_START,             ASSETS_MAXSIZE,     FLASH_DATA,  YES,    NO );
       break;
+    case MPU_MODE_APP_SAES:
     case MPU_MODE_APP:
       SET_REGION( 6, ASSETS_START,             ASSETS_MAXSIZE,     FLASH_DATA,   NO,   YES );
       break;
@@ -353,7 +445,8 @@ mpu_mode_t mpu_reconfig(mpu_mode_t mode) {
       SET_REGION( 6, BOOTARGS_START,           BOOTARGS_SIZE,      SRAM,        YES,    NO );
       break;
     default:
-      DIS_REGION( 6 );
+      // By default, the kernel needs to have the same access to assets as the app
+      SET_REGION( 6, ASSETS_START,             ASSETS_MAXSIZE,     FLASH_DATA,   NO,    NO );
       break;
   }
   // clang-format on
@@ -364,23 +457,24 @@ mpu_mode_t mpu_reconfig(mpu_mode_t mode) {
   switch (mode) {
       //      REGION   ADDRESS                 SIZE                TYPE       WRITE   UNPRIV
 #ifdef KERNEL
-    case MPU_MODE_SAES:
-      SET_REGION( 7, SAES_RAM_START,           SAES_RAM_SIZE,      SRAM,        YES,   YES ); // Unprivileged kernel SRAM
+    case MPU_MODE_APP_SAES:
+      SET_REGION( 7, PERIPH_BASE,              PERIPH_SIZE,        PERIPHERAL,  YES,    YES ); // Peripherals - SAES, TAMP
       break;
 #endif
-    case MPU_MODE_APP:
-      // DMA2D peripherals (Unprivileged, Read-Write, Non-Executable)
-      SET_REGION( 7, 0x5002B000,               SIZE_3K,            PERIPHERAL,  YES,   YES );
+    case MPU_MODE_OTP:
+      // Write to OTP requires access to non-secure FLASH controller
+      // (so we extended the peripheral region to cover it)
+      SET_REGION( 7, PERIPH_BASE_NS,           PERIPH_SIZE_EXT,    PERIPHERAL,  YES,    NO );
       break;
     default:
       // All peripherals (Privileged, Read-Write, Non-Executable)
-      SET_REGION( 7, PERIPH_BASE_NS,           PERIPH_SIZE,        PERIPHERAL,  YES,    NO );
+      SET_REGION( 7, PERIPH_BASE,              PERIPH_SIZE,        PERIPHERAL,  YES,    NO );
       break;
   }
   // clang-format on
 
   if (mode != MPU_MODE_DISABLED) {
-    HAL_MPU_Enable(LL_MPU_CTRL_HARDFAULT_NMI);
+    mpu_enable();
   }
 
   mpu_mode_t prev_mode = drv->mode;

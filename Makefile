@@ -5,13 +5,13 @@ help: ## show this help
 
 ## style commands:
 
-PY_FILES = $(shell find . -type f -name '*.py'   | sed 'sO^\./OO' | grep -f ./tools/style.py.include | grep -v -f ./tools/style.py.exclude )
+PY_FILES = $(shell find . -type f -name '*.py'   | sed 'sO^\./OO' | grep -f ./tools/style.py.include | grep -v -f ./tools/style.py.exclude ) common/protob/pb2py
 C_FILES =  $(shell find . -type f -name '*.[ch]' | grep -f ./tools/style.c.include  | grep -v -f ./tools/style.c.exclude )
 
 
 style_check: pystyle_check ruststyle_check cstyle_check changelog_check yaml_check docs_summary_check editor_check ## run all style checks
 
-style: pystyle ruststyle cstyle ## apply all code styles (C+Rust+Py)
+style: pystyle ruststyle cstyle changelog_style ## apply all code styles (C+Rust+Py+Changelog)
 
 pystyle_check: ## run code style check on application sources and tests
 	flake8 --version
@@ -52,14 +52,10 @@ pystyle: ## apply code style on application sources and tests
 	make -C python style
 
 changelog_check: ## check changelog format
-	./tools/generate-changelog.py --check core
-	./tools/generate-changelog.py --check core/embed/projects/boardloader
-	./tools/generate-changelog.py --check core/embed/projects/bootloader
-	./tools/generate-changelog.py --check core/embed/projects/bootloader_ci
-	./tools/generate-changelog.py --check legacy/bootloader
-	./tools/generate-changelog.py --check legacy/firmware
-	./tools/generate-changelog.py --check legacy/intermediate_fw
-	./tools/generate-changelog.py --check python
+	./tools/changelog.py check
+
+changelog_style: ## fix changelog format
+	./tools/changelog.py style
 
 yaml_check: ## check yaml formatting
 	yamllint .
@@ -132,12 +128,6 @@ protobuf_check: ## check that generated protobuf headers are up to date
 	./tools/build_protobuf --check
 	./rust/trezor-client/scripts/build_protos --check
 
-ci_docs: ## generate CI documentation
-	./tools/generate_ci_docs.py
-
-ci_docs_check: ## check that generated CI documentation is up to date
-	./tools/generate_ci_docs.py --check
-
 docs_summary_check: ## check if there are unlinked documentation files
 	@echo [DOCS-SUMMARY-MARKDOWN-CHECK]
 	python3 tools/check_docs_summary.py
@@ -149,17 +139,17 @@ vendorheader_check: ## check that vendor header is up to date
 	./core/tools/generate_vendorheader.sh --quiet --check
 
 bootloader_hashes: ## generate bootloader hashes
-	./core/tools/bootloader_hashes.py
+	bootloader_hashes
 
 bootloader_hashes_check: ## check generated bootloader hashes
-	./core/tools/bootloader_hashes.py --check
+	bootloader_hashes --check
 
-lsgen: ## generate linker scripts hashes
+lsgen: ## generate linker scripts
 	lsgen
 
 lsgen_check: ## check generated linker scripts
 	lsgen --check
 
-gen:  templates mocks icons protobuf ci_docs vendorheader solana_templates bootloader_hashes lsgen ## regenerate auto-generated files from sources
+gen:  templates mocks icons protobuf vendorheader solana_templates bootloader_hashes lsgen ## regenerate auto-generated files from sources
 
-gen_check: templates_check mocks_check icons_check protobuf_check ci_docs_check vendorheader_check solana_templates_check bootloader_hashes_check lsgen_check ## check validity of auto-generated files
+gen_check: templates_check mocks_check icons_check protobuf_check vendorheader_check solana_templates_check bootloader_hashes_check lsgen_check ## check validity of auto-generated files

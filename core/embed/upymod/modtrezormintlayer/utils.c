@@ -9,40 +9,40 @@ void handle_err(ByteArray *res) {
 
   switch (res->len_or_err.err) {
     case WrongHashSize:
-      mp_raise_ValueError("Invalid hash size");
+      mp_raise_ValueError(MP_ERROR_TEXT("Invalid hash size"));
       break;
     case InvalidUtxoType:
-      mp_raise_ValueError("Invalid UTXO type");
+      mp_raise_ValueError(MP_ERROR_TEXT("Invalid UTXO type"));
       break;
     case InvalidAmount:
-      mp_raise_ValueError("Invalid amount");
+      mp_raise_ValueError(MP_ERROR_TEXT("Invalid amount"));
       break;
     case InvalidAccountCommand:
-      mp_raise_ValueError("Invalid account command");
+      mp_raise_ValueError(MP_ERROR_TEXT("Invalid account command"));
       break;
     case InvalidDestination:
-      mp_raise_ValueError("Invalid destination");
+      mp_raise_ValueError(MP_ERROR_TEXT("Invalid destination"));
       break;
     case InvalidIsTokenUnfreezable:
-      mp_raise_ValueError("Invalid token unfreezable flag");
+      mp_raise_ValueError(MP_ERROR_TEXT("Invalid token unfreezable flag"));
       break;
     case InvalidIsTokenFreezable:
-      mp_raise_ValueError("Invalid token freezable flag");
+      mp_raise_ValueError(MP_ERROR_TEXT("Invalid token freezable flag"));
       break;
     case InvalidVrfPublicKey:
-      mp_raise_ValueError("Invalid VRF public key");
+      mp_raise_ValueError(MP_ERROR_TEXT("Invalid VRF public key"));
       break;
     case InvalidPublicKey:
-      mp_raise_ValueError("Invalid public key");
+      mp_raise_ValueError(MP_ERROR_TEXT("Invalid public key"));
       break;
     case InvalidOutputTimeLock:
-      mp_raise_ValueError("Invalid output time lock");
+      mp_raise_ValueError(MP_ERROR_TEXT("Invalid output time lock"));
       break;
     case InvalidTokenTotalSupply:
-      mp_raise_ValueError("Invalid token total supply");
+      mp_raise_ValueError(MP_ERROR_TEXT("Invalid token total supply"));
       break;
     default:
-      mp_raise_ValueError("Unknown error");
+      mp_raise_ValueError(MP_ERROR_TEXT("Unknown error"));
       break;
   }
 }

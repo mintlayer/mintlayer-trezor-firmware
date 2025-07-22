@@ -22,7 +22,7 @@ from trezorlib import device, messages
 from trezorlib.debuglink import LayoutType
 
 from .. import translations as TR
-from ..common import EXTERNAL_ENTROPY, WITH_MOCK_URANDOM, generate_entropy
+from ..common import EXTERNAL_ENTROPY, MOCK_GET_ENTROPY, generate_entropy
 from . import reset
 
 if TYPE_CHECKING:
@@ -41,7 +41,6 @@ pytestmark = pytest.mark.models("core")
     ],
 )
 @pytest.mark.setup_client(uninitialized=True)
-@WITH_MOCK_URANDOM
 def test_backup_slip39_custom(
     device_handler: "BackgroundDeviceHandler",
     group_threshold: int,
@@ -54,10 +53,13 @@ def test_backup_slip39_custom(
     assert features.initialized is False
 
     device_handler.run(
-        device.reset,
+        device.setup,
         strength=128,
         backup_type=messages.BackupType.Slip39_Basic,
         pin_protection=False,
+        passphrase_protection=False,
+        entropy_check_count=0,
+        _get_entropy=MOCK_GET_ENTROPY,
     )
 
     # confirm new wallet
@@ -66,7 +68,8 @@ def test_backup_slip39_custom(
     # cancel back up
     reset.cancel_backup(debug, confirm=True)
 
-    assert device_handler.result() == "Initialized"
+    # retrieve the result to check that it's not a TrezorFailure exception
+    device_handler.result()
 
     device_handler.run(
         device.backup,
@@ -77,7 +80,7 @@ def test_backup_slip39_custom(
     # confirm backup configuration
     if share_count > 1:
         assert TR.regexp("reset__create_x_of_y_multi_share_backup_template").match(
-            debug.read_layout().text_content()
+            debug.read_layout().text_content().strip()
         )
     else:
         assert TR.regexp("backup__info_single_share_backup").match(
@@ -90,9 +93,11 @@ def test_backup_slip39_custom(
     reset.confirm_read(debug, middle_r=True)
 
     all_words: list[str] = []
-    for _ in range(share_count):
+    for share in range(share_count):
         # read words
-        words = reset.read_words(debug)
+        eckahrt = debug.layout_type is LayoutType.Eckhart
+        confirm_instruction = not eckahrt or share == 0
+        words = reset.read_words(debug, confirm_instruction=confirm_instruction)
 
         # confirm words
         reset.confirm_words(debug, words)
@@ -103,9 +108,12 @@ def test_backup_slip39_custom(
         all_words.append(" ".join(words))
 
     # confirm backup done
-    if debug.layout_type is LayoutType.Mercury and share_count > 1:
+    if (
+        debug.layout_type in (LayoutType.Delizia, LayoutType.Eckhart)
+        and share_count > 1
+    ):
         reset.confirm_read(debug)
-    elif debug.layout_type is not LayoutType.Mercury:
+    elif debug.layout_type not in (LayoutType.Delizia, LayoutType.Eckhart):
         reset.confirm_read(debug)
 
     # generate secret locally
@@ -116,7 +124,9 @@ def test_backup_slip39_custom(
     # validate that all combinations will result in the correct master secret
     reset.validate_mnemonics(all_words[:share_threshold], secret)
 
-    assert device_handler.result() == "Seed successfully backed up"
+    # retrieve the result to check that it's not a TrezorFailure exception
+    device_handler.result()
+
     features = device_handler.features()
     assert features.initialized is True
     assert features.backup_availability == messages.BackupAvailability.NotAvailable

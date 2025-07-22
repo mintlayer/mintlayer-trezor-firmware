@@ -17,30 +17,38 @@ pub mod layout;
 
 mod api;
 
-#[cfg(feature = "model_mercury")]
-pub mod model_mercury;
-#[cfg(feature = "model_tr")]
-pub mod model_tr;
-#[cfg(feature = "model_tt")]
-pub mod model_tt;
+#[cfg(feature = "layout_bolt")]
+pub mod layout_bolt;
+#[cfg(feature = "layout_caesar")]
+pub mod layout_caesar;
+#[cfg(feature = "layout_delizia")]
+pub mod layout_delizia;
+#[cfg(feature = "layout_eckhart")]
+pub mod layout_eckhart;
 
 #[cfg(feature = "bootloader")]
 pub mod ui_bootloader;
+
+#[cfg(feature = "prodtest")]
+pub mod ui_prodtest;
+
 pub mod ui_common;
 #[cfg(feature = "micropython")]
 pub mod ui_firmware;
 
 pub use ui_common::CommonUI;
 
-#[cfg(all(
-    feature = "model_mercury",
-    not(feature = "model_tr"),
-    not(feature = "model_tt")
-))]
-pub type ModelUI = crate::ui::model_mercury::UIMercury;
+#[cfg(feature = "ui_debug_overlay")]
+pub use ui_common::DebugOverlay;
 
-#[cfg(all(feature = "model_tr", not(feature = "model_tt")))]
-pub type ModelUI = crate::ui::model_tr::UIModelTR;
-
-#[cfg(feature = "model_tt")]
-pub type ModelUI = crate::ui::model_tt::UIModelTT;
+cfg_if::cfg_if! {
+    if #[cfg(feature = "layout_bolt")] {
+        pub type ModelUI = crate::ui::layout_bolt::UIBolt;
+    } else if #[cfg(feature = "layout_caesar")] {
+        pub type ModelUI = crate::ui::layout_caesar::UICaesar;
+    } else if #[cfg(feature = "layout_delizia")] {
+        pub type ModelUI = crate::ui::layout_delizia::UIDelizia;
+    } else if #[cfg(feature = "layout_eckhart")] {
+        pub type ModelUI = crate::ui::layout_eckhart::UIEckhart;
+    }
+}

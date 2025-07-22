@@ -22,11 +22,7 @@ from trezorlib.tools import parse_path
 
 from ...common import parametrize_using_common_fixtures
 
-pytestmark = [
-    pytest.mark.altcoin,
-    pytest.mark.solana,
-    pytest.mark.models("core"),
-]
+pytestmark = [pytest.mark.altcoin, pytest.mark.solana, pytest.mark.models("core")]
 
 
 @parametrize_using_common_fixtures(
@@ -37,4 +33,4 @@ def test_solana_get_address(client: Client, parameters, result):
         client, address_n=parse_path(parameters["path"]), show_display=True
     )
 
-    assert actual_result.address == result["expected_address"]
+    assert actual_result == result["expected_address"]

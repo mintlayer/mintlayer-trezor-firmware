@@ -6,6 +6,8 @@ use crate::ui::{
     shape::{Bitmap, BitmapFormat, BitmapView},
 };
 
+use crate::trezorhal::display::{DISPLAY_RESX, DISPLAY_RESY};
+
 /// Waits for the DMA2D peripheral transfer to complete.
 pub fn wait_for_transfer() {
     // SAFETY:
@@ -29,6 +31,7 @@ impl Default for ffi::gfx_bitblt_t {
             src_x: 0,
             src_y: 0,
             src_alpha: 255,
+            src_downscale: 0,
         }
     }
 }
@@ -126,6 +129,15 @@ impl ffi::gfx_bitblt_t {
             ..self
         }
     }
+
+    /// Sets the downscaling for the source bitmap.
+    /// (0 = no downscale, 1 = 1/2, 2 = 1/4, 3 = 1/8)
+    fn with_downscale(self, downscale: u8) -> Self {
+        Self {
+            src_downscale: downscale,
+            ..self
+        }
+    }
 }
 
 /// Rectangle filling operation.
@@ -203,8 +215,8 @@ impl BitBltFill {
 
     /// Fills a rectangle on the display with the specified color.
     pub fn display_fill(&self) {
-        assert!(self.bitblt.dst_x + self.bitblt.width <= ffi::DISPLAY_RESX as u16);
-        assert!(self.bitblt.dst_y + self.bitblt.height <= ffi::DISPLAY_RESY as u16);
+        assert!(self.bitblt.dst_x + self.bitblt.width <= DISPLAY_RESX as u16);
+        assert!(self.bitblt.dst_y + self.bitblt.height <= DISPLAY_RESY as u16);
         // SAFETY:
         // - The destination rectangle is completely inside the display.
         unsafe { ffi::display_fill(&self.bitblt) };
@@ -248,16 +260,18 @@ impl<'a> BitBltCopy<'a> {
 
         // Clip with the bitmap top-left
         if r.x0 > r_dst.x0 {
-            offset.x += r.x0 - r_dst.x0;
+            offset.x += (r.x0 - r_dst.x0) << src.downscale;
         }
 
         if r.y0 > r_dst.y0 {
-            offset.y += r.y0 - r_dst.y0;
+            offset.y += (r.y0 - r_dst.y0) << src.downscale;
         }
 
         // Clip with the bitmap size
-        r.x1 = r.x1.min(r.x0 + src.size().x - offset.x);
-        r.y1 = r.y1.min(r.y0 + src.size().y - offset.y);
+        r.x1 =
+            r.x1.min(r.x0 + ((src.size().x - offset.x) >> src.downscale));
+        r.y1 =
+            r.y1.min(r.y0 + ((src.size().y - offset.y) >> src.downscale));
 
         if !r.is_empty() {
             Some(Self {
@@ -278,6 +292,7 @@ impl<'a> BitBltCopy<'a> {
                         .with_bg(src.bg_color)
                         .with_fg(src.fg_color)
                         .with_alpha(src.alpha)
+                        .with_downscale(src.downscale)
                 },
                 src,
             })
@@ -423,8 +438,8 @@ impl<'a> BitBltCopy<'a> {
     ///
     /// - The source bitmap uses the RGB565 format.
     pub fn display_copy(&self) {
-        assert!(self.bitblt.dst_x + self.bitblt.width <= ffi::DISPLAY_RESX as u16);
-        assert!(self.bitblt.dst_y + self.bitblt.height <= ffi::DISPLAY_RESY as u16);
+        assert!(self.bitblt.dst_x + self.bitblt.width <= DISPLAY_RESX as u16);
+        assert!(self.bitblt.dst_y + self.bitblt.height <= DISPLAY_RESY as u16);
 
         // SAFETY:
         // - The source bitmap is in the correct formats.

@@ -3,18 +3,43 @@
 import os
 import tools, models, ui
 
-TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T')
+TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T2T1')
 CMAKELISTS = int(ARGUMENTS.get('CMAKELISTS', 0))
 PRODUCTION = ARGUMENTS.get('PRODUCTION', '0') == '1'
 BOOTLOADER_DEVEL = ARGUMENTS.get('BOOTLOADER_DEVEL', '0') == '1'
 HW_REVISION = ARGUMENTS.get('HW_REVISION', None)
+UI_DEBUG_OVERLAY = ARGUMENTS.get('UI_DEBUG_OVERLAY', '0') == '1'
 
-FEATURES_WANTED = ["input", "sbu", "sd_card", "rdb_led", "usb", "consumption_mask", "optiga", "haptic"]
+FEATURE_FLAGS = {
+    "AES_GCM": True,
+}
+
+FEATURES_WANTED = [
+    "ble",
+    "consumption_mask",
+    "display",
+    "haptic",
+    "hw_revision",
+    "input",
+    "nfc",
+    "optiga",
+    "power_manager",
+    "power_save",
+    "rgb_led",
+    "rtc",
+    "sbu",
+    "sd_card",
+    "secure_domain",
+    "tropic",
+    "usb",
+    "smp",
+    ]
 
 CCFLAGS_MOD = ''
 CPPPATH_MOD = []
 CPPDEFINES_MOD = [
     'KERNEL_MODE',
+    'SECURE_MODE',
     'AES_128',
     'USE_INSECURE_PRNG',
 ]
@@ -40,25 +65,54 @@ SOURCE_MOD_CRYPTO += [
     'vendor/trezor-crypto/aes/aeskey.c',
     'vendor/trezor-crypto/aes/aestab.c',
     'vendor/trezor-crypto/bignum.c',
+    'vendor/trezor-crypto/blake256.c',
+    'vendor/trezor-crypto/blake2b.c',
+    'vendor/trezor-crypto/blake2s.c',
     'vendor/trezor-crypto/buffer.c',
     'vendor/trezor-crypto/chacha_drbg.c',
     'vendor/trezor-crypto/chacha20poly1305/chacha_merged.c',
     'vendor/trezor-crypto/der.c',
     'vendor/trezor-crypto/ecdsa.c',
+    'vendor/trezor-crypto/ed25519-donna/curve25519-donna-32bit.c',
+    'vendor/trezor-crypto/ed25519-donna/curve25519-donna-helpers.c',
+    'vendor/trezor-crypto/ed25519-donna/curve25519-donna-scalarmult-base.c',
+    'vendor/trezor-crypto/ed25519-donna/ed25519-donna-32bit-tables.c',
+    'vendor/trezor-crypto/ed25519-donna/ed25519-donna-basepoint-table.c',
+    'vendor/trezor-crypto/ed25519-donna/ed25519-donna-impl-base.c',
+    'vendor/trezor-crypto/ed25519-donna/ed25519-keccak.c',
+    'vendor/trezor-crypto/ed25519-donna/ed25519-sha3.c',
+    'vendor/trezor-crypto/ed25519-donna/ed25519.c',
+    'vendor/trezor-crypto/ed25519-donna/modm-donna-32bit.c',
+    'vendor/trezor-crypto/groestl.c',
+    'vendor/trezor-crypto/hasher.c',
     'vendor/trezor-crypto/hmac.c',
     'vendor/trezor-crypto/hmac_drbg.c',
     'vendor/trezor-crypto/memzero.c',
     'vendor/trezor-crypto/nist256p1.c',
     'vendor/trezor-crypto/rand.c',
+    'vendor/trezor-crypto/ripemd160.c',
     'vendor/trezor-crypto/rfc6979.c',
     'vendor/trezor-crypto/secp256k1.c',
     'vendor/trezor-crypto/sha2.c',
+    'vendor/trezor-crypto/sha3.c',
     'vendor/trezor-crypto/tls_prf.c',
 ]
 
+# AES-GCM
+if FEATURE_FLAGS["AES_GCM"]:
+    CPPDEFINES_MOD += [
+        'USE_AES_GCM',
+        'AES_VAR',
+    ]
+    SOURCE_MOD_CRYPTO += [
+        'vendor/trezor-crypto/aes/gf128mul.c',
+        'vendor/trezor-crypto/aes/aesgcm.c',
+    ]
+
+
 # modtrezorui
 CPPPATH_MOD += [
-        'vendor/micropython/lib/uzlib',
+        'vendor/micropython/lib/uzlib'
 ]
 
 SOURCE_MOD += [
@@ -67,23 +121,25 @@ SOURCE_MOD += [
     'embed/gfx/bitblt/gfx_bitblt_rgba8888.c',
     'embed/gfx/bitblt/gfx_bitblt_mono8.c',
     'embed/gfx/fonts/font_bitmap.c',
-    'embed/gfx/fonts/fonts.c',
     'embed/gfx/gfx_color.c',
     'embed/gfx/gfx_draw.c',
     'embed/gfx/terminal.c',
-    'embed/gfx/qrcode/qrcodegen.c',
     'embed/io/display/display_utils.c',
+    'embed/util/bl_check/bl_check.c',
     'embed/util/image/image.c',
     'embed/util/rsod/rsod.c',
     'embed/util/scm_revision/scm_revision.c',
+    'embed/rtl/cli.c',
     'embed/rtl/error_handling.c',
     'embed/rtl/mini_printf.c',
+    'embed/rtl/strutils.c',
+    'embed/rtl/unit_test.c',
     'vendor/micropython/lib/uzlib/adler32.c',
     'vendor/micropython/lib/uzlib/crc32.c',
     'vendor/micropython/lib/uzlib/tinflate.c',
 ]
 
-ui.init_ui(TREZOR_MODEL, "prodtest", CPPDEFINES_MOD, SOURCE_MOD, RUST_UI_FEATURES)
+ui.init_ui(TREZOR_MODEL, "prodtest", RUST_UI_FEATURES)
 
 env = Environment(
     ENV=os.environ,
@@ -95,20 +151,39 @@ env = Environment(
 
 FEATURES_AVAILABLE = models.configure_board(TREZOR_MODEL, HW_REVISION, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
 
-FILE_SUFFIX= env.get('ENV')['SUFFIX']
-
 
 SOURCE_PRODTEST = [
-    f'embed/sys/startup/{FILE_SUFFIX}/startup_stage_2.s',
     'embed/projects/prodtest/header.S',
     'embed/projects/prodtest/main.c',
-    'embed/projects/prodtest/prodtest_common.c',
+    'embed/projects/prodtest/commands.c',
+    'embed/projects/prodtest/cmd/prodtest_boardloader.c',
+    'embed/projects/prodtest/cmd/prodtest_ble.c',
+    'embed/projects/prodtest/cmd/prodtest_bootloader.c',
+    'embed/projects/prodtest/cmd/prodtest_button.c',
+    'embed/projects/prodtest/cmd/prodtest_display.c',
+    'embed/projects/prodtest/cmd/prodtest_prodtest.c',
+    'embed/projects/prodtest/cmd/prodtest_backup_ram.c',
+    'embed/projects/prodtest/cmd/prodtest_get_cpuid.c',
+    'embed/projects/prodtest/cmd/prodtest_haptic.c',
+    'embed/projects/prodtest/cmd/prodtest_help.c',
+    'embed/projects/prodtest/cmd/prodtest_hw_revision.c',
+    'embed/projects/prodtest/cmd/prodtest_nfc.c',
+    'embed/projects/prodtest/cmd/prodtest_nrf.c',
+    'embed/projects/prodtest/cmd/prodtest_optiga.c',
+    'embed/projects/prodtest/cmd/prodtest_otp_batch.c',
+    'embed/projects/prodtest/cmd/prodtest_otp_variant.c',
+    'embed/projects/prodtest/cmd/prodtest_ping.c',
+    'embed/projects/prodtest/cmd/prodtest_power_manager.c',
+    'embed/projects/prodtest/cmd/prodtest_reboot.c',
+    'embed/projects/prodtest/cmd/prodtest_rgbled.c',
+    'embed/projects/prodtest/cmd/prodtest_sdcard.c',
+    'embed/projects/prodtest/cmd/prodtest_tamper.c',
+    'embed/projects/prodtest/cmd/prodtest_sbu.c',
+    'embed/projects/prodtest/cmd/prodtest_touch.c',
+    'embed/projects/prodtest/cmd/prodtest_tropic.c',
+    'embed/projects/prodtest/cmd/prodtest_unit_test.c',
+    'embed/projects/prodtest/cmd/prodtest_wpc.c',
 ]
-
-if 'optiga' in FEATURES_AVAILABLE:
-    SOURCE_PRODTEST += [
-        'embed/projects/prodtest/optiga_prodtest.c',
-    ]
 
 env.Replace(
     CAT='cat',
@@ -126,6 +201,24 @@ env.Replace(
 env.Replace(
     TREZOR_MODEL=TREZOR_MODEL, )
 
+ALLPATHS = [
+        'embed/rust',
+        'embed/projects/prodtest',
+        'embed/rtl/inc',
+        'embed/models',
+        'embed/gfx/inc',
+        'embed/sys/bsp/inc',
+        'embed/util/bl_check/inc',
+        'embed/util/image/inc',
+        'embed/util/rsod/inc',
+        'embed/util/scm_revision/inc',
+        'embed/util/translations/inc',
+        'embed/upymod/modtrezorui',
+    ]
+
+ALLPATHS += CPPPATH_MOD + PATH_HAL
+
+
 env.Replace(
     COPT=env.get('ENV').get('OPTIMIZE', '-Os'),
     CCFLAGS='$COPT '
@@ -137,18 +230,8 @@ env.Replace(
     '-fstack-protector-all '
     +  env.get('ENV')["CPU_CCFLAGS"] + CCFLAGS_MOD,
     CCFLAGS_QSTR='-DNO_QSTR -DN_X64 -DN_X86 -DN_THUMB',
-    LINKFLAGS=f'-T build/prodtest/memory.ld -Wl,--gc-sections -Wl,--print-memory-usage -Wl,-Map=build/prodtest/prodtest.map -Wl,--warn-common',
-    CPPPATH=[
-        'embed/projects/prodtest',
-        'embed/rtl/inc',
-        'embed/models',
-        'embed/gfx/inc',
-        'embed/sys/bsp/inc',
-        'embed/util/image/inc',
-        'embed/util/rsod/inc',
-        'embed/util/scm_revision/inc',
-        'embed/upymod/modtrezorui',
-    ] + CPPPATH_MOD + PATH_HAL,
+    LINKFLAGS=['-Tbuild/prodtest/memory.ld', '-Wl,--gc-sections', '-Wl,--print-memory-usage', '-Wl,-Map=build/prodtest/prodtest.map', '-Wl,--warn-common'],
+    CPPPATH=ALLPATHS,
     CPPDEFINES=[
         'TREZOR_PRODTEST',
         'TREZOR_MODEL_'+TREZOR_MODEL,
@@ -185,7 +268,23 @@ obj_program.extend(env.Object(source=SOURCE_MOD_CRYPTO, CCFLAGS='$CCFLAGS -ftriv
 obj_program.extend(env.Object(source=SOURCE_PRODTEST))
 obj_program.extend(env.Object(source=SOURCE_HAL))
 
-MODEL_IDENTIFIER = models.get_model_identifier(TREZOR_MODEL)
+#
+# Rust library
+#
+features = ['prodtest',] + FEATURES_AVAILABLE + RUST_UI_FEATURES
+
+if UI_DEBUG_OVERLAY:
+    features.append('ui_debug_overlay')
+
+
+rust = tools.add_rust_lib(
+    env=env,
+    build='prodtest',
+    profile='release',
+    features=features,
+    all_paths=ALLPATHS,
+    build_dir=str(Dir('.').abspath),
+)
 
 
 if (vh := ARGUMENTS.get("VENDOR_HEADER", None)):
@@ -195,13 +294,13 @@ elif (vh := os.environ.get("VENDOR_HEADER", None)):
     # of vendor header which does not affect reproducibility of the build. Nonetheless,
     # we should figure out a cleaner way to pass in this argument, without having to teach
     # the Makefile about it.
-    VENDORHEADER = f'embed/models/{MODEL_IDENTIFIER}/vendorheader/{vh}'
+    VENDORHEADER = f'embed/models/{TREZOR_MODEL}/vendorheader/{vh}'
 elif PRODUCTION:
-    VENDORHEADER = f'embed/models/{MODEL_IDENTIFIER}/vendorheader/vendorheader_prodtest_signed_prod.bin'
+    VENDORHEADER = f'embed/models/{TREZOR_MODEL}/vendorheader/vendorheader_prodtest_signed_prod.bin'
 elif BOOTLOADER_DEVEL:
-    VENDORHEADER = f'embed/models/{MODEL_IDENTIFIER}/vendorheader/vendorheader_dev_DO_NOT_SIGN_signed_dev.bin'
+    VENDORHEADER = f'embed/models/{TREZOR_MODEL}/vendorheader/vendorheader_dev_DO_NOT_SIGN_signed_dev.bin'
 else:
-    VENDORHEADER = f'embed/models/{MODEL_IDENTIFIER}/vendorheader/vendorheader_unsafe_signed_prod.bin'
+    VENDORHEADER = f'embed/models/{TREZOR_MODEL}/vendorheader/vendorheader_unsafe_signed_prod.bin'
 
 
 tools.embed_raw_binary(
@@ -214,7 +313,7 @@ tools.embed_raw_binary(
 
 linkerscript_gen = env.Command(
     target='memory.ld',
-    source=[f'embed/models/{MODEL_IDENTIFIER}/memory.ld', env.get('ENV')['LINKER_SCRIPT'].format(target='prodtest')],
+    source=[f'embed/models/{TREZOR_MODEL}/memory.ld', env.get('ENV')['LINKER_SCRIPT'].format(target='prodtest')],
     action='$CAT $SOURCES > $TARGET',
 )
 
@@ -222,12 +321,13 @@ program_elf = env.Command(
     target='prodtest.elf',
     source=obj_program,
     action=
-    '$LINK -o $TARGET $CCFLAGS $CFLAGS $LINKFLAGS $SOURCES -lc_nano -lgcc -lm',
+    '$LINK -o $TARGET $CCFLAGS $CFLAGS $SOURCES $LINKFLAGS -lc_nano -lgcc -lm',
 )
 
 env.Depends(program_elf, linkerscript_gen)
+env.Depends(program_elf, rust)
 
-BINARY_NAME = f"build/prodtest/prodtest-{models.get_model_identifier(TREZOR_MODEL)}"
+BINARY_NAME = f"build/prodtest/prodtest-{TREZOR_MODEL}"
 BINARY_NAME += "-" + tools.get_version('embed/projects/prodtest/version.h')
 BINARY_NAME += "-" + tools.get_git_revision_short_hash()
 BINARY_NAME += "-dirty" if tools.get_git_modified() else ""

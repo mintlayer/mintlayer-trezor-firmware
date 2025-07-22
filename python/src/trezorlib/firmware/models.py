@@ -14,6 +14,8 @@
 # You should have received a copy of the License along with this library.
 # If not, see <https://www.gnu.org/licenses/lgpl-3.0.html>.
 
+from __future__ import annotations
+
 import hashlib
 import typing as t
 from dataclasses import dataclass
@@ -45,7 +47,7 @@ class Model(Enum):
     DISC2 = b"D002"
 
     @classmethod
-    def from_hw_model(cls, hw_model: t.Union["Self", bytes]) -> "Model":
+    def from_hw_model(cls, hw_model: Self | bytes) -> Model:
         if isinstance(hw_model, cls):
             return hw_model
         if hw_model == b"\x00\x00\x00\x00":
@@ -53,21 +55,18 @@ class Model(Enum):
         raise ValueError(f"Unknown hardware model: {hw_model}")
 
     @classmethod
-    def from_trezor_model(cls, trezor_model: "TrezorModel") -> "Self":
+    def from_trezor_model(cls, trezor_model: TrezorModel) -> Self:
         return cls(trezor_model.internal_name.encode("ascii"))
 
-    def model_keys(self, dev_keys: bool = False) -> "ModelKeys":
+    def model_keys(self, dev_keys: bool = False) -> ModelKeys:
         if dev_keys:
             model_map = MODEL_MAP_DEV
         else:
             model_map = MODEL_MAP
         return model_map[self]
 
-    def hash_params(self) -> "FirmwareHashParameters":
+    def hash_params(self) -> FirmwareHashParameters:
         return MODEL_HASH_PARAMS_MAP[self]
-
-    def code_alignment(self) -> int:
-        return MODEL_CODE_ALIGNMENT_MAP[self]
 
 
 @dataclass
@@ -275,6 +274,30 @@ T3B1 = ModelKeys(
     firmware_sigs_needed=-1,
 )
 
+T3W1 = ModelKeys(
+    production=True,
+    boardloader_keys=[
+        bytes.fromhex(key)
+        for key in (
+            "e8912f81b3e780ee650ed3856db5326e0b9eff10364b339193e7a8f10f7621b9",
+            "bde70a38eee633d26f434eee2f536df457b8deb8bd988294f4a0c8d9054903d2",
+            "a85b601dfbda1d22ccb5dd492d26034d87f67f2a0b8584b7774439461fc471a9",
+        )
+    ],
+    boardloader_sigs_needed=2,
+    bootloader_keys=[
+        bytes.fromhex(key)
+        for key in (
+            "320e111e9dded5fe7f5d41fd372ef0e91b2dfa4c6cdc9fe5221bfb16aaf91775",
+            "2e349f8d06b2334262ecb603ed04cb5a7cc0b660ebe3cd5c2972b5cd1f38ef85",
+            "ab0d3f91a4adf744719dba661783ec549f73a4e45457cb6d02752a40fb63d3bf",
+        )
+    ],
+    bootloader_sigs_needed=2,
+    firmware_keys=(),
+    firmware_sigs_needed=-1,
+)
+
 LEGACY_HASH_PARAMS = FirmwareHashParameters(
     hash_function=hashlib.sha256,
     chunk_size=1024 * 64,
@@ -317,7 +340,7 @@ MODEL_MAP = {
     Model.T2B1: T2B1,
     Model.T3T1: T3T1,
     Model.T3B1: T3B1,
-    Model.T3W1: TREZOR_CORE_DEV,
+    Model.T3W1: T3W1,
     Model.D001: TREZOR_CORE_DEV,
     Model.D002: TREZOR_CORE_DEV,
 }
@@ -344,19 +367,7 @@ MODEL_HASH_PARAMS_MAP = {
     Model.D002: D002_HASH_PARAMS,
 }
 
-
-MODEL_CODE_ALIGNMENT_MAP = {
-    Model.T1B1: 0x200,
-    Model.T2T1: 0x200,
-    Model.T2B1: 0x200,
-    Model.T3T1: 0x200,
-    Model.T3B1: 0x200,
-    Model.T3W1: 0x200,
-    Model.D001: 0x200,
-    Model.D002: 0x400,
-}
-
-# aliases
+# deprecated aliases -- don't add more
 
 TREZOR_ONE_V1V2 = LEGACY_V1V2
 TREZOR_ONE_V1V2_DEV = LEGACY_V1V2_DEV

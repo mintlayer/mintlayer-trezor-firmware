@@ -24,6 +24,7 @@
 #include <trezor_rtl.h>
 
 #include <io/display.h>
+#include <io/unix/sdl_display.h>
 
 #include <SDL.h>
 #include <SDL_image.h>
@@ -75,6 +76,10 @@ typedef struct {
   uint8_t mono_framebuf[DISPLAY_RESX * DISPLAY_RESY];
 #endif
 
+#ifdef USE_RGB_LED
+  // Color of the RGB LED
+  uint32_t led_color;
+#endif
 } display_driver_t;
 
 static display_driver_t g_display_driver = {
@@ -89,11 +94,11 @@ static void display_exit_handler(void) {
   display_deinit(DISPLAY_RESET_CONTENT);
 }
 
-void display_init(display_content_mode_t mode) {
+bool display_init(display_content_mode_t mode) {
   display_driver_t *drv = &g_display_driver;
 
   if (drv->initialized) {
-    return;
+    return true;
   }
 
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -117,7 +122,7 @@ void display_init(display_content_mode_t mode) {
 #ifdef TREZOR_EMULATOR_RASPI
                        SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN
 #else
-                       SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI
+                       SDL_WINDOW_SHOWN
 #endif
       );
   free(window_title_alloc);
@@ -178,7 +183,14 @@ void display_init(display_content_mode_t mode) {
 #else
   drv->orientation_angle = 0;
 #endif
+#ifdef USE_RGB_LED
+  drv->led_color = 0;
+#endif
+
+  gfx_bitblt_init();
+
   drv->initialized = true;
+  return true;
 }
 
 void display_deinit(display_content_mode_t mode) {
@@ -187,6 +199,8 @@ void display_deinit(display_content_mode_t mode) {
   if (!drv->initialized) {
     return;
   }
+
+  gfx_bitblt_deinit();
 
   SDL_FreeSurface(drv->prev_saved);
   SDL_FreeSurface(drv->buffer);
@@ -272,18 +286,20 @@ int display_get_orientation(void) {
 bool display_get_frame_buffer(display_fb_info_t *fb) {
   display_driver_t *drv = &g_display_driver;
 
+  memset(fb, 0, sizeof(display_fb_info_t));
+
   if (!drv->initialized) {
-    fb->ptr = NULL;
-    fb->stride = 0;
     return false;
   }
 
 #ifdef DISPLAY_MONO
   fb->ptr = drv->mono_framebuf;
   fb->stride = DISPLAY_RESX;
+  fb->size = DISPLAY_RESX * DISPLAY_RESY;
 #else
   fb->ptr = drv->buffer->pixels;
   fb->stride = DISPLAY_RESX * PIXEL_SIZE;
+  fb->size = DISPLAY_RESX * DISPLAY_RESY * PIXEL_SIZE;
 #endif
   return true;
 }
@@ -310,6 +326,63 @@ static void copy_mono_framebuf(display_driver_t *drv) {
   }
 }
 #endif
+
+#ifdef USE_RGB_LED
+
+void display_rgb_led(uint32_t color) {
+  display_driver_t *drv = &g_display_driver;
+  if (!drv->initialized) {
+    return;
+  }
+  // Store color for future display refreshes
+  drv->led_color = color;
+  display_refresh();
+}
+
+void draw_rgb_led() {
+  display_driver_t *drv = &g_display_driver;
+
+  if (!drv->initialized) {
+    return;
+  }
+
+  const uint32_t color = drv->led_color;
+
+  if (color == 0) {
+    return;  // No LED color set
+  }
+
+  // Extract RGB components
+  uint32_t r = (color >> 16) & 0xFF;
+  uint32_t g = (color >> 8) & 0xFF;
+  uint32_t b = color & 0xFF;
+
+  // Define LED circle properties
+  const int radius = 5;
+  int center_x = DISPLAY_RESX / 2;
+  int center_y = 0;
+
+  // Position based on background
+  if (drv->background) {
+    center_x += TOUCH_OFFSET_X;
+    center_y = TOUCH_OFFSET_Y / 2;
+  } else {
+    center_x += EMULATOR_BORDER;
+    center_y = EMULATOR_BORDER / 2;
+  }
+
+  // Draw the LED
+  SDL_SetRenderDrawColor(drv->renderer, r, g, b, 255);
+  for (int y = -radius; y <= radius; y++) {
+    for (int x = -radius; x <= radius; x++) {
+      if (x * x + y * y <= radius * radius) {
+        SDL_RenderDrawPoint(drv->renderer, center_x + x, center_y + y);
+      }
+    }
+  }
+  SDL_SetRenderDrawColor(drv->renderer, 0, 0, 0, 255);
+}
+#endif  // USE_RGB_LED
 
 void display_refresh(void) {
   display_driver_t *drv = &g_display_driver;
@@ -345,6 +418,10 @@ void display_refresh(void) {
     SDL_RenderCopyEx(drv->renderer, drv->texture, NULL, &r,
                      drv->orientation_angle, NULL, 0);
   }
+#ifdef USE_RGB_LED
+  draw_rgb_led();
+#endif
+
   SDL_RenderPresent(drv->renderer);
 }
 
@@ -404,25 +481,6 @@ void display_copy_mono1p(const gfx_bitblt_t *bb) {
   gfx_rgba8888_copy_mono1p(&bb_new);
 #else
   gfx_rgb565_copy_mono1p(&bb_new);
-#endif
-}
-
-void display_copy_mono4(const gfx_bitblt_t *bb) {
-  display_driver_t *drv = &g_display_driver;
-
-  if (!drv->initialized) {
-    return;
-  }
-
-  gfx_bitblt_t bb_new = *bb;
-  bb_new.dst_row =
-      (uint8_t *)drv->buffer->pixels + (drv->buffer->pitch * bb_new.dst_y);
-  bb_new.dst_stride = drv->buffer->pitch;
-
-#ifdef UI_COLOR_32BIT
-  gfx_rgba8888_copy_mono4(&bb_new);
-#else
-  gfx_rgb565_copy_mono4(&bb_new);
 #endif
 }
 

@@ -69,10 +69,6 @@ void display_set_unpriv_access(bool unpriv) {
     tz_set_gfxmmu_unpriv(unpriv);
   }
 #endif
-
-#ifdef USE_DMA2D
-  tz_set_dma2d_unpriv(unpriv);
-#endif
 }
 #endif  //  USE_TRUSTZONE
 
@@ -81,10 +77,10 @@ void display_set_unpriv_access(bool unpriv) {
 static uint8_t *get_fb_ptr(int16_t index) {
 #ifdef DISPLAY_GFXMMU
   if (index == 0) {
-    return (uint8_t *)GFXMMU_VIRTUAL_BUFFER0_BASE_S;
+    return (uint8_t *)GFXMMU_VIRTUAL_BUFFER0_BASE;
 #if (FRAME_BUFFER_COUNT > 1)
   } else if (index == 1) {
-    return (uint8_t *)GFXMMU_VIRTUAL_BUFFER1_BASE_S;
+    return (uint8_t *)GFXMMU_VIRTUAL_BUFFER1_BASE;
 #endif
 #else
   if (index == 0) {
@@ -99,8 +95,10 @@ static uint8_t *get_fb_ptr(int16_t index) {
   }
 }
 
-bool display_get_frame_buffer(display_fb_info_t *fb_dest) {
+bool display_get_frame_buffer(display_fb_info_t *fb) {
   display_driver_t *drv = &g_display_driver;
+
+  memset(fb, 0, sizeof(display_fb_info_t));
 
   if (!drv->initialized) {
     return false;
@@ -116,27 +114,14 @@ bool display_get_frame_buffer(display_fb_info_t *fb_dest) {
   int16_t fb_idx = fb_queue_peek(&drv->empty_frames);
 
   if (fb_idx < 0) {
-    fb_dest->ptr = NULL;
-    fb_dest->stride = 0;
     return false;
   }
 
-  uintptr_t addr = (uintptr_t)get_fb_ptr(fb_idx);
+  fb->ptr = get_fb_ptr(fb_idx);
+  fb->stride = FRAME_BUFFER_PIXELS_PER_LINE * FB_PIXEL_SIZE;
+  fb->size = fb->stride * DISPLAY_RESY;
 
-  uint32_t fb_stride = FRAME_BUFFER_PIXELS_PER_LINE * FB_PIXEL_SIZE;
-
-  // We may not utilize whole area of the display
-  addr += (LCD_HEIGHT - DISPLAY_RESY) / 2 * FB_PIXEL_SIZE;
-  addr += (LCD_WIDTH - DISPLAY_RESX) / 2 * fb_stride;
-
-  display_fb_info_t fb = {
-      .ptr = (void *)addr,
-      .stride = fb_stride,
-  };
-
-  mpu_set_active_fb((void *)addr, VIRTUAL_FRAME_BUFFER_SIZE);
-
-  memcpy(fb_dest, &fb, sizeof(display_fb_info_t));
+  mpu_set_active_fb(fb->ptr, fb->size);
 
   return true;
 }

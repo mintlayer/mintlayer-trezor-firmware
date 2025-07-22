@@ -18,16 +18,25 @@ def configure(
 
     mcu = "STM32U5G9xx"
     linker_script = """embed/sys/linker/stm32u5g/{target}.ld"""
+    memory_layout = "memory.ld"
 
-    stm32u5_common_files(env, defines, sources, paths)
+    stm32u5_common_files(env, features_wanted, defines, sources, paths)
 
     env.get("ENV")[
         "CPU_ASFLAGS"
     ] = "-mthumb -mcpu=cortex-m33 -mfloat-abi=hard -mfpu=fpv5-sp-d16 "
     env.get("ENV")[
         "CPU_CCFLAGS"
-    ] = "-mthumb -mcpu=cortex-m33 -mfloat-abi=hard -mfpu=fpv5-sp-d16 -mtune=cortex-m33 -mcmse "
+    ] = "-mthumb -mcpu=cortex-m33 -mfloat-abi=hard -mfpu=fpv5-sp-d16 -mtune=cortex-m33 "
     env.get("ENV")["RUST_TARGET"] = "thumbv8m.main-none-eabihf"
+
+    if "secure_domain" in features_wanted:
+        env.get("ENV")["CPU_CCFLAGS"] += "-mcmse "
+
+    if "secmon_layout" in features_wanted:
+        defines += [("USE_SECMON_LAYOUT", "1")]
+        memory_layout = "memory_secmon.ld"
+        features_available.append("secmon_layout")
 
     defines += [
         mcu,
@@ -36,21 +45,31 @@ def configure(
         ("HW_REVISION", str(hw_revision)),
         ("HSE_VALUE", "16000000"),
         ("USE_HSE", "1"),
+        ("USE_BOOTARGS_RSOD", "1"),
     ]
 
-    sources += [
-        "embed/io/display/ltdc_dsi/display_driver.c",
-        "embed/io/display/ltdc_dsi/panels/stm32u5a9j-dk/stm32u5a9j-dk.c",
-        "embed/io/display/ltdc_dsi/display_fb.c",
-        "embed/io/display/ltdc_dsi/display_fb_rgb888.c",
-        "embed/io/display/ltdc_dsi/display_gfxmmu.c",
-        "embed/io/display/fb_queue/fb_queue.c",
-    ]
-    paths += ["embed/io/display/inc"]
+    if "display" in features_wanted:
+        sources += [
+            "embed/io/display/ltdc_dsi/display_driver.c",
+            "embed/io/display/ltdc_dsi/panels/stm32u5a9j-dk/stm32u5a9j-dk.c",
+            "embed/io/display/ltdc_dsi/display_fb.c",
+            "embed/io/display/ltdc_dsi/display_fb_rgb888.c",
+            # "embed/io/display/ltdc_dsi/display_gfxmmu.c",
+            "embed/io/display/fb_queue/fb_queue.c",
+        ]
+        paths += ["embed/io/display/inc"]
+        defines += [("USE_DISPLAY", "1")]
+
+        features_available.append("backlight")
+        defines += [("USE_BACKLIGHT", "1")]
+        sources += ["embed/io/backlight/stm32/backlight_pin.c"]
+        paths += ["embed/io/backlight/inc"]
 
     if "input" in features_wanted:
         sources += ["embed/io/i2c_bus/stm32u5/i2c_bus.c"]
+        sources += ["embed/io/touch/sitronix/touch.c"]
         sources += ["embed/io/touch/sitronix/sitronix.c"]
+        sources += ["embed/io/touch/touch_poll.c"]
         paths += ["embed/io/i2c_bus/inc"]
         paths += ["embed/io/touch/inc"]
         features_available.append("touch")
@@ -73,22 +92,23 @@ def configure(
         ]
         features_available.append("usb")
         paths += ["embed/io/usb/inc"]
+        defines += [("USE_USB", "1")]
 
     defines += [
-        "USE_DMA2D",
+        "FRAMEBUFFER",
+        "DISPLAY_RGBA8888",
         ("UI_COLOR_32BIT", "1"),
         ("USE_RGB_COLORS", "1"),
+        ("DISPLAY_RESX", "240"),
+        ("DISPLAY_RESY", "240"),
     ]
-
-    sources += ["embed/gfx/bitblt/stm32/dma2d_bitblt.c"]
-
-    features_available.append("dma2d")
-    features_available.append("ui_color_32bit")
-
-    defines += ["FRAMEBUFFER"]
-    defines += ["DISPLAY_RGBA8888"]
     features_available.append("framebuffer")
     features_available.append("display_rgba8888")
+    features_available.append("ui_color_32bit")
+
+    defines += ["USE_DMA2D"]
+    features_available.append("dma2d")
+    sources += ["embed/gfx/bitblt/stm32/dma2d_bitblt.c"]
 
     defines += [
         "USE_HASH_PROCESSOR=1",
@@ -96,12 +116,9 @@ def configure(
         "USE_TAMPER=1",
         "USE_FLASH_BURST=1",
         "USE_OEM_KEYS_CHECK=1",
-        "USE_RESET_TO_BOOT=1",
     ]
 
     env.get("ENV")["LINKER_SCRIPT"] = linker_script
-
-    defs = env.get("CPPDEFINES_IMPLICIT")
-    defs += ["__ARM_FEATURE_CMSE=3"]
+    env.get("ENV")["MEMORY_LAYOUT"] = memory_layout
 
     return features_available

@@ -10,9 +10,9 @@ if __debug__:
     from trezor import log
 
 if TYPE_CHECKING:
-    from typing import Any, Awaitable, Callable, TypeVar
+    from typing import Any, Awaitable, Callable, Coroutine, TypeVar
 
-    PropertyType = tuple[str | None, str | bytes | None]
+    PropertyType = tuple[str | None, str | bytes | None, bool | None]
     ExceptionType = BaseException | type[BaseException]
 
     InfoFunc = Callable[[], Awaitable[None]]
@@ -62,7 +62,7 @@ def raise_if_not_confirmed(
     br_name: str | None,
     br_code: ButtonRequestType = ButtonRequestType.Other,
     exc: ExceptionType = ActionCancelled,
-) -> Awaitable[None]:
+) -> Coroutine[Any, Any, None]:
     action = interact(layout_obj, br_name, br_code, exc)
     return action  # type: ignore ["UiResult" is incompatible with "None"]
 

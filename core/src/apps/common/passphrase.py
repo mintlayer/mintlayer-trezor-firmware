@@ -30,16 +30,27 @@ async def get() -> str:
 
 
 async def _request_on_host() -> str:
-    from trezor import TR
+    from trezor import loop, workflow
     from trezor.messages import PassphraseAck, PassphraseRequest
-    from trezor.ui.layouts import request_passphrase_on_host
+    from trezor.ui.layouts import (
+        confirm_hidden_passphrase_from_host,
+        request_passphrase_on_host,
+        show_passphrase_from_host,
+    )
     from trezor.wire.context import call
 
-    request_passphrase_on_host()
+    async def _delay_request_passphrase_on_host() -> None:
+        await loop.sleep(100)
+        return request_passphrase_on_host()
 
-    request = PassphraseRequest()
-    ack = await call(request, PassphraseAck)
-    passphrase = ack.passphrase  # local_cache_attribute
+    on_host = workflow.spawn(_delay_request_passphrase_on_host())
+    try:
+        request = PassphraseRequest()
+        ack = await call(request, PassphraseAck)
+        passphrase = ack.passphrase  # local_cache_attribute
+    finally:
+        # make sure on-host passphrase prompt closed after receiving an ack
+        on_host.close()
 
     if ack.on_device:
         from trezor.ui.layouts import request_passphrase_on_device
@@ -55,30 +66,10 @@ async def _request_on_host() -> str:
 
     # non-empty passphrase
     if passphrase:
-        from trezor.ui.layouts import confirm_action, confirm_blob
-
         # We want to hide the passphrase, or show it, according to settings.
         if storage_device.get_hide_passphrase_from_host():
-            await confirm_action(
-                "passphrase_host1_hidden",
-                TR.passphrase__wallet,
-                description=TR.passphrase__from_host_not_shown,
-                prompt_screen=True,
-                prompt_title=TR.passphrase__access_wallet,
-            )
+            await confirm_hidden_passphrase_from_host()
         else:
-            await confirm_action(
-                "passphrase_host1",
-                TR.passphrase__wallet,
-                description=TR.passphrase__next_screen_will_show_passphrase,
-                verb=TR.buttons__continue,
-            )
-
-            await confirm_blob(
-                "passphrase_host2",
-                TR.passphrase__title_confirm,
-                passphrase,
-                info=False,
-            )
+            await show_passphrase_from_host(passphrase)
 
     return passphrase

@@ -21,6 +21,9 @@ ROOT_PUBLIC_KEY = {
     models.T3B1: bytes.fromhex(
         "047f77368dea2d4d61e989f474a56723c3212dacf8a808d8795595ef38441427c4389bc454f02089d7f08b873005e4c28d432468997871c0bf286fd3861e21e96a"
     ),
+    models.T3W1: bytes.fromhex(
+        "04521192e173a9da4e3023f747d836563725372681eba3079c56ff11b2fc137ab189eb4155f371127651b5594f8c332fc1e9c0f3b80d4212822668b63189706578"
+    ),
 }
 
 
@@ -37,6 +40,9 @@ ROOT_PUBLIC_KEY = {
 )
 def test_authenticate_device(client: Client, challenge: bytes) -> None:
     # NOTE Applications must generate a random challenge for each request.
+
+    if not client.features.bootloader_locked:
+        pytest.xfail("unlocked bootloader")
 
     # Issue an AuthenticateDevice challenge to Trezor.
     proof = device.authenticate(client, challenge)
@@ -78,12 +84,7 @@ def test_authenticate_device(client: Client, challenge: bytes) -> None:
 
     # Verify that the common name matches the Trezor model.
     common_name = cert.subject.get_attributes_for_oid(x509.oid.NameOID.COMMON_NAME)[0]
-    if client.model == models.T3B1:
-        # XXX TODO replace as soon as we have T3B1 staging
-        internal_model = "T2B1"
-    else:
-        internal_model = client.model.internal_name
-    assert common_name.value.startswith(internal_model)
+    assert common_name.value.startswith(client.model.internal_name)
 
     # Verify the signature of the challenge.
     data = b"\x13AuthenticateDevice:" + compact_size(len(challenge)) + challenge

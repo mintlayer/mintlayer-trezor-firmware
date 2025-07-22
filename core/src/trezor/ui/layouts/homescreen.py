@@ -56,8 +56,8 @@ class HomescreenBase(ui.Layout):
         if not self.should_resume:
             super()._first_paint()
             storage_cache.homescreen_shown = self.RENDER_INDICATOR
-        # else:
-        #     self._paint()
+        else:
+            self._paint()
 
 
 class Homescreen(HomescreenBase):
@@ -67,28 +67,16 @@ class Homescreen(HomescreenBase):
         self,
         label: str | None,
         notification: str | None,
-        notification_is_error: bool,
-        hold_to_lock: bool,
+        notification_level: int,
+        lockable: bool,
     ) -> None:
-        level = 1
-        if notification is not None:
-            notification = notification.rstrip(
-                "!"
-            )  # TODO handle TS5 that doesn't have it
-            if notification == TR.homescreen__title_coinjoin_authorized:
-                level = 3
-            elif notification == TR.homescreen__title_experimental_mode:
-                level = 2
-            elif notification_is_error:
-                level = 0
-
         super().__init__(
             layout=_retry_with_gc(
                 trezorui_api.show_homescreen,
                 label=label,
                 notification=notification,
-                notification_level=level,
-                hold=hold_to_lock,
+                notification_level=notification_level,
+                lockable=lockable,
                 skip_first_paint=self._should_resume(),
             )
         )
@@ -96,10 +84,10 @@ class Homescreen(HomescreenBase):
     async def usb_checker_task(self) -> None:
         from trezor import io, loop
 
-        usbcheck = loop.wait(io.USB_CHECK)
+        usbcheck = loop.wait(io.USB_EVENT)
         while True:
-            is_connected = await usbcheck
-            self._event(self.layout.usb_event, is_connected)
+            event = await usbcheck
+            self._event(self.layout.usb_event, event)
 
     def create_tasks(self) -> Iterator[loop.Task]:
         yield from super().create_tasks()

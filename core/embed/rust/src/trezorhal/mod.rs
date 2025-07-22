@@ -1,4 +1,6 @@
 pub mod bip39;
+#[cfg(feature = "ble")]
+pub mod ble;
 #[macro_use]
 #[allow(unused_macros)]
 pub mod fatal_error;
@@ -10,7 +12,14 @@ mod ffi;
 #[cfg(feature = "haptic")]
 pub mod haptic;
 
-pub mod io;
+#[cfg(feature = "button")]
+pub mod button;
+
+#[cfg(feature = "touch")]
+pub mod touch;
+
+#[cfg(all(feature = "ui", feature = "hw_jpeg_decoder"))]
+pub mod jpegdec;
 pub mod model;
 pub mod random;
 #[cfg(feature = "rgb_led")]
@@ -25,8 +34,19 @@ pub mod wordlist;
 
 pub mod secbool;
 
-#[cfg(not(feature = "micropython"))]
 pub mod time;
 
-#[cfg(feature = "micropython")]
-pub use crate::micropython::time;
+#[cfg(feature = "ui")]
+pub mod sysevent;
+
+#[cfg(feature = "power_manager")]
+pub mod power_manager;
+
+#[cfg(any(feature = "bootloader", feature = "prodtest"))]
+pub mod layout_buf;
+
+#[cfg(feature = "nrf")]
+pub mod irq;
+
+#[cfg(feature = "nrf")]
+pub mod nrf;

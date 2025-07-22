@@ -21,6 +21,8 @@ from trezorlib.debuglink import TrezorClientDebugLink as Client
 from trezorlib.exceptions import TrezorFailure
 from trezorlib.tools import parse_path
 
+from . import pytestmark  # noqa
+
 GET_ADDRESS_VECTORS = [
     (1, "mtc1qyumjs84s5nqgcp6nw9kwde9mn7akph6hgtulsdk"),
     (2, "tmt1qx5p4r2en7c99mpmg2tz9hucxfarf4k6dyyvsahr"),
@@ -31,11 +33,6 @@ GET_ADDRESS_VECTORS = [
 CHAIN_TYPE_TO_COIN = {1: 19788, 2: 1, 3: 1, 4: 1}
 
 
-@pytest.mark.altcoin
-@pytest.mark.mintlayer
-@pytest.mark.setup_client(
-    mnemonic="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-)
 @pytest.mark.parametrize("chain_type, address", GET_ADDRESS_VECTORS)
 def test_mintlayer_get_address(client: Client, chain_type: int, address: str):
     with client:
@@ -53,11 +50,6 @@ def test_mintlayer_get_address(client: Client, chain_type: int, address: str):
 CHAIN_TYPES = [1, 2, 3, 4]
 
 
-@pytest.mark.altcoin
-@pytest.mark.mintlayer
-@pytest.mark.setup_client(
-    mnemonic="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-)
 @pytest.mark.parametrize("chain_type", CHAIN_TYPES)
 def test_mintlayer_get_address_forbidden_path(client: Client, chain_type: int):
     coin = CHAIN_TYPE_TO_COIN[chain_type]

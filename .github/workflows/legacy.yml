@@ -20,9 +20,17 @@ permissions:
   pull-requests: write  # For dflook comments on PR
 
 env:
-  PULL_COMMENT: |
-    |legacy UI changes|<img src="https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T1B1-en-legacy_device_test/status.png" width="20px" height="20px" /> [device test](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T1B1-en-legacy_device_test/index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T1B1-en-legacy_device_test/differing_screens.html)) <img src="https://data.trezor.io/dev/firmware/master_diff/${{ github.run_id }}/status.png" width="20px" height="20px" /> [main](https://data.trezor.io/dev/firmware/master_diff/${{ github.run_id }}/)([screens](https://data.trezor.io/dev/firmware/master_diff/${{ github.run_id }}/master_diff.html))|
-    |-----------------|-----|
+  # See https://yaml-multiline.info/
+  PULL_COMMENT: >
+    |legacy UI changes|device test|
+
+    |-----------------|-----------|
+
+    |T1B1 Model 1
+    |<img src="https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T1B1-en-legacy_device_test-status.png" width="20px" height="20px" />
+    [test](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T1B1-en-legacy_device_test-index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T1B1-en-legacy_device_test-differing_screens.html))
+    [main](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T1B1-en-legacy_device_test-master_index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T1B1-en-legacy_device_test-master_diff.html))
+    |
 
 jobs:
   legacy_firmware:
@@ -31,8 +39,7 @@ jobs:
     strategy:
       matrix:
         coins: [universal, btconly]
-        # type: [normal, debuglink]
-        type: [debuglink]
+        type: [normal, debuglink]
     env:
       BITCOIN_ONLY: ${{ matrix.coins == 'universal' && '0' || '1' }}
       DEBUG_LINK: ${{ matrix.type == 'debuglink' && '1' || '0' }}
@@ -114,13 +121,14 @@ jobs:
     name: Device test
     runs-on: ubuntu-latest
     needs: legacy_emu
+    timeout-minutes: 20
     strategy:
       matrix:
         coins: [universal, btconly]
         asan: ${{ fromJSON(github.event_name == 'schedule' && '["noasan", "asan"]' || '["noasan"]') }}
     env:
       EMULATOR: 1
-      TREZOR_PYTEST_SKIP_ALTCOINS: ${{ matrix.coins == 'universal' && '0' || '1' }}
+      PYTEST_TIMEOUT: 120
     steps:
       - uses: actions/checkout@v4
         with:
@@ -149,11 +157,13 @@ jobs:
     name: Upgrade test
     runs-on: ubuntu-latest
     needs: legacy_emu
+    timeout-minutes: 10
     strategy:
       matrix:
         asan: ${{ fromJSON(github.event_name == 'schedule' && '["noasan", "asan"]' || '["noasan"]') }}
     env:
       TREZOR_UPGRADE_TEST: legacy
+      PYTEST_TIMEOUT: 120
     steps:
       - uses: actions/checkout@v4
         with:
@@ -186,41 +196,7 @@ jobs:
       - run: chmod +x legacy/firmware/*.elf
       - uses: ./.github/actions/environment
       - run: nix-shell --run "git clone --depth=1 https://github.com/bitcoin-core/HWI.git"
-      # see python_test for explanation of _PYTHON_SYSCONFIGDATA_NAME
-      - run: nix-shell --arg fullDeps true --run "unset _PYTHON_SYSCONFIGDATA_NAME && cd HWI && poetry install && poetry run ./test/test_trezor.py --model_1 ../legacy/firmware/trezor.elf bitcoind"
-
-  legacy_ui_main:
-    name: UI diff from main branch
-    runs-on: ubuntu-latest
-    needs:
-      - legacy_device_test
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: ui-records-*
-          merge-multiple: true
-      - uses: ./.github/actions/environment
-      - name: Configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::538326561891:role/gh_actions_deploy_dev_firmware_data
-          aws-region: eu-west-1
-        continue-on-error: true
-      - run: "for F in screens_*.tar; do tar xvf $F; done || true"
-      - run: nix-shell --run "poetry run python -m tests.ui_tests.reporting master-diff T1"
-      - run: |
-          mv tests/ui_tests/reports/master_diff .
-          if [ "${{ job.status }}" = "success" ]; then
-            cp .github/actions/ui-report/success.png master_diff/status.png
-          else
-            cp .github/actions/ui-report/failure.png master_diff/status.png
-          fi
-      - name: Upload main branch diff
-        run: |
-          aws s3 sync --only-show-errors master_diff s3://data.trezor.io/dev/firmware/master_diff/${{ github.run_id }}
-        continue-on-error: true
+      - run: nix-shell --arg fullDeps true --run "cd HWI && poetry install && poetry run ./test/test_trezor.py --model_1 ../legacy/firmware/trezor.elf bitcoind"
 
   legacy_upload_emu:
     name: Upload emulator binaries

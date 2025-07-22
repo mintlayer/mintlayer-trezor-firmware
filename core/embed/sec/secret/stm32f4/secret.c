@@ -1,3 +1,22 @@
+/*
+ * This file is part of the Trezor project, https://trezor.io/
+ *
+ * Copyright (c) SatoshiLabs
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <trezor_model.h>
 #include <trezor_rtl.h>
 
@@ -31,6 +50,7 @@ secbool secret_verify_header(void) {
   return bootloader_locked;
 }
 
+#ifdef LOCKABLE_BOOTLOADER
 secbool secret_bootloader_locked(void) {
   if (bootloader_locked_set != sectrue) {
     // Set bootloader_locked.
@@ -39,6 +59,9 @@ secbool secret_bootloader_locked(void) {
 
   return bootloader_locked;
 }
+
+void secret_unlock_bootloader(void) { secret_erase(); }
+#endif
 
 void secret_write_header(void) {
   uint8_t header[SECRET_HEADER_LEN] = {0};
@@ -104,15 +127,15 @@ void secret_erase(void) {
   mpu_restore(mpu_mode);
 }
 
-secbool secret_optiga_set(const uint8_t secret[SECRET_OPTIGA_KEY_LEN]) {
+secbool secret_optiga_set(const uint8_t secret[SECRET_KEY_LEN]) {
   secret_erase();
   secret_write_header();
-  secret_write(secret, SECRET_OPTIGA_KEY_OFFSET, SECRET_OPTIGA_KEY_LEN);
+  secret_write(secret, SECRET_OPTIGA_KEY_OFFSET, SECRET_KEY_LEN);
   return sectrue;
 }
 
-secbool secret_optiga_get(uint8_t dest[SECRET_OPTIGA_KEY_LEN]) {
-  return secret_read(dest, SECRET_OPTIGA_KEY_OFFSET, SECRET_OPTIGA_KEY_LEN);
+secbool secret_optiga_get(uint8_t dest[SECRET_KEY_LEN]) {
+  return secret_read(dest, SECRET_OPTIGA_KEY_OFFSET, SECRET_KEY_LEN);
 }
 
 secbool secret_optiga_present(void) {
@@ -121,10 +144,10 @@ secbool secret_optiga_present(void) {
 
 secbool secret_optiga_writable(void) { return secret_wiped(); }
 
-void secret_optiga_erase(void) { secret_erase(); }
-
-void secret_prepare_fw(secbool allow_run_with_secret, secbool _trust_all) {
-#ifdef USE_OPTIGA
+void secret_prepare_fw(secbool allow_run_with_secret,
+                       secbool allow_provisioning_access) {
+  (void)allow_provisioning_access;
+#ifdef LOCKABLE_BOOTLOADER
   if (sectrue != allow_run_with_secret && sectrue != secret_wiped()) {
     // This function does not return
     show_install_restricted_screen();

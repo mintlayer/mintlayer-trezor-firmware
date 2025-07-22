@@ -45,6 +45,8 @@
  extern "C" {
 #endif
 
+#undef UNUSED
+
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 
@@ -412,6 +414,10 @@
   #define assert_param(expr) ((void)0)
 #endif /* USE_FULL_ASSERT */
 
+
+#ifndef HardFault_IRQn
+#define HardFault_IRQn (-13)  // not defined in stm32lib/cmsis/stm32f429xx.h
+#endif
 
 #ifdef __cplusplus
 }

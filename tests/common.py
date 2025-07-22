@@ -28,8 +28,6 @@ import pytest
 from trezorlib import btc, messages, models, tools
 from trezorlib.debuglink import LayoutType
 
-from . import buttons
-
 if TYPE_CHECKING:
     from _pytest.mark.structures import MarkDecorator
 
@@ -83,8 +81,7 @@ COMMON_FIXTURES_DIR = (
 )
 
 # So that all the random things are consistent
-MOCK_OS_URANDOM = mock.Mock(return_value=EXTERNAL_ENTROPY)
-WITH_MOCK_URANDOM = mock.patch("os.urandom", MOCK_OS_URANDOM)
+MOCK_GET_ENTROPY = mock.Mock(return_value=EXTERNAL_ENTROPY)
 
 
 def parametrize_using_common_fixtures(*paths: str) -> "MarkDecorator":
@@ -207,12 +204,14 @@ def read_and_confirm_mnemonic(
 
         mnemonic = yield from read_and_confirm_mnemonic(client.debug)
     """
-    if debug.layout_type is LayoutType.TT:
-        mnemonic = yield from read_mnemonic_from_screen_tt(debug)
-    elif debug.layout_type is LayoutType.TR:
-        mnemonic = yield from read_mnemonic_from_screen_tr(debug)
-    elif debug.layout_type is LayoutType.Mercury:
-        mnemonic = yield from read_mnemonic_from_screen_mercury(debug)
+    if debug.layout_type is LayoutType.Bolt:
+        mnemonic = yield from read_mnemonic_from_screen_bolt(debug)
+    elif debug.layout_type is LayoutType.Caesar:
+        mnemonic = yield from read_mnemonic_from_screen_caesar(debug)
+    elif debug.layout_type is LayoutType.Delizia:
+        mnemonic = yield from read_mnemonic_from_screen_delizia(debug)
+    elif debug.layout_type is LayoutType.Eckhart:
+        mnemonic = yield from read_mnemonic_from_screen_eckhart(debug)
     else:
         raise ValueError(f"Unknown model: {debug.layout_type}")
 
@@ -221,7 +220,7 @@ def read_and_confirm_mnemonic(
     return " ".join(mnemonic)
 
 
-def read_mnemonic_from_screen_tt(
+def read_mnemonic_from_screen_bolt(
     debug: "DebugLink",
 ) -> Generator[None, "ButtonRequest", list[str]]:
     mnemonic: list[str] = []
@@ -239,7 +238,7 @@ def read_mnemonic_from_screen_tt(
     return mnemonic
 
 
-def read_mnemonic_from_screen_tr(
+def read_mnemonic_from_screen_caesar(
     debug: "DebugLink",
 ) -> Generator[None, "ButtonRequest", list[str]]:
     mnemonic: list[str] = []
@@ -259,7 +258,7 @@ def read_mnemonic_from_screen_tr(
     return mnemonic
 
 
-def read_mnemonic_from_screen_mercury(
+def read_mnemonic_from_screen_delizia(
     debug: "DebugLink",
 ) -> Generator[None, "ButtonRequest", list[str]]:
     mnemonic: list[str] = []
@@ -280,6 +279,29 @@ def read_mnemonic_from_screen_mercury(
     return mnemonic
 
 
+def read_mnemonic_from_screen_eckhart(
+    debug: "DebugLink",
+) -> Generator[None, "ButtonRequest", list[str]]:
+    mnemonic: list[str] = []
+    br = yield
+    assert br.pages is not None
+
+    # There is an intro screen
+    if br.pages != debug.read_layout().page_count() + 1:
+        debug.click(debug.screen_buttons.ok())
+
+    nwords = debug.read_layout().page_count()
+    assert nwords > 1
+
+    for _ in range(nwords):
+        words = debug.read_layout().seed_words()
+        mnemonic.extend(words)
+        debug.click(debug.screen_buttons.ok())
+
+    debug.press_yes()
+    return mnemonic
+
+
 def check_share(
     debug: "DebugLink", mnemonic: list[str], choose_wrong: bool = False
 ) -> bool:
@@ -289,15 +311,15 @@ def check_share(
     """
     re_num_of_word = r"\d+"
     for _ in range(3):
-        if debug.layout_type is LayoutType.TT:
+        if debug.layout_type is LayoutType.Bolt:
             # T2T1 has position as the first number in the text
             word_pos_match = re.search(
                 re_num_of_word, debug.read_layout().text_content()
             )
-        elif debug.layout_type is LayoutType.TR:
+        elif debug.layout_type is LayoutType.Caesar:
             # other models have the instruction in the title/subtitle
             word_pos_match = re.search(re_num_of_word, debug.read_layout().title())
-        elif debug.layout_type is LayoutType.Mercury:
+        elif debug.layout_type in (LayoutType.Delizia, LayoutType.Eckhart):
             word_pos_match = re.search(re_num_of_word, debug.read_layout().subtitle())
         else:
             word_pos_match = None
@@ -315,20 +337,33 @@ def check_share(
     return True
 
 
-def click_info_button_tt(debug: "DebugLink") -> Generator[Any, Any, ButtonRequest]:
+def click_info_button_bolt(debug: "DebugLink") -> Generator[Any, Any, ButtonRequest]:
     """Click Shamir backup info button and return back."""
     debug.press_info()
     debug.press_yes()
     return (yield)
 
 
-def click_info_button_mercury(debug: "DebugLink"):
-    """Click Shamir backup info button and return back."""
-    layout = debug.click(buttons.CORNER_BUTTON)
+def click_info_button_delizia_eckhart(debug: "DebugLink"):
+    """Click Shamir backup info button, scroll through it and return back."""
+    debug.click(debug.screen_buttons.menu())
+    layout = debug.read_layout()
     assert "VerticalMenu" in layout.all_components()
-    debug.click(buttons.VERTICAL_MENU[0])
-    debug.click(buttons.CORNER_BUTTON)
-    debug.click(buttons.CORNER_BUTTON)
+    # Click on the first item in the vertical menu
+    debug.click(debug.screen_buttons.vertical_menu_items()[0])
+    layout = debug.read_layout()
+
+    # Go through the info screen pages
+    for _ in range(layout.page_count() - 1):
+        if debug.layout_type is LayoutType.Delizia:
+            debug.swipe_up()
+        elif debug.layout_type is LayoutType.Eckhart:
+            debug.click(debug.screen_buttons.ok())
+
+    # Close info screen
+    debug.click(debug.screen_buttons.menu())
+    # Close menu
+    debug.click(debug.screen_buttons.menu())
 
 
 def check_pin_backoff_time(attempts: int, start: float) -> None:
@@ -359,7 +394,10 @@ def get_text_possible_pagination(debug: "DebugLink", br: messages.ButtonRequest)
     text = debug.read_layout().text_content()
     if br.pages is not None:
         for _ in range(br.pages - 1):
-            debug.swipe_up()
+            if debug.layout_type is LayoutType.Eckhart:
+                debug.click(debug.screen_buttons.ok())
+            else:
+                debug.swipe_up()
             text += " "
             text += debug.read_layout().text_content()
     return text

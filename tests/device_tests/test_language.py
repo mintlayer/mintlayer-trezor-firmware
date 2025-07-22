@@ -43,6 +43,7 @@ MAX_DATA_LENGTH = {
     models.T2B1: 32 * 1024,
     models.T3T1: 256 * 1024,
     models.T3B1: 256 * 1024,
+    models.T3W1: 256 * 1024,  # FIXME: fill in correct value
 }
 
 
@@ -60,10 +61,10 @@ def get_ping_title(lang: str) -> str:
 def client(client: Client) -> Iterator[Client]:
     lang_before = client.features.language or ""
     try:
-        set_language(client, "en")
+        set_language(client, "en", force=True)
         yield client
     finally:
-        set_language(client, lang_before[:2])
+        set_language(client, lang_before[:2], force=True)
 
 
 def _check_ping_screen_texts(client: Client, title: str, right_button: str) -> None:
@@ -287,12 +288,12 @@ def _maybe_confirm_set_language(
             yield i, min(size, len(data) - i)
 
     expected_responses_silent: list[Any] = [
-        messages.TranslationDataRequest(data_offset=off, data_length=len)
+        messages.DataChunkRequest(data_offset=off, data_length=len)
         for off, len in chunks(language_data, CHUNK_SIZE)
     ] + [message_filters.Success(), message_filters.Features()]
 
     expected_responses_confirm = expected_responses_silent[:]
-    # confirmation after first TranslationDataRequest
+    # confirmation after first DataChunkRequest
     expected_responses_confirm.insert(1, message_filters.ButtonRequest())
     # success screen before Success / Features
     expected_responses_confirm.insert(-2, message_filters.ButtonRequest())

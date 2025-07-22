@@ -16,8 +16,10 @@ BOOTLOADER_BUILD_DIR  = $(BUILD_DIR)/bootloader
 BOOTLOADER_CI_BUILD_DIR   = $(BUILD_DIR)/bootloader_ci
 BOOTLOADER_EMU_BUILD_DIR  = $(BUILD_DIR)/bootloader_emu
 PRODTEST_BUILD_DIR    = $(BUILD_DIR)/prodtest
+PRODTEST_EMU_BUILD_DIR    = $(BUILD_DIR)/prodtest_emu
 REFLASH_BUILD_DIR     = $(BUILD_DIR)/reflash
 KERNEL_BUILD_DIR      = $(BUILD_DIR)/kernel
+SECMON_BUILD_DIR      = $(BUILD_DIR)/secmon
 FIRMWARE_BUILD_DIR    = $(BUILD_DIR)/firmware
 UNIX_BUILD_DIR        = $(BUILD_DIR)/unix
 RUST_BUILD_DIR        = $(BUILD_DIR)/rust
@@ -32,7 +34,8 @@ BITCOIN_ONLY ?= 0
 BOOTLOADER_QA ?= 0
 BOOTLOADER_DEVEL ?= 0
 DISABLE_OPTIGA ?= 0
-TREZOR_MODEL ?= T
+DISABLE_TROPIC ?= 1
+TREZOR_MODEL ?= T2T1
 TREZOR_MEMPERF ?= 0
 ADDRESS_SANITIZER ?= 0
 CMAKELISTS ?= 0
@@ -40,45 +43,28 @@ PYTEST_TIMEOUT ?= 500
 TEST_LANG ?= "en"
 THP ?= 0
 BENCHMARK ?= 0
+LOG_STACK_USAGE ?= 0
 TREZOR_EMULATOR_DEBUGGABLE ?= 0
 QUIET_MODE ?= 0
 TREZOR_DISABLE_ANIMATION ?= $(if $(filter 0,$(PYOPT)),1,0)
 STORAGE_INSECURE_TESTING_MODE ?= 0
+UI_DEBUG_OVERLAY ?= 0
+
+# If set, VCP writes will be blocking, in order to allow reliable debug data transmission over VCP.
+# Disabled by default, to prevent debug firmware from getting stuck while writing log messages (if the host is not reading them).
+BLOCK_ON_VCP ?= 0
 
 # OpenOCD interface default. Alternative: ftdi/olimex-arm-usb-tiny-h
 OPENOCD_INTERFACE ?= stlink
 # OpenOCD transport default. Alternative: jtag
 OPENOCD_TRANSPORT ?= hla_swd
 
-ifeq ($(TREZOR_MODEL),$(filter $(TREZOR_MODEL),T))
-MCU = STM32F4
-OPENOCD_TARGET = target/stm32f4x.cfg
-MODEL_FEATURE = model_tt
-else ifeq ($(TREZOR_MODEL),$(filter $(TREZOR_MODEL),R))
-MCU = STM32F4
-OPENOCD_TARGET = target/stm32f4x.cfg
-MODEL_FEATURE = model_tr
-else ifeq ($(TREZOR_MODEL),$(filter $(TREZOR_MODEL),T3T1))
-MCU = STM32U5
-OPENOCD_TARGET = target/stm32u5x.cfg
-MODEL_FEATURE = model_mercury
-else ifeq ($(TREZOR_MODEL),$(filter $(TREZOR_MODEL),T3B1))
-MCU = STM32U5
-OPENOCD_TARGET = target/stm32u5x.cfg
-MODEL_FEATURE = model_tr
-else ifeq ($(TREZOR_MODEL),$(filter $(TREZOR_MODEL),T3W1))
-MCU = STM32U5
-OPENOCD_TARGET = target/stm32u5x.cfg
-MODEL_FEATURE = model_tt
-else ifeq ($(TREZOR_MODEL),$(filter $(TREZOR_MODEL),DISC1))
-MCU = STM32F4
-OPENOCD_TARGET = target/stm32f4x.cfg
-else ifeq ($(TREZOR_MODEL),$(filter $(TREZOR_MODEL),DISC2))
-MCU = STM32U5
-OPENOCD_TARGET = target/stm32u5x.cfg
-else
-$(error Unknown TREZOR_MODEL: $(TREZOR_MODEL))
-endif
+# Include the device-specific definitions.
+include embed/models/$(TREZOR_MODEL)/config.mk
+
+# Get bindgen macros for rust tests
+TEST_BINDGEN_MACROS := $(shell tr -d '\n' < embed/models/$(TREZOR_MODEL)/test_bindgen_macros.txt)
+export TEST_BINDGEN_MACROS
 
 
 FLASH_START		         = $(shell layout_parser ${TREZOR_MODEL} FLASH_START)
@@ -142,7 +128,10 @@ SCONS_VARS = \
 	CFLAGS="$(CFLAGS)" \
 	CMAKELISTS="$(CMAKELISTS)" \
 	DISABLE_OPTIGA="$(DISABLE_OPTIGA)" \
-	NEW_RENDERING="$(NEW_RENDERING)" \
+	DISABLE_TROPIC="$(DISABLE_TROPIC)" \
+	HW_REVISION="$(HW_REVISION)" \
+	LOG_STACK_USAGE="$(LOG_STACK_USAGE)" \
+	MICROPY_ENABLE_SOURCE_LINE="$(MICROPY_ENABLE_SOURCE_LINE)" \
 	PRODUCTION="$(PRODUCTION)" \
 	PYOPT="$(PYOPT)" \
 	QUIET_MODE="$(QUIET_MODE)" \
@@ -153,7 +142,9 @@ SCONS_VARS = \
 	TREZOR_EMULATOR_ASAN="$(ADDRESS_SANITIZER)" \
 	TREZOR_EMULATOR_DEBUGGABLE=$(TREZOR_EMULATOR_DEBUGGABLE) \
 	TREZOR_MEMPERF="$(TREZOR_MEMPERF)" \
-	TREZOR_MODEL="$(TREZOR_MODEL)"
+	TREZOR_MODEL="$(TREZOR_MODEL)" \
+	UI_DEBUG_OVERLAY="$(UI_DEBUG_OVERLAY)" \
+	BLOCK_ON_VCP="$(BLOCK_ON_VCP)"
 
 SCONS_OPTS = -Q -j $(JOBS)
 ifeq ($(QUIET_MODE),1)
@@ -188,7 +179,7 @@ test: ## run unit tests
 test_rust: ## run rs unit tests
 	export BUILD_DIR=$(abspath $(UNIX_BUILD_DIR)) ; \
 	cd embed/rust ; cargo test $(TESTOPTS) --target=$(RUST_TARGET) \
-		--no-default-features --features $(MODEL_FEATURE),test \
+		--no-default-features --features $(LAYOUT_FEATURE),power_manager,test \
 		-- --test-threads=1 --nocapture
 
 test_emu: ## run selected device tests from python-trezor
@@ -217,6 +208,11 @@ test_emu_click_ui: ## run click tests with UI testing
 	$(EMU_TEST) $(PYTEST) $(TESTPATH)/click_tests $(TESTOPTS) \
 		--ui=test --ui-check-missing --do-master-diff --lang=$(TEST_LANG)
 
+test_emu_click_ui_multicore: ## run click tests with UI testing using multiple cores
+	$(PYTEST) -n $(MULTICORE) $(TESTPATH)/click_tests $(TESTOPTS) --timeout $(PYTEST_TIMEOUT) \
+		--ui=test --ui-check-missing --do-master-diff --lang=$(TEST_LANG) \
+		--control-emulators --model=core --random-order-seed=$(RANDOM)
+
 test_emu_persistence: ## run persistence tests
 	$(PYTEST) $(TESTPATH)/persistence_tests $(TESTOPTS) --lang=$(TEST_LANG)
 
@@ -226,12 +222,12 @@ test_emu_persistence_ui: ## run persistence tests with UI testing
 
 test_emu_ui: ## run ui integration tests
 	$(EMU_TEST) $(PYTEST) $(TESTPATH)/device_tests $(TESTOPTS) \
-		--ui=test --ui-check-missing --record-text-layout --do-master-diff \
+		--ui=test --ui-check-missing --do-master-diff \
 		--lang=$(TEST_LANG)
 
 test_emu_ui_multicore: ## run ui integration tests using multiple cores
 	$(PYTEST) -n $(MULTICORE) $(TESTPATH)/device_tests $(TESTOPTS) --timeout $(PYTEST_TIMEOUT) \
-		--ui=test --ui-check-missing --record-text-layout --do-master-diff \
+		--ui=test --ui-check-missing --do-master-diff \
 		--control-emulators --model=core --random-order-seed=$(RANDOM) \
 		--lang=$(TEST_LANG)
 
@@ -301,33 +297,46 @@ build_bootloader_emu_debug: ## build the unix bootloader emulator
 build_prodtest: ## build production test firmware
 	$(SCONS) $(PRODTEST_BUILD_DIR)/prodtest.bin
 
+build_prodtest_emu: ## build the unix prodtest emulator
+	$(SCONS) $(PRODTEST_EMU_BUILD_DIR)/prodtest.elf
+
 build_reflash: ## build reflash firmware + reflash image
 	$(SCONS) $(REFLASH_BUILD_DIR)/reflash.bin
 	dd if=build/boardloader/boardloader.bin of=$(REFLASH_BUILD_DIR)/sdimage.bin bs=1 seek=0
 	dd if=build/bootloader/bootloader.bin of=$(REFLASH_BUILD_DIR)/sdimage.bin bs=1 seek=49152
 
-build_kernel: ## build kernel image
-	$(SCONS) PYOPT=1 $(KERNEL_BUILD_DIR)/kernel.bin
+build_secmon: ## build security monitor image
+	$(SCONS) $(SECMON_BUILD_DIR)/secmon.bin
 
-build_firmware: templates build_cross build_kernel ## build firmware with frozen modules
+build_kernel: ## build kernel image
+	$(SCONS) $(KERNEL_BUILD_DIR)/kernel.bin
+
+build_firmware: MICROPY_ENABLE_SOURCE_LINE ?= 0
+build_firmware: templates build_cross build_secmon build_kernel ## build firmware with frozen modules
 	$(SCONS) $(FIRMWARE_BUILD_DIR)/firmware.bin
 
+build_unix: MICROPY_ENABLE_SOURCE_LINE ?= 1
 build_unix: templates ## build unix port
 	$(SCONS) PYOPT=0 $(UNIX_BUILD_DIR)/trezor-emu-core $(UNIX_PORT_OPTS)
 
+build_unix_frozen: MICROPY_ENABLE_SOURCE_LINE ?= 1
 build_unix_frozen: templates build_cross ## build unix port with frozen modules
 	$(SCONS) $(UNIX_BUILD_DIR)/trezor-emu-core $(UNIX_PORT_OPTS) TREZOR_EMULATOR_FROZEN=1
 
+build_unix_debug: MICROPY_ENABLE_SOURCE_LINE ?= 1
 build_unix_debug: templates ## build unix port
 	$(SCONS) --max-drift=1 $(UNIX_BUILD_DIR)/trezor-emu-core $(UNIX_PORT_OPTS) \
 		TREZOR_EMULATOR_ASAN=1 TREZOR_EMULATOR_DEBUGGABLE=1
 
 build_cross: ## build mpy-cross port
-	$(MAKE) -C vendor/micropython/mpy-cross $(CROSS_PORT_OPTS)
+	INC=-I$(CURDIR)/embed/upymod/mpycross_include/ \
+		$(MAKE) -C vendor/micropython/mpy-cross $(CROSS_PORT_OPTS) \
+		CFLAGS_EXTRA=-DMICROPY_ENABLE_SOURCE_LINE=$(MICROPY_ENABLE_SOURCE_LINE)
 
 ## clean commands:
 
-clean: clean_boardloader clean_bootloader clean_bootloader_emu clean_bootloader_ci clean_prodtest clean_reflash clean_firmware clean_unix clean_cross ## clean all
+clean: clean_boardloader clean_bootloader clean_bootloader_emu clean_bootloader_ci \
+	clean_prodtest clean_reflash clean_firmware clean_kernel clean_secmon clean_unix clean_cross ## clean all
 	rm -f ".sconsign.dblite"
 
 clean_boardloader: ## clean boardloader build
@@ -347,6 +356,9 @@ clean_prodtest: ## clean prodtest build
 
 clean_reflash: ## clean reflash build
 	rm -rf $(REFLASH_BUILD_DIR)
+
+clean_secmon: ## clean security monitor build
+	rm -rf $(SECMON_BUILD_DIR)
 
 clean_kernel: ## clean kernel build
 	rm -rf $(KERNEL_BUILD_DIR)
@@ -494,6 +506,12 @@ combine_fw: ## combine boardloader + bootloader + firmware into one combined ima
 		-b FIRMWARE $(FIRMWARE_BUILD_DIR)/firmware.bin
 endif
 
+combine_to_hex: ## convert combined image to hex format
+	arm-none-eabi-objcopy \
+		-I binary -O ihex \
+		--change-section-address .data=$(BOARDLOADER_START) \
+		$(PRODTEST_BUILD_DIR)/combined.bin $(PRODTEST_BUILD_DIR)/combined.hex
+
 upload: ## upload firmware using trezorctl
 	trezorctl firmware_update -s -f $(FIRMWARE_BUILD_DIR)/firmware.bin
 
@@ -502,6 +520,7 @@ upload_prodtest: ## upload prodtest using trezorctl
 
 coverage:  ## generate coverage report
 	./tools/coverage-report
+	./tools/coverage-annotate.py $(shell find . -name '.coverage*.json*') > htmlcov/hits.md
 
 unused:  ## find unused micropython code
 	vulture src src/_vulture_ignore.txt --exclude "messages.py,*/enums/*"

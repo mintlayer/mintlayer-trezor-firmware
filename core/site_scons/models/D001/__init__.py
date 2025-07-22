@@ -13,11 +13,14 @@ def configure_board(
     sources: list[str],
     paths: list[str],
 ):
+
+    defines += (("MODEL_HEADER", '"D001/model_D001.h"'),)
+    defines += (("VERSIONS_HEADER", '"D001/versions.h"'),)
     return configure(env, features_wanted, defines, sources, paths)
 
 
 def get_model_ui() -> str:
-    return "tt"
+    return "bolt"
 
 
 def get_model_ui_conf() -> list[str]:

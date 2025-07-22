@@ -9,7 +9,7 @@ PRODUCTION = ARGUMENTS.get('PRODUCTION', '0') == '1'
 BOOTLOADER_QA = ARGUMENTS.get('BOOTLOADER_QA', '0') == '1'
 BOOTLOADER_DEVEL = ARGUMENTS.get('BOOTLOADER_DEVEL', '0') == '1'
 EVERYTHING = BITCOIN_ONLY != '1'
-TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T')
+TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T2T1')
 CMAKELISTS = int(ARGUMENTS.get('CMAKELISTS', 0))
 PYOPT = ARGUMENTS.get('PYOPT', '1')
 DISABLE_OPTIGA = ARGUMENTS.get('DISABLE_OPTIGA', '0') == '1'
@@ -27,10 +27,29 @@ FEATURE_FLAGS = {
     "RDI": True,
     "SECP256K1_ZKP": True,  # required for trezor.crypto.curve.bip340 (BIP340/Taproot)
     "SYSTEM_VIEW": False,
-    "AES_GCM": False,
+    "AES_GCM": True,
 }
 
-FEATURES_WANTED = ["input", "sd_card", "rgb_led", "dma2d", "consumption_mask", "usb" ,"optiga", "haptic"]
+FEATURES_WANTED = [
+    "applet",
+    "ble",
+    "consumption_mask",
+    "display",
+    "dma2d",
+    "haptic",
+    "input",
+    "optiga",
+    "power_manager",
+    "power_save",
+    "rgb_led",
+    "rtc",
+    "sd_card",
+    "secmon_layout",
+    "tropic",
+    "usb",
+    "smp",
+    ]
+
 if DISABLE_OPTIGA:
     # TODO use PYOPT instead of PRODUCTION, same as in firmware, blocked on #4253
     if PRODUCTION:
@@ -55,10 +74,6 @@ CPPPATH_MOD += [
     'vendor/micropython/lib/uzlib',
 ]
 SOURCE_MOD += [
-#    'embed/upymod/modtrezorconfig/modtrezorconfig.c',
-    'vendor/trezor-storage/norcow.c',
-    'vendor/trezor-storage/storage.c',
-    'vendor/trezor-storage/storage_utils.c',
     'vendor/trezor-storage/flash_area.c',
 ]
 
@@ -69,7 +84,6 @@ CPPPATH_MOD += [
 ]
 CPPDEFINES_MOD += [
     'KERNEL_MODE',
-    'SYSCALL_DISPATCH',
     'AES_128',
     'AES_192',
     ('USE_BIP32_CACHE', '0'),
@@ -77,9 +91,13 @@ CPPDEFINES_MOD += [
     ('USE_ETHEREUM', '1' if EVERYTHING else '0'),
     ('USE_MONERO', '1' if EVERYTHING else '0'),
     ('USE_CARDANO', '1' if EVERYTHING else '0'),
-    ('USE_NEM', '1' if (EVERYTHING and TREZOR_MODEL == "T") else '0'),
-    ('USE_EOS', '1' if (EVERYTHING and TREZOR_MODEL == "T") else '0'),
+    ('USE_NEM', '1' if (EVERYTHING and TREZOR_MODEL == "T2T1") else '0'),
+    ('USE_EOS', '1' if (EVERYTHING and TREZOR_MODEL == "T2T1") else '0'),
 ]
+
+if not TREZOR_MODEL in ['T3W1', 'D002']:
+    CPPDEFINES_MOD += ['SECURE_MODE']
+
 SOURCE_MOD_CRYPTO += [
     'vendor/trezor-crypto/address.c',
     'vendor/trezor-crypto/aes/aes_modes.c',
@@ -177,17 +195,6 @@ if FEATURE_FLAGS["SECP256K1_ZKP"]:
         'vendor/trezor-crypto/zkp_bip340.c',
     ]
 
-# AES-GCM
-if FEATURE_FLAGS["AES_GCM"]:
-    CPPDEFINES_MOD += [
-        'USE_AES_GCM',
-        'AES_VAR',
-    ]
-    SOURCE_MOD_CRYPTO += [
-        'vendor/trezor-crypto/aes/gf128mul.c',
-        'vendor/trezor-crypto/aes/aesgcm.c',
-    ]
-
 SOURCE_MOD += [
     'embed/gfx/bitblt/gfx_bitblt.c',
     'embed/gfx/bitblt/gfx_bitblt_rgb565.c',
@@ -258,11 +265,29 @@ env = Environment(
 
 FEATURES_AVAILABLE = models.configure_board(TREZOR_MODEL, HW_REVISION, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
 
-FILE_SUFFIX= env.get('ENV')['SUFFIX']
+FEATURE_FLAGS["AES_GCM"] = FEATURE_FLAGS["AES_GCM"] or "tropic" in FEATURES_AVAILABLE
+
+if not 'secmon_layout' in FEATURES_AVAILABLE:
+    SOURCE_MOD += [
+        'vendor/trezor-storage/norcow.c',
+        'vendor/trezor-storage/storage.c',
+        'vendor/trezor-storage/storage_utils.c',
+    ]
+
+
+# AES-GCM
+if FEATURE_FLAGS["AES_GCM"]:
+    CPPDEFINES_MOD += [
+        'USE_AES_GCM',
+        'AES_VAR',
+    ]
+    SOURCE_MOD_CRYPTO += [
+        'vendor/trezor-crypto/aes/gf128mul.c',
+        'vendor/trezor-crypto/aes/aesgcm.c',
+    ]
 
 SOURCE_FIRMWARE = [
     'embed/projects/kernel/main.c',
-    f'embed/sys/startup/{FILE_SUFFIX}/startup_stage_2.s',
 ]
 
 if 'sd_card' in FEATURES_AVAILABLE:
@@ -288,6 +313,7 @@ env.Replace(
 
 ALLPATHS = [
         '.',
+        'embed/rust',
         'embed/projects/firmware',
         'embed/rtl/inc',
         'embed/models',
@@ -309,8 +335,8 @@ env.Replace(
     '-ffreestanding '
     '-fstack-protector-all '
     +  env.get('ENV')["CPU_CCFLAGS"] + CCFLAGS_MOD,
-    LINKFLAGS='-T build/kernel/memory.ld -Wl,--gc-sections -Wl,--print-memory-usage '
-        ' -Wl,-Map=build/kernel/kernel.map -Wl,--warn-common -Wl,--undefined=__errno',
+    LINKFLAGS=[f'-Tbuild/kernel/{env.get("ENV")["MEMORY_LAYOUT"]}', '-Wl,--gc-sections', '-Wl,--print-memory-usage',
+        '-Wl,-Map=build/kernel/kernel.map', '-Wl,--warn-common', '-Wl,--undefined=__errno'],
     CPPPATH=ALLPATHS,
     CPPDEFINES=[
         'KERNEL',
@@ -354,8 +380,7 @@ cmake_gen = env.Command(
     action='$MAKECMAKELISTS --sources $ALLSOURCES --dirs $CPPPATH --defs $ALLDEFS',
 )
 
-MODEL_IDENTIFIER = models.get_model_identifier(TREZOR_MODEL)
-BOOTLOADER_SUFFIX = MODEL_IDENTIFIER
+BOOTLOADER_SUFFIX = TREZOR_MODEL
 if BOOTLOADER_QA:
     BOOTLOADER_SUFFIX += '_qa'
 
@@ -365,14 +390,14 @@ if BOOTLOADER_QA or BOOTLOADER_DEVEL:
 elif not PRODUCTION:
     vendor = "unsafe_signed_prod"
 else:
-    if TREZOR_MODEL in ('T',):
+    if TREZOR_MODEL in ('T2T1',):
         vendor = "satoshilabs_signed_prod"
     elif BITCOIN_ONLY == '1':
         vendor = "trezor_btconly_signed_prod"
     else:
         vendor = "trezor_signed_prod"
 
-VENDORHEADER = f'embed/models/{MODEL_IDENTIFIER}/vendorheader/vendorheader_{vendor}.bin'
+VENDORHEADER = f'embed/models/{TREZOR_MODEL}/vendorheader/vendorheader_{vendor}.bin'
 
 
 obj_program.extend(
@@ -383,35 +408,56 @@ obj_program.extend(
         ' --rename-section .data=.vendorheader,alloc,load,readonly,contents'
         ' $SOURCE $TARGET', ))
 
-tools.embed_compressed_binary(
-        obj_program,
-        env,
-        'bootloader',
-        'embed/projects/bootloaders/bootloader.o',
-        f'embed/models/{MODEL_IDENTIFIER}/bootloaders/bootloader_{BOOTLOADER_SUFFIX}.bin',
-        'kernel',
-        'bootloader',
-        )
+if "secmon_layout" in FEATURES_AVAILABLE:
+    tools.embed_raw_binary(
+            obj_program,
+            env,
+            'secmon',
+            'build/secmon/secmon.o',
+            f'build/secmon/secmon.bin',
+            )
 
 linkerscript_gen = env.Command(
-    target='memory.ld',
-    source=[f'embed/models/{MODEL_IDENTIFIER}/memory.ld', env.get('ENV')['LINKER_SCRIPT'].format(target='kernel')],
+    target=env.get("ENV")["MEMORY_LAYOUT"],
+    source=[f'embed/models/{TREZOR_MODEL}/{env.get("ENV")["MEMORY_LAYOUT"]}', env.get('ENV')['LINKER_SCRIPT'].format(target='kernel')],
     action='$CAT $SOURCES > $TARGET',
 )
+
+#
+# Rust library
+#
+features = FEATURES_AVAILABLE
+
+rust = tools.add_rust_lib(
+    env=env,
+    build='kernel',
+    profile='release',
+    features=features,
+    all_paths=ALLPATHS,
+    build_dir=str(Dir('.').abspath),
+)
+
+
+if "secmon_layout" in FEATURES_AVAILABLE:
+    SECMON_LIB = 'build/secmon/secmon_api.o'
+else:
+    SECMON_LIB = ''
+
 
 program_elf = env.Command(
     target='kernel.elf',
     source=obj_program,
     action=
-    '$LINK -o $TARGET $CCFLAGS $CFLAGS $SOURCES $LINKFLAGS -lc_nano -lm -lgcc',
+    f'$LINK -o $TARGET $CCFLAGS $CFLAGS $SOURCES $LINKFLAGS -lc_nano -lm -lgcc {SECMON_LIB} ',
 )
 
 env.Depends(program_elf, linkerscript_gen)
+env.Depends(program_elf, rust)
 
 if CMAKELISTS != 0:
     env.Depends(program_elf, cmake_gen)
 
-BINARY_NAME = f"build/kernel/kernel-{models.get_model_identifier(TREZOR_MODEL)}"
+BINARY_NAME = f"build/kernel/kernel-{TREZOR_MODEL}"
 if not EVERYTHING:
     BINARY_NAME += "-btconly"
 BINARY_NAME += "-" + tools.get_version('embed/projects/kernel/version.h')
@@ -420,7 +466,7 @@ BINARY_NAME += "-dirty" if tools.get_git_modified() else ""
 BINARY_NAME += ".bin"
 
 action_bin=[
-    '$OBJCOPY -O binary -j .flash -j .uflash  -j .data -j .confidential $SOURCE ${TARGET}',
+    '$OBJCOPY -O binary -j .flash -j .data -j .confidential $SOURCE ${TARGET}',
     '$CP $TARGET ' + BINARY_NAME,
 ]
 

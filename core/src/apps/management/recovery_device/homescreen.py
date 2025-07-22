@@ -5,8 +5,10 @@ import storage.recovery as storage_recovery
 import storage.recovery_shares as storage_recovery_shares
 from trezor import TR, wire
 from trezor.messages import Success
+from trezor.ui.layouts.recovery import show_invalid_mnemonic
 
 from apps.common import backup_types
+from apps.management.recovery_device.recover import RecoveryAborted
 
 from . import layout, recover
 
@@ -96,14 +98,17 @@ async def _continue_recovery_process() -> Success:
         if is_first_step:
             # If we are starting recovery, ask for word count first...
             # _request_word_count
-            # For others than model_tr, just continue straight to word count keyboard
+            # For others than Caesar (TS3), just continue straight to word count keyboard
             # pylint: disable-next=consider-using-in
-            if utils.INTERNAL_MODEL == "T2B1" or utils.INTERNAL_MODEL == "T3B1":
+            if utils.UI_LAYOUT == "CAESAR":
                 await layout.homescreen_dialog(
                     TR.buttons__continue, TR.recovery__num_of_words
                 )
             # ask for the number of words
-            word_count = await layout.request_word_count(recovery_type)
+            try:
+                word_count = await layout.request_word_count(recovery_type)
+            except wire.ActionCancelled:
+                raise RecoveryAborted
             # ...and only then show the starting screen with word count.
             await _request_share_first_screen(word_count, recovery_type)
         assert word_count is not None
@@ -122,7 +127,7 @@ async def _continue_recovery_process() -> Success:
             # that the first step is complete.
             is_first_step = False
         except MnemonicError:
-            await layout.show_invalid_mnemonic(word_count)
+            await show_invalid_mnemonic(word_count)
 
     assert backup_type is not None
     if recovery_type == RecoveryType.DryRun:

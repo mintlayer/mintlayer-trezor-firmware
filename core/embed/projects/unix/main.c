@@ -56,6 +56,11 @@
 #include <io/touch.h>
 #endif
 
+#ifdef USE_TROPIC
+#include <sec/secret.h>
+#include <sec/tropic.h>
+#endif
+
 #include "py/builtin.h"
 #include "py/compile.h"
 #include "py/gc.h"
@@ -417,8 +422,8 @@ STATIC void set_sys_argv(char *argv[], int argc, int start_arg) {
   }
 }
 
-// Inject SystemExit exception. This is primarily needed by prof.py to run the
-// atexit() handler.
+// Inject SystemExit exception. This is primarily needed by `prof/__main__.py`
+// to run the flush the coverage data.
 static void __attribute__((noreturn)) main_clean_exit() {
   const int status = 3;
   fflush(stdout);
@@ -498,6 +503,12 @@ static int sdl_event_filter(void *userdata, SDL_Event *event) {
   return 1;
 }
 
+void drivers_init() {
+#ifdef USE_TROPIC
+  tropic_init();
+#endif
+}
+
 MP_NOINLINE int main_(int argc, char **argv) {
 #ifdef SIGPIPE
   // Do not raise SIGPIPE, instead return EPIPE. Otherwise, e.g. writing
@@ -518,6 +529,8 @@ MP_NOINLINE int main_(int argc, char **argv) {
   pre_process_options(argc, argv);
 
   system_init(&rsod_panic_handler);
+
+  drivers_init();
 
   SDL_SetEventFilter(sdl_event_filter, NULL);
 
@@ -555,7 +568,7 @@ MP_NOINLINE int main_(int argc, char **argv) {
 #ifdef MICROPY_PY_SYS_PATH_DEFAULT
     path = MICROPY_PY_SYS_PATH_DEFAULT;
 #else
-    path = ".frozen:~/.micropython/lib:/usr/lib/micropython";
+    path = ".frozen";
 #endif
   }
   size_t path_num = 1;  // [0] is for current dir (or base dir of the script)

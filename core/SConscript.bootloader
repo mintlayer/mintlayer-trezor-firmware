@@ -4,14 +4,32 @@ import os
 import shlex
 import tools, models, ui
 
-TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T')
+TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T2T1')
 CMAKELISTS = int(ARGUMENTS.get('CMAKELISTS', 0))
 BOOTLOADER_QA = ARGUMENTS.get('BOOTLOADER_QA', '0') == '1'
 PRODUCTION = 0 if BOOTLOADER_QA else ARGUMENTS.get('PRODUCTION', '0') == '1'
 HW_REVISION = ARGUMENTS.get('HW_REVISION', None)
-MODEL_IDENTIFIER = models.get_model_identifier(TREZOR_MODEL)
+UI_DEBUG_OVERLAY = ARGUMENTS.get('UI_DEBUG_OVERLAY', '0') == '1'
 
-FEATURES_WANTED = ["input", "rgb_led", "consumption_mask", "usb", "optiga", "dma2d"]
+FEATURES_WANTED = [
+    "ble",
+    "consumption_mask",
+    "display",
+    "dma2d",
+    "input",
+    "optiga",
+    "power_manager",
+    "power_save",
+    "rgb_led",
+    "rtc",
+    "secure_domain",
+    "tropic",
+    "usb",
+    "iwdg",
+    ]
+
+if TREZOR_MODEL in ('T3W1', ):
+    FEATURES_WANTED += ["haptic"]
 
 CCFLAGS_MOD = ''
 CPPPATH_MOD = []
@@ -31,6 +49,7 @@ CPPPATH_MOD += [
 ]
 CPPDEFINES_MOD += [
     'KERNEL_MODE',
+    'SECURE_MODE',
     'AES_128',
     'AES_192',
     'USE_KECCAK',
@@ -68,7 +87,6 @@ SOURCE_MOD += [
     'embed/gfx/bitblt/gfx_bitblt_rgb565.c',
     'embed/gfx/bitblt/gfx_bitblt_rgba8888.c',
     'embed/gfx/fonts/font_bitmap.c',
-    'embed/gfx/fonts/fonts.c',
     'embed/gfx/gfx_color.c',
     'embed/gfx/gfx_draw.c',
     'embed/gfx/terminal.c',
@@ -90,7 +108,7 @@ SOURCE_NANOPB = [
     'vendor/nanopb/pb_encode.c',
 ]
 
-ui.init_ui(TREZOR_MODEL, "bootloader", CPPDEFINES_MOD, SOURCE_MOD, RUST_UI_FEATURES)
+ui.init_ui(TREZOR_MODEL, "bootloader", RUST_UI_FEATURES)
 
 env = Environment(
     ENV=os.environ,
@@ -102,17 +120,33 @@ env = Environment(
 
 FEATURES_AVAILABLE = models.configure_board(TREZOR_MODEL, HW_REVISION, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
 
-FILE_SUFFIX= env.get('ENV')['SUFFIX']
-
 SOURCE_BOOTLOADER = [
-    f'embed/sys/startup/{FILE_SUFFIX}/startup_stage_1.s',
     'embed/projects/bootloader/header.S',
     'embed/projects/bootloader/bootui.c',
     'embed/projects/bootloader/main.c',
-    'embed/projects/bootloader/messages.c',
-    'embed/projects/bootloader/protob/messages.pb.c',
+    'embed/projects/bootloader/antiglitch.c',
+    'embed/projects/bootloader/workflow/wf_firmware_update.c',
+    'embed/projects/bootloader/workflow/wf_wipe_device.c',
+    'embed/projects/bootloader/workflow/wf_get_features.c',
+    'embed/projects/bootloader/workflow/wf_initialize.c',
+    'embed/projects/bootloader/workflow/wf_ping.c',
+    'embed/projects/bootloader/workflow/wf_bootloader.c',
+    'embed/projects/bootloader/workflow/wf_empty_device.c',
+    'embed/projects/bootloader/workflow/wf_auto_update.c',
+    'embed/projects/bootloader/workflow/wf_host_control.c',
+    'embed/projects/bootloader/workflow/wf_ble_pairing_request.c',
+    'embed/projects/bootloader/wire/codec_v1.c',
+    'embed/projects/bootloader/wire/wire_iface_usb.c',
+    'embed/projects/bootloader/wire/wire_iface_ble.c',
+    'embed/projects/bootloader/protob/protob.c',
+    'embed/projects/bootloader/protob/pb/messages.pb.c',
     'embed/projects/bootloader/version_check.c',
 ]
+
+if 'optiga' in FEATURES_AVAILABLE:
+    SOURCE_BOOTLOADER += [
+        'embed/projects/bootloader/workflow/wf_unlock_bootloader.c',
+    ]
 
 
 env.Replace(
@@ -159,7 +193,7 @@ env.Replace(
     '-fstack-protector-strong '
     +  env.get('ENV')["CPU_CCFLAGS"] + CCFLAGS_MOD,
     CCFLAGS_QSTR='-DNO_QSTR -DN_X64 -DN_X86 -DN_THUMB',
-    LINKFLAGS='-T build/bootloader/memory.ld -Wl,--gc-sections -Wl,-Map=build/bootloader/bootloader.map -Wl,--warn-common -Wl,--print-memory-usage',
+    LINKFLAGS=['-Tbuild/bootloader/memory.ld', '-Wl,--gc-sections', '-Wl,-Map=build/bootloader/bootloader.map', '-Wl,--warn-common', '-Wl,--print-memory-usage', '-Wl,--undefined=__errno'],
     CPPPATH=ALLPATHS,
     CPPDEFINES=[
         'BOOTLOADER',
@@ -187,50 +221,23 @@ cmake_gen = env.Command(
     action='$MAKECMAKELISTS --sources $ALLSOURCES --dirs $CPPPATH --defs $ALLDEFS',
 )
 
-
 #
 # Rust library
 #
+features = ['bootloader',] + FEATURES_AVAILABLE + RUST_UI_FEATURES
 
-RUST_PROFILE = 'release'
-RUST_LIB = 'trezor_lib'
-RUST_LIBDIR = f'build/bootloader/rust/{env.get("ENV")["RUST_TARGET"]}/{RUST_PROFILE}'
-RUST_LIBPATH = f'{RUST_LIBDIR}/lib{RUST_LIB}.a'
+if UI_DEBUG_OVERLAY:
+    features.append('ui_debug_overlay')
 
-def cargo_build():
-    # Determine the profile build flags.
-    if RUST_PROFILE == 'release':
-        profile = '--release'
-    else:
-        profile = ''
+rust = tools.add_rust_lib(
+    env=env,
+    build='bootloader',
+    profile='release',
+    features=features,
+    all_paths=ALLPATHS,
+    build_dir=str(Dir('.').abspath),
+)
 
-    features = []
-    features.extend(RUST_UI_FEATURES)
-    features.append("ui")
-    features.append("bootloader")
-    features.extend(FEATURES_AVAILABLE)
-
-    cargo_opts = [
-        f'--target={env.get("ENV")["RUST_TARGET"]}',
-        f'--target-dir=../../build/bootloader/rust',
-        '--no-default-features',
-        '--features ' + ','.join(features),
-        '-Z build-std=core',
-        '-Z build-std-features=panic_immediate_abort',
-    ]
-
-    bindgen_macros = tools.get_bindgen_defines(env.get("CPPDEFINES"), ALLPATHS)
-    build_dir = str(Dir('.').abspath)
-
-    return f'export BINDGEN_MACROS={shlex.quote(bindgen_macros)}; export BUILD_DIR=\'{build_dir}\'; cd embed/rust; cargo build {profile} ' + ' '.join(cargo_opts)
-
-rust = env.Command(
-    target=RUST_LIBPATH,
-    source='',
-    action=cargo_build(), )
-
-env.Append(LINKFLAGS=f' -L{RUST_LIBDIR}')
-env.Append(LINKFLAGS=f' -l{RUST_LIB}')
 
 #
 # Program objects
@@ -246,7 +253,7 @@ obj_program += env.Object(source=SOURCE_HAL)
 
 linkerscript_gen = env.Command(
     target='memory.ld',
-    source=[f'embed/models/{MODEL_IDENTIFIER}/memory.ld', env.get('ENV')['LINKER_SCRIPT'].format(target='bootloader')],
+    source=[f'embed/models/{TREZOR_MODEL}/memory.ld', env.get('ENV')['LINKER_SCRIPT'].format(target='bootloader')],
     action='$CAT $SOURCES > $TARGET',
 )
 
@@ -262,7 +269,7 @@ env.Depends(program_elf, rust)
 
 SUFFIX = '_qa' if BOOTLOADER_QA else ''
 
-BINARY_NAME = f"build/bootloader/bootloader-{models.get_model_identifier(TREZOR_MODEL)}{SUFFIX}"
+BINARY_NAME = f"build/bootloader/bootloader-{TREZOR_MODEL}{SUFFIX}"
 BINARY_NAME += "-" + tools.get_version('embed/projects/bootloader/version.h')
 BINARY_NAME += "-" + tools.get_git_revision_short_hash()
 BINARY_NAME += "-dirty" if tools.get_git_modified() else ""

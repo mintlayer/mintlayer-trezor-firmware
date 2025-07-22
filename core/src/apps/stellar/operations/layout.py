@@ -31,6 +31,7 @@ if TYPE_CHECKING:
         StellarPaymentOp,
         StellarSetOptionsOp,
     )
+    from trezor.ui.layouts import PropertyType
 
 
 async def confirm_source_account(source_account: str) -> None:
@@ -47,8 +48,8 @@ async def confirm_allow_trust_op(op: StellarAllowTrustOp) -> None:
         "op_allow_trust",
         TR.stellar__allow_trust if op.is_authorized else TR.stellar__revoke_trust,
         (
-            (TR.stellar__asset, op.asset_code),
-            (TR.stellar__trusted_account, op.trusted_account),
+            (TR.stellar__asset, op.asset_code, True),
+            (TR.stellar__trusted_account, op.trusted_account, True),
         ),
     )
 
@@ -86,8 +87,8 @@ async def confirm_create_account_op(op: StellarCreateAccountOp) -> None:
         "op_create_account",
         TR.stellar__create_account,
         (
-            (TR.words__account, op.new_account),
-            (TR.stellar__initial_balance, format_amount(op.starting_balance)),
+            (TR.words__account, op.new_account, True),
+            (TR.stellar__initial_balance, format_amount(op.starting_balance), False),
         ),
     )
 
@@ -137,11 +138,20 @@ async def _confirm_offer(
     selling_asset = op.selling_asset  # local_cache_attribute
 
     if StellarManageBuyOfferOp.is_type_of(op):
-        buying = (TR.stellar__buying, format_amount(op.amount, buying_asset))
-        selling = (TR.stellar__selling, format_asset(selling_asset))
-        price = (
+        buying: PropertyType = (
+            TR.stellar__buying,
+            format_amount(op.amount, buying_asset),
+            False,
+        )
+        selling: PropertyType = (
+            TR.stellar__selling,
+            format_asset(selling_asset),
+            False,
+        )
+        price: PropertyType = (
             TR.stellar__price_per_template.format(format_asset(selling_asset)),
             str(op.price_n / op.price_d),
+            False,
         )
         await confirm_properties(
             "op_offer",
@@ -149,11 +159,16 @@ async def _confirm_offer(
             (buying, selling, price),
         )
     else:
-        selling = (TR.stellar__selling, format_amount(op.amount, selling_asset))
-        buying = (TR.stellar__buying, format_asset(buying_asset))
-        price = (
+        selling: PropertyType = (
+            TR.stellar__selling,
+            format_amount(op.amount, selling_asset),
+            False,
+        )
+        buying: PropertyType = (TR.stellar__buying, format_asset(buying_asset), False)
+        price: PropertyType = (
             TR.stellar__price_per_template.format(format_asset(buying_asset)),
             str(op.price_n / op.price_d),
+            False,
         )
         await confirm_properties(
             "op_offer",
@@ -173,7 +188,7 @@ async def confirm_manage_data_op(op: StellarManageDataOp) -> None:
         await confirm_properties(
             "op_data",
             TR.stellar__set_data,
-            ((TR.stellar__key, op.key), (TR.stellar__value_sha256, digest)),
+            ((TR.stellar__key, op.key, True), (TR.stellar__value_sha256, digest, True)),
         )
     else:
         await confirm_metadata(
@@ -190,7 +205,7 @@ async def confirm_path_payment_strict_receive_op(
     await confirm_output(
         op.destination_account,
         format_amount(op.destination_amount, op.destination_asset),
-        title=TR.stellar__path_pay,
+        TR.stellar__path_pay,
     )
     await confirm_asset_issuer(op.destination_asset)
     # confirm what the sender is using to pay
@@ -209,7 +224,7 @@ async def confirm_path_payment_strict_send_op(
     await confirm_output(
         op.destination_account,
         format_amount(op.destination_min, op.destination_asset),
-        title=TR.stellar__path_pay_at_least,
+        TR.stellar__path_pay_at_least,
     )
     await confirm_asset_issuer(op.destination_asset)
     # confirm what the sender is using to pay
@@ -252,16 +267,16 @@ async def confirm_set_options_op(op: StellarSetOptionsOp) -> None:
         t = _format_flags(op.set_flags)
         await confirm_text("op_set_options", TR.stellar__set_flags, data=t)
 
-    thresholds: list[tuple[str, str]] = []
+    thresholds: list[PropertyType] = []
     append = thresholds.append  # local_cache_attribute
     if op.master_weight is not None:
-        append((TR.stellar__master_weight, str(op.master_weight)))
+        append((TR.stellar__master_weight, str(op.master_weight), True))
     if op.low_threshold is not None:
-        append((TR.stellar__low, str(op.low_threshold)))
+        append((TR.stellar__low, str(op.low_threshold), True))
     if op.medium_threshold is not None:
-        append((TR.stellar__medium, str(op.medium_threshold)))
+        append((TR.stellar__medium, str(op.medium_threshold), True))
     if op.high_threshold is not None:
-        append((TR.stellar__high, str(op.high_threshold)))
+        append((TR.stellar__high, str(op.high_threshold), True))
 
     if thresholds:
         await confirm_properties(
@@ -283,7 +298,7 @@ async def confirm_set_options_op(op: StellarSetOptionsOp) -> None:
             title = TR.stellar__remove_signer
         data: str | bytes = ""
         if signer_type == StellarSignerType.ACCOUNT:
-            description = f"{TR.words__account}:"
+            description = TR.words__account
             data = helpers.address_from_public_key(signer_key)
         elif signer_type == StellarSignerType.PRE_AUTH:
             description = TR.stellar__preauth_transaction

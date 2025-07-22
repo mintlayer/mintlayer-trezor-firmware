@@ -14,18 +14,26 @@
 # You should have received a copy of the License along with this library.
 # If not, see <https://www.gnu.org/licenses/lgpl-3.0.html>.
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .messages import Failure
+    from .protobuf import MessageType
 
 
 class TrezorException(Exception):
-    pass
+    """General Trezor exception."""
 
 
 class TrezorFailure(TrezorException):
-    def __init__(self, failure: "Failure") -> None:
+    """Failure received over the wire from Trezor.
+
+    Corresponds to a `Failure` protobuf message.
+    """
+
+    def __init__(self, failure: Failure) -> None:
         self.failure = failure
         self.code = failure.code
         self.message = failure.message
@@ -46,12 +54,34 @@ class TrezorFailure(TrezorException):
 
 
 class PinException(TrezorException):
-    pass
+    """PIN operation has failed.
+
+    This exception is only raised on Trezor Model One. It indicates to the caller that
+    the Trezor rejected the PIN entered via host-side matrix keyboard.
+    """
 
 
 class Cancelled(TrezorException):
-    pass
+    """Action was cancelled.
+
+    Cancellation can be either received from Trezor or caused by the library, typically
+    in response to user action."""
 
 
 class OutdatedFirmwareError(TrezorException):
-    pass
+    """Trezor firmware is too old.
+
+    Raised when interfacing with a Trezor whose firmware version is no longer supported
+    by current library version."""
+
+
+class UnexpectedMessageError(TrezorException):
+    """Unexpected message received from Trezor.
+
+    Raised when the library receives a response from Trezor that does not match the
+    previous request."""
+
+    def __init__(self, expected: type[MessageType], actual: MessageType) -> None:
+        self.expected = expected
+        self.actual = actual
+        super().__init__(f"Expected {expected.__name__} but Trezor sent {actual}")

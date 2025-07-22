@@ -17,10 +17,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef SYSCALL_DISPATCH
+#ifdef KERNEL
 
 #include <trezor_rtl.h>
 
+#include <gfx/dma2d_bitblt.h>
 #include <io/display.h>
 #include <io/usb.h>
 #include <io/usb_hid.h>
@@ -32,12 +33,21 @@
 #include <sys/bootutils.h>
 #include <sys/irq.h>
 #include <sys/mpu.h>
+#include <sys/sysevent.h>
 #include <sys/systask.h>
 #include <sys/system.h>
 #include <sys/systick.h>
 #include <util/fwutils.h>
 #include <util/translations.h>
 #include <util/unit_properties.h>
+
+#ifdef USE_BLE
+#include <io/ble.h>
+#endif
+
+#ifdef USE_NRF
+#include <io/nrf.h>
+#endif
 
 #ifdef USE_BUTTON
 #include <io/button.h>
@@ -47,8 +57,16 @@
 #include <io/haptic.h>
 #endif
 
+#ifdef USE_HW_JPEG_DECODER
+#include <gfx/jpegdec.h>
+#endif
+
 #ifdef USE_OPTIGA
 #include <sec/optiga.h>
+#endif
+
+#ifdef USE_POWER_MANAGER
+#include <sys/power_manager.h>
 #endif
 
 #ifdef USE_RGB_LED
@@ -63,6 +81,11 @@
 #include <io/touch.h>
 #endif
 
+#if PRODUCTION || BOOTLOADER_QA
+#include <util/bl_check.h>
+#endif
+
+#include "syscall_context.h"
 #include "syscall_internal.h"
 #include "syscall_verifiers.h"
 
@@ -70,21 +93,26 @@ static PIN_UI_WAIT_CALLBACK storage_init_callback = NULL;
 
 static secbool storage_init_callback_wrapper(
     uint32_t wait, uint32_t progress, enum storage_ui_message_t message) {
-  return (secbool)invoke_app_callback(wait, progress, message,
-                                      storage_init_callback);
-}
+  secbool result;
 
-static firmware_hash_callback_t firmware_hash_callback = NULL;
-
-static void firmware_hash_callback_wrapper(void *context, uint32_t progress,
-                                           uint32_t total) {
-  invoke_app_callback((uint32_t)context, progress, total,
-                      firmware_hash_callback);
+  applet_t *applet = syscall_get_context();
+  result = systask_invoke_callback(&applet->task, wait, progress, message,
+                                   storage_init_callback);
+  return result;
 }
 
 __attribute((no_stack_protector)) void syscall_handler(uint32_t *args,
-                                                       uint32_t syscall) {
+                                                       uint32_t syscall,
+                                                       void *applet) {
+  syscall_set_context((applet_t *)applet);
+
   switch (syscall) {
+    case SYSCALL_RETURN_FROM_CALLBACK: {
+      syscall_get_context()->task.in_callback = false;
+      systask_yield_to(systask_kernel());
+      break;
+    }
+
     case SYSCALL_SYSTEM_EXIT: {
       int exit_code = (int)args[0];
       system_exit__verified(exit_code);
@@ -133,8 +161,26 @@ __attribute((no_stack_protector)) void syscall_handler(uint32_t *args,
       args[1] = cycles >> 32;
     } break;
 
-    case SYSCALL_SECURE_SHUTDOWN: {
-      secure_shutdown();
+    case SYSCALL_SYSEVENTS_POLL: {
+      const sysevents_t *awaited = (sysevents_t *)args[0];
+      sysevents_t *signalled = (sysevents_t *)args[1];
+      uint32_t deadline = args[2];
+      if (!syscall_get_context()->task.in_callback) {
+        sysevents_poll__verified(awaited, signalled, deadline);
+      }
+    } break;
+
+    case SYSCALL_BL_CHECK_CHECK: {
+      const uint8_t *hash_00 = (const uint8_t *)args[0];
+      const uint8_t *hash_FF = (const uint8_t *)args[1];
+      size_t hash_len = args[2];
+      args[0] = bl_check_check__verified(hash_00, hash_FF, hash_len);
+    } break;
+
+    case SYSCALL_BL_CHECK_REPLACE: {
+      const uint8_t *data = (const uint8_t *)args[0];
+      size_t len = args[1];
+      bl_check_replace__verified(data, len);
     } break;
 
     case SYSCALL_REBOOT_DEVICE: {
@@ -212,8 +258,13 @@ __attribute((no_stack_protector)) void syscall_handler(uint32_t *args,
       usb_stop();
     } break;
 
-    case SYSCALL_USB_CONFIGURED: {
-      args[0] = usb_configured();
+    case SYSCALL_USB_GET_EVENT: {
+      args[0] = usb_get_event();
+    } break;
+
+    case SYSCALL_USB_GET_STATE: {
+      usb_state_t *state = (usb_state_t *)args[0];
+      usb_get_state__verified(state);
     } break;
 
     case SYSCALL_USB_HID_ADD: {
@@ -400,13 +451,16 @@ __attribute((no_stack_protector)) void syscall_handler(uint32_t *args,
       unit_properties_get__verified(props);
     } break;
 
+#ifdef LOCKABLE_BOOTLOADER
     case SYSCALL_SECRET_BOOTLOADER_LOCKED: {
       args[0] = secret_bootloader_locked();
     } break;
+#endif
 
 #ifdef USE_BUTTON
     case SYSCALL_BUTTON_GET_EVENT: {
-      args[0] = button_get_event();
+      button_event_t *event = (button_event_t *)args[0];
+      args[0] = button_get_event__verified(event);
     } break;
 #endif
 
@@ -655,23 +709,222 @@ __attribute((no_stack_protector)) void syscall_handler(uint32_t *args,
       args[0] = firmware_get_vendor__verified(buff, buff_size);
     } break;
 
-    case SYSCALL_FIRMWARE_CALC_HASH: {
+    case SYSCALL_FIRMWARE_HASH_START: {
       const uint8_t *challenge = (const uint8_t *)args[0];
       size_t challenge_len = args[1];
-      uint8_t *hash = (uint8_t *)args[2];
-      size_t hash_len = args[3];
-      firmware_hash_callback = (firmware_hash_callback_t)args[4];
-      void *callback_context = (void *)args[5];
-
-      args[0] = firmware_calc_hash__verified(
-          challenge, challenge_len, hash, hash_len,
-          firmware_hash_callback_wrapper, callback_context);
+      args[0] = firmware_hash_start__verified(challenge, challenge_len);
     } break;
 
+    case SYSCALL_FIRMWARE_HASH_CONTINUE: {
+      uint8_t *hash = (uint8_t *)args[0];
+      size_t hash_len = args[1];
+      args[0] = firmware_hash_continue__verified(hash, hash_len);
+    } break;
+
+#ifdef USE_BLE
+    case SYSCALL_BLE_START: {
+      ble_start();
+    } break;
+
+    case SYSCALL_BLE_ISSUE_COMMAND: {
+      ble_command_t *command = (ble_command_t *)args[0];
+      args[0] = ble_issue_command__verified(command);
+    } break;
+
+    case SYSCALL_BLE_GET_STATE: {
+      ble_state_t *state = (ble_state_t *)args[0];
+      ble_get_state__verified(state);
+    } break;
+
+    case SYSCALL_BLE_GET_EVENT: {
+      ble_event_t *event = (ble_event_t *)args[0];
+      args[0] = ble_get_event__verified(event);
+    } break;
+
+    case SYSCALL_BLE_CAN_WRITE: {
+      args[0] = ble_can_write();
+    } break;
+
+    case SYSCALL_BLE_WRITE: {
+      uint8_t *data = (uint8_t *)args[0];
+      size_t len = args[1];
+      args[0] = ble_write__verified(data, len);
+    } break;
+
+    case SYSCALL_BLE_CAN_READ: {
+      args[0] = ble_can_read();
+    } break;
+
+    case SYSCALL_BLE_READ: {
+      uint8_t *data = (uint8_t *)args[0];
+      size_t len = args[1];
+      args[0] = ble_read__verified(data, len);
+    } break;
+#endif
+
+#ifdef USE_NRF
+
+    case SYSCALL_NRF_UPDATE_REQUIRED: {
+      const uint8_t *data = (const uint8_t *)args[0];
+      size_t len = args[1];
+      args[0] = nrf_update_required__verified(data, len);
+    } break;
+
+    case SYSCALL_NRF_UPDATE: {
+      const uint8_t *data = (const uint8_t *)args[0];
+      size_t len = args[1];
+      args[0] = nrf_update__verified(data, len);
+    } break;
+
+#endif
+
+#ifdef USE_POWER_MANAGER
+    case SYSCALL_POWER_MANAGER_SUSPEND: {
+      args[0] = pm_suspend();
+    } break;
+
+    case SYSCALL_POWER_MANAGER_HIBERNATE: {
+      args[0] = pm_hibernate();
+    } break;
+
+    case SYSCALL_POWER_MANAGER_GET_STATE: {
+      pm_state_t *status = (pm_state_t *)args[0];
+      args[0] = pm_get_state__verified(status);
+    } break;
+
+    case SYSCALL_POWER_MANAGER_GET_EVENTS: {
+      pm_event_t *status = (pm_event_t *)args[0];
+      args[0] = pm_get_events__verified(status);
+    } break;
+#endif
+
+#ifdef USE_HW_JPEG_DECODER
+    case SYSCALL_JPEGDEC_OPEN: {
+      args[0] = jpegdec_open();
+    } break;
+
+    case SYSCALL_JPEGDEC_CLOSE: {
+      jpegdec_close();
+    } break;
+
+    case SYSCALL_JPEGDEC_PROCESS: {
+      args[0] = jpegdec_process__verified((jpegdec_input_t *)args[0]);
+    } break;
+
+    case SYSCALL_JPEGDEC_GET_INFO: {
+      args[0] = jpegdec_get_info__verified((jpegdec_image_t *)args[0]);
+      break;
+    }
+
+    case SYSCALL_JPEGDEC_GET_SLICE_RGBA8888: {
+      args[0] = jpegdec_get_slice_rgba8888__verified(
+          (void *)args[0], (jpegdec_slice_t *)args[1]);
+      break;
+    }
+
+    case SYSCALL_JPEGDEC_GET_SLICE_MONO8: {
+      args[0] = jpegdec_get_slice_mono8__verified((void *)args[0],
+                                                  (jpegdec_slice_t *)args[1]);
+      break;
+    }
+#endif  // USE_HW_JPEG_DECODER
+
+#ifdef USE_DMA2D
+    case SYSCALL_DMA2D_WAIT: {
+      dma2d_wait();
+    } break;
+
+    case SYSCALL_DMA2D_RGB565_FILL: {
+      const gfx_bitblt_t *bb = (const gfx_bitblt_t *)args[0];
+      args[0] = dma2d_rgb565_fill__verified(bb);
+    } break;
+
+    case SYSCALL_DMA2D_RGB565_COPY_MONO4: {
+      const gfx_bitblt_t *bb = (const gfx_bitblt_t *)args[0];
+      args[0] = dma2d_rgb565_copy_mono4__verified(bb);
+    } break;
+
+    case SYSCALL_DMA2D_RGB565_COPY_RGB565: {
+      const gfx_bitblt_t *bb = (const gfx_bitblt_t *)args[0];
+      args[0] = dma2d_rgb565_copy_rgb565__verified(bb);
+    } break;
+
+    case SYSCALL_DMA2D_RGB565_BLEND_MONO4: {
+      const gfx_bitblt_t *bb = (const gfx_bitblt_t *)args[0];
+      args[0] = dma2d_rgb565_blend_mono4__verified(bb);
+    } break;
+
+    case SYSCALL_DMA2D_RGB565_BLEND_MONO8: {
+      const gfx_bitblt_t *bb = (const gfx_bitblt_t *)args[0];
+      args[0] = dma2d_rgb565_blend_mono8__verified(bb);
+    } break;
+
+    case SYSCALL_DMA2D_RGBA8888_FILL: {
+      const gfx_bitblt_t *bb = (const gfx_bitblt_t *)args[0];
+      args[0] = dma2d_rgba8888_fill__verified(bb);
+    } break;
+
+    case SYSCALL_DMA2D_RGBA8888_COPY_MONO4: {
+      const gfx_bitblt_t *bb = (const gfx_bitblt_t *)args[0];
+      args[0] = dma2d_rgba8888_copy_mono4__verified(bb);
+    } break;
+
+    case SYSCALL_DMA2D_RGBA8888_COPY_RGB565: {
+      const gfx_bitblt_t *bb = (const gfx_bitblt_t *)args[0];
+      args[0] = dma2d_rgba8888_copy_rgb565__verified(bb);
+    } break;
+
+    case SYSCALL_DMA2D_RGBA8888_COPY_RGBA8888: {
+      const gfx_bitblt_t *bb = (const gfx_bitblt_t *)args[0];
+      args[0] = dma2d_rgba8888_copy_rgba8888__verified(bb);
+    } break;
+
+    case SYSCALL_DMA2D_RGBA8888_BLEND_MONO4: {
+      const gfx_bitblt_t *bb = (const gfx_bitblt_t *)args[0];
+      args[0] = dma2d_rgba8888_blend_mono4__verified(bb);
+    } break;
+
+    case SYSCALL_DMA2D_RGBA8888_BLEND_MONO8: {
+      const gfx_bitblt_t *bb = (const gfx_bitblt_t *)args[0];
+      args[0] = dma2d_rgba8888_blend_mono8__verified(bb);
+    } break;
+#endif  // USE_DMA2D
+
+#ifdef USE_TROPIC
+    case SYSCALL_TROPIC_PING: {
+      const uint8_t *msg_out = (const uint8_t *)args[0];
+      uint8_t *msg_in = (uint8_t *)args[1];
+      uint16_t msg_len = (uint16_t)args[2];
+      args[0] = tropic_ping__verified(msg_out, msg_in, msg_len);
+    } break;
+
+    case SYSCALL_TROPIC_GET_CERT: {
+      uint8_t *buf = (uint8_t *)args[0];
+      uint16_t buf_size = (uint16_t)args[1];
+      args[0] = tropic_get_cert__verified(buf, buf_size);
+    } break;
+    case SYSCALL_TROPIC_ECC_KEY_GENERATE: {
+      uint16_t slot_index = (uint16_t)args[0];
+      args[0] = tropic_ecc_key_generate__verified(slot_index);
+
+    } break;
+    case SYSCALL_TROPIC_ECC_SIGN: {
+      uint16_t key_slot_index = (uint16_t)args[0];
+      const uint8_t *dig = (const uint8_t *)args[1];
+      uint16_t dig_len = (uint16_t)args[2];
+      uint8_t *sig = (uint8_t *)args[3];
+      uint16_t sig_len = (uint16_t)args[4];
+
+      args[0] =
+          tropic_ecc_sign__verified(key_slot_index, dig, dig_len, sig, sig_len);
+
+    } break;
+#endif
+
     default:
-      args[0] = 0xffffffff;
+      system_exit_fatal("Invalid syscall", __FILE__, __LINE__);
       break;
   }
 }
 
-#endif  // SYSCALL_DISPATCH
+#endif  // KERNEL

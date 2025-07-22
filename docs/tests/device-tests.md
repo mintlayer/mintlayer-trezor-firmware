@@ -119,14 +119,15 @@ Arguments can be a list of internal model names, or one of the following shortcu
 * `legacy` - just Trezor One
 * `safe` - Trezor Safe family
 * `safe3` - Trezor Safe 3 (covers T2B1 and T2T1)
-* `mercury` - covers the `mercury` layout (currently T3T1 only)
+* `delizia` - covers the `delizia` UI (currently T3T1 only)
+* `eckhart` - covers the `eckhart` UI (currently T3W1 only)
 
 You can specify a list as positional arguments, and exclude from it via `skip` keyword argument.
 
 You can provide a list of strings, a list of `TrezorModel` instances, or a
 comma-separated string of model names or shortcuts.
 
-You can specify a skip reason as `reason="TODO implement for Mercury too"`.
+You can specify a skip reason as `reason="TODO implement for Delizia too"`.
 
 [pytest-random-order]: https://pypi.org/project/pytest-random-order/
 
@@ -163,3 +164,11 @@ Run the tests with coverage output.
 ```sh
 make build_unix && make coverage
 ```
+
+### GC leak check (both Emulator and Hardware)
+
+DebugLink interface supports polling the device for its current [GC-related information](https://github.com/trezor/trezor-firmware/pull/5091).
+
+On every test setup/teardown, we check for whether the free memory has decreased (indicating that the GC didn't free all allocated heap memory).
+
+By default, the test will fail if a leak is detected. In order to issue a warning instead, use `--ignore-gc-leak` CLI flag.

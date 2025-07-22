@@ -1,32 +1,26 @@
-INCLUDE "./embed/sys/linker/stm32u5g/memory.ld";
-
 ENTRY(reset_handler)
 
 MEMORY {
-  FLASH  (rx)  : ORIGIN = KERNEL_START, LENGTH = FIRMWARE_MAXSIZE
+  FLASH  (rx)  : ORIGIN = FIRMWARE_START, LENGTH = FIRMWARE_MAXSIZE
   AUX1_RAM (wal) : ORIGIN = AUX1_RAM_START, LENGTH = AUX1_RAM_SIZE
 }
 
-main_stack_base = ADDR(.stack) + SIZEOF(.stack); /* 8-byte aligned full descending stack */
-_sstack = ADDR(.stack);
-_estack = main_stack_base;
-_stack_size = SIZEOF(.stack);
+_stack_section_start = ADDR(.stack);
+_stack_section_end = ADDR(.stack) + SIZEOF(.stack);
+_stack_section_size = SIZEOF(.stack);
 
-/* used by the startup code to populate variables used by the C code */
-data_lma = LOADADDR(.data);
-data_vma = ADDR(.data);
-data_size = SIZEOF(.data);
-bss_start = ADDR(.bss);
-bss_end = ADDR(.bss) + SIZEOF(.bss);
+_data_section_loadaddr = LOADADDR(.data);
+_data_section_start = ADDR(.data);
+_data_section_end = ADDR(.data) + SIZEOF(.data);
 
-/* used by the startup code to populate variables used by the C code */
-confidential_lma = LOADADDR(.confidential);
-confidential_vma = ADDR(.confidential);
-confidential_size = SIZEOF(.confidential);
+_bss_section_start = ADDR(.bss);
+_bss_section_end = ADDR(.bss) + SIZEOF(.bss);
 
-_codelen = SIZEOF(.flash) + SIZEOF(.data) + SIZEOF(.confidential);
-_flash_start = ORIGIN(FLASH);
-_flash_end = ORIGIN(FLASH) + LENGTH(FLASH);
+_confidential_section_loadaddr = LOADADDR(.confidential);
+_confidential_section_start = ADDR(.confidential);
+_confidential_section_end = ADDR(.confidential) + SIZEOF(.confidential);
+
+_codelen = SIZEOF(.padding) + SIZEOF(.flash) + SIZEOF(.data) + SIZEOF(.confidential);
 _heap_start = ADDR(.heap);
 _heap_end = ADDR(.heap) + SIZEOF(.heap);
 
@@ -39,6 +33,11 @@ SECTIONS {
     KEEP(*(.header));
   } >FLASH AT>FLASH
 
+  .padding : ALIGN(4) {
+    . = ALIGN(4);
+    . = ALIGN(CODE_ALIGNMENT);
+  } >FLASH AT>FLASH
+
   .flash : ALIGN(CODE_ALIGNMENT) {
     KEEP(*(.kernel));
     . = ALIGN(COREAPP_ALIGNMENT);
@@ -47,6 +46,12 @@ SECTIONS {
     *(.text*);
     . = ALIGN(4);
     *(.rodata*);
+    . = ALIGN(4);
+    KEEP(*(.nrf_app));
+    *(.nrf_app*);
+    . = ALIGN(4);
+    KEEP(*(.bootloader));
+    *(.bootloader*);
     . = ALIGN(512);
   } >FLASH AT>FLASH
 

@@ -108,8 +108,6 @@ TXHASH_efaa41 = bytes.fromhex(
     "efaa41ff3e67edf508846c1a1ed56894cfd32725c590300108f40c9edc1aac35"
 )
 
-CORNER_BUTTON = (215, 25)
-
 
 def test_one_one_fee(client: Client):
     # input tx: 0dac366fd8a67b2a89fbb0d31086e7acded7a5bbf9ef9daa935bc873229ef5b5
@@ -1613,11 +1611,7 @@ def test_information_cancel(client: Client):
         )
 
 
-@pytest.mark.models(
-    "core",
-    skip="mercury",
-    reason="Cannot test layouts on T1, not implemented in mercury UI",
-)
+@pytest.mark.models("core")
 def test_information_replacement(client: Client):
     # Use the change output and an external output to bump the fee.
     # Originally fee was 3780, now 108060 (94280 from change and 10000 from external).
