@@ -105,7 +105,10 @@ jobs:
           retention-days: 7
 
   core_emu_arm:
-    if: startsWith(github.ref, 'refs/tags/core/v') || inputs.project == 'core'
+    # if: startsWith(github.ref, 'refs/tags/core/v') || inputs.project == 'core'
+    # Disabled for Mintlayer repository (note: the reason is that ubuntu-arm64 jobs get cancelled constantly
+    # after 24h of waiting for a runner to become available; perhaps we need a self-hosted runner for these jobs).
+    if: false
     name: Build core emu arm
     needs: get_models
     runs-on: ubuntu-latest-arm64
@@ -191,7 +194,10 @@ jobs:
 
 
   legacy_emu_arm:
-    if: startsWith(github.ref, 'refs/tags/legacy/v') || inputs.project == 'legacy'
+    # if: startsWith(github.ref, 'refs/tags/legacy/v') || inputs.project == 'legacy'
+    # Disabled for Mintlayer repository (note: the reason is that ubuntu-arm64 jobs get cancelled constantly
+    # after 24h of waiting for a runner to become available; perhaps we need a self-hosted runner for these jobs).
+    if: false
     name: Build legacy emu arm
     needs: get_models
     runs-on: ubuntu-latest-arm64

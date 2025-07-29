@@ -13,55 +13,56 @@ inputs:
     default: "failure"
 runs:
   using: composite
-  steps:
-    - name: Set AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: arn:aws:iam::538326561891:role/gh_actions_deploy_dev_firmware_data
-        aws-region: eu-west-1
-    - name: Increase AWS S3 max concurrency for faster uploads
-      run: aws configure set default.s3.max_concurrent_requests 50
-      shell: sh
-    - run: |
-        MODELJOB=${{ inputs.model }}-${{ inputs.lang }}-${{ github.job }}
-        OUTDIR=${{ github.run_id }}
-        mkdir -p $OUTDIR
-        nix-shell --run "poetry run python ci/prepare_ui_artifacts.py || true"
-        mv -v tests/ui_tests/reports/test/* $OUTDIR
-        mv -v tests/ui_tests/fixtures.*.json $OUTDIR
+  # Disabled for Mintlayer repository
+  # steps:
+  #   - name: Set AWS credentials
+  #     uses: aws-actions/configure-aws-credentials@v4
+  #     with:
+  #       role-to-assume: arn:aws:iam::538326561891:role/gh_actions_deploy_dev_firmware_data
+  #       aws-region: eu-west-1
+  #   - name: Increase AWS S3 max concurrency for faster uploads
+  #     run: aws configure set default.s3.max_concurrent_requests 50
+  #     shell: sh
+  #   - run: |
+  #       MODELJOB=${{ inputs.model }}-${{ inputs.lang }}-${{ github.job }}
+  #       OUTDIR=${{ github.run_id }}
+  #       mkdir -p $OUTDIR
+  #       nix-shell --run "poetry run python ci/prepare_ui_artifacts.py || true"
+  #       mv -v tests/ui_tests/reports/test/* $OUTDIR
+  #       mv -v tests/ui_tests/fixtures.*.json $OUTDIR
 
-        # rename all model/job-speficific report files, so they won't be overwritten during upload
-        cd $OUTDIR
-        for F in *; do
-          if [ -f "$F" ]; then
-            mv -v $F $MODELJOB-$F
-          fi
-        done
-        cd ..
+  #       # rename all model/job-speficific report files, so they won't be overwritten during upload
+  #       cd $OUTDIR
+  #       for F in *; do
+  #         if [ -f "$F" ]; then
+  #           mv -v $F $MODELJOB-$F
+  #         fi
+  #       done
+  #       cd ..
 
-        if [ "${{ inputs.status }}" = "success" ]; then
-          cp -v .github/actions/ui-report/success.png $OUTDIR/$MODELJOB-status.png
-        else
-          cp -v .github/actions/ui-report/failure.png $OUTDIR/$MODELJOB-status.png
-        fi
-      shell: sh
-    - name: Upload test results
-      run: |
-        # Upload report
-        du -sh ${{ github.run_id }}
-        ls -l ${{ github.run_id }}
-        aws s3 cp --recursive --only-show-errors ${{ github.run_id }} s3://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }} &
-        PID1=$!
+  #       if [ "${{ inputs.status }}" = "success" ]; then
+  #         cp -v .github/actions/ui-report/success.png $OUTDIR/$MODELJOB-status.png
+  #       else
+  #         cp -v .github/actions/ui-report/failure.png $OUTDIR/$MODELJOB-status.png
+  #       fi
+  #     shell: sh
+  #   - name: Upload test results
+  #     run: |
+  #       # Upload report
+  #       du -sh ${{ github.run_id }}
+  #       ls -l ${{ github.run_id }}
+  #       aws s3 cp --recursive --only-show-errors ${{ github.run_id }} s3://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }} &
+  #       PID1=$!
 
-        # Upload test screen recording
-        du -sh ci/ui_test_records
-        aws s3 sync --only-show-errors ci/ui_test_records s3://data.trezor.io/dev/firmware/ui_tests &
-        PID2=$!
-        # TODO: generate directory listing / autoindex
+  #       # Upload test screen recording
+  #       du -sh ci/ui_test_records
+  #       aws s3 sync --only-show-errors ci/ui_test_records s3://data.trezor.io/dev/firmware/ui_tests &
+  #       PID2=$!
+  #       # TODO: generate directory listing / autoindex
 
-        # Wait for the above sync jobs to finish (fail if one of them fails)
-        wait $PID1
-        wait $PID2
+  #       # Wait for the above sync jobs to finish (fail if one of them fails)
+  #       wait $PID1
+  #       wait $PID2
 
-        echo "[UI test report](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/${{ inputs.model }}-${{ inputs.lang }}-${{ github.job }}-index.html)" >> $GITHUB_STEP_SUMMARY
-      shell: sh
+  #       echo "[UI test report](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/${{ inputs.model }}-${{ inputs.lang }}-${{ github.job }}-index.html)" >> $GITHUB_STEP_SUMMARY
+  #     shell: sh
