@@ -14,7 +14,6 @@
 # You should have received a copy of the License along with this library.
 # If not, see <https://www.gnu.org/licenses/lgpl-3.0.html>.
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 from . import messages
@@ -24,6 +23,13 @@ if TYPE_CHECKING:
     from .client import TrezorClient
     from .protobuf import MessageType
     from .tools import Address
+
+
+def get_firmware_info(client: "TrezorClient") -> messages.MintlayerFirmwareInfo:
+    return client.call(
+        messages.MintlayerGetFirmwareInfo(),
+        expect=messages.MintlayerFirmwareInfo,
+    )
 
 
 def get_address(
@@ -86,12 +92,6 @@ def sign_message(
 Input = messages.MintlayerTxInput
 Output = messages.MintlayerTxOutput
 TxHash = bytes
-
-
-@dataclass
-class Tx:
-    inputs: List[Input]
-    outputs: List[Output]
 
 
 @session

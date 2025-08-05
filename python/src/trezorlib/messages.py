@@ -702,14 +702,16 @@ class MessageType(IntEnum):
     BenchmarkNames = 9101
     BenchmarkRun = 9102
     BenchmarkResult = 9103
-    MintlayerGetAddress = 10000
-    MintlayerAddress = 10001
-    MintlayerGetPublicKey = 10002
-    MintlayerPublicKey = 10003
-    MintlayerSignMessage = 10004
-    MintlayerSignTx = 10005
-    MintlayerTxRequest = 10006
-    MintlayerTxAck = 10007
+    MintlayerGetFirmwareInfo = 10000
+    MintlayerFirmwareInfo = 10001
+    MintlayerGetAddress = 10002
+    MintlayerAddress = 10003
+    MintlayerGetPublicKey = 10004
+    MintlayerPublicKey = 10005
+    MintlayerSignMessage = 10006
+    MintlayerSignTx = 10007
+    MintlayerTxRequest = 10008
+    MintlayerTxAck = 10009
 
 
 class BenchmarkListNames(protobuf.MessageType):
@@ -5387,8 +5389,38 @@ class EthereumFieldType(protobuf.MessageType):
         self.struct_name = struct_name
 
 
-class MintlayerGetAddress(protobuf.MessageType):
+class MintlayerGetFirmwareInfo(protobuf.MessageType):
     MESSAGE_WIRE_TYPE = 10000
+
+
+class MintlayerFirmwareInfo(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10001
+    FIELDS = {
+        1: protobuf.Field("major_version", "uint32", repeated=False, required=True),
+        2: protobuf.Field("minor_version", "uint32", repeated=False, required=True),
+        3: protobuf.Field("patch_version", "uint32", repeated=False, required=True),
+        4: protobuf.Field("prerelease_id", "string", repeated=False, required=True),
+        5: protobuf.Field("build_metadata", "string", repeated=False, required=True),
+    }
+
+    def __init__(
+        self,
+        *,
+        major_version: "int",
+        minor_version: "int",
+        patch_version: "int",
+        prerelease_id: "str",
+        build_metadata: "str",
+    ) -> None:
+        self.major_version = major_version
+        self.minor_version = minor_version
+        self.patch_version = patch_version
+        self.prerelease_id = prerelease_id
+        self.build_metadata = build_metadata
+
+
+class MintlayerGetAddress(protobuf.MessageType):
+    MESSAGE_WIRE_TYPE = 10002
     FIELDS = {
         1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
         2: protobuf.Field("chain_type", "MintlayerChainType", repeated=False, required=True),
@@ -5411,7 +5443,7 @@ class MintlayerGetAddress(protobuf.MessageType):
 
 
 class MintlayerAddress(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 10001
+    MESSAGE_WIRE_TYPE = 10003
     FIELDS = {
         1: protobuf.Field("address", "string", repeated=False, required=True),
     }
@@ -5425,7 +5457,7 @@ class MintlayerAddress(protobuf.MessageType):
 
 
 class MintlayerGetPublicKey(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 10002
+    MESSAGE_WIRE_TYPE = 10004
     FIELDS = {
         1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
         2: protobuf.Field("chain_type", "MintlayerChainType", repeated=False, required=True),
@@ -5445,7 +5477,7 @@ class MintlayerGetPublicKey(protobuf.MessageType):
 
 
 class MintlayerPublicKey(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 10003
+    MESSAGE_WIRE_TYPE = 10005
     FIELDS = {
         1: protobuf.Field("public_key", "bytes", repeated=False, required=True),
         2: protobuf.Field("chain_code", "bytes", repeated=False, required=True),
@@ -5462,7 +5494,7 @@ class MintlayerPublicKey(protobuf.MessageType):
 
 
 class MintlayerSignMessage(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 10004
+    MESSAGE_WIRE_TYPE = 10006
     FIELDS = {
         1: protobuf.Field("address_n", "uint32", repeated=True, required=False, default=None),
         2: protobuf.Field("chain_type", "MintlayerChainType", repeated=False, required=True),
@@ -5485,7 +5517,7 @@ class MintlayerSignMessage(protobuf.MessageType):
 
 
 class MintlayerSignTx(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 10005
+    MESSAGE_WIRE_TYPE = 10007
     FIELDS = {
         1: protobuf.Field("outputs_count", "uint32", repeated=False, required=True),
         2: protobuf.Field("inputs_count", "uint32", repeated=False, required=True),
@@ -5514,7 +5546,7 @@ class MintlayerSignTx(protobuf.MessageType):
 
 
 class MintlayerTxRequest(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 10006
+    MESSAGE_WIRE_TYPE = 10008
     FIELDS = {
         1: protobuf.Field("input_request", "MintlayerTxInputRequest", repeated=False, required=False, default=None),
         2: protobuf.Field("output_request", "MintlayerTxOutputRequest", repeated=False, required=False, default=None),
@@ -6253,7 +6285,7 @@ class MintlayerCreateOrderTxOutput(protobuf.MessageType):
 
 
 class MintlayerTxAck(protobuf.MessageType):
-    MESSAGE_WIRE_TYPE = 10007
+    MESSAGE_WIRE_TYPE = 10009
     FIELDS = {
         1: protobuf.Field("input", "MintlayerTxInput", repeated=False, required=False, default=None),
         2: protobuf.Field("output", "MintlayerTxOutput", repeated=False, required=False, default=None),

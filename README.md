@@ -1,3 +1,15 @@
+# This is Mintlayer's fork of the Trezor firmware repository
+
+Note: the fork maintains a parallel versioning scheme. The mapping between our version and the original version is as follows:
+
+| Mintlayer firmware version | Original firmware version | Upstream repository revision or tag  |
+| ---                        | ---                       | ---                                  |
+| 1.0.0                      | 2.9.0                     | core/v2.9.0                          |
+
+The current Mintlayer firmware version can be obtained via `trezorctl mintlayer get-firmware-info`.
+
+The original README goes below:
+
 # Trezor Firmware
 
 ![img](https://repository-images.githubusercontent.com/180590388/968e6880-6538-11e9-9da6-4aef78157e94)

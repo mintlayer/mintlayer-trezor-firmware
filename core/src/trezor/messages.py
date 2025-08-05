@@ -3942,6 +3942,34 @@ if TYPE_CHECKING:
         def is_type_of(cls, msg: Any) -> TypeGuard["EthereumFieldType"]:
             return isinstance(msg, cls)
 
+    class MintlayerGetFirmwareInfo(protobuf.MessageType):
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerGetFirmwareInfo"]:
+            return isinstance(msg, cls)
+
+    class MintlayerFirmwareInfo(protobuf.MessageType):
+        major_version: "int"
+        minor_version: "int"
+        patch_version: "int"
+        prerelease_id: "str"
+        build_metadata: "str"
+
+        def __init__(
+            self,
+            *,
+            major_version: "int",
+            minor_version: "int",
+            patch_version: "int",
+            prerelease_id: "str",
+            build_metadata: "str",
+        ) -> None:
+            pass
+
+        @classmethod
+        def is_type_of(cls, msg: Any) -> TypeGuard["MintlayerFirmwareInfo"]:
+            return isinstance(msg, cls)
+
     class MintlayerGetAddress(protobuf.MessageType):
         address_n: "list[int]"
         chain_type: "MintlayerChainType"

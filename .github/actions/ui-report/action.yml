@@ -13,8 +13,13 @@ inputs:
     default: "failure"
 runs:
   using: composite
-  # Disabled for Mintlayer repository
-  # steps:
+  steps:
+    # Disabled for Mintlayer repository
+    # Note: GitHub doesn't like it when the "steps" element is missing or empty, so we add
+    # a placeholder step.
+    - run: echo "This action is disabled for Mintlayer repository"
+      shell: sh
+
   #   - name: Set AWS credentials
   #     uses: aws-actions/configure-aws-credentials@v4
   #     with:
