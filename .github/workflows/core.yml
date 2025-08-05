@@ -200,7 +200,10 @@ jobs:
           retention-days: 7
 
   core_emu_arm:
-    if: github.event_name == 'schedule'
+    # if: github.event_name == 'schedule'
+    # Disabled for Mintlayer repository (note: the reason is that ubuntu-arm64 jobs get cancelled constantly
+    # after 24h of waiting for a runner to become available; perhaps we need a self-hosted runner for these jobs).
+    if: false
     name: Build emu arm
     runs-on: ubuntu-latest-arm64
     needs: param
