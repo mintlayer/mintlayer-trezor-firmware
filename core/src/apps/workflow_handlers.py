@@ -217,6 +217,8 @@ def _find_message_handler_module(msg_type: int) -> str:
             return "apps.solana.sign_tx"
 
         # mintlayer
+        if msg_type == MessageType.MintlayerGetFirmwareInfo:
+            return "apps.mintlayer.get_firmware_info"
         if msg_type == MessageType.MintlayerGetAddress:
             return "apps.mintlayer.get_address"
         if msg_type == MessageType.MintlayerGetPublicKey:

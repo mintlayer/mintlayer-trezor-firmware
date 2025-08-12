@@ -16,6 +16,26 @@ enum MintlayerChainType {
 }
 
 /**
+ * Request: Ask the device for the info about the current firmware
+ * @start
+ * @next MintlayerFirmwareInfo
+ * @next Failure
+ */
+message MintlayerGetFirmwareInfo {}
+
+/**
+ * Response: The info about the current firmware
+ * @end
+ */
+message MintlayerFirmwareInfo {
+    required uint32 major_version = 1;          // major version of the firmware, e.g. 1
+    required uint32 minor_version = 2;          // minor version of the firmware, e.g. 0
+    required uint32 patch_version = 3;          // patch version of the firmware, e.g. 0
+    required string prerelease_id = 4;          // semver pre-release identifier, e.g. "alpha"; can be empty
+    required string build_metadata = 5;         // semver build metadata; can be empty
+}
+
+/**
  * Request: Ask the device for a Mintlayer address.
  * @start
  * @next MintlayerAddress

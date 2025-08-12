@@ -52,8 +52,33 @@ impl SighashInputCommitmentsVersion {
     }
 }
 
+pub struct FirmwareInfo {
+    pub major_version: u32,
+    pub minor_version: u32,
+    pub patch_version: u32,
+    pub prerelease_id: String,
+    pub build_metadata: String,
+}
+
 impl Trezor {
     // Mintlayer
+    pub fn mintlayer_get_firmware_info(&mut self) -> Result<FirmwareInfo> {
+        let msg = self.call::<_, _, protos::MintlayerFirmwareInfo>(
+            protos::MintlayerGetFirmwareInfo::new(),
+            Box::new(|_, m| {
+                Ok(FirmwareInfo {
+                    major_version: m.major_version(),
+                    minor_version: m.minor_version(),
+                    patch_version: m.patch_version(),
+                    prerelease_id: m.prerelease_id().to_owned(),
+                    build_metadata: m.build_metadata().to_owned(),
+                })
+            }),
+        )?;
+
+        handle_interaction(msg)
+    }
+
     pub fn mintlayer_get_public_key(
         &mut self,
         chain_type: MintlayerChainType,

@@ -24,6 +24,447 @@
 /// of protobuf runtime.
 const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_3_7_2;
 
+// @@protoc_insertion_point(message:hw.trezor.messages.mintlayer.MintlayerGetFirmwareInfo)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct MintlayerGetFirmwareInfo {
+    // special fields
+    // @@protoc_insertion_point(special_field:hw.trezor.messages.mintlayer.MintlayerGetFirmwareInfo.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a MintlayerGetFirmwareInfo {
+    fn default() -> &'a MintlayerGetFirmwareInfo {
+        <MintlayerGetFirmwareInfo as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl MintlayerGetFirmwareInfo {
+    pub fn new() -> MintlayerGetFirmwareInfo {
+        ::std::default::Default::default()
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(0);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<MintlayerGetFirmwareInfo>(
+            "MintlayerGetFirmwareInfo",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for MintlayerGetFirmwareInfo {
+    const NAME: &'static str = "MintlayerGetFirmwareInfo";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> MintlayerGetFirmwareInfo {
+        MintlayerGetFirmwareInfo::new()
+    }
+
+    fn clear(&mut self) {
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static MintlayerGetFirmwareInfo {
+        static instance: MintlayerGetFirmwareInfo = MintlayerGetFirmwareInfo {
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for MintlayerGetFirmwareInfo {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("MintlayerGetFirmwareInfo").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for MintlayerGetFirmwareInfo {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for MintlayerGetFirmwareInfo {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+// @@protoc_insertion_point(message:hw.trezor.messages.mintlayer.MintlayerFirmwareInfo)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct MintlayerFirmwareInfo {
+    // message fields
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFirmwareInfo.major_version)
+    pub major_version: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFirmwareInfo.minor_version)
+    pub minor_version: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFirmwareInfo.patch_version)
+    pub patch_version: ::std::option::Option<u32>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFirmwareInfo.prerelease_id)
+    pub prerelease_id: ::std::option::Option<::std::string::String>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.mintlayer.MintlayerFirmwareInfo.build_metadata)
+    pub build_metadata: ::std::option::Option<::std::string::String>,
+    // special fields
+    // @@protoc_insertion_point(special_field:hw.trezor.messages.mintlayer.MintlayerFirmwareInfo.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a MintlayerFirmwareInfo {
+    fn default() -> &'a MintlayerFirmwareInfo {
+        <MintlayerFirmwareInfo as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl MintlayerFirmwareInfo {
+    pub fn new() -> MintlayerFirmwareInfo {
+        ::std::default::Default::default()
+    }
+
+    // required uint32 major_version = 1;
+
+    pub fn major_version(&self) -> u32 {
+        self.major_version.unwrap_or(0)
+    }
+
+    pub fn clear_major_version(&mut self) {
+        self.major_version = ::std::option::Option::None;
+    }
+
+    pub fn has_major_version(&self) -> bool {
+        self.major_version.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_major_version(&mut self, v: u32) {
+        self.major_version = ::std::option::Option::Some(v);
+    }
+
+    // required uint32 minor_version = 2;
+
+    pub fn minor_version(&self) -> u32 {
+        self.minor_version.unwrap_or(0)
+    }
+
+    pub fn clear_minor_version(&mut self) {
+        self.minor_version = ::std::option::Option::None;
+    }
+
+    pub fn has_minor_version(&self) -> bool {
+        self.minor_version.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_minor_version(&mut self, v: u32) {
+        self.minor_version = ::std::option::Option::Some(v);
+    }
+
+    // required uint32 patch_version = 3;
+
+    pub fn patch_version(&self) -> u32 {
+        self.patch_version.unwrap_or(0)
+    }
+
+    pub fn clear_patch_version(&mut self) {
+        self.patch_version = ::std::option::Option::None;
+    }
+
+    pub fn has_patch_version(&self) -> bool {
+        self.patch_version.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_patch_version(&mut self, v: u32) {
+        self.patch_version = ::std::option::Option::Some(v);
+    }
+
+    // required string prerelease_id = 4;
+
+    pub fn prerelease_id(&self) -> &str {
+        match self.prerelease_id.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_prerelease_id(&mut self) {
+        self.prerelease_id = ::std::option::Option::None;
+    }
+
+    pub fn has_prerelease_id(&self) -> bool {
+        self.prerelease_id.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_prerelease_id(&mut self, v: ::std::string::String) {
+        self.prerelease_id = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_prerelease_id(&mut self) -> &mut ::std::string::String {
+        if self.prerelease_id.is_none() {
+            self.prerelease_id = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.prerelease_id.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_prerelease_id(&mut self) -> ::std::string::String {
+        self.prerelease_id.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
+    // required string build_metadata = 5;
+
+    pub fn build_metadata(&self) -> &str {
+        match self.build_metadata.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_build_metadata(&mut self) {
+        self.build_metadata = ::std::option::Option::None;
+    }
+
+    pub fn has_build_metadata(&self) -> bool {
+        self.build_metadata.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_build_metadata(&mut self, v: ::std::string::String) {
+        self.build_metadata = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_build_metadata(&mut self) -> &mut ::std::string::String {
+        if self.build_metadata.is_none() {
+            self.build_metadata = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.build_metadata.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_build_metadata(&mut self) -> ::std::string::String {
+        self.build_metadata.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(5);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "major_version",
+            |m: &MintlayerFirmwareInfo| { &m.major_version },
+            |m: &mut MintlayerFirmwareInfo| { &mut m.major_version },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "minor_version",
+            |m: &MintlayerFirmwareInfo| { &m.minor_version },
+            |m: &mut MintlayerFirmwareInfo| { &mut m.minor_version },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "patch_version",
+            |m: &MintlayerFirmwareInfo| { &m.patch_version },
+            |m: &mut MintlayerFirmwareInfo| { &mut m.patch_version },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "prerelease_id",
+            |m: &MintlayerFirmwareInfo| { &m.prerelease_id },
+            |m: &mut MintlayerFirmwareInfo| { &mut m.prerelease_id },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "build_metadata",
+            |m: &MintlayerFirmwareInfo| { &m.build_metadata },
+            |m: &mut MintlayerFirmwareInfo| { &mut m.build_metadata },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<MintlayerFirmwareInfo>(
+            "MintlayerFirmwareInfo",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for MintlayerFirmwareInfo {
+    const NAME: &'static str = "MintlayerFirmwareInfo";
+
+    fn is_initialized(&self) -> bool {
+        if self.major_version.is_none() {
+            return false;
+        }
+        if self.minor_version.is_none() {
+            return false;
+        }
+        if self.patch_version.is_none() {
+            return false;
+        }
+        if self.prerelease_id.is_none() {
+            return false;
+        }
+        if self.build_metadata.is_none() {
+            return false;
+        }
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                8 => {
+                    self.major_version = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                16 => {
+                    self.minor_version = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                24 => {
+                    self.patch_version = ::std::option::Option::Some(is.read_uint32()?);
+                },
+                34 => {
+                    self.prerelease_id = ::std::option::Option::Some(is.read_string()?);
+                },
+                42 => {
+                    self.build_metadata = ::std::option::Option::Some(is.read_string()?);
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if let Some(v) = self.major_version {
+            my_size += ::protobuf::rt::uint32_size(1, v);
+        }
+        if let Some(v) = self.minor_version {
+            my_size += ::protobuf::rt::uint32_size(2, v);
+        }
+        if let Some(v) = self.patch_version {
+            my_size += ::protobuf::rt::uint32_size(3, v);
+        }
+        if let Some(v) = self.prerelease_id.as_ref() {
+            my_size += ::protobuf::rt::string_size(4, &v);
+        }
+        if let Some(v) = self.build_metadata.as_ref() {
+            my_size += ::protobuf::rt::string_size(5, &v);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if let Some(v) = self.major_version {
+            os.write_uint32(1, v)?;
+        }
+        if let Some(v) = self.minor_version {
+            os.write_uint32(2, v)?;
+        }
+        if let Some(v) = self.patch_version {
+            os.write_uint32(3, v)?;
+        }
+        if let Some(v) = self.prerelease_id.as_ref() {
+            os.write_string(4, v)?;
+        }
+        if let Some(v) = self.build_metadata.as_ref() {
+            os.write_string(5, v)?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> MintlayerFirmwareInfo {
+        MintlayerFirmwareInfo::new()
+    }
+
+    fn clear(&mut self) {
+        self.major_version = ::std::option::Option::None;
+        self.minor_version = ::std::option::Option::None;
+        self.patch_version = ::std::option::Option::None;
+        self.prerelease_id = ::std::option::Option::None;
+        self.build_metadata = ::std::option::Option::None;
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static MintlayerFirmwareInfo {
+        static instance: MintlayerFirmwareInfo = MintlayerFirmwareInfo {
+            major_version: ::std::option::Option::None,
+            minor_version: ::std::option::Option::None,
+            patch_version: ::std::option::Option::None,
+            prerelease_id: ::std::option::Option::None,
+            build_metadata: ::std::option::Option::None,
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for MintlayerFirmwareInfo {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("MintlayerFirmwareInfo").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for MintlayerFirmwareInfo {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for MintlayerFirmwareInfo {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
 // @@protoc_insertion_point(message:hw.trezor.messages.mintlayer.MintlayerGetAddress)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct MintlayerGetAddress {
@@ -12167,21 +12608,26 @@ impl MintlayerTokenTotalSupplyType {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x18messages-mintlayer.proto\x12\x1chw.trezor.messages.mintlayer\"\xc2\
-    \x01\n\x13MintlayerGetAddress\x12\x1b\n\taddress_n\x18\x01\x20\x03(\rR\
-    \x08addressN\x12O\n\nchain_type\x18\x02\x20\x02(\x0e20.hw.trezor.message\
-    s.mintlayer.MintlayerChainTypeR\tchainType\x12!\n\x0cshow_display\x18\
-    \x03\x20\x01(\x08R\x0bshowDisplay\x12\x1a\n\x08chunkify\x18\x04\x20\x01(\
-    \x08R\x08chunkify\",\n\x10MintlayerAddress\x12\x18\n\x07address\x18\x01\
-    \x20\x02(\tR\x07address\"\xa8\x01\n\x15MintlayerGetPublicKey\x12\x1b\n\t\
-    address_n\x18\x01\x20\x03(\rR\x08addressN\x12O\n\nchain_type\x18\x02\x20\
-    \x02(\x0e20.hw.trezor.messages.mintlayer.MintlayerChainTypeR\tchainType\
-    \x12!\n\x0cshow_display\x18\x03\x20\x01(\x08R\x0bshowDisplay\"R\n\x12Min\
-    tlayerPublicKey\x12\x1d\n\npublic_key\x18\x01\x20\x02(\x0cR\tpublicKey\
-    \x12\x1d\n\nchain_code\x18\x02\x20\x02(\x0cR\tchainCode\"\xf5\x01\n\x14M\
-    intlayerSignMessage\x12\x1b\n\taddress_n\x18\x01\x20\x03(\rR\x08addressN\
-    \x12O\n\nchain_type\x18\x02\x20\x02(\x0e20.hw.trezor.messages.mintlayer.\
-    MintlayerChainTypeR\tchainType\x12U\n\x0caddress_type\x18\x03\x20\x02(\
+    \n\x18messages-mintlayer.proto\x12\x1chw.trezor.messages.mintlayer\"\x1a\
+    \n\x18MintlayerGetFirmwareInfo\"\xd2\x01\n\x15MintlayerFirmwareInfo\x12#\
+    \n\rmajor_version\x18\x01\x20\x02(\rR\x0cmajorVersion\x12#\n\rminor_vers\
+    ion\x18\x02\x20\x02(\rR\x0cminorVersion\x12#\n\rpatch_version\x18\x03\
+    \x20\x02(\rR\x0cpatchVersion\x12#\n\rprerelease_id\x18\x04\x20\x02(\tR\
+    \x0cprereleaseId\x12%\n\x0ebuild_metadata\x18\x05\x20\x02(\tR\rbuildMeta\
+    data\"\xc2\x01\n\x13MintlayerGetAddress\x12\x1b\n\taddress_n\x18\x01\x20\
+    \x03(\rR\x08addressN\x12O\n\nchain_type\x18\x02\x20\x02(\x0e20.hw.trezor\
+    .messages.mintlayer.MintlayerChainTypeR\tchainType\x12!\n\x0cshow_displa\
+    y\x18\x03\x20\x01(\x08R\x0bshowDisplay\x12\x1a\n\x08chunkify\x18\x04\x20\
+    \x01(\x08R\x08chunkify\",\n\x10MintlayerAddress\x12\x18\n\x07address\x18\
+    \x01\x20\x02(\tR\x07address\"\xa8\x01\n\x15MintlayerGetPublicKey\x12\x1b\
+    \n\taddress_n\x18\x01\x20\x03(\rR\x08addressN\x12O\n\nchain_type\x18\x02\
+    \x20\x02(\x0e20.hw.trezor.messages.mintlayer.MintlayerChainTypeR\tchainT\
+    ype\x12!\n\x0cshow_display\x18\x03\x20\x01(\x08R\x0bshowDisplay\"R\n\x12\
+    MintlayerPublicKey\x12\x1d\n\npublic_key\x18\x01\x20\x02(\x0cR\tpublicKe\
+    y\x12\x1d\n\nchain_code\x18\x02\x20\x02(\x0cR\tchainCode\"\xf5\x01\n\x14\
+    MintlayerSignMessage\x12\x1b\n\taddress_n\x18\x01\x20\x03(\rR\x08address\
+    N\x12O\n\nchain_type\x18\x02\x20\x02(\x0e20.hw.trezor.messages.mintlayer\
+    .MintlayerChainTypeR\tchainType\x12U\n\x0caddress_type\x18\x03\x20\x02(\
     \x0e22.hw.trezor.messages.mintlayer.MintlayerAddressTypeR\x0baddressType\
     \x12\x18\n\x07message\x18\x04\x20\x02(\x0cR\x07message\"\x9f\x02\n\x0fMi\
     ntlayerSignTx\x12#\n\routputs_count\x18\x01\x20\x02(\rR\x0coutputsCount\
@@ -12401,7 +12847,9 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
     file_descriptor.get(|| {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
             let mut deps = ::std::vec::Vec::with_capacity(0);
-            let mut messages = ::std::vec::Vec::with_capacity(49);
+            let mut messages = ::std::vec::Vec::with_capacity(51);
+            messages.push(MintlayerGetFirmwareInfo::generated_message_descriptor_data());
+            messages.push(MintlayerFirmwareInfo::generated_message_descriptor_data());
             messages.push(MintlayerGetAddress::generated_message_descriptor_data());
             messages.push(MintlayerAddress::generated_message_descriptor_data());
             messages.push(MintlayerGetPublicKey::generated_message_descriptor_data());

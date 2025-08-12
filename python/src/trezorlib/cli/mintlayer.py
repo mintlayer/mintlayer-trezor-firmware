@@ -17,6 +17,14 @@ def cli() -> None:
 
 
 @cli.command()
+@with_client
+def get_firmware_info(client: "TrezorClient") -> messages.MintlayerFirmwareInfo:
+    """Get firmware info."""
+
+    return mintlayer.get_firmware_info(client)
+
+
+@cli.command()
 @click.option(
     "-c",
     "--chain-type",

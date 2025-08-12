@@ -555,22 +555,26 @@ pub enum MessageType {
     MessageType_BenchmarkRun = 9102,
     // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_BenchmarkResult)
     MessageType_BenchmarkResult = 9103,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerGetFirmwareInfo)
+    MessageType_MintlayerGetFirmwareInfo = 10000,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerFirmwareInfo)
+    MessageType_MintlayerFirmwareInfo = 10001,
     // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerGetAddress)
-    MessageType_MintlayerGetAddress = 10000,
+    MessageType_MintlayerGetAddress = 10002,
     // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerAddress)
-    MessageType_MintlayerAddress = 10001,
+    MessageType_MintlayerAddress = 10003,
     // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerGetPublicKey)
-    MessageType_MintlayerGetPublicKey = 10002,
+    MessageType_MintlayerGetPublicKey = 10004,
     // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerPublicKey)
-    MessageType_MintlayerPublicKey = 10003,
+    MessageType_MintlayerPublicKey = 10005,
     // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerSignMessage)
-    MessageType_MintlayerSignMessage = 10004,
+    MessageType_MintlayerSignMessage = 10006,
     // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerSignTx)
-    MessageType_MintlayerSignTx = 10005,
+    MessageType_MintlayerSignTx = 10007,
     // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerTxRequest)
-    MessageType_MintlayerTxRequest = 10006,
+    MessageType_MintlayerTxRequest = 10008,
     // @@protoc_insertion_point(enum_value:hw.trezor.messages.MessageType.MessageType_MintlayerTxAck)
-    MessageType_MintlayerTxAck = 10007,
+    MessageType_MintlayerTxAck = 10009,
 }
 
 impl ::protobuf::Enum for MessageType {
@@ -846,14 +850,16 @@ impl ::protobuf::Enum for MessageType {
             9101 => ::std::option::Option::Some(MessageType::MessageType_BenchmarkNames),
             9102 => ::std::option::Option::Some(MessageType::MessageType_BenchmarkRun),
             9103 => ::std::option::Option::Some(MessageType::MessageType_BenchmarkResult),
-            10000 => ::std::option::Option::Some(MessageType::MessageType_MintlayerGetAddress),
-            10001 => ::std::option::Option::Some(MessageType::MessageType_MintlayerAddress),
-            10002 => ::std::option::Option::Some(MessageType::MessageType_MintlayerGetPublicKey),
-            10003 => ::std::option::Option::Some(MessageType::MessageType_MintlayerPublicKey),
-            10004 => ::std::option::Option::Some(MessageType::MessageType_MintlayerSignMessage),
-            10005 => ::std::option::Option::Some(MessageType::MessageType_MintlayerSignTx),
-            10006 => ::std::option::Option::Some(MessageType::MessageType_MintlayerTxRequest),
-            10007 => ::std::option::Option::Some(MessageType::MessageType_MintlayerTxAck),
+            10000 => ::std::option::Option::Some(MessageType::MessageType_MintlayerGetFirmwareInfo),
+            10001 => ::std::option::Option::Some(MessageType::MessageType_MintlayerFirmwareInfo),
+            10002 => ::std::option::Option::Some(MessageType::MessageType_MintlayerGetAddress),
+            10003 => ::std::option::Option::Some(MessageType::MessageType_MintlayerAddress),
+            10004 => ::std::option::Option::Some(MessageType::MessageType_MintlayerGetPublicKey),
+            10005 => ::std::option::Option::Some(MessageType::MessageType_MintlayerPublicKey),
+            10006 => ::std::option::Option::Some(MessageType::MessageType_MintlayerSignMessage),
+            10007 => ::std::option::Option::Some(MessageType::MessageType_MintlayerSignTx),
+            10008 => ::std::option::Option::Some(MessageType::MessageType_MintlayerTxRequest),
+            10009 => ::std::option::Option::Some(MessageType::MessageType_MintlayerTxAck),
             _ => ::std::option::Option::None
         }
     }
@@ -1124,6 +1130,8 @@ impl ::protobuf::Enum for MessageType {
             "MessageType_BenchmarkNames" => ::std::option::Option::Some(MessageType::MessageType_BenchmarkNames),
             "MessageType_BenchmarkRun" => ::std::option::Option::Some(MessageType::MessageType_BenchmarkRun),
             "MessageType_BenchmarkResult" => ::std::option::Option::Some(MessageType::MessageType_BenchmarkResult),
+            "MessageType_MintlayerGetFirmwareInfo" => ::std::option::Option::Some(MessageType::MessageType_MintlayerGetFirmwareInfo),
+            "MessageType_MintlayerFirmwareInfo" => ::std::option::Option::Some(MessageType::MessageType_MintlayerFirmwareInfo),
             "MessageType_MintlayerGetAddress" => ::std::option::Option::Some(MessageType::MessageType_MintlayerGetAddress),
             "MessageType_MintlayerAddress" => ::std::option::Option::Some(MessageType::MessageType_MintlayerAddress),
             "MessageType_MintlayerGetPublicKey" => ::std::option::Option::Some(MessageType::MessageType_MintlayerGetPublicKey),
@@ -1401,6 +1409,8 @@ impl ::protobuf::Enum for MessageType {
         MessageType::MessageType_BenchmarkNames,
         MessageType::MessageType_BenchmarkRun,
         MessageType::MessageType_BenchmarkResult,
+        MessageType::MessageType_MintlayerGetFirmwareInfo,
+        MessageType::MessageType_MintlayerFirmwareInfo,
         MessageType::MessageType_MintlayerGetAddress,
         MessageType::MessageType_MintlayerAddress,
         MessageType::MessageType_MintlayerGetPublicKey,
@@ -1684,14 +1694,16 @@ impl ::protobuf::EnumFull for MessageType {
             MessageType::MessageType_BenchmarkNames => 261,
             MessageType::MessageType_BenchmarkRun => 262,
             MessageType::MessageType_BenchmarkResult => 263,
-            MessageType::MessageType_MintlayerGetAddress => 264,
-            MessageType::MessageType_MintlayerAddress => 265,
-            MessageType::MessageType_MintlayerGetPublicKey => 266,
-            MessageType::MessageType_MintlayerPublicKey => 267,
-            MessageType::MessageType_MintlayerSignMessage => 268,
-            MessageType::MessageType_MintlayerSignTx => 269,
-            MessageType::MessageType_MintlayerTxRequest => 270,
-            MessageType::MessageType_MintlayerTxAck => 271,
+            MessageType::MessageType_MintlayerGetFirmwareInfo => 264,
+            MessageType::MessageType_MintlayerFirmwareInfo => 265,
+            MessageType::MessageType_MintlayerGetAddress => 266,
+            MessageType::MessageType_MintlayerAddress => 267,
+            MessageType::MessageType_MintlayerGetPublicKey => 268,
+            MessageType::MessageType_MintlayerPublicKey => 269,
+            MessageType::MessageType_MintlayerSignMessage => 270,
+            MessageType::MessageType_MintlayerSignTx => 271,
+            MessageType::MessageType_MintlayerTxRequest => 272,
+            MessageType::MessageType_MintlayerTxAck => 273,
         };
         Self::enum_descriptor().value_by_index(index)
     }
@@ -1710,7 +1722,7 @@ impl MessageType {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x0emessages.proto\x12\x12hw.trezor.messages\x1a\roptions.proto*\xd3^\
+    \n\x0emessages.proto\x12\x12hw.trezor.messages\x1a\roptions.proto*\xb2_\
     \n\x0bMessageType\x12(\n\x16MessageType_Initialize\x10\0\x1a\x0c\x80\xa6\
     \x1d\x01\xb0\xb5\x18\x01\x90\xb5\x18\x01\x12\x1e\n\x10MessageType_Ping\
     \x10\x01\x1a\x08\x80\xa6\x1d\x01\x90\xb5\x18\x01\x12%\n\x13MessageType_S\
@@ -2010,21 +2022,23 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     s\x10\x8cG\x1a\x04\x80\xa6\x1d\x01\x12%\n\x1aMessageType_BenchmarkNames\
     \x10\x8dG\x1a\x04\x80\xa6\x1d\x01\x12#\n\x18MessageType_BenchmarkRun\x10\
     \x8eG\x1a\x04\x80\xa6\x1d\x01\x12&\n\x1bMessageType_BenchmarkResult\x10\
-    \x8fG\x1a\x04\x80\xa6\x1d\x01\x12*\n\x1fMessageType_MintlayerGetAddress\
-    \x10\x90N\x1a\x04\x90\xb5\x18\x01\x12'\n\x1cMessageType_MintlayerAddress\
-    \x10\x91N\x1a\x04\x98\xb5\x18\x01\x12,\n!MessageType_MintlayerGetPublicK\
-    ey\x10\x92N\x1a\x04\x90\xb5\x18\x01\x12)\n\x1eMessageType_MintlayerPubli\
-    cKey\x10\x93N\x1a\x04\x98\xb5\x18\x01\x12+\n\x20MessageType_MintlayerSig\
-    nMessage\x10\x94N\x1a\x04\x90\xb5\x18\x01\x12&\n\x1bMessageType_Mintlaye\
-    rSignTx\x10\x95N\x1a\x04\x90\xb5\x18\x01\x12)\n\x1eMessageType_Mintlayer\
-    TxRequest\x10\x96N\x1a\x04\x98\xb5\x18\x01\x12%\n\x1aMessageType_Mintlay\
-    erTxAck\x10\x97N\x1a\x04\x90\xb5\x18\x01\x1a\x04\xc8\xf3\x18\x01\"\x04\
-    \x08Z\x10\\\"\x04\x08G\x10J\"\x04\x08r\x10z\"\x06\x08\xdb\x01\x10\xdb\
-    \x01\"\x06\x08\xe0\x01\x10\xe0\x01\"\x06\x08\xac\x02\x10\xb0\x02\"\x06\
-    \x08\xb5\x02\x10\xb8\x02\"\x06\x08\xbc\x05\x10\xc5\x05\"\x06\x08\xe9\x07\
-    \x10\xed\x07\"\x06\x08\xf6\x07\x10\xf7\x07\"\x06\x08\xfd\x07\x10\xff\x07\
-    \"\x06\x08\x82\x08\x10\x87\x08B8\n#com.satoshilabs.trezor.lib.protobufB\
-    \rTrezorMessage\x80\xa6\x1d\x01\
+    \x8fG\x1a\x04\x80\xa6\x1d\x01\x12/\n$MessageType_MintlayerGetFirmwareInf\
+    o\x10\x90N\x1a\x04\x90\xb5\x18\x01\x12,\n!MessageType_MintlayerFirmwareI\
+    nfo\x10\x91N\x1a\x04\x98\xb5\x18\x01\x12*\n\x1fMessageType_MintlayerGetA\
+    ddress\x10\x92N\x1a\x04\x90\xb5\x18\x01\x12'\n\x1cMessageType_MintlayerA\
+    ddress\x10\x93N\x1a\x04\x98\xb5\x18\x01\x12,\n!MessageType_MintlayerGetP\
+    ublicKey\x10\x94N\x1a\x04\x90\xb5\x18\x01\x12)\n\x1eMessageType_Mintlaye\
+    rPublicKey\x10\x95N\x1a\x04\x98\xb5\x18\x01\x12+\n\x20MessageType_Mintla\
+    yerSignMessage\x10\x96N\x1a\x04\x90\xb5\x18\x01\x12&\n\x1bMessageType_Mi\
+    ntlayerSignTx\x10\x97N\x1a\x04\x90\xb5\x18\x01\x12)\n\x1eMessageType_Min\
+    tlayerTxRequest\x10\x98N\x1a\x04\x98\xb5\x18\x01\x12%\n\x1aMessageType_M\
+    intlayerTxAck\x10\x99N\x1a\x04\x90\xb5\x18\x01\x1a\x04\xc8\xf3\x18\x01\"\
+    \x04\x08Z\x10\\\"\x04\x08G\x10J\"\x04\x08r\x10z\"\x06\x08\xdb\x01\x10\
+    \xdb\x01\"\x06\x08\xe0\x01\x10\xe0\x01\"\x06\x08\xac\x02\x10\xb0\x02\"\
+    \x06\x08\xb5\x02\x10\xb8\x02\"\x06\x08\xbc\x05\x10\xc5\x05\"\x06\x08\xe9\
+    \x07\x10\xed\x07\"\x06\x08\xf6\x07\x10\xf7\x07\"\x06\x08\xfd\x07\x10\xff\
+    \x07\"\x06\x08\x82\x08\x10\x87\x08B8\n#com.satoshilabs.trezor.lib.protob\
+    ufB\rTrezorMessage\x80\xa6\x1d\x01\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file

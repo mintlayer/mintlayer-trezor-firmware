@@ -198,6 +198,8 @@ trezor_message_impl! {
 
 #[cfg(feature = "mintlayer")]
 trezor_message_impl! {
+    MintlayerGetFirmwareInfo => MessageType_MintlayerGetFirmwareInfo,
+    MintlayerFirmwareInfo => MessageType_MintlayerFirmwareInfo,
     MintlayerGetAddress => MessageType_MintlayerGetAddress,
     MintlayerAddress => MessageType_MintlayerAddress,
     MintlayerGetPublicKey => MessageType_MintlayerGetPublicKey,
