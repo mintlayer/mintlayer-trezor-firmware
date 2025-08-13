@@ -1,0 +1,92 @@
+name: "Release Mintlayer firmware"
+
+on:
+  push:
+    tags:
+      - 'mintlayer-v*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        model:
+          - {id: T2T1, name: "Model T", filename: model_t}
+          - {id: T2B1, name: "Safe 3 rev. A", filename: safe3_rev_a}
+          - {id: T3B1, name: "Safe 3 rev. B", filename: safe3_rev_b}
+          - {id: T3T1, name: "Safe 5", filename: safe5}
+    name: Build for ${{ matrix.model.name }}
+    runs-on: ubuntu-latest
+    env:
+      # Note: by default, build-docker.sh sets PRODUCTION to 1, which produces firmware with "Trezor"
+      # as the vendor and without a signature (which will make it unusable).
+      # Set it to 0 to get one with the "UNSAFE, DO NOT USE!" vendor and with the "DEVEL" signature.
+      PRODUCTION: 0
+    steps:
+      # Note: no need to recurse into submodules here.
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: bash build-docker.sh --models ${{ matrix.model.id }} --skip-bitcoinonly --targets firmware ${{ github.ref_name }}
+
+      - name: Prepare artifacts
+        run: |
+          mkdir artifacts
+          mv build/core-${{ matrix.model.id }}/firmware/firmware.bin artifacts/${{ matrix.model.filename }}.bin
+          echo ${{ matrix.model.name }} > artifacts/${{ matrix.model.filename }}_model_name.txt
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.model.filename }}_artifacts
+          path: artifacts/*
+
+  create-release:
+    name: Create Release
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/mintlayer-v}
+          echo "Version extracted: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate Release Body
+        id: generate_body
+        run: |
+          echo "BODY<<EOF" >> $GITHUB_OUTPUT
+          echo "Release version ${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+
+          echo "Available files:" >> $GITHUB_OUTPUT
+          echo "|Model name|Firmware file|" >> $GITHUB_OUTPUT
+          echo "|---|---|" >> $GITHUB_OUTPUT
+
+          mkdir renamed_artifacts
+
+          for bin_file in artifacts/*.bin; do
+            model_name=$(cat "${bin_file%.bin}_model_name.txt")
+
+            new_bin_file_name=mintlayer_trezor_firmware_${{ steps.get_version.outputs.VERSION }}_$(basename "$bin_file")
+            mv "$bin_file" renamed_artifacts/$new_bin_file_name
+
+            echo "|$model_name|$new_bin_file_name|" >> $GITHUB_OUTPUT
+          done
+
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifacts: "renamed_artifacts/*"
+          artifactErrorsFailBuild: true
+          name: "Release ${{ steps.get_version.outputs.VERSION }}"
+          body: ${{ steps.generate_body.outputs.BODY }}
