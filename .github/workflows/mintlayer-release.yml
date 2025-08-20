@@ -5,6 +5,9 @@ on:
     tags:
       - 'mintlayer-v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -90,3 +93,4 @@ jobs:
           artifactErrorsFailBuild: true
           name: "Release ${{ steps.get_version.outputs.VERSION }}"
           body: ${{ steps.generate_body.outputs.BODY }}
+          token: ${{ secrets.GITHUB_TOKEN }}
