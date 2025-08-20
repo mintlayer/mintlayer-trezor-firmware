@@ -24,7 +24,6 @@ async def sign_message(
     from trezor.ui.layouts import confirm_signverify
 
     from apps.common import paths
-    from apps.common.signverify import decode_message
 
     coin_info = find_coin_by_chain_type(msg.chain_type)
     message = msg.message
@@ -47,8 +46,7 @@ async def sign_message(
         raise DataError(f"Unknown Address type {msg.address_type}")
 
     await confirm_signverify(
-        # TODO: decode_message does not always return a valid uft-8 string e.g. for input b'\xc1\x82)'
-        decode_message(message),
+        decode_message_if_ascii(message),
         address,
         verify=False,
         account=paths.get_account_name(
@@ -65,3 +63,30 @@ async def sign_message(
     other_sig = bip340.sign(node.private_key(), digest)
 
     return MessageSignature(signature=other_sig, address=address)
+
+
+# Note: initially we were using `apps.common.signverify.decode_message` instead of this function,
+# which first tries to do `bytes(message).decode()`, and if that raises an exception, it then converts
+# the message to hex. There are a few problems with this:
+# 1) In Mycropython, `bytes.decode` seems to allow overlong utf-8 (where a character is encoded
+#    with more bytes than necessary). E.g. `bytes([0xc1, 0x82]).decode()` will raise an exception
+#    in normal Python, but will succeed when run in the firmware.
+#    However, when such a string is passed to `confirm_signverify` (whose internals are
+#    implemented in Rust), it will raise an exception.
+#    The possible solution for this could be to add our own utility function written in Rust
+#    to check byte arrays for valid utf-8.
+# 2) Even if the bytes are valid utf-8, they may still be non-printable, so the user won't
+#    know for sure what they're signing.
+# So we just check if the entire string consists only of printable ascii characters; if not, we
+# convert it to hex.
+def decode_message_if_ascii(message: bytes) -> str:
+    from ubinascii import hexlify
+
+    if is_printable_ascii(message):
+        return bytes(message).decode()
+    else:
+        return f"hex({hexlify(message).decode()})"
+
+
+def is_printable_ascii(byte_string: bytes) -> bool:
+    return all(32 <= byte <= 126 for byte in byte_string)
