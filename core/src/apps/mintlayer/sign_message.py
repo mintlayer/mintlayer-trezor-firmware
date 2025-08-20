@@ -89,7 +89,4 @@ def decode_message_if_ascii(message: bytes) -> str:
 
 
 def is_printable_ascii(byte_string: bytes) -> bool:
-    for byte in byte_string:
-        if not 32 <= byte <= 126:
-            return False
-    return True
+    return all(32 <= byte <= 126 for byte in byte_string)
