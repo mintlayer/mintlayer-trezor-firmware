@@ -307,6 +307,15 @@ if TYPE_CHECKING:
         FOR_BLOCK_COUNT = 2
         FOR_SECONDS = 3
 
+    class MintlayerUtxoType(IntEnum):
+        TRANSACTION = 0
+        BLOCK = 1
+
+    class MintlayerTokenTotalSupplyType(IntEnum):
+        FIXED = 0
+        LOCKABLE = 1
+        UNLIMITED = 2
+
     class MintlayerChainType(IntEnum):
         Mainnet = 1
         Testnet = 2
@@ -316,15 +325,6 @@ if TYPE_CHECKING:
     class MintlayerAddressType(IntEnum):
         PUBLIC_KEY = 1
         PUBLIC_KEY_HASH = 2
-
-    class MintlayerUtxoType(IntEnum):
-        TRANSACTION = 0
-        BLOCK = 1
-
-    class MintlayerTokenTotalSupplyType(IntEnum):
-        FIXED = 0
-        LOCKABLE = 1
-        UNLIMITED = 2
 
     class MoneroNetworkType(IntEnum):
         MAINNET = 0

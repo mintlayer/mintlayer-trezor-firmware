@@ -25,25 +25,25 @@
 const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_3_7_2;
 
 #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
-// @@protoc_insertion_point(enum:hw.trezor.messages.mintlayer.MintlayerAccountCommandType)
+// @@protoc_insertion_point(enum:hw.trezor.messages.mintlayer.enums.MintlayerAccountCommandType)
 pub enum MintlayerAccountCommandType {
-    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.MintlayerAccountCommandType.MINT_TOKENS)
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerAccountCommandType.MINT_TOKENS)
     MINT_TOKENS = 0,
-    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.MintlayerAccountCommandType.UNMINT_TOKENS)
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerAccountCommandType.UNMINT_TOKENS)
     UNMINT_TOKENS = 1,
-    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.MintlayerAccountCommandType.LOCK_TOKEN_SUPPLY)
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerAccountCommandType.LOCK_TOKEN_SUPPLY)
     LOCK_TOKEN_SUPPLY = 2,
-    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.MintlayerAccountCommandType.FREEZE_TOKEN)
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerAccountCommandType.FREEZE_TOKEN)
     FREEZE_TOKEN = 3,
-    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.MintlayerAccountCommandType.UNFREEZE_TOKEN)
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerAccountCommandType.UNFREEZE_TOKEN)
     UNFREEZE_TOKEN = 4,
-    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.MintlayerAccountCommandType.CHANGE_TOKEN_AUTHORITY)
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerAccountCommandType.CHANGE_TOKEN_AUTHORITY)
     CHANGE_TOKEN_AUTHORITY = 5,
-    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.MintlayerAccountCommandType.CONCLUDE_ORDER)
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerAccountCommandType.CONCLUDE_ORDER)
     CONCLUDE_ORDER = 6,
-    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.MintlayerAccountCommandType.FILL_ORDER)
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerAccountCommandType.FILL_ORDER)
     FILL_ORDER = 7,
-    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.MintlayerAccountCommandType.CHANGE_TOKEN_METADATA_URI)
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerAccountCommandType.CHANGE_TOKEN_METADATA_URI)
     CHANGE_TOKEN_METADATA_URI = 8,
 }
 
@@ -122,15 +122,15 @@ impl MintlayerAccountCommandType {
 }
 
 #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
-// @@protoc_insertion_point(enum:hw.trezor.messages.mintlayer.MintlayerOutputTimeLockType)
+// @@protoc_insertion_point(enum:hw.trezor.messages.mintlayer.enums.MintlayerOutputTimeLockType)
 pub enum MintlayerOutputTimeLockType {
-    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.MintlayerOutputTimeLockType.UNTIL_HEIGHT)
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerOutputTimeLockType.UNTIL_HEIGHT)
     UNTIL_HEIGHT = 0,
-    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.MintlayerOutputTimeLockType.UNTIL_TIME)
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerOutputTimeLockType.UNTIL_TIME)
     UNTIL_TIME = 1,
-    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.MintlayerOutputTimeLockType.FOR_BLOCK_COUNT)
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerOutputTimeLockType.FOR_BLOCK_COUNT)
     FOR_BLOCK_COUNT = 2,
-    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.MintlayerOutputTimeLockType.FOR_SECONDS)
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerOutputTimeLockType.FOR_SECONDS)
     FOR_SECONDS = 3,
 }
 
@@ -193,17 +193,149 @@ impl MintlayerOutputTimeLockType {
     }
 }
 
+#[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+// @@protoc_insertion_point(enum:hw.trezor.messages.mintlayer.enums.MintlayerUtxoType)
+pub enum MintlayerUtxoType {
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerUtxoType.TRANSACTION)
+    TRANSACTION = 0,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerUtxoType.BLOCK)
+    BLOCK = 1,
+}
+
+impl ::protobuf::Enum for MintlayerUtxoType {
+    const NAME: &'static str = "MintlayerUtxoType";
+
+    fn value(&self) -> i32 {
+        *self as i32
+    }
+
+    fn from_i32(value: i32) -> ::std::option::Option<MintlayerUtxoType> {
+        match value {
+            0 => ::std::option::Option::Some(MintlayerUtxoType::TRANSACTION),
+            1 => ::std::option::Option::Some(MintlayerUtxoType::BLOCK),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    fn from_str(str: &str) -> ::std::option::Option<MintlayerUtxoType> {
+        match str {
+            "TRANSACTION" => ::std::option::Option::Some(MintlayerUtxoType::TRANSACTION),
+            "BLOCK" => ::std::option::Option::Some(MintlayerUtxoType::BLOCK),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    const VALUES: &'static [MintlayerUtxoType] = &[
+        MintlayerUtxoType::TRANSACTION,
+        MintlayerUtxoType::BLOCK,
+    ];
+}
+
+impl ::protobuf::EnumFull for MintlayerUtxoType {
+    fn enum_descriptor() -> ::protobuf::reflect::EnumDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().enum_by_package_relative_name("MintlayerUtxoType").unwrap()).clone()
+    }
+
+    fn descriptor(&self) -> ::protobuf::reflect::EnumValueDescriptor {
+        let index = *self as usize;
+        Self::enum_descriptor().value_by_index(index)
+    }
+}
+
+impl ::std::default::Default for MintlayerUtxoType {
+    fn default() -> Self {
+        MintlayerUtxoType::TRANSACTION
+    }
+}
+
+impl MintlayerUtxoType {
+    fn generated_enum_descriptor_data() -> ::protobuf::reflect::GeneratedEnumDescriptorData {
+        ::protobuf::reflect::GeneratedEnumDescriptorData::new::<MintlayerUtxoType>("MintlayerUtxoType")
+    }
+}
+
+#[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+// @@protoc_insertion_point(enum:hw.trezor.messages.mintlayer.enums.MintlayerTokenTotalSupplyType)
+pub enum MintlayerTokenTotalSupplyType {
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerTokenTotalSupplyType.FIXED)
+    FIXED = 0,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerTokenTotalSupplyType.LOCKABLE)
+    LOCKABLE = 1,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.mintlayer.enums.MintlayerTokenTotalSupplyType.UNLIMITED)
+    UNLIMITED = 2,
+}
+
+impl ::protobuf::Enum for MintlayerTokenTotalSupplyType {
+    const NAME: &'static str = "MintlayerTokenTotalSupplyType";
+
+    fn value(&self) -> i32 {
+        *self as i32
+    }
+
+    fn from_i32(value: i32) -> ::std::option::Option<MintlayerTokenTotalSupplyType> {
+        match value {
+            0 => ::std::option::Option::Some(MintlayerTokenTotalSupplyType::FIXED),
+            1 => ::std::option::Option::Some(MintlayerTokenTotalSupplyType::LOCKABLE),
+            2 => ::std::option::Option::Some(MintlayerTokenTotalSupplyType::UNLIMITED),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    fn from_str(str: &str) -> ::std::option::Option<MintlayerTokenTotalSupplyType> {
+        match str {
+            "FIXED" => ::std::option::Option::Some(MintlayerTokenTotalSupplyType::FIXED),
+            "LOCKABLE" => ::std::option::Option::Some(MintlayerTokenTotalSupplyType::LOCKABLE),
+            "UNLIMITED" => ::std::option::Option::Some(MintlayerTokenTotalSupplyType::UNLIMITED),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    const VALUES: &'static [MintlayerTokenTotalSupplyType] = &[
+        MintlayerTokenTotalSupplyType::FIXED,
+        MintlayerTokenTotalSupplyType::LOCKABLE,
+        MintlayerTokenTotalSupplyType::UNLIMITED,
+    ];
+}
+
+impl ::protobuf::EnumFull for MintlayerTokenTotalSupplyType {
+    fn enum_descriptor() -> ::protobuf::reflect::EnumDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().enum_by_package_relative_name("MintlayerTokenTotalSupplyType").unwrap()).clone()
+    }
+
+    fn descriptor(&self) -> ::protobuf::reflect::EnumValueDescriptor {
+        let index = *self as usize;
+        Self::enum_descriptor().value_by_index(index)
+    }
+}
+
+impl ::std::default::Default for MintlayerTokenTotalSupplyType {
+    fn default() -> Self {
+        MintlayerTokenTotalSupplyType::FIXED
+    }
+}
+
+impl MintlayerTokenTotalSupplyType {
+    fn generated_enum_descriptor_data() -> ::protobuf::reflect::GeneratedEnumDescriptorData {
+        ::protobuf::reflect::GeneratedEnumDescriptorData::new::<MintlayerTokenTotalSupplyType>("MintlayerTokenTotalSupplyType")
+    }
+}
+
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x1emessages-mintlayer-enums.proto\x12\x1chw.trezor.messages.mintlayer\
-    *\xdd\x01\n\x1bMintlayerAccountCommandType\x12\x0f\n\x0bMINT_TOKENS\x10\
-    \0\x12\x11\n\rUNMINT_TOKENS\x10\x01\x12\x15\n\x11LOCK_TOKEN_SUPPLY\x10\
-    \x02\x12\x10\n\x0cFREEZE_TOKEN\x10\x03\x12\x12\n\x0eUNFREEZE_TOKEN\x10\
-    \x04\x12\x1a\n\x16CHANGE_TOKEN_AUTHORITY\x10\x05\x12\x12\n\x0eCONCLUDE_O\
-    RDER\x10\x06\x12\x0e\n\nFILL_ORDER\x10\x07\x12\x1d\n\x19CHANGE_TOKEN_MET\
-    ADATA_URI\x10\x08*e\n\x1bMintlayerOutputTimeLockType\x12\x10\n\x0cUNTIL_\
-    HEIGHT\x10\0\x12\x0e\n\nUNTIL_TIME\x10\x01\x12\x13\n\x0fFOR_BLOCK_COUNT\
-    \x10\x02\x12\x0f\n\x0bFOR_SECONDS\x10\x03B=\n#com.satoshilabs.trezor.lib\
-    .protobufB\x16TrezorMessageMintlayer\
+    \n\x1emessages-mintlayer-enums.proto\x12\"hw.trezor.messages.mintlayer.e\
+    nums*\xdd\x01\n\x1bMintlayerAccountCommandType\x12\x0f\n\x0bMINT_TOKENS\
+    \x10\0\x12\x11\n\rUNMINT_TOKENS\x10\x01\x12\x15\n\x11LOCK_TOKEN_SUPPLY\
+    \x10\x02\x12\x10\n\x0cFREEZE_TOKEN\x10\x03\x12\x12\n\x0eUNFREEZE_TOKEN\
+    \x10\x04\x12\x1a\n\x16CHANGE_TOKEN_AUTHORITY\x10\x05\x12\x12\n\x0eCONCLU\
+    DE_ORDER\x10\x06\x12\x0e\n\nFILL_ORDER\x10\x07\x12\x1d\n\x19CHANGE_TOKEN\
+    _METADATA_URI\x10\x08*e\n\x1bMintlayerOutputTimeLockType\x12\x10\n\x0cUN\
+    TIL_HEIGHT\x10\0\x12\x0e\n\nUNTIL_TIME\x10\x01\x12\x13\n\x0fFOR_BLOCK_CO\
+    UNT\x10\x02\x12\x0f\n\x0bFOR_SECONDS\x10\x03*/\n\x11MintlayerUtxoType\
+    \x12\x0f\n\x0bTRANSACTION\x10\0\x12\t\n\x05BLOCK\x10\x01*G\n\x1dMintlaye\
+    rTokenTotalSupplyType\x12\t\n\x05FIXED\x10\0\x12\x0c\n\x08LOCKABLE\x10\
+    \x01\x12\r\n\tUNLIMITED\x10\x02B=\n#com.satoshilabs.trezor.lib.protobufB\
+    \x16TrezorMessageMintlayer\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -222,9 +354,11 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
             let mut deps = ::std::vec::Vec::with_capacity(0);
             let mut messages = ::std::vec::Vec::with_capacity(0);
-            let mut enums = ::std::vec::Vec::with_capacity(2);
+            let mut enums = ::std::vec::Vec::with_capacity(4);
             enums.push(MintlayerAccountCommandType::generated_enum_descriptor_data());
             enums.push(MintlayerOutputTimeLockType::generated_enum_descriptor_data());
+            enums.push(MintlayerUtxoType::generated_enum_descriptor_data());
+            enums.push(MintlayerTokenTotalSupplyType::generated_enum_descriptor_data());
             ::protobuf::reflect::GeneratedFileDescriptor::new_generated(
                 file_descriptor_proto(),
                 deps,

@@ -628,7 +628,7 @@ class Mintlayer:
                 int(x.total_supply.type),
                 x.total_supply.fixed_amount or b"",
                 authority,
-                int(x.is_freezable),
+                x.is_freezable,
             )
         elif out.issue_nft:
             x = out.issue_nft

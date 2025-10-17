@@ -1,26 +1,9 @@
-use core::{
-    alloc::{GlobalAlloc, Layout},
-    ptr::null_mut,
-};
+use ml_common::{Amount, SighashInputCommitment, TxOutput};
+use parity_scale_codec::DecodeAll;
 
-use ml_common::{
-    AccountCommand, AccountCommandTag, AccountOutPoint, AccountSpending, Amount, Destination,
-    HashedTimelockContract, HtlcSecretHash, IsTokenFreezable, IsTokenUnfreezable, Metadata,
-    NftIssuance, NftIssuanceV0, OrderAccountCommand, OrderData, OutPointSourceId,
-    OutPointSourceIdTag, OutputTimeLock, OutputTimeLockTag, OutputValue, PublicKey,
-    PublicKeyHolder, SighashInputCommitment, StakePoolData, TokenIssuance, TokenIssuanceV1,
-    TokenTotalSupply, TokenTotalSupplyTag, TxInput, TxOutput, UtxoOutPoint, VRFPublicKeyHolder,
-    H256,
-};
-use num_traits::FromPrimitive;
-use parity_scale_codec::{DecodeAll, Encode};
-
-use crate::{
-    micropython::ffi,
-    mintlayer::{
-        encode_to_byte_array, handle_err_or_encode, parse_amount, parse_output_value,
-        parse_output_value_raw, ByteArray, MintlayerErrorCode,
-    },
+use crate::mintlayer::{
+    encode_to_byte_array, handle_err_or_encode, parse_amount, parse_output_value, ByteArray,
+    MintlayerErrorCode,
 };
 
 #[no_mangle]

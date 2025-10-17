@@ -13,6 +13,8 @@ fn main() {
     generate_crypto_bindings();
     #[cfg(feature = "test")]
     link_core_objects();
+    #[cfg(feature = "mintlayer")]
+    mintlayer_compile_proto_files();
 }
 
 fn build_dir() -> String {
@@ -546,4 +548,21 @@ fn link_core_objects() {
 
     #[cfg(any(feature = "ui_jpeg", feature = "hw_jpeg_decoder"))]
     println!("cargo:rustc-link-lib=jpeg");
+}
+
+// Compile some of the proto files to use them inside firmware.
+// We use prost for this because rust-protobuf doesn't support no_std mode.
+// The generated files will be put into OUT_DIR; their names will be based on
+// the value of the 'package' directive inside the corresponding proto file.
+#[cfg(feature = "mintlayer")]
+fn mintlayer_compile_proto_files() {
+    let crate_path = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let proto_dir = format!("{crate_path}/../../../common/protob");
+    let proto_files = [format!("{proto_dir}/messages-mintlayer-enums.proto")];
+
+    for proto_file in &proto_files {
+        println!("cargo:rerun-if-changed={proto_file}");
+    }
+
+    prost_build::compile_protos(&proto_files, &[proto_dir]).unwrap();
 }

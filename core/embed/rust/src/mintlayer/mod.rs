@@ -1,60 +1,32 @@
 use ml_common::{
-    AccountCommand, AccountCommandTag, AccountOutPoint, AccountSpending, Amount, Destination,
-    HashedTimelockContract, HtlcSecretHash, IsTokenFreezable, IsTokenUnfreezable, Metadata,
-    NftIssuance, NftIssuanceV0, OrderAccountCommand, OrderData, OutPointSourceId,
-    OutPointSourceIdTag, OutputTimeLock, OutputTimeLockTag, OutputValue, PublicKey,
-    PublicKeyHolder, StakePoolData, TokenIssuance, TokenIssuanceV1, TokenTotalSupply,
-    TokenTotalSupplyTag, TxInput, TxOutput, UtxoOutPoint, VRFPublicKeyHolder, H256,
+    AccountCommand, AccountOutPoint, AccountSpending, Amount, Destination, HashedTimelockContract,
+    HtlcSecretHash, IsTokenUnfreezable, Metadata, NftIssuance, NftIssuanceV0, OrderAccountCommand,
+    OrderData, OutputValue, PublicKey, PublicKeyHolder, StakePoolData, TokenIssuance,
+    TokenIssuanceV1, TokenTotalSupply, TxInput, TxOutput, UtxoOutPoint, VRFPublicKeyHolder, H256,
 };
-use num_traits::FromPrimitive;
 use parity_scale_codec::{DecodeAll, Encode};
 
-pub mod input_commitments;
+use crate::mintlayer::{
+    generated_enums::{
+        MintlayerAccountCommandType, MintlayerOutputTimeLockType, MintlayerTokenTotalSupplyType,
+        MintlayerUtxoType,
+    },
+    utils::{
+        encode_to_byte_array, handle_err_or_encode, make_is_token_freezable,
+        make_outpoint_source_id, make_output_time_lock, ByteArray, MintlayerErrorCode,
+    },
+};
 
-#[repr(C)]
-#[derive(Eq, PartialEq, Clone, Copy)]
-pub enum MintlayerErrorCode {
-    WrongHashSize = 1,
-    InvalidUtxoType = 2,
-    InvalidAmount = 3,
-    InvalidAccountCommand = 4,
-    InvalidDestination = 5,
-    InvalidIsTokenUnfreezable = 6,
-    InvalidIsTokenFreezable = 7,
-    InvalidVrfPublicKey = 8,
-    InvalidPublicKey = 9,
-    InvalidOutputTimeLock = 10,
-    InvalidTokenTotalSupply = 11,
-    InvalidEncodedUtxo = 12,
-}
-
-#[repr(C)]
-pub union LenOrError {
-    len: cty::c_uint,
-    err: MintlayerErrorCode,
-}
-
-#[repr(C)]
-pub struct ByteArray {
-    data: *const cty::c_uchar,
-    len_or_err: LenOrError,
-}
-
-impl From<MintlayerErrorCode> for ByteArray {
-    fn from(err: MintlayerErrorCode) -> Self {
-        Self {
-            data: core::ptr::null(),
-            len_or_err: LenOrError { err },
-        }
-    }
-}
+mod generated_enums;
+mod input_commitments;
+mod utils;
 
 #[no_mangle]
 extern "C" fn mintlayer_encode_utxo_input(
     data: *const u8,
     data_len: u32,
     index: u32,
-    utxo_type: u32,
+    utxo_type: u8,
 ) -> ByteArray {
     let hash = unsafe { core::slice::from_raw_parts(data, data_len as usize) };
     let res = mintlayer_encode_utxo_input_impl(hash, utxo_type, index);
@@ -63,19 +35,16 @@ extern "C" fn mintlayer_encode_utxo_input(
 
 fn mintlayer_encode_utxo_input_impl(
     hash: &[u8],
-    utxo_type: u32,
+    utxo_type: u8,
     index: u32,
 ) -> Result<TxInput, MintlayerErrorCode> {
     let hash = H256(
         hash.try_into()
             .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
     );
-    let outpoint = match OutPointSourceIdTag::from_u32(utxo_type)
-        .ok_or(MintlayerErrorCode::InvalidUtxoType)?
-    {
-        OutPointSourceIdTag::Transaction => OutPointSourceId::Transaction(hash),
-        OutPointSourceIdTag::BlockReward => OutPointSourceId::BlockReward(hash),
-    };
+    let utxo_type = MintlayerUtxoType::try_from(utxo_type as i32)
+        .map_err(|_| MintlayerErrorCode::InvalidUtxoType)?;
+    let outpoint = make_outpoint_source_id(utxo_type, hash);
     let utxo_outpoint = UtxoOutPoint::new(outpoint, index);
     let tx_input = TxInput::Utxo(utxo_outpoint);
     Ok(tx_input)
@@ -118,7 +87,7 @@ fn mintlayer_encode_account_spending_input_impl(
 #[no_mangle]
 extern "C" fn mintlayer_encode_token_account_command_input(
     nonce: u64,
-    command: u32,
+    command_type: u8,
     token_id_data: *const u8,
     token_id_data_len: u32,
     data: *const u8,
@@ -128,13 +97,14 @@ extern "C" fn mintlayer_encode_token_account_command_input(
         unsafe { core::slice::from_raw_parts(token_id_data, token_id_data_len as usize) };
     let data = unsafe { core::slice::from_raw_parts(data, data_len as usize) };
 
-    let res = mintlayer_encode_token_account_command_input_impl(token_id, command, data, nonce);
+    let res =
+        mintlayer_encode_token_account_command_input_impl(token_id, command_type, data, nonce);
     handle_err_or_encode(res)
 }
 
 fn mintlayer_encode_token_account_command_input_impl(
     token_id: &[u8],
-    command: u32,
+    command_type: u8,
     data: &[u8],
     nonce: u64,
 ) -> Result<TxInput, MintlayerErrorCode> {
@@ -142,30 +112,30 @@ fn mintlayer_encode_token_account_command_input_impl(
         Ok(hash) => hash,
         Err(_) => return Err(MintlayerErrorCode::WrongHashSize),
     });
-    let account_command = match AccountCommandTag::from_u32(command)
-        .ok_or(MintlayerErrorCode::InvalidAccountCommand)?
-    {
-        AccountCommandTag::MintTokens => {
+    let command_type = MintlayerAccountCommandType::try_from(command_type as i32)
+        .map_err(|_| MintlayerErrorCode::InvalidAccountCommand)?;
+    let account_command = match command_type {
+        MintlayerAccountCommandType::MintTokens => {
             let amount = parse_amount(data)?;
             AccountCommand::MintTokens(token_id, amount)
         }
-        AccountCommandTag::UnmintTokens => AccountCommand::UnmintTokens(token_id),
-        AccountCommandTag::LockTokenSupply => AccountCommand::LockTokenSupply(token_id),
-        AccountCommandTag::FreezeToken => {
+        MintlayerAccountCommandType::UnmintTokens => AccountCommand::UnmintTokens(token_id),
+        MintlayerAccountCommandType::LockTokenSupply => AccountCommand::LockTokenSupply(token_id),
+        MintlayerAccountCommandType::FreezeToken => {
             let is_token_unfreezabe = IsTokenUnfreezable::decode_all(&mut &*data)
                 .map_err(|_| MintlayerErrorCode::InvalidIsTokenUnfreezable)?;
             AccountCommand::FreezeToken(token_id, is_token_unfreezabe)
         }
-        AccountCommandTag::UnfreezeToken => AccountCommand::UnfreezeToken(token_id),
-        AccountCommandTag::ChangeTokenAuthority => {
+        MintlayerAccountCommandType::UnfreezeToken => AccountCommand::UnfreezeToken(token_id),
+        MintlayerAccountCommandType::ChangeTokenAuthority => {
             let destination = Destination::decode_all(&mut &*data)
                 .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
             AccountCommand::ChangeTokenAuthority(token_id, destination)
         }
-        AccountCommandTag::ChangeTokenMetadataUri => {
+        MintlayerAccountCommandType::ChangeTokenMetadataUri => {
             AccountCommand::ChangeTokenMetadataUri(token_id, data.to_vec())
         }
-        AccountCommandTag::ConcludeOrder | AccountCommandTag::FillOrder => {
+        MintlayerAccountCommandType::ConcludeOrder | MintlayerAccountCommandType::FillOrder => {
             return Err(MintlayerErrorCode::InvalidAccountCommand)
         }
     };
@@ -399,12 +369,10 @@ extern "C" fn mintlayer_encode_lock_then_transfer_output(
         Ok(destination) => destination,
         Err(_) => return MintlayerErrorCode::InvalidDestination.into(),
     };
-    let lock = match OutputTimeLockTag::from_u8(lock_type) {
-        Some(OutputTimeLockTag::UntilHeight) => OutputTimeLock::UntilHeight(lock_amount),
-        Some(OutputTimeLockTag::UntilTime) => OutputTimeLock::UntilTime(lock_amount),
-        Some(OutputTimeLockTag::ForBlockCount) => OutputTimeLock::ForBlockCount(lock_amount),
-        Some(OutputTimeLockTag::ForSeconds) => OutputTimeLock::ForSeconds(lock_amount),
-        None => return MintlayerErrorCode::InvalidOutputTimeLock.into(),
+    let lock = if let Ok(lock_type) = MintlayerOutputTimeLockType::try_from(lock_type as i32) {
+        make_output_time_lock(lock_type, lock_amount)
+    } else {
+        return MintlayerErrorCode::InvalidOutputTimeLock.into();
     };
 
     let txo = TxOutput::LockThenTransfer(value, destination, lock);
@@ -606,12 +574,12 @@ extern "C" fn mintlayer_encode_issue_fungible_token_output(
     number_of_decimals: u8,
     metadata_uri_data: *const u8,
     metadata_uri_data_len: u32,
-    total_supply_type: u32,
+    total_supply_type: u8,
     fixed_amount_data: *const u8,
     fixed_amount_data_len: u32,
     authority_data: *const u8,
     authority_data_len: u32,
-    is_freezable: u8,
+    is_freezable: bool,
 ) -> ByteArray {
     let token_ticker =
         unsafe { core::slice::from_raw_parts(token_ticker_data, token_ticker_data_len as usize) };
@@ -639,8 +607,8 @@ fn mintlayer_encode_issue_fungible_token_output_impl(
     token_ticker: &[u8],
     metadata_uri: &[u8],
     authority_bytes: &[u8],
-    is_freezable: u8,
-    total_supply_type: u32,
+    is_freezable: bool,
+    total_supply_type: u8,
     coin_amount: &[u8],
     number_of_decimals: u8,
 ) -> Result<TxOutput, MintlayerErrorCode> {
@@ -648,17 +616,16 @@ fn mintlayer_encode_issue_fungible_token_output_impl(
     let metadata_uri = metadata_uri.to_vec();
     let authority = Destination::decode_all(&mut &*authority_bytes)
         .map_err(|_| MintlayerErrorCode::InvalidDestination)?;
-    let is_freezable = IsTokenFreezable::from_u8(is_freezable)
-        .ok_or(MintlayerErrorCode::InvalidIsTokenFreezable)?;
-    let total_supply = match TokenTotalSupplyTag::from_u32(total_supply_type)
-        .ok_or(MintlayerErrorCode::InvalidTokenTotalSupply)?
-    {
-        TokenTotalSupplyTag::Fixed => {
+    let is_freezable = make_is_token_freezable(is_freezable);
+    let total_supply_type = MintlayerTokenTotalSupplyType::try_from(total_supply_type as i32)
+        .map_err(|_| MintlayerErrorCode::InvalidTokenTotalSupply)?;
+    let total_supply = match total_supply_type {
+        MintlayerTokenTotalSupplyType::Fixed => {
             let amount = parse_amount(coin_amount)?;
             TokenTotalSupply::Fixed(amount)
         }
-        TokenTotalSupplyTag::Lockable => TokenTotalSupply::Lockable,
-        TokenTotalSupplyTag::Unlimited => TokenTotalSupply::Unlimited,
+        MintlayerTokenTotalSupplyType::Lockable => TokenTotalSupply::Lockable,
+        MintlayerTokenTotalSupplyType::Unlimited => TokenTotalSupply::Unlimited,
     };
     let issuance = TokenIssuance::V1(TokenIssuanceV1 {
         token_ticker,
@@ -865,14 +832,9 @@ fn mintlayer_encode_htlc_output_impl(
         hash.try_into()
             .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
     );
-    let refund_timelock = match OutputTimeLockTag::from_u8(lock_type)
-        .ok_or(MintlayerErrorCode::InvalidOutputTimeLock)?
-    {
-        OutputTimeLockTag::UntilHeight => OutputTimeLock::UntilHeight(lock_amount),
-        OutputTimeLockTag::UntilTime => OutputTimeLock::UntilTime(lock_amount),
-        OutputTimeLockTag::ForBlockCount => OutputTimeLock::ForBlockCount(lock_amount),
-        OutputTimeLockTag::ForSeconds => OutputTimeLock::ForSeconds(lock_amount),
-    };
+    let lock_type = MintlayerOutputTimeLockType::try_from(lock_type as i32)
+        .map_err(|_| MintlayerErrorCode::InvalidOutputTimeLock)?;
+    let refund_timelock = make_output_time_lock(lock_type, lock_amount);
     let txo = TxOutput::Htlc(
         value,
         HashedTimelockContract {
@@ -972,29 +934,6 @@ mod global_alloc {
     static GLOBAL_ALLOCATOR: CustomAllocator = CustomAllocator;
 }
 
-fn handle_err_or_encode<T: Encode>(x: Result<T, MintlayerErrorCode>) -> ByteArray {
-    match x {
-        Ok(value) => encode_to_byte_array(&value),
-        Err(value) => value.into(),
-    }
-}
-
-fn encode_to_byte_array<T: Encode>(x: &T) -> ByteArray {
-    let vec_data = x.encode();
-    // Extracting the raw pointer and length from the Vec<u8>
-    let ptr_data = vec_data.as_ptr();
-    let len = vec_data.len() as cty::c_uint;
-
-    // Prevent Rust from freeing the memory associated with vec_data
-    core::mem::forget(vec_data);
-
-    // Construct and return the ByteArray struct
-    ByteArray {
-        data: ptr_data,
-        len_or_err: LenOrError { len },
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1003,9 +942,9 @@ mod tests {
     fn basic() {
         let hash: [u8; 32] = [0; 32];
         let result = mintlayer_encode_utxo_input(hash.as_ptr(), 32, 123, 1);
-        assert!(result.data != core::ptr::null());
+        assert!(result.data() != core::ptr::null());
 
         let result = mintlayer_encode_utxo_input(hash.as_ptr(), 31, 123, 1);
-        assert!(result.data == core::ptr::null());
+        assert!(result.data() == core::ptr::null());
     }
 }

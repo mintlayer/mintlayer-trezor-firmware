@@ -1,6 +1,8 @@
 syntax = "proto2";
 package hw.trezor.messages.mintlayer;
 
+import "messages-mintlayer-enums.proto";
+
 // Sugar for easier handling in Java
 option java_package = "com.satoshilabs.trezor.lib.protobuf";
 option java_outer_classname = "TrezorMessageMintlayer";
@@ -160,15 +162,6 @@ message MintlayerTxRequest {
     }
 }
 
-
-/**
-* Enum for UTXO type used by MintlayerUtxoTxInput
-*/
-enum MintlayerUtxoType {
-    TRANSACTION = 0;
-    BLOCK = 1;
-}
-
 /** Data type for an address
  * @embed
  */
@@ -185,7 +178,7 @@ message MintlayerUtxoTxInput {
     repeated MintlayerAddressPath addresses = 1;                        // 0 or more addresses for which the corresponding private keys will be used to sign the transaction
     required bytes prev_hash = 2;                                       // hash of previous transaction output to spend by this input
     required uint32 prev_index = 3;                                     // index of previous output to spend
-    required MintlayerUtxoType type = 4;                                // source type of the utxo (Transaction or BlockReward)
+    required enums.MintlayerUtxoType type = 4;                          // source type of the utxo (Transaction or BlockReward)
 }
 
 /** Data type for transaction Account input to be signed.
@@ -430,21 +423,12 @@ message MintlayerDelegateStakingTxOutput {
     required string delegation_id = 2;       // the delegation id in bech32 encoding
 }
 
-/**
-* Enum for Token total supply used by MintlayerTokenTotalSupply
-*/
-enum MintlayerTokenTotalSupplyType {
-    FIXED = 0;
-    LOCKABLE = 1;
-    UNLIMITED = 2;
-}
-
 /** Data type for Total token supply
  * @embed
  */
 message MintlayerTokenTotalSupply {
-    required MintlayerTokenTotalSupplyType type = 1;    // the type of total token supply
-    optional bytes fixed_amount = 2;                    // optional amount in case of fixed total token supply
+    required enums.MintlayerTokenTotalSupplyType type = 1;  // the type of total token supply
+    optional bytes fixed_amount = 2;                        // optional amount in case of fixed total token supply
 }
 
 /** Data type for transaction Issue fungible token output to be signed.
