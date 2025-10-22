@@ -51,6 +51,9 @@ tracing = "0.1"
 bitcoin = { version = "0.32", optional = true }
 unicode-normalization = { version = "0.1.22", optional = true }
 
+# Mintlayer
+mintlayer-firmware-deps = { path = "../../core/embed/rust/src/mintlayer/deps", optional = true }
+
 [dev-dependencies]
 tracing-subscriber = "0.3"
 serial_test = "3"
@@ -73,4 +76,4 @@ solana = []
 stellar = []
 tezos = []
 webauthn = []
-mintlayer = []
+mintlayer = ["dep:mintlayer-firmware-deps"]

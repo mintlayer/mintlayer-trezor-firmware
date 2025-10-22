@@ -15,7 +15,7 @@ typedef enum {
   InvalidIsTokenUnfreezable = 6,
   InvalidIsTokenFreezable = 7,
   InvalidVrfPublicKey = 8,
-  InvalidPublicKey = 9,
+  PublicKeyDestinationExpected = 9,
   InvalidOutputTimeLock = 10,
   InvalidTokenTotalSupply = 11,
 } MintlayerErrorCode;

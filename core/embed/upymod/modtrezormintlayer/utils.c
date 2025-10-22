@@ -32,8 +32,8 @@ void handle_err(ByteArray *res) {
     case InvalidVrfPublicKey:
       mp_raise_ValueError(MP_ERROR_TEXT("Invalid VRF public key"));
       break;
-    case InvalidPublicKey:
-      mp_raise_ValueError(MP_ERROR_TEXT("Invalid public key"));
+    case PublicKeyDestinationExpected:
+      mp_raise_ValueError(MP_ERROR_TEXT("Public key destination expected"));
       break;
     case InvalidOutputTimeLock:
       mp_raise_ValueError(MP_ERROR_TEXT("Invalid output time lock"));

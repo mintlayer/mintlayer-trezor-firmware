@@ -76,7 +76,7 @@ test = [
     "universal_fw",
 ]
 universal_fw = ["mintlayer"]
-mintlayer = ["dep:ml_common", "dep:parity-scale-codec"]
+mintlayer = ["dep:parity-scale-codec", "dep:mintlayer-firmware-deps", "dep:prost", "dep:prost-types"]
 
 [lib]
 crate-type = ["staticlib"]
@@ -111,22 +111,17 @@ zeroize = { version = "1.7.0", default-features = false, optional = true }
 
 # Mintlayer
 
-parity-scale-codec = { version = "3.1", default-features = false, features = [
+parity-scale-codec = { version = "3.7", default-features = false, features = [
     "derive",
     "chain-error",
 ], optional = true }
 
+mintlayer-firmware-deps = { path = "src/mintlayer/deps", optional = true }
+
 # Note: "default-features = false" disables the "std" feature, which is on by default;
 # this is needed for the no_std support.
-prost = { version = "0.14", default-features = false }
-prost-types = { version = "0.14", default-features = false }
-
-[dependencies.ml_common]
-git = "https://github.com/mintlayer/mintlayer-core"
-# The commit "Remove destination from FillOrder v1 inputs; require that such inputs are never signed;"
-rev = "2512851c8cfaca0ca623caa93d36dfe2df8a0fdf"
-package = "trezor-common"
-optional = true
+prost = { version = "0.14", default-features = false, optional = true }
+prost-types = { version = "0.14", default-features = false, optional = true }
 
 # Runtime dependencies
 

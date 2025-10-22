@@ -1,7 +1,14 @@
-use ml_common::{Amount, IsTokenFreezable, OutPointSourceId, OutputTimeLock, OutputValue, H256};
-use parity_scale_codec::Encode;
+use parity_scale_codec::{DecodeAll as _, Encode};
 
-use crate::mintlayer::generated_enums::{MintlayerOutputTimeLockType, MintlayerUtxoType};
+use mintlayer_firmware_deps::ml_primitives::{
+    Amount, BlockHeight, BlockTimestamp, BlocksCount, Destination, GenBlockId, Id,
+    IsTokenFreezable, OutPointSourceId, OutputTimeLock, OutputValue, SecondsCount, TransactionId,
+    H256,
+};
+
+use crate::mintlayer::generated_enums::{
+    MintlayerOutputTimeLockType, MintlayerTokenTotalSupplyType, MintlayerUtxoType,
+};
 
 #[repr(C)]
 #[derive(Eq, PartialEq, Clone, Copy)]
@@ -14,7 +21,7 @@ pub enum MintlayerErrorCode {
     InvalidIsTokenUnfreezable = 6,
     InvalidIsTokenFreezable = 7,
     InvalidVrfPublicKey = 8,
-    InvalidPublicKey = 9,
+    PublicKeyDestinationExpected = 9,
     InvalidOutputTimeLock = 10,
     InvalidTokenTotalSupply = 11,
     InvalidEncodedUtxo = 12,
@@ -75,10 +82,18 @@ pub fn make_output_time_lock(
     lock_amount: u64,
 ) -> OutputTimeLock {
     match lock_type {
-        MintlayerOutputTimeLockType::UntilHeight => OutputTimeLock::UntilHeight(lock_amount),
-        MintlayerOutputTimeLockType::UntilTime => OutputTimeLock::UntilTime(lock_amount),
-        MintlayerOutputTimeLockType::ForBlockCount => OutputTimeLock::ForBlockCount(lock_amount),
-        MintlayerOutputTimeLockType::ForSeconds => OutputTimeLock::ForSeconds(lock_amount),
+        MintlayerOutputTimeLockType::UntilHeight => {
+            OutputTimeLock::UntilHeight(BlockHeight(lock_amount))
+        }
+        MintlayerOutputTimeLockType::UntilTime => {
+            OutputTimeLock::UntilTime(BlockTimestamp(SecondsCount(lock_amount)))
+        }
+        MintlayerOutputTimeLockType::ForBlockCount => {
+            OutputTimeLock::ForBlockCount(BlocksCount(lock_amount))
+        }
+        MintlayerOutputTimeLockType::ForSeconds => {
+            OutputTimeLock::ForSeconds(SecondsCount(lock_amount))
+        }
     }
 }
 
@@ -92,13 +107,48 @@ pub fn make_is_token_freezable(is_freezable: bool) -> IsTokenFreezable {
 
 pub fn make_outpoint_source_id(utxo_type: MintlayerUtxoType, hash: H256) -> OutPointSourceId {
     match utxo_type {
-        MintlayerUtxoType::Transaction => OutPointSourceId::Transaction(hash),
-        MintlayerUtxoType::Block => OutPointSourceId::BlockReward(hash),
+        MintlayerUtxoType::Transaction => OutPointSourceId::Transaction(TransactionId::new(hash)),
+        MintlayerUtxoType::Block => OutPointSourceId::BlockReward(GenBlockId::new(hash)),
     }
 }
 
+pub fn make_mintlayer_output_timelock_type(
+    lock_type: u8,
+) -> Result<MintlayerOutputTimeLockType, MintlayerErrorCode> {
+    MintlayerOutputTimeLockType::try_from(lock_type as i32)
+        .map_err(|_| MintlayerErrorCode::InvalidOutputTimeLock)
+}
+
+pub fn make_mintlayer_token_total_supply_type(
+    total_supply_type: u8,
+) -> Result<MintlayerTokenTotalSupplyType, MintlayerErrorCode> {
+    MintlayerTokenTotalSupplyType::try_from(total_supply_type as i32)
+        .map_err(|_| MintlayerErrorCode::InvalidTokenTotalSupply)
+}
+
 pub fn parse_amount(amount_data: &[u8]) -> Result<Amount, MintlayerErrorCode> {
-    Amount::from_bytes_be(amount_data).ok_or(MintlayerErrorCode::InvalidAmount)
+    amount_data
+        .try_into()
+        .map_err(|_| MintlayerErrorCode::InvalidAmount)
+        .map(|bytes_array| Amount::from_atoms(u128::from_be_bytes(bytes_array)))
+}
+
+pub fn parse_hash(hash_data: &[u8]) -> Result<H256, MintlayerErrorCode> {
+    Ok(H256(
+        hash_data
+            .try_into()
+            .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
+    ))
+}
+
+pub fn parse_id<IdTag>(id_data: &[u8]) -> Result<Id<IdTag>, MintlayerErrorCode> {
+    let hash = parse_hash(id_data)?;
+    Ok(Id::new(hash))
+}
+
+pub fn parse_destination(destination_data: &[u8]) -> Result<Destination, MintlayerErrorCode> {
+    Destination::decode_all(&mut &*destination_data)
+        .map_err(|_| MintlayerErrorCode::InvalidDestination)
 }
 
 pub fn parse_output_value(
@@ -108,11 +158,11 @@ pub fn parse_output_value(
     let amount = parse_amount(amount_data)?;
 
     let value = if !token_id_data.is_empty() {
-        let token_id = H256(
+        let token_id = Id::new(H256(
             token_id_data
                 .try_into()
                 .map_err(|_| MintlayerErrorCode::WrongHashSize)?,
-        );
+        ));
         OutputValue::TokenV1(token_id, amount)
     } else {
         OutputValue::Coin(amount)
