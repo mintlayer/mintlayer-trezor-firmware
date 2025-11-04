@@ -363,7 +363,7 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 [[package]]
 name = "mintlayer-core-primitives"
 version = "1.0.0"
-source = "git+https://github.com/mintlayer/mintlayer-core-primitives?rev=f5d166ca37a4b266a835100d2ee8ced1e8914f2a#f5d166ca37a4b266a835100d2ee8ced1e8914f2a"
+source = "git+https://github.com/mintlayer/mintlayer-core-primitives?rev=4e21bf85e7fdca1577a49df7599b2b39ec913287#4e21bf85e7fdca1577a49df7599b2b39ec913287"
 dependencies = [
  "derive_more",
  "fixed-hash",
