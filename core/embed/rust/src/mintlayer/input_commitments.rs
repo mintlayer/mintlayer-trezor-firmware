@@ -1,26 +1,11 @@
-use core::{
-    alloc::{GlobalAlloc, Layout},
-    ptr::null_mut,
-};
+use parity_scale_codec::DecodeAll as _;
 
-use ml_common::{
-    AccountCommand, AccountCommandTag, AccountOutPoint, AccountSpending, Amount, Destination,
-    HashedTimelockContract, HtlcSecretHash, IsTokenFreezable, IsTokenUnfreezable, Metadata,
-    NftIssuance, NftIssuanceV0, OrderAccountCommand, OrderData, OutPointSourceId,
-    OutPointSourceIdTag, OutputTimeLock, OutputTimeLockTag, OutputValue, PublicKey,
-    PublicKeyHolder, SighashInputCommitment, StakePoolData, TokenIssuance, TokenIssuanceV1,
-    TokenTotalSupply, TokenTotalSupplyTag, TxInput, TxOutput, UtxoOutPoint, VRFPublicKeyHolder,
-    H256,
-};
-use num_traits::FromPrimitive;
-use parity_scale_codec::{DecodeAll, Encode};
+use mintlayer_firmware_deps::ml_primitives::{SighashInputCommitment, TxOutput};
 
-use crate::{
-    micropython::ffi,
-    mintlayer::{
-        encode_to_byte_array, handle_err_or_encode, parse_amount, parse_output_value,
-        parse_output_value_raw, ByteArray, MintlayerErrorCode,
-    },
+use crate::mintlayer::{
+    encode_to_byte_array, handle_err_or_encode,
+    utils::{parse_amount, parse_output_value},
+    ByteArray, MintlayerErrorCode,
 };
 
 #[no_mangle]
@@ -76,8 +61,7 @@ fn mintlayer_encode_input_commitment_v1_for_produce_block_from_stake_utxo_impl(
 ) -> Result<SighashInputCommitment, MintlayerErrorCode> {
     let utxo = TxOutput::decode_all(&mut &encoded_utxo[..])
         .map_err(|_| MintlayerErrorCode::InvalidEncodedUtxo)?;
-    let staker_balance =
-        Amount::from_bytes_be(staker_balance_amount).ok_or(MintlayerErrorCode::InvalidAmount)?;
+    let staker_balance = parse_amount(staker_balance_amount)?;
 
     Ok(SighashInputCommitment::ProduceBlockFromStakeUtxo {
         utxo,

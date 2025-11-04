@@ -1,5 +1,5 @@
 syntax = "proto2";
-package hw.trezor.messages.mintlayer;
+package hw.trezor.messages.mintlayer.enums;
 
 // Sugar for easier handling in Java
 option java_package = "com.satoshilabs.trezor.lib.protobuf";
@@ -28,4 +28,21 @@ enum MintlayerOutputTimeLockType {
     UNTIL_TIME = 1;
     FOR_BLOCK_COUNT = 2;
     FOR_SECONDS = 3;
+}
+
+/**
+* Enum for UTXO type used by MintlayerUtxoTxInput
+*/
+enum MintlayerUtxoType {
+    TRANSACTION = 0;
+    BLOCK = 1;
+}
+
+/**
+* Enum for Token total supply used by MintlayerTokenTotalSupply
+*/
+enum MintlayerTokenTotalSupplyType {
+    FIXED = 0;
+    LOCKABLE = 1;
+    UNLIMITED = 2;
 }

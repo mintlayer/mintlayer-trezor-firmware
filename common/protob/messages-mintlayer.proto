@@ -1,6 +1,8 @@
 syntax = "proto2";
 package hw.trezor.messages.mintlayer;
 
+import "messages-mintlayer-enums.proto";
+
 // Sugar for easier handling in Java
 option java_package = "com.satoshilabs.trezor.lib.protobuf";
 option java_outer_classname = "TrezorMessageMintlayer";
@@ -160,15 +162,6 @@ message MintlayerTxRequest {
     }
 }
 
-
-/**
-* Enum for UTXO type used by MintlayerUtxoTxInput
-*/
-enum MintlayerUtxoType {
-    TRANSACTION = 0;
-    BLOCK = 1;
-}
-
 /** Data type for an address
  * @embed
  */
@@ -177,7 +170,7 @@ message MintlayerAddressPath {
     optional uint32 multisig_idx = 2;                                   // in case of a multisig the key index
 }
 
-/** Data type for transaction UTXO input to be signed.
+/** Data type for the transaction's UTXO input.
  *
  * @embed
  */
@@ -185,10 +178,10 @@ message MintlayerUtxoTxInput {
     repeated MintlayerAddressPath addresses = 1;                        // 0 or more addresses for which the corresponding private keys will be used to sign the transaction
     required bytes prev_hash = 2;                                       // hash of previous transaction output to spend by this input
     required uint32 prev_index = 3;                                     // index of previous output to spend
-    required MintlayerUtxoType type = 4;                                // source type of the utxo (Transaction or BlockReward)
+    required enums.MintlayerUtxoType type = 4;                          // source type of the utxo (Transaction or BlockReward)
 }
 
-/** Data type for transaction Account input to be signed.
+/** Data type for the transaction's Account input.
  *
  * @embed
  */
@@ -198,15 +191,15 @@ message MintlayerAccountTxInput {
     optional MintlayerAccountSpendingDelegationBalance delegation_balance = 3;  // spend from a delegation balance
 }
 
-/** Data type for account spending from a Delegation Balance
+/** Data type for account spending from a delegation balance
  * @embed
  */
 message MintlayerAccountSpendingDelegationBalance {
     required string delegation_id = 1;             // the delegation id of the account in bech32 encoding
-    required bytes amount = 2;                     // amount of coins to spend
+    required bytes amount = 2;                     // amount to spend (in atoms as big-endian u128)
 }
 
-/** Data type for transaction Account Command input to be signed.
+/** Data type for the transaction's AccountCommand input.
  *
  * @embed
  */
@@ -224,7 +217,7 @@ message MintlayerAccountCommandTxInput {
     optional MintlayerChangeTokenMetadataUri change_token_metadata_uri = 11; // change token metadata uri
 }
 
-/** Data type for transaction Order Command input to be signed.
+/** Data type for the transaction's OrderAccountCommand input.
  *
  * @embed
  */
@@ -235,24 +228,24 @@ message MintlayerOrderCommandTxInput {
     optional MintlayerConcludeOrderV1 conclude = 4;                          // conclude order
 }
 
-/** Data type for order command Fill order
+/** Data type for the order command FillOrder (V1)
  * @embed
  */
 message MintlayerFillOrderV1 {
     required string order_id = 1;                        // order id in bech32 encoding
-    required bytes amount = 2;                           // amount in atoms corresponds to the order's ask currency
+    required bytes amount = 2;                           // amount of the 'ask' currency (in atoms as big-endian u128)
     required MintlayerOutputValue initially_asked = 3;   // the initial ask balance of the order
     required MintlayerOutputValue initially_given = 4;   // the initial give balance of the order
 }
 
-/** Data type for order command Freeze order
+/** Data type for the order command FreezeOrder
  * @embed
  */
 message MintlayerFreezeOrder {
     required string order_id = 1;                        // order id in bech32 encoding
 }
 
-/** Data type for order command Conclude order
+/** Data type for the order command ConcludeOrder (V1)
  * @embed
  */
 message MintlayerConcludeOrderV1 {
@@ -263,29 +256,29 @@ message MintlayerConcludeOrderV1 {
     required bytes give_balance = 5;                     // the remaining give balance of the order
 }
 
-/** Data type for account command Mint tokens
+/** Data type for the account command MintTokens
  * @embed
  */
 message MintlayerMintTokens {
     required string token_id = 1;                  // token id in bech32 encoding
-    required bytes amount = 2;                     // amount of tokens to mint
+    required bytes amount = 2;                     // amount of tokens to mint (in atoms as big-endian u128)
 }
 
-/** Data type for account command Unmint tokens
+/** Data type for the account command UnmintTokens
  * @embed
  */
 message MintlayerUnmintTokens {
     required string token_id = 1;                  // token id in bech32 encoding
 }
 
-/** Data type for account command Lock token supply
+/** Data type for the account command LockTokenSupply
  * @embed
  */
 message MintlayerLockTokenSupply {
     required string token_id = 1;                  // token id in bech32 encoding
 }
 
-/** Data type for account command Freeze token
+/** Data type for the account command FreezeToken
  * @embed
  */
 message MintlayerFreezeToken {
@@ -293,14 +286,14 @@ message MintlayerFreezeToken {
     required bool is_token_unfreezable = 2;        // is unfreezable after freezing it
 }
 
-/** Data type for account command Unfreeze token
+/** Data type for the account command UnfreezeToken
  * @embed
  */
 message MintlayerUnfreezeToken {
     required string token_id = 1;                  // token id in bech32 encoding
 }
 
-/** Data type for account command Change token authority
+/** Data type for the account command ChangeTokenAuthority
  * @embed
  */
 message MintlayerChangeTokenAuthority {
@@ -308,31 +301,31 @@ message MintlayerChangeTokenAuthority {
     required string destination = 2;               // destination for the new authority in bech32 encoding
 }
 
-/** Data type for account command Conclude order
+/** Data type for the account command ConcludeOrder (V0)
  * @embed
  */
 message MintlayerConcludeOrder {
     required string order_id = 1;                        // order id in bech32 encoding
     required MintlayerOutputValue initially_asked = 2;   // the initial ask balance of the order
     required MintlayerOutputValue initially_given = 3;   // the initial give balance of the order
-    required bytes ask_balance = 4;                      // the remaining ask balance of the order
-    required bytes give_balance = 5;                     // the remaining give balance of the order
+    required bytes ask_balance = 4;                      // the remaining ask balance of the order (in atoms as big-endian u128)
+    required bytes give_balance = 5;                     // the remaining give balance of the order (in atoms as big-endian u128)
 }
 
-/** Data type for account command Fill order
+/** Data type for the account command FillOrder (V0)
  * @embed
  */
 message MintlayerFillOrder {
     required string order_id = 1;                        // order id in bech32 encoding
-    required bytes amount = 2;                           // amount in atoms corresponds to the order's ask currency
+    required bytes amount = 2;                           // amount of the 'ask' currency (in atoms as big-endian u128)
     required string destination = 3;                     // the destination in bech32 encoding
     required MintlayerOutputValue initially_asked = 4;   // the initial ask balance of the order
     required MintlayerOutputValue initially_given = 5;   // the initial give balance of the order
-    required bytes ask_balance = 6;                      // the remaining ask balance of the order
-    required bytes give_balance = 7;                     // the remaining give balance of the order
+    required bytes ask_balance = 6;                      // the remaining ask balance of the order (in atoms as big-endian u128)
+    required bytes give_balance = 7;                     // the remaining give balance of the order (in atoms as big-endian u128)
 }
 
-/** Data type for account command Change token metadata uri
+/** Data type for the account command ChangeTokenMetadataUri
  * @embed
  */
 message MintlayerChangeTokenMetadataUri {
@@ -340,33 +333,36 @@ message MintlayerChangeTokenMetadataUri {
     required bytes metadata_uri = 2;               // new metadata uri
 }
 
-
-/** Data type for output value information for the token
+/** Data type for the information about the token inside MintlayerOutputValue
  * @embed
  */
 message MintlayerTokenOutputValue {
     required string token_id = 1;                  // token id in bech32 encoding
+
+    // Note: in the end these values are passed to `format_coin_amount_int` in `core/src/apps/mintlayer/sign_tx/layout.py`,
+    // where they are currently ignored.
+    // TODO: token info handling has to be revamped, see https://github.com/mintlayer/mintlayer-trezor-firmware/issues/6
     required bytes token_ticker = 2;               // the token ticker
     required uint32 number_of_decimals = 3;        // the number of decimals for the token
 }
 
-/** Data type for output value coins or token
+/** Data type for an output value, which can be either coins or tokens
  * @embed
  */
 message MintlayerOutputValue {
-    required bytes amount = 1;                     // lock until block height
-    optional MintlayerTokenOutputValue token = 2;  // optional token info
+    required bytes amount = 1;                     // the amount (in atoms as big-endian u128)
+    optional MintlayerTokenOutputValue token = 2;  // the token info or none if the value is in coins
 }
 
-/** Data type for transaction Transfer output to be signed.
+/** Data type for the transaction's Transfer output.
  * @embed
  */
 message MintlayerTransferTxOutput {
     required string address = 1;                    // destination address in bech32 encoding
-    required MintlayerOutputValue value = 2;        // amount to spend in atoms for coin or token
+    required MintlayerOutputValue value = 2;        // the output value to transfer
 }
 
-/** Data type for time lock of an output
+/** Data type for the time lock of an output
  * @embed
  */
 message MintlayerOutputTimeLock {
@@ -376,28 +372,28 @@ message MintlayerOutputTimeLock {
     optional uint64 for_seconds = 4;                     // lock for number of seconds
 }
 
-/** Data type for transaction Lock then transfer output to be signed.
+/** Data type for the transaction's LockThenTransfer output.
  * @embed
  */
 message MintlayerLockThenTransferTxOutput {
     required string address = 1;                    // destination address in bech32 encoding
-    required MintlayerOutputValue value = 2;        // amount to spend in atoms for coin or token
+    required MintlayerOutputValue value = 2;        // the output value to transfer
     required MintlayerOutputTimeLock lock = 3;      // output lock
 }
 
-/** Data type for transaction Burn output to be signed.
+/** Data type for the transaction's Burn output.
  * @embed
  */
 message MintlayerBurnTxOutput {
-    required MintlayerOutputValue value = 1;        // amount to burn in atoms for coin or token
+    required MintlayerOutputValue value = 1;        // the output value to burn
 }
 
-/** Data type for transaction Create stake pool output to be signed.
+/** Data type for the transaction's CreateStakePool output.
  * @embed
  */
 message MintlayerCreateStakePoolTxOutput {
     required string pool_id = 1;                   // the pool id in bech32 encoding
-    required bytes pledge = 2;                     // the pledge amount
+    required bytes pledge = 2;                     // the pledge amount (in atoms as big-endian u128)
     required string staker = 3;                    // the staker destination address in bech32 encoding
     required string vrf_public_key = 4;            // the VRF public key address in bech32 encoding
     required string decommission_key = 5;          // the decommission key in bech32 encoding
@@ -405,7 +401,7 @@ message MintlayerCreateStakePoolTxOutput {
     required bytes cost_per_block = 7;             // the cost per block
 }
 
-/** Data type for transaction Produce block from stake output to be signed.
+/** Data type for the transaction's ProduceBlockFromStake output.
  * @embed
  */
 message MintlayerProduceBlockFromStakeTxOutput {
@@ -414,7 +410,7 @@ message MintlayerProduceBlockFromStakeTxOutput {
     required bytes staker_balance = 3;            // the current staker balance of the pool
 }
 
-/** Data type for transaction Create delegation id output to be signed.
+/** Data type for the transaction's CreateDelegationId output.
  * @embed
  */
 message MintlayerCreateDelegationIdTxOutput {
@@ -422,32 +418,23 @@ message MintlayerCreateDelegationIdTxOutput {
     required string pool_id = 2;                  // the pool id in bech32 encoding
 }
 
-/** Data type for transaction Delegate staking output to be signed.
+/** Data type for the transaction's DelegateStaking output.
  * @embed
  */
 message MintlayerDelegateStakingTxOutput {
-    required bytes amount = 1;               // the amount to delegate
+    required bytes amount = 1;               // the amount to delegate (in atoms as big-endian u128)
     required string delegation_id = 2;       // the delegation id in bech32 encoding
 }
 
-/**
-* Enum for Token total supply used by MintlayerTokenTotalSupply
-*/
-enum MintlayerTokenTotalSupplyType {
-    FIXED = 0;
-    LOCKABLE = 1;
-    UNLIMITED = 2;
-}
-
-/** Data type for Total token supply
+/** Data type for the token's total supply
  * @embed
  */
 message MintlayerTokenTotalSupply {
-    required MintlayerTokenTotalSupplyType type = 1;    // the type of total token supply
-    optional bytes fixed_amount = 2;                    // optional amount in case of fixed total token supply
+    required enums.MintlayerTokenTotalSupplyType type = 1;  // the type of total token supply
+    optional bytes fixed_amount = 2;                        // optional amount in case of fixed total token supply (in atoms as big-endian u128)
 }
 
-/** Data type for transaction Issue fungible token output to be signed.
+/** Data type for the transaction's IssueFungibleToken output.
  * @embed
  */
 message MintlayerIssueFungibleTokenTxOutput {
@@ -459,13 +446,13 @@ message MintlayerIssueFungibleTokenTxOutput {
     required bool is_freezable = 6;                              // if the token freezable or not
 }
 
-/** Data type for transaction Issue NFT output to be signed.
+/** Data type for the transaction's IssueNft output.
  * @embed
  */
 message MintlayerIssueNftTxOutput {
     required string token_id = 1;                                // the token id in bech32 encoding
     required string destination = 2;                             // the NFT authority destination address in bech32 encoding
-    optional string creator = 3;                                 // the NFT creator destination address in bech32 encoding
+    optional string creator = 3;                                 // the NFT creator destination address in bech32 encoding (pub key address only)
     required bytes name = 4;                                     // the NFT name
     required bytes description = 5;                              // the NFT description
     required bytes ticker = 6;                                   // the NFT ticker
@@ -475,25 +462,25 @@ message MintlayerIssueNftTxOutput {
     required bytes media_hash = 10;                              // the NFT media hash
 }
 
-/** Data type for transaction Data deposit output to be signed.
+/** Data type for the transaction's DataDeposit output.
  * @embed
  */
 message MintlayerDataDepositTxOutput {
     required bytes data = 1;    // the data to be deposited
 }
 
-/** Data type for transaction HTLC output to be signed.
+/** Data type for the transaction's HTLC output.
  * @embed
  */
 message MintlayerHtlcTxOutput {
-    required MintlayerOutputValue value = 1;                   // amount to transfer for coin or token
+    required MintlayerOutputValue value = 1;                   // the output value to transfer
     required bytes secret_hash = 2;                            // the hash of the exchanged secret
     required string spend_key = 3;                             // the key that can spend the HTLC given the secret in bech32 encoding
-    required MintlayerOutputTimeLock refund_timelock = 4;      // time lock
+    required MintlayerOutputTimeLock refund_timelock = 4;      // refund time lock
     required string refund_key = 5;                            // the key for a refund after the time lock has expired in bech32 encoding
 }
 
-/** Data type for transaction output to be signed.
+/** Data type for the transaction's CreateOrder output.
  * @embed
  */
 message MintlayerCreateOrderTxOutput {
@@ -503,7 +490,7 @@ message MintlayerCreateOrderTxOutput {
 }
 
 /**
- * Request: Data about input or output to be signed.
+ * Request: Data about input or output, sent in response to MintlayerTxRequest
  *
  * @next MintlayerTxRequest
  */
@@ -512,7 +499,7 @@ message MintlayerTxAck {
     optional MintlayerTxOutput output = 2; // Ack response for an output
 
     /**
-     * Request: Data about input to be signed.
+     * Request: Data about input.
      *
      * @next MintlayerTxRequest
      */
@@ -520,11 +507,11 @@ message MintlayerTxAck {
         optional MintlayerUtxoTxInput utxo = 1;                       // UTXO input
         optional MintlayerAccountTxInput account = 2;                 // account spending input
         optional MintlayerAccountCommandTxInput account_command = 3;  // account command input
-        optional MintlayerOrderCommandTxInput order_command = 4;      // order command input
+        optional MintlayerOrderCommandTxInput order_command = 4;      // order account command input
     }
 
     /**
-     * Request: Data about output to be signed.
+     * Request: Data about output.
      *
      * @next MintlayerTxRequest
      */

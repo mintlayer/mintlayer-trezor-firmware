@@ -1,0 +1,11 @@
+[package]
+name = "mintlayer-firmware-deps"
+edition = "2021"
+
+# Note: this should be the only place in this repo where mintlayer-core-primitives's repo revision
+# is specified.
+[dependencies.mintlayer-core-primitives]
+git = "https://github.com/mintlayer/mintlayer-core-primitives"
+# The commit "Merge pull request #1 from mintlayer/initial_implementation".
+rev = "4e21bf85e7fdca1577a49df7599b2b39ec913287"
+package = "mintlayer-core-primitives"

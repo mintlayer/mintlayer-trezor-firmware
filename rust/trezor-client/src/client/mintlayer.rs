@@ -14,6 +14,12 @@ use crate::{
     Error,
 };
 
+pub mod ml_primitives {
+    // Re-export ml_primitives used by the firmware so that mintlayer-core can do its
+    // consistency checks without explicitly referencing mintlayer_firmware_deps.
+    pub use mintlayer_firmware_deps::ml_primitives::*;
+}
+
 /// A chain code
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ChainCode(pub [u8; 32]);

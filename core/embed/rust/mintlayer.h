@@ -15,7 +15,7 @@ typedef enum {
   InvalidIsTokenUnfreezable = 6,
   InvalidIsTokenFreezable = 7,
   InvalidVrfPublicKey = 8,
-  InvalidPublicKey = 9,
+  PublicKeyDestinationExpected = 9,
   InvalidOutputTimeLock = 10,
   InvalidTokenTotalSupply = 11,
 } MintlayerErrorCode;
@@ -32,7 +32,7 @@ typedef struct {
 
 ByteArray mintlayer_encode_utxo_input(const unsigned char* hex,
                                       uint32_t hex_len, uint32_t index,
-                                      uint32_t utxo_type);
+                                      uint8_t utxo_type);
 
 ByteArray mintlayer_encode_account_spending_input(
     uint64_t nonce, const unsigned char* delegation_id_data,
@@ -40,7 +40,7 @@ ByteArray mintlayer_encode_account_spending_input(
     uint32_t amount_data_len);
 
 ByteArray mintlayer_encode_token_account_command_input(
-    uint64_t nonce, uint32_t command, const unsigned char* token_id_data,
+    uint64_t nonce, uint8_t command_type, const unsigned char* token_id_data,
     uint32_t token_id_data_len, const unsigned char* data, uint32_t data_len);
 
 ByteArray mintlayer_encode_conclude_order_account_command_input(
@@ -106,10 +106,10 @@ ByteArray mintlayer_encode_delegate_staking_output(
 ByteArray mintlayer_encode_issue_fungible_token_output(
     const unsigned char* token_ticker_data, uint32_t token_ticker_data_len,
     uint8_t number_of_decimals, const unsigned char* metadata_uri_data,
-    uint32_t metadata_uri_data_len, uint32_t total_supply_type,
+    uint32_t metadata_uri_data_len, uint8_t total_supply_type,
     const unsigned char* fixed_amount_data, uint32_t fixed_amount_data_len,
     const unsigned char* authority_data, uint32_t authority_data_len,
-    uint8_t is_freezable);
+    bool is_freezable);
 
 ByteArray mintlayer_encode_issue_nft_output(
     const unsigned char* token_id_data, uint32_t token_id_data_len,
