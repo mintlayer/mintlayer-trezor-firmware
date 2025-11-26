@@ -112,6 +112,50 @@ jobs:
       matrix:
         model: [T1B1, T2T1, T2B1, T3B1, T3T1]
     steps:
+      # Mintlayer:
+      # Since certain point in time, this job consistently fails due to disk space exhaustion
+      # (and often it does so in a weird way, e.g. the step that calls `build-docker.sh` may
+      # still appear running without clear indication of any failure even after the entire job
+      # has already been painted red, and it can stay in this state for days).
+      # This step solves this issue by deleting unnecessary stuff from the ubuntu-latest image
+      # (at the time of writing this it increased free space from 19G to 56G).
+      # The docs for the action are here - https://github.com/marketplace/actions/free-disk-space-ubuntu-runners
+      # TODO: the upstream repo seems to have the same problem, so they'll probably fix it themselves
+      # eventually in some other way. Once they do, we should switch to their approach.
+      # Note though that `build-docker.sh` is also used by `mintlayer-release.yml`, so whatever
+      # solution we und up with must be used there as well (once we're ready to make another release).
+      # Also note that if we end up keeping this solution, we should probably factor it out to
+      # a separate composite action, to avoid duplication.
+      - name: Free disk space
+        uses: endersonmenezes/free-disk-space@v3
+        with:
+          remove_android: true
+          remove_dotnet: true
+          remove_haskell: true
+          remove_packages: >-
+            azure-cli
+            google-cloud-cli
+            microsoft-edge-stable
+            google-chrome-stable
+            firefox
+            postgresql*
+            temurin-*
+            *llvm* mysql*
+            dotnet-sdk-*
+          remove_packages_one_command: true
+          remove_folders: >-
+            /usr/share/swift
+            /usr/share/miniconda
+            /usr/share/az*
+            /usr/local/lib/node_modules
+            /usr/local/share/chromium
+            /usr/local/share/powershell
+            /usr/local/julia
+            /usr/local/aws-cli
+            /usr/local/aws-sam-cli
+            /usr/share/gradle
+          rm_cmd: "rmz"  # Use 'rmz' for faster deletion
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
