@@ -76,7 +76,12 @@ test = [
     "universal_fw",
 ]
 universal_fw = ["mintlayer"]
-mintlayer = ["dep:parity-scale-codec", "dep:mintlayer-firmware-deps", "dep:prost", "dep:prost-types"]
+mintlayer = [
+    "dep:parity-scale-codec",
+    "dep:mintlayer-firmware-deps",
+    "dep:prost",
+    "dep:prost-types",
+]
 
 [lib]
 crate-type = ["staticlib"]
@@ -111,7 +116,10 @@ zeroize = { version = "1.7.0", default-features = false, optional = true }
 
 # Mintlayer
 
-parity-scale-codec = { version = "3.7", default-features = false, features = [
+# The specific commit is chosen because it contains a fix for the Ledger NanoX,
+# and we use the same version across all Trezor, Ledger and Mintlayerr core primitives repos
+# If a different version is used the tests in Mintlayer core will stop compiling
+parity-scale-codec = { git = "https://github.com/paritytech/parity-scale-codec.git", rev = "5021525697edc0661591ebc71392c48d950a10b0", default-features = false, features = [
     "derive",
     "chain-error",
 ], optional = true }
