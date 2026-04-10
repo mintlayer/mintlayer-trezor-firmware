@@ -18,7 +18,9 @@ def configure(
     hw_revision = 0
     mcu = "STM32F427xx"
 
-    unix_common_files(env, defines, sources, paths)
+    features_available += unix_common_files(
+        env, features_wanted, defines, sources, paths
+    )
 
     features_available.append("display_rgb565")
     defines += [
@@ -63,6 +65,6 @@ def configure(
     features_available.append("backlight")
     defines += [("USE_BACKLIGHT", "1")]
 
-    sources += ["embed/util/flash/stm32f4/flash_layout.c"]
+    sources += ["embed/sys/flash/stm32f4/flash_layout.c"]
 
     return features_available

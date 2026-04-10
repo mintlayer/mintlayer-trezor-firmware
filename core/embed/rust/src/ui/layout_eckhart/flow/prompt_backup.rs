@@ -18,10 +18,10 @@ use crate::{
 use super::super::{
     component::Button,
     firmware::{
-        ActionBar, Header, HeaderMsg, Hint, ShortMenuVec, TextScreen, TextScreenMsg, VerticalMenu,
+        ActionBar, Header, Hint, ShortMenuVec, TextScreen, TextScreenMsg, VerticalMenu,
         VerticalMenuScreen, VerticalMenuScreenMsg,
     },
-    theme,
+    theme::{self, gradient::Gradient},
 };
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -66,6 +66,7 @@ pub fn new_prompt_backup() -> Result<SwipeFlow, error::Error> {
         .with_action_bar(ActionBar::new_single(Button::with_text(
             TR::buttons__continue.into(),
         )))
+        .with_page_limit(1)
         .map(|msg| match msg {
             TextScreenMsg::Menu => Some(FlowMsg::Info),
             TextScreenMsg::Confirmed => Some(FlowMsg::Confirmed),
@@ -78,10 +79,7 @@ pub fn new_prompt_backup() -> Result<SwipeFlow, error::Error> {
             theme::menu_item_title_orange(),
         ),
     ))
-    .with_header(
-        Header::new(title)
-            .with_right_button(Button::with_icon(theme::ICON_CROSS), HeaderMsg::Cancelled),
-    )
+    .with_header(Header::new(title).with_close_button())
     .map(|msg| match msg {
         VerticalMenuScreenMsg::Selected(i) => Some(FlowMsg::Choice(i)),
         VerticalMenuScreenMsg::Close => Some(FlowMsg::Cancelled),
@@ -103,9 +101,12 @@ pub fn new_prompt_backup() -> Result<SwipeFlow, error::Error> {
         )
         .with_action_bar(ActionBar::new_double(
             Button::with_icon(theme::ICON_CHEVRON_LEFT),
-            Button::with_text(TR::buttons__skip.into()).styled(theme::button_cancel()),
+            Button::with_text(TR::buttons__skip.into())
+                .styled(theme::button_actionbar_danger())
+                .with_gradient(Gradient::Alert),
         ))
         .with_hint(Hint::new_instruction(TR::backup__not_recommend, None))
+        .with_page_limit(1)
         .map(|msg| match msg {
             TextScreenMsg::Menu => Some(FlowMsg::Cancelled),
             TextScreenMsg::Confirmed => Some(FlowMsg::Confirmed),

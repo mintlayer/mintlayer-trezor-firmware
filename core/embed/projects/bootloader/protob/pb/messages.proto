@@ -54,17 +54,19 @@ message Features {
     required uint32 major_version = 2;          // major version of the firmware/bootloader, e.g. 1
     required uint32 minor_version = 3;          // minor version of the firmware/bootloader, e.g. 0
     required uint32 patch_version = 4;          // patch version of the firmware/bootloader, e.g. 0
+    optional uint32 build_version = 61;          // build version of the firmware/bootloader, e.g. 0
     optional bool bootloader_mode = 5;          // is device in bootloader mode?
     optional string device_id = 6;              // device's unique identifier
     optional string language = 9;               // device language
     optional string label = 10;                 // device description label
     optional bool initialized = 12;             // does device contain seed?
     optional bytes revision = 13;               // SCM revision of firmware
-    optional bool firmware_present = 18;        // is valid firmware loaded?
+    optional bool firmware_present = 18;        // is firmware loaded?
     optional string model = 21;                 // device hardware model
     optional uint32 fw_major = 22;              // reported firmware version if in bootloader mode
     optional uint32 fw_minor = 23;              // reported firmware version if in bootloader mode
     optional uint32 fw_patch = 24;              // reported firmware version if in bootloader mode
+    optional uint32 fw_build = 62;              // reported firmware version if in bootloader mode
     optional string fw_vendor = 25;             // reported firmware vendor if in bootloader mode
     // optional bytes fw_vendor_keys = 26;      // obsoleted, use fw_vendor
     optional string internal_model = 44;        // internal model name
@@ -72,6 +74,10 @@ message Features {
     optional bool unit_btconly = 46;          // unit/device is intended as bitcoin only
     optional bool bootloader_locked = 49;       // bootloader is locked
     optional uint32 unit_packaging = 51;      // unit/device packaging version
+    optional uint32 soc = 55;                   // Battery state of charge (0 - 100%)
+    optional bool firmware_corrupted = 56;     // is firmware corrupted?
+    optional bool usb_connected = 59;           // USB connected
+    optional bool wireless_connected = 60;      // Wireless charger connected
 }
 
 /**

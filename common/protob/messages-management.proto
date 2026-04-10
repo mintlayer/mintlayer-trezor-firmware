@@ -77,6 +77,7 @@ message Features {
     required uint32 major_version = 2;          // major version of the firmware/bootloader, e.g. 1
     required uint32 minor_version = 3;          // minor version of the firmware/bootloader, e.g. 0
     required uint32 patch_version = 4;          // patch version of the firmware/bootloader, e.g. 0
+    optional uint32 build_version = 61;         // build version of the firmware/bootloader, e.g. 0
     optional bool bootloader_mode = 5;          // is device in bootloader mode?
     optional string device_id = 6;              // device's unique identifier
     optional bool pin_protection = 7;           // is device protected by PIN?
@@ -89,13 +90,14 @@ message Features {
     optional bool imported = 15;                // was storage imported from an external source?
     optional bool unlocked = 16;                // is the device unlocked? called "pin_cached" previously
     optional bool _passphrase_cached = 17 [deprecated=true]; // is passphrase already cached in session?
-    optional bool firmware_present = 18;        // is valid firmware loaded?
+    optional bool firmware_present = 18;        // is firmware loaded?
     optional BackupAvailability backup_availability = 19;  // does storage need backup? is repeated backup unlocked?
     optional uint32 flags = 20;                 // device flags (equals to Storage.flags)
     optional string model = 21;                 // device hardware model
     optional uint32 fw_major = 22;              // reported firmware version if in bootloader mode
     optional uint32 fw_minor = 23;              // reported firmware version if in bootloader mode
     optional uint32 fw_patch = 24;              // reported firmware version if in bootloader mode
+    optional uint32 fw_build = 62;              // reported firmware version if in bootloader mode
     optional string fw_vendor = 25;             // reported firmware vendor if in bootloader mode
     // optional bytes fw_vendor_keys = 26;      // obsoleted, use fw_vendor
     optional bool unfinished_backup = 27;       // report unfinished backup (equals to Storage.unfinished_backup)
@@ -126,6 +128,12 @@ message Features {
     optional bool haptic_feedback = 52;         // haptic feedback is enabled
     optional RecoveryType recovery_type = 53;   // what type of recovery we are in. NB: this works in conjunction with recovery_status
     optional uint32 optiga_sec = 54;            // Optiga's security event counter.
+    optional uint32 soc = 55;                   // Battery state of charge (0 - 100%)
+    optional bool firmware_corrupted = 56;     // true if the firmware is corrupted
+    optional uint32 auto_lock_delay_battery_ms = 57;    // number of milliseconds after which the battery-powered device locks itself
+    optional bool led = 58;         // RGB LED settings
+    optional bool usb_connected = 59;           // USB connected
+    optional bool wireless_connected = 60;      // Wireless charger connected
 
     enum BackupAvailability {
         /// Device is already backed up, or a previous backup has failed.
@@ -168,6 +176,7 @@ message Features {
         Capability_Haptic = 21 [(bitcoin_only) = true];
         Capability_BLE = 22 [(bitcoin_only) = true];  // Bluetooth Low Energy
         Capability_NFC = 23 [(bitcoin_only) = true];  // Near Field Communications
+        Capability_Tron = 24;
         Capability_Mintlayer = 99;
     }
 }
@@ -220,6 +229,7 @@ message ApplySettings {
     optional bool hide_passphrase_from_host = 11;  // do not show passphrase coming from host
     optional bool haptic_feedback = 13;  // enable haptic feedback
     optional uint32 homescreen_length = 14;  // byte length of new homescreen, device will request chunks
+    optional uint32 auto_lock_delay_battery_ms = 15; // time in ms after which device locks when on battery or wireless charger
 }
 
 /**
@@ -380,8 +390,10 @@ message AuthenticateDevice {
  * @end
  */
 message AuthenticityProof {
-    repeated bytes certificates = 1;  // A certificate chain starting with the device certificate, followed by intermediate CA certificates, the last of which is signed by Trezor company's root CA.
-    required bytes signature = 2;     // A DER-encoded signature of "\0x13AuthenticateDevice:" + length-prefixed challenge that should be verified using the device certificate.
+    repeated bytes optiga_certificates = 1;  // A certificate chain starting with the Optiga device certificate, followed by intermediate CA certificates, the last of which is signed by Trezor company's root CA.
+    required bytes optiga_signature = 2;     // A DER-encoded signature of "\0x13AuthenticateDevice:" + length-prefixed challenge that should be verified using the Optiga device certificate.
+    repeated bytes tropic_certificates = 3;  // A certificate chain starting with the Tropic device certificate, followed by intermediate CA certificates, the last of which is signed by Trezor company's root CA.
+    optional bytes tropic_signature = 4;     // A DER-encoded signature of "\0x13AuthenticateDevice:" + length-prefixed challenge that should be verified using the Tropic device certificate.
 }
 
 /**
@@ -409,6 +421,7 @@ message LoadDevice {
     optional uint32 u2f_counter = 8;                        // U2F counter
     optional bool needs_backup = 9;                         // set "needs backup" flag
     optional bool no_backup = 10;                           // indicate that no backup is going to be made
+    optional bool unfinished_backup = 11;                   // indicate that backup process has failed
 }
 
 /**
@@ -502,8 +515,8 @@ message RecoveryDevice {
      * `RecoveryDeviceInputMethod_ScrambledWords | RecoveryDeviceInputMethod_Matrix`
      * listing every method supported by the host computer.
      *
-     * Note that ScrambledWords must be supported by every implementation
-     * for backward compatibility; there is no way to not support it.
+     * Note that Matrix recovery is the recommended recovery method. ScrambledWords
+     * is allowed only for 24 word recovery, unless safety checks are disabled.
      */
     enum RecoveryDeviceInputMethod {
         // use powers of two when extending this field
@@ -608,8 +621,8 @@ message RebootToBootloader {
     optional BootCommand boot_command = 1 [default=STOP_AND_WAIT];
     // Firmware header to be flashed after rebooting to bootloader
     optional bytes firmware_header = 2;
-    // Length of language blob to be installed before upgrading firmware
-    optional uint32 language_data_length = 3 [default=0];
+    // Deprecated (length of language blob to be installed before upgrading firmware)
+    reserved 3;
 
     enum BootCommand {
         // Go to bootloader menu
@@ -625,7 +638,6 @@ message RebootToBootloader {
  * @next Nonce
  */
 message GetNonce {
-    option (experimental_message) = true;
 }
 
 /**
@@ -633,8 +645,6 @@ message GetNonce {
  * @end
  */
 message Nonce {
-    option (experimental_message) = true;
-
     required bytes nonce = 1; // a 32-byte random value generated by Trezor
 }
 
@@ -685,3 +695,20 @@ message UnlockBootloader {
 message SetBrightness {
     optional uint32 value = 1;  // if not specified, let the user choose
 }
+
+
+/**
+ * Request: Get unit serial number
+ * @start
+ * @next SerialNumber
+ */
+ message GetSerialNumber {
+ }
+
+ /**
+ * Response: contains unit serial number
+ * @end
+ */
+ message SerialNumber {
+    required string serial_number = 1;
+ }

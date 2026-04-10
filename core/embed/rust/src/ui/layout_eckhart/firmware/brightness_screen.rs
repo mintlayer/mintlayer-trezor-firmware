@@ -11,6 +11,7 @@ use crate::{
 };
 
 use super::super::{
+    component::Button,
     constant::SCREEN,
     firmware::{Header, HeaderMsg},
     theme,
@@ -19,20 +20,28 @@ use super::super::{
 pub struct SetBrightnessScreen {
     header: Header,
     slider: VerticalSlider,
+    brightness: u8,
 }
 
 impl SetBrightnessScreen {
     const SLIDER_HEIGHT: i16 = 392;
-    pub fn new(min: u16, max: u16, init_value: u16) -> Self {
+    pub fn new(min: u8, max: u8, init_value: u8) -> Self {
         Self {
-            header: Header::new(TR::brightness__title.into()).with_close_button(),
+            header: Header::new(TR::brightness__title.into()).with_right_button(
+                Button::with_icon(theme::ICON_CHECKMARK).styled(theme::button_header()),
+                HeaderMsg::Cancelled,
+            ),
             slider: VerticalSlider::new(min, max, init_value),
+            brightness: init_value as _,
         }
     }
 }
+pub enum BrightnessScreenMsg {
+    Close,
+}
 
 impl Component for SetBrightnessScreen {
-    type Msg = ();
+    type Msg = BrightnessScreenMsg;
 
     fn place(&mut self, bounds: Rect) -> Rect {
         // assert full screen
@@ -50,11 +59,12 @@ impl Component for SetBrightnessScreen {
 
     fn event(&mut self, ctx: &mut EventCtx, event: Event) -> Option<Self::Msg> {
         if let Some(HeaderMsg::Cancelled) = self.header.event(ctx, event) {
-            return Some(());
+            unwrap!(storage::set_brightness(self.brightness));
+            return Some(BrightnessScreenMsg::Close);
         }
 
-        if let Some(value) = self.slider.event(ctx, event) {
-            unwrap!(storage::set_brightness(value as _));
+        if let Some(brightness) = self.slider.event(ctx, event) {
+            self.brightness = brightness;
         }
         None
     }
@@ -77,17 +87,17 @@ impl crate::trace::Trace for SetBrightnessScreen {
 struct VerticalSlider {
     area: Rect,
     touch_area: Rect,
-    min: u16,
-    max: u16,
-    value: u16,
-    val_pct: u16,
+    min: u8,
+    max: u8,
+    value: u8,
+    val_pct: u8,
     touching: bool,
 }
 
 impl VerticalSlider {
     const SLIDER_WIDTH: i16 = 120;
 
-    pub fn new(min: u16, max: u16, value: u16) -> Self {
+    pub fn new(min: u8, max: u8, value: u8) -> Self {
         debug_assert!(min < max);
         let value = value.clamp(min, max);
         Self {
@@ -101,7 +111,13 @@ impl VerticalSlider {
         }
     }
 
-    pub fn update_value(&mut self, pos: Point, ctx: &mut EventCtx) {
+    fn handle_touch(&mut self, pos: Point, ctx: &mut EventCtx) {
+        self.update_value(pos, ctx);
+        display::set_backlight(self.value);
+        ctx.request_paint();
+    }
+
+    fn update_value(&mut self, pos: Point, ctx: &mut EventCtx) {
         // Area where slider value is not saturated
         let proportional_area = self.area.inset(Insets::new(
             Self::SLIDER_WIDTH / 2,
@@ -112,7 +128,7 @@ impl VerticalSlider {
 
         let filled = (proportional_area.y1 - pos.y).clamp(0, proportional_area.height());
         let val_pct = (filled as u16 * 100) / proportional_area.height() as u16;
-        let val = (val_pct * (self.max - self.min)) / 100 + self.min;
+        let val = ((val_pct * (self.max - self.min) as u16) / 100) as u8 + self.min;
 
         if val != self.value {
             ctx.request_paint();
@@ -135,34 +151,33 @@ impl Component for VerticalSlider {
     }
 
     fn event(&mut self, ctx: &mut EventCtx, event: Event) -> Option<Self::Msg> {
-        if let Event::Touch(touch_event) = event {
-            match touch_event {
-                TouchEvent::TouchStart(pos) if self.touch_area.contains(pos) => {
-                    // Detect only touches inside the touch area
-                    self.touching = true;
-                    self.update_value(pos, ctx);
-                    display::backlight(self.value as _);
-                    ctx.request_paint();
-                }
-                TouchEvent::TouchMove(pos) if self.touching => {
-                    self.update_value(pos, ctx);
-                    // Update only if the touch started inside the touch area
-                    display::backlight(self.value as _);
-                }
-                TouchEvent::TouchEnd(pos) if self.touching => {
-                    self.touching = false;
-                    self.update_value(pos, ctx);
-                    ctx.request_paint();
-                    return Some(self.value as _);
-                }
-                _ => {}
-            };
+        let touch_event = match event {
+            Event::Touch(te) => te,
+            _ => return None,
+        };
+
+        match touch_event {
+            TouchEvent::TouchStart(pos) if self.touch_area.contains(pos) => {
+                self.touching = true;
+                self.handle_touch(pos, ctx);
+            }
+            TouchEvent::TouchMove(pos) if self.touching => {
+                self.handle_touch(pos, ctx);
+            }
+            TouchEvent::TouchEnd(pos) if self.touching => {
+                self.touching = false;
+                self.handle_touch(pos, ctx);
+                return Some(self.value as _);
+            }
+            _ => {}
         }
+
         None
     }
 
     fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
-        let val_pct = ((100 * (self.value - self.min)) / (self.max - self.min)).clamp(0, 100);
+        let val_pct =
+            ((100 * (self.value - self.min) as u16) / (self.max - self.min) as u16).clamp(0, 100);
 
         // Square area for the slider
         let (_, small_area) = self.area.split_bottom(Self::SLIDER_WIDTH);

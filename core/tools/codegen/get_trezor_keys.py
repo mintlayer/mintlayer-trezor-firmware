@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 import binascii
+
 from trezorlib.client import TrezorClient
-from trezorlib.transport_hid import HidTransport
+from trezorlib.transport.hid import HidTransport
 
 devices = HidTransport.enumerate()
 if len(devices) > 0:
@@ -11,7 +12,7 @@ else:
     raise Exception("No Trezor found")
 
 for i in [0, 1, 2]:
-    path = "m/10018'/%d'" % i
+    path = f"m/10018'/{i}'"
     pk = t.get_public_node(
         t.expand_path(path), ecdsa_curve_name="ed25519", show_display=True
     )

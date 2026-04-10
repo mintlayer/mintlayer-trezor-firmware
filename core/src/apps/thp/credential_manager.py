@@ -10,24 +10,27 @@ from trezor.messages import (
 from trezor.wire.message_handler import wrap_protobuf_load
 
 if TYPE_CHECKING:
+    from buffer_types import AnyBytes
+
     from apps.common.paths import Slip21Path
+
+_THP_CREDENTIAL_KEY_PATH_PREFIX = [b"TREZOR", b"THP credential authentication key"]
 
 
 def derive_cred_auth_key() -> bytes:
     """
-    Derive current credential authentication mac-ing key from device secret.
+    Derive the current THP credential authentication mac-ing key from the device secret.
     """
     from storage.device import get_cred_auth_key_counter, get_device_secret
 
     from apps.common.seed import Slip21Node
 
     # Derive the key using SLIP-21 https://github.com/satoshilabs/slips/blob/master/slip-0021.md,
-    # the derivation path is m/"Credential authentication key"/(counter 4-byte BE)
+    # the derivation path is m/"TREZOR"/"THP credential authentication key"/(counter 4-byte BE)
 
     thp_secret = get_device_secret()
-    label = b"Credential authentication key"
     counter = get_cred_auth_key_counter()
-    path: Slip21Path = [label, counter]
+    path: Slip21Path = _THP_CREDENTIAL_KEY_PATH_PREFIX + [counter]
 
     symmetric_key_node: Slip21Node = Slip21Node(thp_secret)
     symmetric_key_node.derive_path(path)
@@ -43,7 +46,7 @@ def invalidate_cred_auth_key() -> None:
 
 
 def issue_credential(
-    host_static_pubkey: bytes,
+    host_static_public_key: AnyBytes,
     credential_metadata: ThpCredentialMetadata,
 ) -> bytes:
     """
@@ -52,7 +55,7 @@ def issue_credential(
     """
     cred_auth_key = derive_cred_auth_key()
     proto_msg = ThpAuthenticatedCredentialData(
-        host_static_pubkey=host_static_pubkey,
+        host_static_public_key=host_static_public_key,
         cred_metadata=credential_metadata,
     )
     authenticated_credential_data = _encode_message_into_new_buffer(proto_msg)
@@ -63,19 +66,28 @@ def issue_credential(
     return credential_raw
 
 
+def decode_credential(
+    encoded_pairing_credential_message: AnyBytes,
+) -> ThpPairingCredential:
+    """
+    Decode a protobuf encoded pairing credential.
+    """
+    expected_type = protobuf.type_for_name("ThpPairingCredential")
+    credential = wrap_protobuf_load(encoded_pairing_credential_message, expected_type)
+    assert ThpPairingCredential.is_type_of(credential)
+    return credential
+
+
 def validate_credential(
-    encoded_pairing_credential_message: bytes,
-    host_static_pubkey: bytes,
+    credential: ThpPairingCredential,
+    host_static_public_key: AnyBytes,
 ) -> bool:
     """
     Validate a pairing credential binded to the provided host static public key.
     """
     cred_auth_key = derive_cred_auth_key()
-    expected_type = protobuf.type_for_name("ThpPairingCredential")
-    credential = wrap_protobuf_load(encoded_pairing_credential_message, expected_type)
-    assert ThpPairingCredential.is_type_of(credential)
     proto_msg = ThpAuthenticatedCredentialData(
-        host_static_pubkey=host_static_pubkey,
+        host_static_public_key=host_static_public_key,
         cred_metadata=credential.cred_metadata,
     )
     authenticated_credential_data = _encode_message_into_new_buffer(proto_msg)
@@ -83,8 +95,29 @@ def validate_credential(
     return mac == credential.mac
 
 
+def decode_and_validate_credential(
+    encoded_pairing_credential_message: AnyBytes,
+    host_static_public_key: AnyBytes,
+) -> bool:
+    """
+    Decode a protobuf encoded pairing credential and validate it
+    binded to the provided host static public key.
+    """
+    credential = decode_credential(encoded_pairing_credential_message)
+    return validate_credential(credential, host_static_public_key)
+
+
+def is_credential_autoconnect(credential: ThpPairingCredential) -> bool:
+    assert ThpPairingCredential.is_type_of(credential)
+    if credential.cred_metadata is None:
+        return False
+    if credential.cred_metadata.autoconnect is None:
+        return False
+    return credential.cred_metadata.autoconnect
+
+
 def _encode_message_into_new_buffer(msg: protobuf.MessageType) -> bytes:
     msg_len = protobuf.encoded_length(msg)
     new_buffer = bytearray(msg_len)
     protobuf.encode(new_buffer, msg)
-    return new_buffer
+    return bytes(new_buffer)

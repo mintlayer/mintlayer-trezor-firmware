@@ -19,16 +19,19 @@
 
 #ifdef USE_POWER_MANAGER
 
-#include <rtl/cli.h>
-#include <rtl/mini_printf.h>
-#include <rtl/unit_test.h>
-#include <rust_ui_prodtest.h>
-#include <sys/power_manager.h>
-#include <sys/systick.h>
-
 #include <trezor_rtl.h>
 
 #include <stdlib.h>
+
+#include <io/power_manager.h>
+#include <rtl/cli.h>
+#include <rtl/printf.h>
+#include <rtl/unit_test.h>
+#include <rust_ui_prodtest.h>
+#include <sec/backup_ram.h>
+#include <sys/bootutils.h>
+#include <sys/rtc.h>
+#include <sys/systick.h>
 
 #include "prodtest.h"
 
@@ -62,15 +65,45 @@ void prodtest_pm_suspend(cli_t* cli) {
   }
 
   cli_trace(cli, "Suspending the device to low-power mode...");
-  cli_trace(cli, "Press the POWER button to resume.");
+  cli_trace(cli, "Press a button to resume.");
   systick_delay_ms(1000);
 
-  pm_suspend();
+  wakeup_flags_t wakeup_flags = 0;
+
+  pm_suspend(&wakeup_flags);
 
   systick_delay_ms(1500);
   cli_trace(cli, "Resumed to active mode.");
 
-  cli_ok(cli, "");
+  char flags_str[128] = "";
+
+  if (wakeup_flags & WAKEUP_FLAG_BUTTON) {
+    strcat(flags_str, "BUTTON ");
+  }
+
+  if (wakeup_flags & WAKEUP_FLAG_POWER) {
+    strcat(flags_str, "POWER ");
+  }
+
+  if (wakeup_flags & WAKEUP_FLAG_BLE) {
+    strcat(flags_str, "BLE ");
+  }
+
+  if (wakeup_flags & WAKEUP_FLAG_NFC) {
+    strcat(flags_str, "NFC ");
+  }
+
+  if (wakeup_flags & WAKEUP_FLAG_RTC) {
+    strcat(flags_str, "RTC ");
+  }
+
+  if (wakeup_flags == 0) {
+    cli_trace(cli, "Woken up by unknown reason.");
+  }
+
+  cli_ok(cli, "%s", flags_str);
+
+  prodtest_show_homescreen();
 }
 
 void prodtest_pm_charge_disable(cli_t* cli) {
@@ -138,13 +171,13 @@ void prodtest_pm_fuel_gauge_monitor(cli_t* cli) {
                  (int)(report.battery_soc * 100),
                  (int)(report.battery_soc * 10000) % 100);
 
-    mini_snprintf(screen_text_buf, 100, "%d.%03dV %d.%03dmA %d.%02d ",
-                  (int)report.battery_voltage_v,
-                  (int)(report.battery_voltage_v * 1000) % 1000,
-                  (int)report.battery_current_ma,
-                  abs((int)(report.battery_current_ma * 1000) % 1000),
-                  (int)(report.battery_soc * 100),
-                  (int)(report.battery_soc * 10000) % 100);
+    snprintf_(screen_text_buf, 100, "%d.%03dV %d.%03dmA %d.%02d ",
+              (int)report.battery_voltage_v,
+              (int)(report.battery_voltage_v * 1000) % 1000,
+              (int)report.battery_current_ma,
+              abs((int)(report.battery_current_ma * 1000) % 1000),
+              (int)(report.battery_soc * 100),
+              (int)(report.battery_soc * 10000) % 100);
 
     screen_prodtest_show_text(screen_text_buf, strlen(screen_text_buf));
 
@@ -300,72 +333,9 @@ void prodtest_pm_event_monitor(cli_t* cli) {
   cli_ok(cli, "");
 }
 
-void prodtest_pm_precharge(cli_t* cli) {
-  if (cli_arg_count(cli) > 0) {
-    cli_error_arg_count(cli);
-    return;
-  }
-
-  // This test considers that the device is connected via USB and placed at
-  // ambient temperature. The battery will be charged with constant current,
-  // and the precharge voltage is statically derived from the battery charging
-  // curve.
-
-  // During charging, the voltage rises because of the relatively high charging
-  // current. When the test ends upon reaching the specified precharge voltage,
-  // the charging current is cut off, which can cause the battery voltage to
-  // fall slightly.
-  float precharge_voltage_V = 3.45f;
-
-  // Disable SoC limit and enable charging
-  pm_set_soc_limit(100);
-  pm_charging_enable();
-
-  cli_trace(cli, "Precharging the device...");
-
-  while (true) {
-    pm_report_t report;
-    pm_status_t status = pm_get_report(&report);
-
-    if (status != PM_OK) {
-      cli_error(cli, CLI_ERROR, "Failed to get power manager report");
-      return;
-    }
-
-    if (report.usb_connected == false) {
-      cli_error(cli, CLI_ERROR, "USB power source is not connected");
-      return;
-    }
-
-    cli_trace(cli, "Precharging the device to %d.%03d V",
-              (int)precharge_voltage_V,
-              (int)(precharge_voltage_V * 1000) % 1000);
-
-    // Print power manager report.
-    prodtest_pm_report(cli);
-
-    if (cli_aborted(cli)) {
-      cli_trace(cli, "aborted");
-      break;
-    }
-
-    // Check if the battery voltage is above the precharge voltag
-    if (report.battery_voltage_v >= precharge_voltage_V) {
-      // Target achieved
-      cli_trace(cli, "Battery voltage reached the target voltage.");
-      pm_charging_disable();
-      break;
-    }
-
-    systick_delay_ms(500);
-  }
-
-  cli_ok(cli, "");
-}
-
-void prodtest_pm_set_soc_limit(cli_t* cli) {
-  uint32_t limit = 0;
-  if (!cli_arg_uint32(cli, "limit", &limit) || limit > 100 || limit < 10) {
+void prodtest_pm_set_soc_target(cli_t* cli) {
+  uint32_t target = 0;
+  if (!cli_arg_uint32(cli, "target", &target) || target > 100 || target < 10) {
     cli_error_arg(cli, "Expecting value in range 10-100");
     return;
   }
@@ -375,10 +345,104 @@ void prodtest_pm_set_soc_limit(cli_t* cli) {
     return;
   }
 
-  pm_set_soc_limit(limit);
+  pm_set_soc_target(target);
 
-  cli_trace(cli, "Set SOC limit to %d%%", limit);
+  cli_trace(cli, "Set SOC target to %d%%", target);
   cli_ok(cli, "");
+}
+
+void prodtest_pm_new_soc_estimate(cli_t* cli) {
+  if (cli_arg_count(cli) > 0) {
+    cli_error_arg_count(cli);
+    return;
+  }
+
+  // Run new battery SoC initialization by erasing the recovery data from
+  // backup RAM followed by forced imediate reboot.
+
+  cli_trace(cli, "Erasing backup RAM and rebooting...");
+  cli_ok(cli, "");
+  systick_delay_ms(100);
+
+  // Deinitialize power manager so the monitor stop feeding the recovery data
+  // to backup RAM.
+  pm_deinit();
+
+  // Erase PM recovery data from backup RAM
+  backup_ram_erase_item(BACKUP_RAM_KEY_PM_RECOVERY);
+  reboot_device();
+
+  cli_error(cli, CLI_ERROR, "failed to reboot");
+}
+
+void prodtest_pm_battery_test(cli_t* cli) {
+  uint32_t tested_samples = 10;
+
+  if (cli_has_arg(cli, "tested_samples")) {
+    if (!cli_arg_uint32(cli, "tested_samples", &tested_samples)) {
+      cli_error_arg(cli,
+                    "tested_samples argument is expected in integer format.");
+      return;
+    }
+
+    if (cli_arg_count(cli) > 1) {
+      cli_error_arg_count(cli);
+      return;
+    }
+
+  } else {
+    if (cli_arg_count(cli) > 0) {
+      cli_error_arg_count(cli);
+      return;
+    }
+  }
+
+  bool passed = true;
+
+  /** Acquire <tested_samples> battery measurements and check
+   *  the following criteria to pass the test
+   * - Every sample battery voltage is within range <2.95, 3,65> V
+   * - Every sample NTC temperature is within range <-10,65> °C
+   */
+  for (uint8_t i = 0; i < tested_samples; i++) {
+    if (cli_aborted(cli)) {
+      cli_error(cli, CLI_ERROR, "Aborted.");
+      goto cleanup;
+    }
+
+    pm_report_t report;
+    pm_status_t status = pm_get_report(&report);
+    if (status != PM_OK) {
+      cli_error(cli, CLI_ERROR, "Failed to get power manager report.");
+      goto cleanup;
+    }
+
+    char* err_mark = "";
+
+    if (report.battery_voltage_v < 2.95f || report.battery_voltage_v > 3.65f ||
+        report.battery_temp_c < -10.0f || report.battery_temp_c > 65.0f) {
+      passed = false;
+      err_mark = "!";
+    }
+
+    cli_progress(cli, "Sample %d: Voltage %d.%03d V, Temp %d.%03d C %s", i + 1,
+                 (int)report.battery_voltage_v,
+                 (int)(report.battery_voltage_v * 1000) % 1000,
+                 (int)report.battery_temp_c,
+                 (int)(report.battery_temp_c * 1000) % 1000, err_mark);
+
+    systick_delay_ms(100);
+  }
+
+  if (passed) {
+    cli_ok(cli, "Battery test passed.");
+  } else {
+    cli_error(cli, CLI_ERROR, "Battery test failed.");
+  }
+
+cleanup:
+  prodtest_show_homescreen();
+  return;
 }
 
 // clang-format off
@@ -387,7 +451,7 @@ PRODTEST_CLI_CMD(
     .name = "pm-suspend",
     .func = prodtest_pm_suspend,
     .info = "Suspend the device to low-power mode",
-    .args = ""
+    .args = "[<wakeup-time>]"
 );
 
 PRODTEST_CLI_CMD(
@@ -421,7 +485,7 @@ PRODTEST_CLI_CMD(
 PRODTEST_CLI_CMD(
 .name = "pm-fuel-gauge-monitor",
 .func = prodtest_pm_fuel_gauge_monitor,
-.info = "Watch fuel gauge ",
+.info = "Watch fuel gauge data",
 .args = ""
 );
 
@@ -433,17 +497,24 @@ PRODTEST_CLI_CMD(
 );
 
 PRODTEST_CLI_CMD(
-  .name = "pm-precharge",
-  .func = prodtest_pm_precharge,
-  .info = "Precharge the device to specific voltage",
+  .name = "pm-set-soc-target",
+  .func = prodtest_pm_set_soc_target,
+  .info = "Set battery SoC charging target",
+  .args = "<target>"
+);
+
+PRODTEST_CLI_CMD(
+  .name = "pm-new-soc-estimate",
+  .func = prodtest_pm_new_soc_estimate,
+  .info = "Reset battery SoC estimate",
   .args = ""
 );
 
 PRODTEST_CLI_CMD(
-  .name = "pm-set-soc-limit",
-  .func = prodtest_pm_set_soc_limit,
-  .info = "Set limit for the battery SOC",
-  .args = "<limit>"
-);
+  .name = "pm-battery-test",
+  .func = prodtest_pm_battery_test,
+  .info = "Run battery voltage and temperature test",
+  .args = "[<tested_samples>]"
+)
 
 #endif /* USE_POWER_MANAGER */

@@ -13,6 +13,7 @@ on:
   push:
     branches:
       - 'release/**'
+      - 'secfix/**'
 
 # cancel any previous runs on the same PR
 concurrency:
@@ -22,72 +23,11 @@ concurrency:
 permissions:
   id-token: write       # for fetching the OIDC token
   contents: read        # for actions/checkout
-  pull-requests: write  # For dflook comments on PR
+  pull-requests: write  # for dflook comments on PR
 
 env:
-  # See https://yaml-multiline.info/
-  PULL_COMMENT: >
-    |core UI changes|device test|click test|persistence test|
-
-    |---------------|-----------|----------|----------------|
-
-    |T2T1 Model T   |
-    <img src="https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_device_test-status.png" width="20px" height="20px" />
-    [test](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_device_test-index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_device_test-differing_screens.html))
-    [main](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_device_test-master_index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_device_test-master_diff.html))
-    |
-    <img src="https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_click_test-status.png" width="20px" height="20px" />
-    [test](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_click_test-index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_click_test-differing_screens.html))
-    [main](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_click_test-master_index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_click_test-master_diff.html))
-    |
-    <img src="https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_persistence_test-status.png" width="20px" height="20px" />
-    [test](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_persistence_test-index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_persistence_test-differing_screens.html))
-    [main](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_persistence_test-master_index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T2T1-en-core_persistence_test-master_diff.html))
-    |
-
-    |T3B1 Safe 3    |
-    <img src="https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_device_test-status.png" width="20px" height="20px" />
-    [test](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_device_test-index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_device_test-differing_screens.html))
-    [main](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_device_test-master_index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_device_test-master_diff.html))
-    |
-    <img src="https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_click_test-status.png" width="20px" height="20px" />
-    [test](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_click_test-index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_click_test-differing_screens.html))
-    [main](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_click_test-master_index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_click_test-master_diff.html))
-    |
-    <img src="https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_persistence_test-status.png" width="20px" height="20px" />
-    [test](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_persistence_test-index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_persistence_test-differing_screens.html))
-    [main](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_persistence_test-master_index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3B1-en-core_persistence_test-master_diff.html))
-    |
-
-    |T3T1 Safe 5    |
-    <img src="https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_device_test-status.png" width="20px" height="20px" />
-    [test](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_device_test-index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_device_test-differing_screens.html))
-    [main](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_device_test-master_index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_device_test-master_diff.html))
-    |
-    <img src="https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_click_test-status.png" width="20px" height="20px" />
-    [test](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_click_test-index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_click_test-differing_screens.html))
-    [main](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_click_test-master_index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_click_test-master_diff.html))
-    |
-    <img src="https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_persistence_test-status.png" width="20px" height="20px" />
-    [test](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_persistence_test-index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_persistence_test-differing_screens.html))
-    [main](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_persistence_test-master_index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3T1-en-core_persistence_test-master_diff.html))
-    |
-
-    |T3W1           |
-    <img src="https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_device_test-status.png" width="20px" height="20px" />
-    [test](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_device_test-index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_device_test-differing_screens.html))
-    [main](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_device_test-master_index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_device_test-master_diff.html))
-    |
-    <img src="https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_click_test-status.png" width="20px" height="20px" />
-    [test](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_click_test-index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_click_test-differing_screens.html))
-    [main](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_click_test-master_index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_click_test-master_diff.html))
-    |
-    <img src="https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_persistence_test-status.png" width="20px" height="20px" />
-    [test](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_persistence_test-index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_persistence_test-differing_screens.html))
-    [main](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_persistence_test-master_index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/T3W1-en-core_persistence_test-master_diff.html))||
-
-    |All            |
-    [main](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/all_index.html)([screens](https://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/all_diff.html))|
+  SDL_VIDEODRIVER: dummy
+  PULL_COMMENT_PATH: ${{ github.workspace }}/tests/core-pull-comment.md
   TREZOR_PYTEST_LOGS_DIR: ${{ github.workspace }}/tests/
 
 jobs:
@@ -101,22 +41,25 @@ jobs:
       - id: set_vars
         name: Set variables
         run: |
-          echo test_lang=${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'translations') && '[\"en\", \"cs\", \"fr\", \"de\", \"es\", \"pt\"]' || '[\"en\"]' }} >> $GITHUB_OUTPUT
+          echo test_lang=${{ (github.event_name == 'schedule' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'translations'))) && '[\"en\", \"cs\", \"fr\", \"de\", \"es\", \"pt\"]' || '[\"en\"]' }} >> $GITHUB_OUTPUT
           # TODO: fix ASAN tests on nightly CI runs (#5143)
           echo asan=${{ '[\"noasan\"]' }} >> $GITHUB_OUTPUT
           cat $GITHUB_OUTPUT
 
   core_firmware:
-    name: Build firmware
+    name: Build firmware (${{ matrix.model }}, ${{ matrix.coins }}, ${{ matrix.type }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        model: ${{ fromJSON(startsWith(github.ref, 'refs/heads/release/') && '["T2B1", "T2T1", "T3B1", "T3T1", "T3W1"]' || '["T2T1", "T3B1", "T3T1", "T3W1"]') }}
+        model: ${{ fromJSON(github.event_name == 'push' && '["T2B1", "T2T1", "T3B1", "T3T1", "T3W1"]' || '["T2T1", "T3B1", "T3T1", "T3W1"]') }}
         coins: [universal, btconly]
         type: ${{ fromJSON(github.event_name == 'schedule' && '["normal", "debuglink", "production"]' || '["normal", "debuglink"]') }}
         include:
           - model: D001
+            coins: universal
+            type: normal
+          - model: T2B1
             coins: universal
             type: normal
         exclude:
@@ -128,25 +71,28 @@ jobs:
       PYOPT: ${{ matrix.type == 'debuglink' && '0' || '1' }}
       PRODUCTION: ${{ matrix.type == 'production' && '1' || '0' }}
       BOOTLOADER_DEVEL: ${{ matrix.model == 'T3W1' && '1' || '0' }}
+      QUIET_MODE: 1
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run make -C core build_boardloader"
+      - run: nix-shell --run "uv run make -C core build_boardloader"
         if: matrix.coins == 'universal' && matrix.type != 'debuglink'
-      - run: nix-shell --run "poetry run make -C core build_bootloader"
+      - run: nix-shell --run "uv run make -C core build_bootloader"
         if: matrix.coins == 'universal' && matrix.type != 'debuglink'
-      - run: nix-shell --run "poetry run make -C core build_bootloader_ci"
+      - run: nix-shell --run "uv run make -C core build_bootloader_ci"
         if: matrix.coins == 'universal' && matrix.type != 'debuglink' && matrix.model == 'T2T1'
-      - run: nix-shell --run "poetry run make -C core build_prodtest"
+      - run: nix-shell --run "uv run make -C core build_prodtest"
         if: matrix.coins == 'universal' && matrix.type != 'debuglink'
-      - run: nix-shell --run "poetry run make -C core build_firmware"
-      - run: nix-shell --run "poetry run ./tools/print-rust-stack-sizes.py | sort -k1 -n | tail -n 50"
-      - run: nix-shell --run "poetry run ./tools/print-rust-type-sizes.sh core/build/firmware/rust-type-sizes.log" | awk '$1 >= 1000' | sort -k1 -n
-      - run: nix-shell --run "poetry run make -C core sizecheck"
+      - run: nix-shell --run "uv run make -C core build_prodtest_emu"
+        if: matrix.coins == 'universal' && matrix.type != 'debuglink' && matrix.model == 'T3W1'
+      - run: nix-shell --run "uv run make -C core build_firmware"
+      - run: nix-shell --run "uv run ./tools/print-rust-stack-sizes.py | sort -k1 -n | tail -n 50"
+      - run: nix-shell --run "uv run ./tools/print-rust-type-sizes.sh core/build/firmware/rust-type-sizes.log" | awk '$1 >= 1000' | sort -k1 -n
+      - run: nix-shell --run "uv run make -C core sizecheck"
         if: matrix.coins == 'universal' && matrix.type != 'debuglink'
-      - run: nix-shell --run "poetry run ./tools/check-bitcoin-only core/build/firmware/firmware.bin"
+      - run: nix-shell --run "uv run ./tools/check-bitcoin-only core/build/firmware/firmware.bin"
         if: matrix.coins == 'btconly' && matrix.type != 'debuglink'
       - uses: actions/upload-artifact@v4
         with:
@@ -156,13 +102,14 @@ jobs:
             core/build/bootloader/*.bin
             core/build/bootloader_ci/*.bin
             core/build/prodtest/*.bin
+            core/build/prodtest_emu/*.bin
             core/build/firmware/firmware.elf
             core/build/firmware/firmware-*.bin
             core/build/firmware/rust-type-sizes.log
           retention-days: 7
 
   core_emu:
-    name: Build emu
+    name: Build emu (${{ matrix.model }}, ${{ matrix.coins }}, ${{ matrix.type }}, ${{ matrix.asan }})
     runs-on: ubuntu-latest
     needs: param
     strategy:
@@ -182,14 +129,18 @@ jobs:
       PYOPT: ${{ matrix.type == 'debuglink' && '0' || '1' }}
       ADDRESS_SANITIZER: ${{ matrix.asan == 'asan' && '1' || '0' }}
       LSAN_OPTIONS: "suppressions=../../asan_suppressions.txt"
+      QUIET_MODE: 1
+      DISABLE_TROPIC: 0
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run make -C core build_bootloader_emu"
+      - run: nix-shell --run "uv run make -C core build_bootloader_emu"
         if: matrix.coins == 'universal' && matrix.asan == 'noasan'
-      - run: nix-shell --run "poetry run make -C core build_unix_frozen"
+      - run: nix-shell --run "uv run make -C core build_unix_frozen"
+      - run: nix-shell --arg fullDeps true --run "cd vendor/ts-tvl && poetry env use 3.12 && poetry install && poetry run model_server tcp -c ../../tests/tropic_model/config.yml > ../../tests/trezor-tropic-model.log 2>&1 &"
+      - run: nix-shell --run "uv run make -C core test_emu_sanity"
       - run: cp core/build/unix/trezor-emu-core core/build/unix/trezor-emu-core-${{ matrix.model }}-${{ matrix.coins }}
       - uses: actions/upload-artifact@v4
         with:
@@ -223,14 +174,15 @@ jobs:
       PYOPT: ${{ matrix.type == 'debuglink' && '0' || '1' }}
       ADDRESS_SANITIZER: ${{ matrix.asan == 'asan' && '1' || '0' }}
       LSAN_OPTIONS: "suppressions=../../asan_suppressions.txt"
+      QUIET_MODE: 1
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run make -C core build_bootloader_emu"
+      - run: nix-shell --run "uv run make -C core build_bootloader_emu"
         if: matrix.coins == 'universal'
-      - run: nix-shell --run "poetry run make -C core build_unix_frozen"
+      - run: nix-shell --run "uv run make -C core build_unix_frozen"
       - run: mv core/build/unix/trezor-emu-core core/build/unix/trezor-emu-arm-core-${{ matrix.model }}-${{ matrix.coins }}
       - uses: actions/upload-artifact@v4
         with:
@@ -241,7 +193,7 @@ jobs:
           retention-days: 2
 
   core_unit_python_test:
-    name: Python unit tests
+    name: Python unit tests (${{ matrix.model }}, ${{ matrix.asan }})
     runs-on: ubuntu-latest
     needs: param
     strategy:
@@ -259,13 +211,13 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run make -C core build_unix"
-      - run: nix-shell --run "cd vendor/ts-tvl/tvl/server/model_config && poetry install && poetry run model_server tcp -c model_config.yml &"
-      - run: nix-shell --run "poetry run make -C core test"
-      - run: nix-shell --run "poetry run core/emu.py -c true"  # sanity check non-frozen emulator
+      - run: nix-shell --run "uv run make -C core build_unix"
+      - run: nix-shell --arg fullDeps true --run "cd vendor/ts-tvl && poetry env use 3.12 && poetry install && poetry run model_server tcp -c ../../tests/tropic_model/config.yml > ../../tests/trezor-tropic-model.log 2>&1 &"
+      - run: nix-shell --run "uv run make -C core test"
+      - run: nix-shell --run "uv run make -C core test_emu_sanity"  # sanity check non-frozen emulator
 
   core_unit_rust_test:
-    name: Rust unit tests
+    name: Rust unit tests (${{ matrix.model }}, ${{ matrix.asan }})
     runs-on: ubuntu-latest
     needs:
       - param
@@ -286,14 +238,14 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run make -C core build_unix"
+      - run: nix-shell --run "uv run make -C core build_unix"
       # Ensure that "cargo build" works when NOT executed through our makefiles,
       # indicating that it does not rely on particular envvars or other flags.
       # This makes sure that rust-analyzer will work on our codebase.
       - run: nix-shell --run "cd core/embed/rust && cargo build"
         if: matrix.asan == 'noasan'
-      - run: nix-shell --run "poetry run make -C core clippy"
-      - run: nix-shell --run "poetry run make -C core test_rust"
+      - run: nix-shell --run "uv run make -C core clippy"
+      - run: nix-shell --run "uv run make -C core test_rust"
 
   core_rust_client_test:
     name: Rust trezor-client tests
@@ -313,14 +265,14 @@ jobs:
           path: core/build
       - run: chmod +x core/build/unix/trezor-emu-core*
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run core/emu.py --headless -q --temporary-profile --slip0014 --command cargo test --manifest-path rust/trezor-client/Cargo.toml"
+      - run: nix-shell --run "uv run core/emu.py --headless -q --temporary-profile --slip0014 --command cargo test --manifest-path rust/trezor-client/Cargo.toml"
 
   # Device tests for Core. Running device tests and also comparing screens
   # with the expected UI result.
   # See artifacts for a comprehensive report of UI.
   # See [docs/tests/ui-tests](../tests/ui-tests.md) for more info.
   core_device_test:
-    name: Device tests
+    name: Device tests (${{ matrix.model }}, ${{ matrix.coins }}, ${{ matrix.asan }}, ${{ matrix.lang }})
     runs-on: ubuntu-latest
     needs:
       - param
@@ -339,7 +291,7 @@ jobs:
       PYTEST_TIMEOUT: ${{ matrix.asan == 'asan' && 600 || 400 }}
       ACTIONS_DO_UI_TEST: ${{ matrix.coins == 'universal' && matrix.asan == 'noasan' }}
       TEST_LANG: ${{ matrix.lang }}
-      TESTOPTS: "--durations 50 --session-timeout 1800"  # 30m pytest global timeout
+      TESTOPTS: "--durations 10 --session-timeout 1800"  # 30m pytest global timeout
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -351,7 +303,10 @@ jobs:
           path: core/build
       - run: chmod +x core/build/unix/trezor-emu-core*
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run make -C core ${{ env.ACTIONS_DO_UI_TEST == 'true' && 'test_emu_ui_multicore' || 'test_emu' }}"
+      - name: Start Tropic model
+        if: ${{ env.TREZOR_MODEL == 'T3W1' && env.ACTIONS_DO_UI_TEST != 'true' }}  # ACTIONS_DO_UI_TEST refers to the test_emu_ui_multicore below which uses --control-emulators and starts tvl internally
+        run: nix-shell --arg fullDeps true --run "cd vendor/ts-tvl && poetry env use 3.12 && poetry install && poetry run model_server tcp -c ../../tests/tropic_model/config.yml > ../../tests/trezor-tropic-model.log 2>&1 &"
+      - run: nix-shell --run "uv run make -C core ${{ env.ACTIONS_DO_UI_TEST == 'true' && 'test_emu_ui_multicore' || 'test_emu' }}"
       - run: tail -v -n50 tests/trezor*.log || true
         if: failure()
       - uses: actions/upload-artifact@v4
@@ -372,12 +327,12 @@ jobs:
   # Click tests - UI.
   # See [docs/tests/click-tests](../tests/click-tests.md) for more info.
   core_click_test:
-    name: Click tests
+    name: Click tests (${{ matrix.model }}, ${{ matrix.asan }}, ${{ matrix.lang }})
     runs-on: ubuntu-latest
     needs:
       - param
       - core_emu
-    timeout-minutes: 90
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -389,6 +344,7 @@ jobs:
       # MULTICORE: 4  # more could interfere with other jobs
       PYTEST_TIMEOUT: 400
       TEST_LANG: ${{ matrix.lang }}
+      TESTOPTS: "--durations 10"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -399,9 +355,9 @@ jobs:
           path: core/build
       - run: chmod +x core/build/unix/trezor-emu-core*
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run make -C core test_emu_click_ui_multicore"
+      - run: nix-shell --run "uv run make -C core test_emu_click_ui_multicore"
         if: ${{ matrix.asan == 'noasan' }}
-      - run: nix-shell --run "poetry run make -C core test_emu_click"
+      - run: nix-shell --run "uv run make -C core test_emu_click"
         if: ${{ matrix.asan == 'asan' }}
       - uses: actions/upload-artifact@v4
         with:
@@ -418,11 +374,10 @@ jobs:
         continue-on-error: true
       - uses: ./.github/actions/upload-coverage
 
-
   # Upgrade tests.
   # See [docs/tests/upgrade-tests](../tests/upgrade-tests.md) for more info.
   core_upgrade_test:
-    name: Upgrade tests
+    name: Upgrade tests (${{ matrix.model }}, ${{ matrix.asan }})
     runs-on: ubuntu-latest
     needs:
       - param
@@ -437,7 +392,7 @@ jobs:
     env:
       TREZOR_UPGRADE_TEST: core
       PYTEST_TIMEOUT: 20
-      TESTOPTS: "--durations 50"
+      TESTOPTS: "--durations 10"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -448,8 +403,8 @@ jobs:
           path: core/build
       - run: chmod +x core/build/unix/trezor-emu-core*
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "tests/download_emulators.sh"
-      - run: nix-shell --run "poetry run pytest tests/upgrade_tests"
+      - run: nix-shell --run "tests/download_emulators.sh ${{ matrix.model }}"
+      - run: nix-shell --run "uv run pytest tests/upgrade_tests"
       - uses: actions/upload-artifact@v4
         with:
           name: core-test-upgrade-${{ matrix.model }}-${{ matrix.asan }}
@@ -458,10 +413,9 @@ jobs:
           retention-days: 7
         if: always()
 
-
   # Persistence tests - UI.
   core_persistence_test:
-    name: Persistence tests
+    name: Persistence tests (${{ matrix.model }}, ${{ matrix.asan }})
     runs-on: ubuntu-latest
     needs:
       - param
@@ -485,9 +439,12 @@ jobs:
           path: core/build
       - run: chmod +x core/build/unix/trezor-emu-core*
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run make -C core test_emu_persistence_ui"
+      - name: Start Tropic model
+        if: ${{ matrix.model == 'T3W1' }}
+        run: nix-shell --arg fullDeps true --run "cd vendor/ts-tvl && poetry env use 3.12 && poetry install && poetry run model_server tcp -c ../../tests/tropic_model/config.yml > ../../tests/trezor-tropic-model.log 2>&1 &"
+      - run: nix-shell --run "uv run make -C core test_emu_persistence_ui"
         if: ${{ matrix.asan == 'noasan' }}
-      - run: nix-shell --run "poetry run make -C core test_emu_persistence"
+      - run: nix-shell --run "uv run make -C core test_emu_persistence"
         if: ${{ matrix.asan == 'asan' }}
       - uses: ./.github/actions/ui-report
         with:
@@ -547,10 +504,10 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run make -C core build_unix_frozen"
-      - run: nix-shell --run "poetry run make -C core test_emu"
+      - run: nix-shell --run "uv run make -C core build_unix_frozen"
+      - run: nix-shell --run "uv run make -C core test_emu"
       - run: nix-shell --run "mkdir core/prof/memperf-html"
-      - run: nix-shell --run "poetry run core/tools/alloc.py --alloc-data=core/src/alloc_data.txt html core/prof/memperf-html"
+      - run: nix-shell --run "uv run core/tools/alloc.py --alloc-data=core/src/alloc_data.txt html core/prof/memperf-html"
       - uses: actions/upload-artifact@v4
         with:
           name: core-memperf-${{ matrix.model }}
@@ -581,40 +538,11 @@ jobs:
           name: core-firmware-${{ matrix.model }}-universal-normal  # FIXME: s/normal/debuglink/
           path: core/build
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run core/tools/size/checker.py core/build/firmware/firmware.elf"
-
-  # Compares the current flash space with the situation in the current master
-  # Fails if the new binary is significantly larger than the master one
-  # (the threshold is defined in the script, currently 5kb).
-  # Also generates a report with the current situation
-  core_flash_size_compare:
-    name: Flash size comparison
-    runs-on: ubuntu-latest
-    needs: core_firmware
-    strategy:
-      fail-fast: false
-      matrix:
-        model: [T2T1]  # FIXME: T2T1 url is hardcoded in compare_master.py
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
-      - uses: actions/download-artifact@v4
-        with:
-          name: core-firmware-${{ matrix.model }}-universal-normal
-          path: core/build
-      - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run core/tools/size/compare_master.py core/build/firmware/firmware.elf -r firmware_elf_size_report.txt"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: core-test-flash-size-${{ matrix.model }}
-          path: firmware_elf_size_report.txt
-          retention-days: 7
+      - run: nix-shell --run "uv run core/tools/size/checker.py core/build/firmware/firmware.elf"
 
   # Monero tests.
   core_monero_test:
-    name: Monero test
+    name: Monero test (${{ matrix.model }}, ${{ matrix.asan }})
     runs-on: ubuntu-latest
     needs:
       - param
@@ -622,7 +550,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        model: [T2T1, T3B1, T3T1, T3W1]
+        model: [T2T1, T3B1, T3T1]
         asan: ${{ fromJSON(needs.param.outputs.asan) }}
     env:
       TREZOR_PROFILING: ${{ matrix.asan == 'noasan' && '1' || '0' }}
@@ -639,7 +567,7 @@ jobs:
       - uses: ./.github/actions/environment
         with:
           full-deps: true
-      - run: nix-shell --arg fullDeps true --run "poetry run make -C core test_emu_monero"
+      - run: nix-shell --arg fullDeps true --run "uv run make -C core test_emu_monero"
       - uses: actions/upload-artifact@v4
         with:
           name: core-test-monero-${{ matrix.model }}-${{ matrix.asan }}
@@ -653,7 +581,7 @@ jobs:
 
   # Tests for U2F and HID.
   core_u2f_test:
-    name: U2F test
+    name: U2F test (${{ matrix.model }}, ${{ matrix.asan }}
     runs-on: ubuntu-latest
     needs:
       - param
@@ -676,8 +604,11 @@ jobs:
           path: core/build
       - run: chmod +x core/build/unix/trezor-emu-core*
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run make -C tests/fido_tests/u2f-tests-hid"
-      - run: nix-shell --run "poetry run make -C core test_emu_u2f"
+      - name: Start Tropic model
+        if: ${{ matrix.model == 'T3W1' }}
+        run: nix-shell --arg fullDeps true --run "cd vendor/ts-tvl && poetry env use 3.12 && poetry install && poetry run model_server tcp -c ../../tests/tropic_model/config.yml > ../../tests/trezor-tropic-model.log 2>&1 &"
+      - run: nix-shell --run "uv run make -C tests/fido_tests/u2f-tests-hid"
+      - run: nix-shell --run "uv run make -C core test_emu_u2f"
       - uses: actions/upload-artifact@v4
         with:
           name: core-test-u2f-${{ matrix.model }}-${{ matrix.asan }}
@@ -688,7 +619,7 @@ jobs:
 
   # FIDO2 device tests.
   core_fido2_test:
-    name: FIDO2 test
+    name: FIDO2 test (${{ matrix.model }}, ${{ matrix.asan }}
     runs-on: ubuntu-latest
     needs:
       - param
@@ -711,7 +642,10 @@ jobs:
           path: core/build
       - run: chmod +x core/build/unix/trezor-emu-core*
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run make -C core test_emu_fido2"
+      - name: Start Tropic model
+        if: ${{ matrix.model == 'T3W1' }}
+        run: nix-shell --arg fullDeps true --run "cd vendor/ts-tvl && poetry env use 3.12 && poetry install && poetry run model_server tcp -c ../../tests/tropic_model/config.yml > ../../tests/trezor-tropic-model.log 2>&1 &"
+      - run: nix-shell --run "uv run make -C core test_emu_fido2"
       - uses: actions/upload-artifact@v4
         with:
           name: core-test-fido2-${{ matrix.model }}-${{ matrix.asan }}
@@ -736,7 +670,8 @@ jobs:
       matrix:
         model: [T2T1, T3B1, T3T1, T3W1]
     env:
-      COVERAGE_THRESHOLD: 85
+      # TODO: https://github.com/trezor/trezor-firmware/issues/5957
+      COVERAGE_THRESHOLD: ${{ matrix.model == 'T3B1' && 84 || 85 }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -747,40 +682,51 @@ jobs:
           path: core
           merge-multiple: true
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run make -C core coverage"
+      - run: nix-shell --run "uv run make -C core coverage"
       - uses: actions/upload-artifact@v4
         with:
           name: core-coverage-report-${{ matrix.model }}
           path: core/htmlcov
           retention-days: 7
           include-hidden-files: true
+        if: always()
 
   core_ui_comment:
     name: Post comment with UI diff URLs
-    # if: github.event_name == 'pull_request'
-    if: false # Disabled for Mintlayer repository
+    # # skip UI comment job on external PRs (see #5381)
+    # if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: false  # Disabled for Mintlayer repository
     runs-on: ubuntu-latest
+    needs:
+      - param
     steps:
       - uses: actions/checkout@v4
       - run: sleep 1m  # try avoiding github api rate limit
+      - run: |
+          python ci/make_pull_comment.py "${{ github.run_id }}" '${{ needs.param.outputs.test_lang }}' > ${{ env.PULL_COMMENT_PATH }}
+          cat ${{ env.PULL_COMMENT_PATH }} >> $GITHUB_STEP_SUMMARY
       - uses: ./.github/actions/ui-comment
-
+        if: github.event_name == 'pull_request'
       - name: Configure aws credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::538326561891:role/gh_actions_deploy_dev_firmware_data
           aws-region: eu-west-1
-      - name: Upload aggregate diff from main branch
+
+      - run: python ci/make_summary_htmls.py "index" '${{ needs.param.outputs.test_lang }}' "tests/ui_tests/reporting/"
+      - run: python ci/make_summary_htmls.py "diff" '${{ needs.param.outputs.test_lang }}' "tests/ui_tests/reporting/"
+      - name: Upload per-language HTML summaries to S3
         run: |
-          for F in all_index.html all_diff.html
+          cd tests/ui_tests/reporting/
+          for F in *.html
           do
-            aws s3 cp tests/ui_tests/reporting/$F s3://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/$F
+            aws s3 cp $F s3://data.trezor.io/dev/firmware/ui_report/${{ github.run_id }}/$F
           done
 
   core_upload_emu:
     name: Upload emulator binaries
-    # if: github.event_name == 'schedule'
-    if: false # Disabled for Mintlayer repository
+    # if: github.event_name == 'schedule' && github.repository == 'trezor/trezor-firmware'
+    if: false  # Disabled for Mintlayer repository
     runs-on: ubuntu-latest
     needs:
       - core_emu
@@ -803,8 +749,8 @@ jobs:
   core_upload_emu_branch:
     name: Upload emulator binaries for the current branch
     # # Not building it for nightly CI
-    # if: github.event_name != 'schedule'
-    if: false # Disabled for Mintlayer repository
+    # if: github.event_name != 'schedule' && github.repository == 'trezor/trezor-firmware'
+    if: false  # Disabled for Mintlayer repository
     runs-on: ubuntu-latest
     needs:
       # Do not include ARM, they are only built on nightly

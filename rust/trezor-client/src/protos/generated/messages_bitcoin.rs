@@ -9382,1212 +9382,6 @@ impl ::protobuf::reflect::ProtobufValue for PrevOutput {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
-// @@protoc_insertion_point(message:hw.trezor.messages.bitcoin.TxAckPaymentRequest)
-#[derive(PartialEq,Clone,Default,Debug)]
-pub struct TxAckPaymentRequest {
-    // message fields
-    // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.nonce)
-    pub nonce: ::std::option::Option<::std::vec::Vec<u8>>,
-    // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.recipient_name)
-    pub recipient_name: ::std::option::Option<::std::string::String>,
-    // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.memos)
-    pub memos: ::std::vec::Vec<tx_ack_payment_request::PaymentRequestMemo>,
-    // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.amount)
-    pub amount: ::std::option::Option<u64>,
-    // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.signature)
-    pub signature: ::std::option::Option<::std::vec::Vec<u8>>,
-    // special fields
-    // @@protoc_insertion_point(special_field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.special_fields)
-    pub special_fields: ::protobuf::SpecialFields,
-}
-
-impl<'a> ::std::default::Default for &'a TxAckPaymentRequest {
-    fn default() -> &'a TxAckPaymentRequest {
-        <TxAckPaymentRequest as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl TxAckPaymentRequest {
-    pub fn new() -> TxAckPaymentRequest {
-        ::std::default::Default::default()
-    }
-
-    // optional bytes nonce = 1;
-
-    pub fn nonce(&self) -> &[u8] {
-        match self.nonce.as_ref() {
-            Some(v) => v,
-            None => &[],
-        }
-    }
-
-    pub fn clear_nonce(&mut self) {
-        self.nonce = ::std::option::Option::None;
-    }
-
-    pub fn has_nonce(&self) -> bool {
-        self.nonce.is_some()
-    }
-
-    // Param is passed by value, moved
-    pub fn set_nonce(&mut self, v: ::std::vec::Vec<u8>) {
-        self.nonce = ::std::option::Option::Some(v);
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_nonce(&mut self) -> &mut ::std::vec::Vec<u8> {
-        if self.nonce.is_none() {
-            self.nonce = ::std::option::Option::Some(::std::vec::Vec::new());
-        }
-        self.nonce.as_mut().unwrap()
-    }
-
-    // Take field
-    pub fn take_nonce(&mut self) -> ::std::vec::Vec<u8> {
-        self.nonce.take().unwrap_or_else(|| ::std::vec::Vec::new())
-    }
-
-    // required string recipient_name = 2;
-
-    pub fn recipient_name(&self) -> &str {
-        match self.recipient_name.as_ref() {
-            Some(v) => v,
-            None => "",
-        }
-    }
-
-    pub fn clear_recipient_name(&mut self) {
-        self.recipient_name = ::std::option::Option::None;
-    }
-
-    pub fn has_recipient_name(&self) -> bool {
-        self.recipient_name.is_some()
-    }
-
-    // Param is passed by value, moved
-    pub fn set_recipient_name(&mut self, v: ::std::string::String) {
-        self.recipient_name = ::std::option::Option::Some(v);
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_recipient_name(&mut self) -> &mut ::std::string::String {
-        if self.recipient_name.is_none() {
-            self.recipient_name = ::std::option::Option::Some(::std::string::String::new());
-        }
-        self.recipient_name.as_mut().unwrap()
-    }
-
-    // Take field
-    pub fn take_recipient_name(&mut self) -> ::std::string::String {
-        self.recipient_name.take().unwrap_or_else(|| ::std::string::String::new())
-    }
-
-    // optional uint64 amount = 4;
-
-    pub fn amount(&self) -> u64 {
-        self.amount.unwrap_or(0)
-    }
-
-    pub fn clear_amount(&mut self) {
-        self.amount = ::std::option::Option::None;
-    }
-
-    pub fn has_amount(&self) -> bool {
-        self.amount.is_some()
-    }
-
-    // Param is passed by value, moved
-    pub fn set_amount(&mut self, v: u64) {
-        self.amount = ::std::option::Option::Some(v);
-    }
-
-    // required bytes signature = 5;
-
-    pub fn signature(&self) -> &[u8] {
-        match self.signature.as_ref() {
-            Some(v) => v,
-            None => &[],
-        }
-    }
-
-    pub fn clear_signature(&mut self) {
-        self.signature = ::std::option::Option::None;
-    }
-
-    pub fn has_signature(&self) -> bool {
-        self.signature.is_some()
-    }
-
-    // Param is passed by value, moved
-    pub fn set_signature(&mut self, v: ::std::vec::Vec<u8>) {
-        self.signature = ::std::option::Option::Some(v);
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_signature(&mut self) -> &mut ::std::vec::Vec<u8> {
-        if self.signature.is_none() {
-            self.signature = ::std::option::Option::Some(::std::vec::Vec::new());
-        }
-        self.signature.as_mut().unwrap()
-    }
-
-    // Take field
-    pub fn take_signature(&mut self) -> ::std::vec::Vec<u8> {
-        self.signature.take().unwrap_or_else(|| ::std::vec::Vec::new())
-    }
-
-    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(5);
-        let mut oneofs = ::std::vec::Vec::with_capacity(0);
-        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-            "nonce",
-            |m: &TxAckPaymentRequest| { &m.nonce },
-            |m: &mut TxAckPaymentRequest| { &mut m.nonce },
-        ));
-        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-            "recipient_name",
-            |m: &TxAckPaymentRequest| { &m.recipient_name },
-            |m: &mut TxAckPaymentRequest| { &mut m.recipient_name },
-        ));
-        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
-            "memos",
-            |m: &TxAckPaymentRequest| { &m.memos },
-            |m: &mut TxAckPaymentRequest| { &mut m.memos },
-        ));
-        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-            "amount",
-            |m: &TxAckPaymentRequest| { &m.amount },
-            |m: &mut TxAckPaymentRequest| { &mut m.amount },
-        ));
-        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-            "signature",
-            |m: &TxAckPaymentRequest| { &m.signature },
-            |m: &mut TxAckPaymentRequest| { &mut m.signature },
-        ));
-        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<TxAckPaymentRequest>(
-            "TxAckPaymentRequest",
-            fields,
-            oneofs,
-        )
-    }
-}
-
-impl ::protobuf::Message for TxAckPaymentRequest {
-    const NAME: &'static str = "TxAckPaymentRequest";
-
-    fn is_initialized(&self) -> bool {
-        if self.recipient_name.is_none() {
-            return false;
-        }
-        if self.signature.is_none() {
-            return false;
-        }
-        for v in &self.memos {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
-        while let Some(tag) = is.read_raw_tag_or_eof()? {
-            match tag {
-                10 => {
-                    self.nonce = ::std::option::Option::Some(is.read_bytes()?);
-                },
-                18 => {
-                    self.recipient_name = ::std::option::Option::Some(is.read_string()?);
-                },
-                26 => {
-                    self.memos.push(is.read_message()?);
-                },
-                32 => {
-                    self.amount = ::std::option::Option::Some(is.read_uint64()?);
-                },
-                42 => {
-                    self.signature = ::std::option::Option::Some(is.read_bytes()?);
-                },
-                tag => {
-                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u64 {
-        let mut my_size = 0;
-        if let Some(v) = self.nonce.as_ref() {
-            my_size += ::protobuf::rt::bytes_size(1, &v);
-        }
-        if let Some(v) = self.recipient_name.as_ref() {
-            my_size += ::protobuf::rt::string_size(2, &v);
-        }
-        for value in &self.memos {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
-        };
-        if let Some(v) = self.amount {
-            my_size += ::protobuf::rt::uint64_size(4, v);
-        }
-        if let Some(v) = self.signature.as_ref() {
-            my_size += ::protobuf::rt::bytes_size(5, &v);
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
-        self.special_fields.cached_size().set(my_size as u32);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if let Some(v) = self.nonce.as_ref() {
-            os.write_bytes(1, v)?;
-        }
-        if let Some(v) = self.recipient_name.as_ref() {
-            os.write_string(2, v)?;
-        }
-        for v in &self.memos {
-            ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
-        };
-        if let Some(v) = self.amount {
-            os.write_uint64(4, v)?;
-        }
-        if let Some(v) = self.signature.as_ref() {
-            os.write_bytes(5, v)?;
-        }
-        os.write_unknown_fields(self.special_fields.unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn special_fields(&self) -> &::protobuf::SpecialFields {
-        &self.special_fields
-    }
-
-    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
-        &mut self.special_fields
-    }
-
-    fn new() -> TxAckPaymentRequest {
-        TxAckPaymentRequest::new()
-    }
-
-    fn clear(&mut self) {
-        self.nonce = ::std::option::Option::None;
-        self.recipient_name = ::std::option::Option::None;
-        self.memos.clear();
-        self.amount = ::std::option::Option::None;
-        self.signature = ::std::option::Option::None;
-        self.special_fields.clear();
-    }
-
-    fn default_instance() -> &'static TxAckPaymentRequest {
-        static instance: TxAckPaymentRequest = TxAckPaymentRequest {
-            nonce: ::std::option::Option::None,
-            recipient_name: ::std::option::Option::None,
-            memos: ::std::vec::Vec::new(),
-            amount: ::std::option::Option::None,
-            signature: ::std::option::Option::None,
-            special_fields: ::protobuf::SpecialFields::new(),
-        };
-        &instance
-    }
-}
-
-impl ::protobuf::MessageFull for TxAckPaymentRequest {
-    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
-        descriptor.get(|| file_descriptor().message_by_package_relative_name("TxAckPaymentRequest").unwrap()).clone()
-    }
-}
-
-impl ::std::fmt::Display for TxAckPaymentRequest {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for TxAckPaymentRequest {
-    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
-}
-
-/// Nested message and enums of message `TxAckPaymentRequest`
-pub mod tx_ack_payment_request {
-    // @@protoc_insertion_point(message:hw.trezor.messages.bitcoin.TxAckPaymentRequest.PaymentRequestMemo)
-    #[derive(PartialEq,Clone,Default,Debug)]
-    pub struct PaymentRequestMemo {
-        // message fields
-        // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.PaymentRequestMemo.text_memo)
-        pub text_memo: ::protobuf::MessageField<TextMemo>,
-        // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.PaymentRequestMemo.refund_memo)
-        pub refund_memo: ::protobuf::MessageField<RefundMemo>,
-        // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.PaymentRequestMemo.coin_purchase_memo)
-        pub coin_purchase_memo: ::protobuf::MessageField<CoinPurchaseMemo>,
-        // special fields
-        // @@protoc_insertion_point(special_field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.PaymentRequestMemo.special_fields)
-        pub special_fields: ::protobuf::SpecialFields,
-    }
-
-    impl<'a> ::std::default::Default for &'a PaymentRequestMemo {
-        fn default() -> &'a PaymentRequestMemo {
-            <PaymentRequestMemo as ::protobuf::Message>::default_instance()
-        }
-    }
-
-    impl PaymentRequestMemo {
-        pub fn new() -> PaymentRequestMemo {
-            ::std::default::Default::default()
-        }
-
-        pub(in super) fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-            let mut fields = ::std::vec::Vec::with_capacity(3);
-            let mut oneofs = ::std::vec::Vec::with_capacity(0);
-            fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, TextMemo>(
-                "text_memo",
-                |m: &PaymentRequestMemo| { &m.text_memo },
-                |m: &mut PaymentRequestMemo| { &mut m.text_memo },
-            ));
-            fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, RefundMemo>(
-                "refund_memo",
-                |m: &PaymentRequestMemo| { &m.refund_memo },
-                |m: &mut PaymentRequestMemo| { &mut m.refund_memo },
-            ));
-            fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, CoinPurchaseMemo>(
-                "coin_purchase_memo",
-                |m: &PaymentRequestMemo| { &m.coin_purchase_memo },
-                |m: &mut PaymentRequestMemo| { &mut m.coin_purchase_memo },
-            ));
-            ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<PaymentRequestMemo>(
-                "TxAckPaymentRequest.PaymentRequestMemo",
-                fields,
-                oneofs,
-            )
-        }
-    }
-
-    impl ::protobuf::Message for PaymentRequestMemo {
-        const NAME: &'static str = "PaymentRequestMemo";
-
-        fn is_initialized(&self) -> bool {
-            for v in &self.text_memo {
-                if !v.is_initialized() {
-                    return false;
-                }
-            };
-            for v in &self.refund_memo {
-                if !v.is_initialized() {
-                    return false;
-                }
-            };
-            for v in &self.coin_purchase_memo {
-                if !v.is_initialized() {
-                    return false;
-                }
-            };
-            true
-        }
-
-        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
-            while let Some(tag) = is.read_raw_tag_or_eof()? {
-                match tag {
-                    10 => {
-                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.text_memo)?;
-                    },
-                    18 => {
-                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.refund_memo)?;
-                    },
-                    26 => {
-                        ::protobuf::rt::read_singular_message_into_field(is, &mut self.coin_purchase_memo)?;
-                    },
-                    tag => {
-                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
-                    },
-                };
-            }
-            ::std::result::Result::Ok(())
-        }
-
-        // Compute sizes of nested messages
-        #[allow(unused_variables)]
-        fn compute_size(&self) -> u64 {
-            let mut my_size = 0;
-            if let Some(v) = self.text_memo.as_ref() {
-                let len = v.compute_size();
-                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
-            }
-            if let Some(v) = self.refund_memo.as_ref() {
-                let len = v.compute_size();
-                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
-            }
-            if let Some(v) = self.coin_purchase_memo.as_ref() {
-                let len = v.compute_size();
-                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
-            }
-            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
-            self.special_fields.cached_size().set(my_size as u32);
-            my_size
-        }
-
-        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-            if let Some(v) = self.text_memo.as_ref() {
-                ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
-            }
-            if let Some(v) = self.refund_memo.as_ref() {
-                ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
-            }
-            if let Some(v) = self.coin_purchase_memo.as_ref() {
-                ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
-            }
-            os.write_unknown_fields(self.special_fields.unknown_fields())?;
-            ::std::result::Result::Ok(())
-        }
-
-        fn special_fields(&self) -> &::protobuf::SpecialFields {
-            &self.special_fields
-        }
-
-        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
-            &mut self.special_fields
-        }
-
-        fn new() -> PaymentRequestMemo {
-            PaymentRequestMemo::new()
-        }
-
-        fn clear(&mut self) {
-            self.text_memo.clear();
-            self.refund_memo.clear();
-            self.coin_purchase_memo.clear();
-            self.special_fields.clear();
-        }
-
-        fn default_instance() -> &'static PaymentRequestMemo {
-            static instance: PaymentRequestMemo = PaymentRequestMemo {
-                text_memo: ::protobuf::MessageField::none(),
-                refund_memo: ::protobuf::MessageField::none(),
-                coin_purchase_memo: ::protobuf::MessageField::none(),
-                special_fields: ::protobuf::SpecialFields::new(),
-            };
-            &instance
-        }
-    }
-
-    impl ::protobuf::MessageFull for PaymentRequestMemo {
-        fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
-            static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
-            descriptor.get(|| super::file_descriptor().message_by_package_relative_name("TxAckPaymentRequest.PaymentRequestMemo").unwrap()).clone()
-        }
-    }
-
-    impl ::std::fmt::Display for PaymentRequestMemo {
-        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-            ::protobuf::text_format::fmt(self, f)
-        }
-    }
-
-    impl ::protobuf::reflect::ProtobufValue for PaymentRequestMemo {
-        type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
-    }
-
-    // @@protoc_insertion_point(message:hw.trezor.messages.bitcoin.TxAckPaymentRequest.TextMemo)
-    #[derive(PartialEq,Clone,Default,Debug)]
-    pub struct TextMemo {
-        // message fields
-        // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.TextMemo.text)
-        pub text: ::std::option::Option<::std::string::String>,
-        // special fields
-        // @@protoc_insertion_point(special_field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.TextMemo.special_fields)
-        pub special_fields: ::protobuf::SpecialFields,
-    }
-
-    impl<'a> ::std::default::Default for &'a TextMemo {
-        fn default() -> &'a TextMemo {
-            <TextMemo as ::protobuf::Message>::default_instance()
-        }
-    }
-
-    impl TextMemo {
-        pub fn new() -> TextMemo {
-            ::std::default::Default::default()
-        }
-
-        // required string text = 1;
-
-        pub fn text(&self) -> &str {
-            match self.text.as_ref() {
-                Some(v) => v,
-                None => "",
-            }
-        }
-
-        pub fn clear_text(&mut self) {
-            self.text = ::std::option::Option::None;
-        }
-
-        pub fn has_text(&self) -> bool {
-            self.text.is_some()
-        }
-
-        // Param is passed by value, moved
-        pub fn set_text(&mut self, v: ::std::string::String) {
-            self.text = ::std::option::Option::Some(v);
-        }
-
-        // Mutable pointer to the field.
-        // If field is not initialized, it is initialized with default value first.
-        pub fn mut_text(&mut self) -> &mut ::std::string::String {
-            if self.text.is_none() {
-                self.text = ::std::option::Option::Some(::std::string::String::new());
-            }
-            self.text.as_mut().unwrap()
-        }
-
-        // Take field
-        pub fn take_text(&mut self) -> ::std::string::String {
-            self.text.take().unwrap_or_else(|| ::std::string::String::new())
-        }
-
-        pub(in super) fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-            let mut fields = ::std::vec::Vec::with_capacity(1);
-            let mut oneofs = ::std::vec::Vec::with_capacity(0);
-            fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-                "text",
-                |m: &TextMemo| { &m.text },
-                |m: &mut TextMemo| { &mut m.text },
-            ));
-            ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<TextMemo>(
-                "TxAckPaymentRequest.TextMemo",
-                fields,
-                oneofs,
-            )
-        }
-    }
-
-    impl ::protobuf::Message for TextMemo {
-        const NAME: &'static str = "TextMemo";
-
-        fn is_initialized(&self) -> bool {
-            if self.text.is_none() {
-                return false;
-            }
-            true
-        }
-
-        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
-            while let Some(tag) = is.read_raw_tag_or_eof()? {
-                match tag {
-                    10 => {
-                        self.text = ::std::option::Option::Some(is.read_string()?);
-                    },
-                    tag => {
-                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
-                    },
-                };
-            }
-            ::std::result::Result::Ok(())
-        }
-
-        // Compute sizes of nested messages
-        #[allow(unused_variables)]
-        fn compute_size(&self) -> u64 {
-            let mut my_size = 0;
-            if let Some(v) = self.text.as_ref() {
-                my_size += ::protobuf::rt::string_size(1, &v);
-            }
-            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
-            self.special_fields.cached_size().set(my_size as u32);
-            my_size
-        }
-
-        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-            if let Some(v) = self.text.as_ref() {
-                os.write_string(1, v)?;
-            }
-            os.write_unknown_fields(self.special_fields.unknown_fields())?;
-            ::std::result::Result::Ok(())
-        }
-
-        fn special_fields(&self) -> &::protobuf::SpecialFields {
-            &self.special_fields
-        }
-
-        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
-            &mut self.special_fields
-        }
-
-        fn new() -> TextMemo {
-            TextMemo::new()
-        }
-
-        fn clear(&mut self) {
-            self.text = ::std::option::Option::None;
-            self.special_fields.clear();
-        }
-
-        fn default_instance() -> &'static TextMemo {
-            static instance: TextMemo = TextMemo {
-                text: ::std::option::Option::None,
-                special_fields: ::protobuf::SpecialFields::new(),
-            };
-            &instance
-        }
-    }
-
-    impl ::protobuf::MessageFull for TextMemo {
-        fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
-            static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
-            descriptor.get(|| super::file_descriptor().message_by_package_relative_name("TxAckPaymentRequest.TextMemo").unwrap()).clone()
-        }
-    }
-
-    impl ::std::fmt::Display for TextMemo {
-        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-            ::protobuf::text_format::fmt(self, f)
-        }
-    }
-
-    impl ::protobuf::reflect::ProtobufValue for TextMemo {
-        type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
-    }
-
-    // @@protoc_insertion_point(message:hw.trezor.messages.bitcoin.TxAckPaymentRequest.RefundMemo)
-    #[derive(PartialEq,Clone,Default,Debug)]
-    pub struct RefundMemo {
-        // message fields
-        // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.RefundMemo.address)
-        pub address: ::std::option::Option<::std::string::String>,
-        // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.RefundMemo.mac)
-        pub mac: ::std::option::Option<::std::vec::Vec<u8>>,
-        // special fields
-        // @@protoc_insertion_point(special_field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.RefundMemo.special_fields)
-        pub special_fields: ::protobuf::SpecialFields,
-    }
-
-    impl<'a> ::std::default::Default for &'a RefundMemo {
-        fn default() -> &'a RefundMemo {
-            <RefundMemo as ::protobuf::Message>::default_instance()
-        }
-    }
-
-    impl RefundMemo {
-        pub fn new() -> RefundMemo {
-            ::std::default::Default::default()
-        }
-
-        // required string address = 1;
-
-        pub fn address(&self) -> &str {
-            match self.address.as_ref() {
-                Some(v) => v,
-                None => "",
-            }
-        }
-
-        pub fn clear_address(&mut self) {
-            self.address = ::std::option::Option::None;
-        }
-
-        pub fn has_address(&self) -> bool {
-            self.address.is_some()
-        }
-
-        // Param is passed by value, moved
-        pub fn set_address(&mut self, v: ::std::string::String) {
-            self.address = ::std::option::Option::Some(v);
-        }
-
-        // Mutable pointer to the field.
-        // If field is not initialized, it is initialized with default value first.
-        pub fn mut_address(&mut self) -> &mut ::std::string::String {
-            if self.address.is_none() {
-                self.address = ::std::option::Option::Some(::std::string::String::new());
-            }
-            self.address.as_mut().unwrap()
-        }
-
-        // Take field
-        pub fn take_address(&mut self) -> ::std::string::String {
-            self.address.take().unwrap_or_else(|| ::std::string::String::new())
-        }
-
-        // required bytes mac = 2;
-
-        pub fn mac(&self) -> &[u8] {
-            match self.mac.as_ref() {
-                Some(v) => v,
-                None => &[],
-            }
-        }
-
-        pub fn clear_mac(&mut self) {
-            self.mac = ::std::option::Option::None;
-        }
-
-        pub fn has_mac(&self) -> bool {
-            self.mac.is_some()
-        }
-
-        // Param is passed by value, moved
-        pub fn set_mac(&mut self, v: ::std::vec::Vec<u8>) {
-            self.mac = ::std::option::Option::Some(v);
-        }
-
-        // Mutable pointer to the field.
-        // If field is not initialized, it is initialized with default value first.
-        pub fn mut_mac(&mut self) -> &mut ::std::vec::Vec<u8> {
-            if self.mac.is_none() {
-                self.mac = ::std::option::Option::Some(::std::vec::Vec::new());
-            }
-            self.mac.as_mut().unwrap()
-        }
-
-        // Take field
-        pub fn take_mac(&mut self) -> ::std::vec::Vec<u8> {
-            self.mac.take().unwrap_or_else(|| ::std::vec::Vec::new())
-        }
-
-        pub(in super) fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-            let mut fields = ::std::vec::Vec::with_capacity(2);
-            let mut oneofs = ::std::vec::Vec::with_capacity(0);
-            fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-                "address",
-                |m: &RefundMemo| { &m.address },
-                |m: &mut RefundMemo| { &mut m.address },
-            ));
-            fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-                "mac",
-                |m: &RefundMemo| { &m.mac },
-                |m: &mut RefundMemo| { &mut m.mac },
-            ));
-            ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<RefundMemo>(
-                "TxAckPaymentRequest.RefundMemo",
-                fields,
-                oneofs,
-            )
-        }
-    }
-
-    impl ::protobuf::Message for RefundMemo {
-        const NAME: &'static str = "RefundMemo";
-
-        fn is_initialized(&self) -> bool {
-            if self.address.is_none() {
-                return false;
-            }
-            if self.mac.is_none() {
-                return false;
-            }
-            true
-        }
-
-        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
-            while let Some(tag) = is.read_raw_tag_or_eof()? {
-                match tag {
-                    10 => {
-                        self.address = ::std::option::Option::Some(is.read_string()?);
-                    },
-                    18 => {
-                        self.mac = ::std::option::Option::Some(is.read_bytes()?);
-                    },
-                    tag => {
-                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
-                    },
-                };
-            }
-            ::std::result::Result::Ok(())
-        }
-
-        // Compute sizes of nested messages
-        #[allow(unused_variables)]
-        fn compute_size(&self) -> u64 {
-            let mut my_size = 0;
-            if let Some(v) = self.address.as_ref() {
-                my_size += ::protobuf::rt::string_size(1, &v);
-            }
-            if let Some(v) = self.mac.as_ref() {
-                my_size += ::protobuf::rt::bytes_size(2, &v);
-            }
-            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
-            self.special_fields.cached_size().set(my_size as u32);
-            my_size
-        }
-
-        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-            if let Some(v) = self.address.as_ref() {
-                os.write_string(1, v)?;
-            }
-            if let Some(v) = self.mac.as_ref() {
-                os.write_bytes(2, v)?;
-            }
-            os.write_unknown_fields(self.special_fields.unknown_fields())?;
-            ::std::result::Result::Ok(())
-        }
-
-        fn special_fields(&self) -> &::protobuf::SpecialFields {
-            &self.special_fields
-        }
-
-        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
-            &mut self.special_fields
-        }
-
-        fn new() -> RefundMemo {
-            RefundMemo::new()
-        }
-
-        fn clear(&mut self) {
-            self.address = ::std::option::Option::None;
-            self.mac = ::std::option::Option::None;
-            self.special_fields.clear();
-        }
-
-        fn default_instance() -> &'static RefundMemo {
-            static instance: RefundMemo = RefundMemo {
-                address: ::std::option::Option::None,
-                mac: ::std::option::Option::None,
-                special_fields: ::protobuf::SpecialFields::new(),
-            };
-            &instance
-        }
-    }
-
-    impl ::protobuf::MessageFull for RefundMemo {
-        fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
-            static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
-            descriptor.get(|| super::file_descriptor().message_by_package_relative_name("TxAckPaymentRequest.RefundMemo").unwrap()).clone()
-        }
-    }
-
-    impl ::std::fmt::Display for RefundMemo {
-        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-            ::protobuf::text_format::fmt(self, f)
-        }
-    }
-
-    impl ::protobuf::reflect::ProtobufValue for RefundMemo {
-        type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
-    }
-
-    // @@protoc_insertion_point(message:hw.trezor.messages.bitcoin.TxAckPaymentRequest.CoinPurchaseMemo)
-    #[derive(PartialEq,Clone,Default,Debug)]
-    pub struct CoinPurchaseMemo {
-        // message fields
-        // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.CoinPurchaseMemo.coin_type)
-        pub coin_type: ::std::option::Option<u32>,
-        // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.CoinPurchaseMemo.amount)
-        pub amount: ::std::option::Option<::std::string::String>,
-        // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.CoinPurchaseMemo.address)
-        pub address: ::std::option::Option<::std::string::String>,
-        // @@protoc_insertion_point(field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.CoinPurchaseMemo.mac)
-        pub mac: ::std::option::Option<::std::vec::Vec<u8>>,
-        // special fields
-        // @@protoc_insertion_point(special_field:hw.trezor.messages.bitcoin.TxAckPaymentRequest.CoinPurchaseMemo.special_fields)
-        pub special_fields: ::protobuf::SpecialFields,
-    }
-
-    impl<'a> ::std::default::Default for &'a CoinPurchaseMemo {
-        fn default() -> &'a CoinPurchaseMemo {
-            <CoinPurchaseMemo as ::protobuf::Message>::default_instance()
-        }
-    }
-
-    impl CoinPurchaseMemo {
-        pub fn new() -> CoinPurchaseMemo {
-            ::std::default::Default::default()
-        }
-
-        // required uint32 coin_type = 1;
-
-        pub fn coin_type(&self) -> u32 {
-            self.coin_type.unwrap_or(0)
-        }
-
-        pub fn clear_coin_type(&mut self) {
-            self.coin_type = ::std::option::Option::None;
-        }
-
-        pub fn has_coin_type(&self) -> bool {
-            self.coin_type.is_some()
-        }
-
-        // Param is passed by value, moved
-        pub fn set_coin_type(&mut self, v: u32) {
-            self.coin_type = ::std::option::Option::Some(v);
-        }
-
-        // required string amount = 2;
-
-        pub fn amount(&self) -> &str {
-            match self.amount.as_ref() {
-                Some(v) => v,
-                None => "",
-            }
-        }
-
-        pub fn clear_amount(&mut self) {
-            self.amount = ::std::option::Option::None;
-        }
-
-        pub fn has_amount(&self) -> bool {
-            self.amount.is_some()
-        }
-
-        // Param is passed by value, moved
-        pub fn set_amount(&mut self, v: ::std::string::String) {
-            self.amount = ::std::option::Option::Some(v);
-        }
-
-        // Mutable pointer to the field.
-        // If field is not initialized, it is initialized with default value first.
-        pub fn mut_amount(&mut self) -> &mut ::std::string::String {
-            if self.amount.is_none() {
-                self.amount = ::std::option::Option::Some(::std::string::String::new());
-            }
-            self.amount.as_mut().unwrap()
-        }
-
-        // Take field
-        pub fn take_amount(&mut self) -> ::std::string::String {
-            self.amount.take().unwrap_or_else(|| ::std::string::String::new())
-        }
-
-        // required string address = 3;
-
-        pub fn address(&self) -> &str {
-            match self.address.as_ref() {
-                Some(v) => v,
-                None => "",
-            }
-        }
-
-        pub fn clear_address(&mut self) {
-            self.address = ::std::option::Option::None;
-        }
-
-        pub fn has_address(&self) -> bool {
-            self.address.is_some()
-        }
-
-        // Param is passed by value, moved
-        pub fn set_address(&mut self, v: ::std::string::String) {
-            self.address = ::std::option::Option::Some(v);
-        }
-
-        // Mutable pointer to the field.
-        // If field is not initialized, it is initialized with default value first.
-        pub fn mut_address(&mut self) -> &mut ::std::string::String {
-            if self.address.is_none() {
-                self.address = ::std::option::Option::Some(::std::string::String::new());
-            }
-            self.address.as_mut().unwrap()
-        }
-
-        // Take field
-        pub fn take_address(&mut self) -> ::std::string::String {
-            self.address.take().unwrap_or_else(|| ::std::string::String::new())
-        }
-
-        // required bytes mac = 4;
-
-        pub fn mac(&self) -> &[u8] {
-            match self.mac.as_ref() {
-                Some(v) => v,
-                None => &[],
-            }
-        }
-
-        pub fn clear_mac(&mut self) {
-            self.mac = ::std::option::Option::None;
-        }
-
-        pub fn has_mac(&self) -> bool {
-            self.mac.is_some()
-        }
-
-        // Param is passed by value, moved
-        pub fn set_mac(&mut self, v: ::std::vec::Vec<u8>) {
-            self.mac = ::std::option::Option::Some(v);
-        }
-
-        // Mutable pointer to the field.
-        // If field is not initialized, it is initialized with default value first.
-        pub fn mut_mac(&mut self) -> &mut ::std::vec::Vec<u8> {
-            if self.mac.is_none() {
-                self.mac = ::std::option::Option::Some(::std::vec::Vec::new());
-            }
-            self.mac.as_mut().unwrap()
-        }
-
-        // Take field
-        pub fn take_mac(&mut self) -> ::std::vec::Vec<u8> {
-            self.mac.take().unwrap_or_else(|| ::std::vec::Vec::new())
-        }
-
-        pub(in super) fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-            let mut fields = ::std::vec::Vec::with_capacity(4);
-            let mut oneofs = ::std::vec::Vec::with_capacity(0);
-            fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-                "coin_type",
-                |m: &CoinPurchaseMemo| { &m.coin_type },
-                |m: &mut CoinPurchaseMemo| { &mut m.coin_type },
-            ));
-            fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-                "amount",
-                |m: &CoinPurchaseMemo| { &m.amount },
-                |m: &mut CoinPurchaseMemo| { &mut m.amount },
-            ));
-            fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-                "address",
-                |m: &CoinPurchaseMemo| { &m.address },
-                |m: &mut CoinPurchaseMemo| { &mut m.address },
-            ));
-            fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-                "mac",
-                |m: &CoinPurchaseMemo| { &m.mac },
-                |m: &mut CoinPurchaseMemo| { &mut m.mac },
-            ));
-            ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<CoinPurchaseMemo>(
-                "TxAckPaymentRequest.CoinPurchaseMemo",
-                fields,
-                oneofs,
-            )
-        }
-    }
-
-    impl ::protobuf::Message for CoinPurchaseMemo {
-        const NAME: &'static str = "CoinPurchaseMemo";
-
-        fn is_initialized(&self) -> bool {
-            if self.coin_type.is_none() {
-                return false;
-            }
-            if self.amount.is_none() {
-                return false;
-            }
-            if self.address.is_none() {
-                return false;
-            }
-            if self.mac.is_none() {
-                return false;
-            }
-            true
-        }
-
-        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
-            while let Some(tag) = is.read_raw_tag_or_eof()? {
-                match tag {
-                    8 => {
-                        self.coin_type = ::std::option::Option::Some(is.read_uint32()?);
-                    },
-                    18 => {
-                        self.amount = ::std::option::Option::Some(is.read_string()?);
-                    },
-                    26 => {
-                        self.address = ::std::option::Option::Some(is.read_string()?);
-                    },
-                    34 => {
-                        self.mac = ::std::option::Option::Some(is.read_bytes()?);
-                    },
-                    tag => {
-                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
-                    },
-                };
-            }
-            ::std::result::Result::Ok(())
-        }
-
-        // Compute sizes of nested messages
-        #[allow(unused_variables)]
-        fn compute_size(&self) -> u64 {
-            let mut my_size = 0;
-            if let Some(v) = self.coin_type {
-                my_size += ::protobuf::rt::uint32_size(1, v);
-            }
-            if let Some(v) = self.amount.as_ref() {
-                my_size += ::protobuf::rt::string_size(2, &v);
-            }
-            if let Some(v) = self.address.as_ref() {
-                my_size += ::protobuf::rt::string_size(3, &v);
-            }
-            if let Some(v) = self.mac.as_ref() {
-                my_size += ::protobuf::rt::bytes_size(4, &v);
-            }
-            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
-            self.special_fields.cached_size().set(my_size as u32);
-            my_size
-        }
-
-        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-            if let Some(v) = self.coin_type {
-                os.write_uint32(1, v)?;
-            }
-            if let Some(v) = self.amount.as_ref() {
-                os.write_string(2, v)?;
-            }
-            if let Some(v) = self.address.as_ref() {
-                os.write_string(3, v)?;
-            }
-            if let Some(v) = self.mac.as_ref() {
-                os.write_bytes(4, v)?;
-            }
-            os.write_unknown_fields(self.special_fields.unknown_fields())?;
-            ::std::result::Result::Ok(())
-        }
-
-        fn special_fields(&self) -> &::protobuf::SpecialFields {
-            &self.special_fields
-        }
-
-        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
-            &mut self.special_fields
-        }
-
-        fn new() -> CoinPurchaseMemo {
-            CoinPurchaseMemo::new()
-        }
-
-        fn clear(&mut self) {
-            self.coin_type = ::std::option::Option::None;
-            self.amount = ::std::option::Option::None;
-            self.address = ::std::option::Option::None;
-            self.mac = ::std::option::Option::None;
-            self.special_fields.clear();
-        }
-
-        fn default_instance() -> &'static CoinPurchaseMemo {
-            static instance: CoinPurchaseMemo = CoinPurchaseMemo {
-                coin_type: ::std::option::Option::None,
-                amount: ::std::option::Option::None,
-                address: ::std::option::Option::None,
-                mac: ::std::option::Option::None,
-                special_fields: ::protobuf::SpecialFields::new(),
-            };
-            &instance
-        }
-    }
-
-    impl ::protobuf::MessageFull for CoinPurchaseMemo {
-        fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
-            static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
-            descriptor.get(|| super::file_descriptor().message_by_package_relative_name("TxAckPaymentRequest.CoinPurchaseMemo").unwrap()).clone()
-        }
-    }
-
-    impl ::std::fmt::Display for CoinPurchaseMemo {
-        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-            ::protobuf::text_format::fmt(self, f)
-        }
-    }
-
-    impl ::protobuf::reflect::ProtobufValue for CoinPurchaseMemo {
-        type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
-    }
-}
-
 // @@protoc_insertion_point(message:hw.trezor.messages.bitcoin.TxAckInput)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct TxAckInput {
@@ -13530,8 +12324,8 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x10\0\x12\x0c\n\x08TXOUTPUT\x10\x01\x12\n\n\x06TXMETA\x10\x02\x12\x0e\n\
     \nTXFINISHED\x10\x03\x12\x0f\n\x0bTXEXTRADATA\x10\x04\x12\x0f\n\x0bTXORI\
     GINPUT\x10\x05\x12\x10\n\x0cTXORIGOUTPUT\x10\x06\x12\x10\n\x0cTXPAYMENTR\
-    EQ\x10\x07\"\xf4\x0f\n\x05TxAck\x12A\n\x02tx\x18\x01\x20\x01(\x0b21.hw.t\
-    rezor.messages.bitcoin.TxAck.TransactionTypeR\x02tx\x1a\xa3\x0f\n\x0fTra\
+    EQ\x10\x07\"\xee\x0f\n\x05TxAck\x12A\n\x02tx\x18\x01\x20\x01(\x0b21.hw.t\
+    rezor.messages.bitcoin.TxAck.TransactionTypeR\x02tx\x1a\x9d\x0f\n\x0fTra\
     nsactionType\x12\x18\n\x07version\x18\x01\x20\x01(\rR\x07version\x12U\n\
     \x06inputs\x18\x02\x20\x03(\x0b2=.hw.trezor.messages.bitcoin.TxAck.Trans\
     actionType.TxInputTypeR\x06inputs\x12b\n\x0bbin_outputs\x18\x03\x20\x03(\
@@ -13565,7 +12359,7 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x010R\rcoinjoinFlags\x1a\x82\x01\n\x0fTxOutputBinType\x12\x16\n\x06amou\
     nt\x18\x01\x20\x02(\x04R\x06amount\x12#\n\rscript_pubkey\x18\x02\x20\x02\
     (\x0cR\x0cscriptPubkey\x122\n\x15decred_script_version\x18\x03\x20\x01(\
-    \rR\x13decredScriptVersion\x1a\xa0\x03\n\x0cTxOutputType\x12\x18\n\x07ad\
+    \rR\x13decredScriptVersion\x1a\x9a\x03\n\x0cTxOutputType\x12\x18\n\x07ad\
     dress\x18\x01\x20\x01(\tR\x07address\x12\x1b\n\taddress_n\x18\x02\x20\
     \x03(\rR\x08addressN\x12\x16\n\x06amount\x18\x03\x20\x02(\x04R\x06amount\
     \x12[\n\x0bscript_type\x18\x04\x20\x01(\x0e2,.hw.trezor.messages.bitcoin\
@@ -13573,125 +12367,107 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x05\x20\x01(\x0b24.hw.trezor.messages.bitcoin.MultisigRedeemScriptTypeR\
     \x08multisig\x12$\n\x0eop_return_data\x18\x06\x20\x01(\x0cR\x0copReturnD\
     ata\x12\x1b\n\torig_hash\x18\n\x20\x01(\x0cR\x08origHash\x12\x1d\n\norig\
-    _index\x18\x0b\x20\x01(\rR\torigIndex\x120\n\x11payment_req_index\x18\
-    \x0c\x20\x01(\rR\x0fpaymentReqIndexB\x04\xc8\xf0\x19\x01:\x02\x18\x01\"\
-    \xff\x05\n\x07TxInput\x12\x1b\n\taddress_n\x18\x01\x20\x03(\rR\x08addres\
-    sN\x12\x1b\n\tprev_hash\x18\x02\x20\x02(\x0cR\x08prevHash\x12\x1d\n\npre\
-    v_index\x18\x03\x20\x02(\rR\tprevIndex\x12\x1d\n\nscript_sig\x18\x04\x20\
-    \x01(\x0cR\tscriptSig\x12&\n\x08sequence\x18\x05\x20\x01(\r:\n4294967295\
-    R\x08sequence\x12Z\n\x0bscript_type\x18\x06\x20\x01(\x0e2+.hw.trezor.mes\
-    sages.bitcoin.InputScriptType:\x0cSPENDADDRESSR\nscriptType\x12P\n\x08mu\
-    ltisig\x18\x07\x20\x01(\x0b24.hw.trezor.messages.bitcoin.MultisigRedeemS\
-    criptTypeR\x08multisig\x12\x16\n\x06amount\x18\x08\x20\x02(\x04R\x06amou\
-    nt\x12\x1f\n\x0bdecred_tree\x18\t\x20\x01(\rR\ndecredTree\x12\x18\n\x07w\
-    itness\x18\r\x20\x01(\x0cR\x07witness\x12'\n\x0fownership_proof\x18\x0e\
-    \x20\x01(\x0cR\x0eownershipProof\x12'\n\x0fcommitment_data\x18\x0f\x20\
-    \x01(\x0cR\x0ecommitmentData\x12\x1b\n\torig_hash\x18\x10\x20\x01(\x0cR\
-    \x08origHash\x12\x1d\n\norig_index\x18\x11\x20\x01(\rR\torigIndex\x12d\n\
-    \x14decred_staking_spend\x18\x12\x20\x01(\x0e22.hw.trezor.messages.bitco\
-    in.DecredStakingSpendTypeR\x12decredStakingSpend\x12#\n\rscript_pubkey\
-    \x18\x13\x20\x01(\x0cR\x0cscriptPubkey\x12(\n\x0ecoinjoin_flags\x18\x14\
-    \x20\x01(\r:\x010R\rcoinjoinFlagsJ\x04\x08\n\x10\x0bJ\x04\x08\x0b\x10\
-    \x0cJ\x04\x08\x0c\x10\r\"\xae\x03\n\x08TxOutput\x12\x18\n\x07address\x18\
-    \x01\x20\x01(\tR\x07address\x12\x1b\n\taddress_n\x18\x02\x20\x03(\rR\x08\
-    addressN\x12\x16\n\x06amount\x18\x03\x20\x02(\x04R\x06amount\x12[\n\x0bs\
-    cript_type\x18\x04\x20\x01(\x0e2,.hw.trezor.messages.bitcoin.OutputScrip\
-    tType:\x0cPAYTOADDRESSR\nscriptType\x12P\n\x08multisig\x18\x05\x20\x01(\
-    \x0b24.hw.trezor.messages.bitcoin.MultisigRedeemScriptTypeR\x08multisig\
-    \x12$\n\x0eop_return_data\x18\x06\x20\x01(\x0cR\x0copReturnData\x12\x1b\
-    \n\torig_hash\x18\n\x20\x01(\x0cR\x08origHash\x12\x1d\n\norig_index\x18\
-    \x0b\x20\x01(\rR\torigIndex\x120\n\x11payment_req_index\x18\x0c\x20\x01(\
-    \rR\x0fpaymentReqIndexB\x04\xc8\xf0\x19\x01J\x04\x08\x07\x10\x08J\x04\
-    \x08\x08\x10\tJ\x04\x08\t\x10\n\"\xcb\x02\n\x06PrevTx\x12\x18\n\x07versi\
-    on\x18\x01\x20\x02(\rR\x07version\x12\x1b\n\tlock_time\x18\x04\x20\x02(\
-    \rR\x08lockTime\x12!\n\x0cinputs_count\x18\x06\x20\x02(\rR\x0binputsCoun\
-    t\x12#\n\routputs_count\x18\x07\x20\x02(\rR\x0coutputsCount\x12'\n\x0eex\
-    tra_data_len\x18\t\x20\x01(\r:\x010R\x0cextraDataLen\x12\x16\n\x06expiry\
-    \x18\n\x20\x01(\rR\x06expiry\x12(\n\x10version_group_id\x18\x0c\x20\x01(\
-    \rR\x0eversionGroupId\x12\x1c\n\ttimestamp\x18\r\x20\x01(\rR\ttimestamp\
-    \x12\x1b\n\tbranch_id\x18\x0e\x20\x01(\rR\x08branchIdJ\x04\x08\x02\x10\
-    \x03J\x04\x08\x03\x10\x04J\x04\x08\x05\x10\x06J\x04\x08\x08\x10\tJ\x04\
-    \x08\x0b\x10\x0c\"\xf7\x01\n\tPrevInput\x12\x1b\n\tprev_hash\x18\x02\x20\
-    \x02(\x0cR\x08prevHash\x12\x1d\n\nprev_index\x18\x03\x20\x02(\rR\tprevIn\
-    dex\x12\x1d\n\nscript_sig\x18\x04\x20\x02(\x0cR\tscriptSig\x12\x1a\n\x08\
-    sequence\x18\x05\x20\x02(\rR\x08sequence\x12\x1f\n\x0bdecred_tree\x18\t\
-    \x20\x01(\rR\ndecredTreeJ\x04\x08\x01\x10\x02J\x04\x08\x06\x10\x07J\x04\
-    \x08\x07\x10\x08J\x04\x08\x08\x10\tJ\x04\x08\n\x10\x0bJ\x04\x08\x0b\x10\
-    \x0cJ\x04\x08\x0c\x10\rJ\x04\x08\r\x10\x0eJ\x04\x08\x0e\x10\x0fJ\x04\x08\
-    \x0f\x10\x10J\x04\x08\x10\x10\x11J\x04\x08\x11\x10\x12J\x04\x08\x12\x10\
-    \x13J\x04\x08\x13\x10\x14\"}\n\nPrevOutput\x12\x16\n\x06amount\x18\x01\
-    \x20\x02(\x04R\x06amount\x12#\n\rscript_pubkey\x18\x02\x20\x02(\x0cR\x0c\
-    scriptPubkey\x122\n\x15decred_script_version\x18\x03\x20\x01(\rR\x13decr\
-    edScriptVersion\"\xf2\x05\n\x13TxAckPaymentRequest\x12\x14\n\x05nonce\
-    \x18\x01\x20\x01(\x0cR\x05nonce\x12%\n\x0erecipient_name\x18\x02\x20\x02\
-    (\tR\rrecipientName\x12X\n\x05memos\x18\x03\x20\x03(\x0b2B.hw.trezor.mes\
-    sages.bitcoin.TxAckPaymentRequest.PaymentRequestMemoR\x05memos\x12\x16\n\
-    \x06amount\x18\x04\x20\x01(\x04R\x06amount\x12\x1c\n\tsignature\x18\x05\
-    \x20\x02(\x0cR\tsignature\x1a\xb8\x02\n\x12PaymentRequestMemo\x12U\n\tte\
-    xt_memo\x18\x01\x20\x01(\x0b28.hw.trezor.messages.bitcoin.TxAckPaymentRe\
-    quest.TextMemoR\x08textMemo\x12[\n\x0brefund_memo\x18\x02\x20\x01(\x0b2:\
-    .hw.trezor.messages.bitcoin.TxAckPaymentRequest.RefundMemoR\nrefundMemo\
-    \x12n\n\x12coin_purchase_memo\x18\x03\x20\x01(\x0b2@.hw.trezor.messages.\
-    bitcoin.TxAckPaymentRequest.CoinPurchaseMemoR\x10coinPurchaseMemo\x1a\
-    \x1e\n\x08TextMemo\x12\x12\n\x04text\x18\x01\x20\x02(\tR\x04text\x1a8\n\
-    \nRefundMemo\x12\x18\n\x07address\x18\x01\x20\x02(\tR\x07address\x12\x10\
-    \n\x03mac\x18\x02\x20\x02(\x0cR\x03mac\x1as\n\x10CoinPurchaseMemo\x12\
-    \x1b\n\tcoin_type\x18\x01\x20\x02(\rR\x08coinType\x12\x16\n\x06amount\
-    \x18\x02\x20\x02(\tR\x06amount\x12\x18\n\x07address\x18\x03\x20\x02(\tR\
-    \x07address\x12\x10\n\x03mac\x18\x04\x20\x02(\x0cR\x03mac:\x04\x88\xb2\
-    \x19\x01\"\xac\x01\n\nTxAckInput\x12H\n\x02tx\x18\x01\x20\x02(\x0b28.hw.\
-    trezor.messages.bitcoin.TxAckInput.TxAckInputWrapperR\x02tx\x1aN\n\x11Tx\
-    AckInputWrapper\x129\n\x05input\x18\x02\x20\x02(\x0b2#.hw.trezor.message\
-    s.bitcoin.TxInputR\x05input:\x04\x90\xb2\x19\x16\"\xb3\x01\n\x0bTxAckOut\
-    put\x12J\n\x02tx\x18\x01\x20\x02(\x0b2:.hw.trezor.messages.bitcoin.TxAck\
-    Output.TxAckOutputWrapperR\x02tx\x1aR\n\x12TxAckOutputWrapper\x12<\n\x06\
-    output\x18\x05\x20\x02(\x0b2$.hw.trezor.messages.bitcoin.TxOutputR\x06ou\
-    tput:\x04\x90\xb2\x19\x16\"I\n\rTxAckPrevMeta\x122\n\x02tx\x18\x01\x20\
-    \x02(\x0b2\".hw.trezor.messages.bitcoin.PrevTxR\x02tx:\x04\x90\xb2\x19\
-    \x16\"\xbe\x01\n\x0eTxAckPrevInput\x12P\n\x02tx\x18\x01\x20\x02(\x0b2@.h\
-    w.trezor.messages.bitcoin.TxAckPrevInput.TxAckPrevInputWrapperR\x02tx\
-    \x1aT\n\x15TxAckPrevInputWrapper\x12;\n\x05input\x18\x02\x20\x02(\x0b2%.\
-    hw.trezor.messages.bitcoin.PrevInputR\x05input:\x04\x90\xb2\x19\x16\"\
-    \xc5\x01\n\x0fTxAckPrevOutput\x12R\n\x02tx\x18\x01\x20\x02(\x0b2B.hw.tre\
-    zor.messages.bitcoin.TxAckPrevOutput.TxAckPrevOutputWrapperR\x02tx\x1aX\
-    \n\x16TxAckPrevOutputWrapper\x12>\n\x06output\x18\x03\x20\x02(\x0b2&.hw.\
-    trezor.messages.bitcoin.PrevOutputR\x06output:\x04\x90\xb2\x19\x16\"\xbb\
-    \x01\n\x12TxAckPrevExtraData\x12X\n\x02tx\x18\x01\x20\x02(\x0b2H.hw.trez\
-    or.messages.bitcoin.TxAckPrevExtraData.TxAckPrevExtraDataWrapperR\x02tx\
-    \x1aE\n\x19TxAckPrevExtraDataWrapper\x12(\n\x10extra_data_chunk\x18\x08\
-    \x20\x02(\x0cR\x0eextraDataChunk:\x04\x90\xb2\x19\x16\"\x88\x03\n\x11Get\
-    OwnershipProof\x12\x1b\n\taddress_n\x18\x01\x20\x03(\rR\x08addressN\x12$\
-    \n\tcoin_name\x18\x02\x20\x01(\t:\x07BitcoinR\x08coinName\x12Z\n\x0bscri\
-    pt_type\x18\x03\x20\x01(\x0e2+.hw.trezor.messages.bitcoin.InputScriptTyp\
-    e:\x0cSPENDWITNESSR\nscriptType\x12P\n\x08multisig\x18\x04\x20\x01(\x0b2\
-    4.hw.trezor.messages.bitcoin.MultisigRedeemScriptTypeR\x08multisig\x122\
-    \n\x11user_confirmation\x18\x05\x20\x01(\x08:\x05falseR\x10userConfirmat\
-    ion\x12#\n\rownership_ids\x18\x06\x20\x03(\x0cR\x0cownershipIds\x12)\n\
-    \x0fcommitment_data\x18\x07\x20\x01(\x0c:\0R\x0ecommitmentData\"W\n\x0eO\
-    wnershipProof\x12'\n\x0fownership_proof\x18\x01\x20\x02(\x0cR\x0eownersh\
-    ipProof\x12\x1c\n\tsignature\x18\x02\x20\x02(\x0cR\tsignature\"\xab\x03\
-    \n\x11AuthorizeCoinJoin\x12\x20\n\x0bcoordinator\x18\x01\x20\x02(\tR\x0b\
-    coordinator\x12\x1d\n\nmax_rounds\x18\x02\x20\x02(\x04R\tmaxRounds\x127\
-    \n\x18max_coordinator_fee_rate\x18\x03\x20\x02(\rR\x15maxCoordinatorFeeR\
-    ate\x12+\n\x12max_fee_per_kvbyte\x18\x04\x20\x02(\rR\x0fmaxFeePerKvbyte\
-    \x12\x1b\n\taddress_n\x18\x05\x20\x03(\rR\x08addressN\x12$\n\tcoin_name\
-    \x18\x06\x20\x01(\t:\x07BitcoinR\x08coinName\x12Z\n\x0bscript_type\x18\
-    \x07\x20\x01(\x0e2+.hw.trezor.messages.bitcoin.InputScriptType:\x0cSPEND\
-    ADDRESSR\nscriptType\x12P\n\x0bamount_unit\x18\x08\x20\x01(\x0e2&.hw.tre\
-    zor.messages.bitcoin.AmountUnit:\x07BITCOINR\namountUnit*~\n\x0fInputScr\
-    iptType\x12\x10\n\x0cSPENDADDRESS\x10\0\x12\x11\n\rSPENDMULTISIG\x10\x01\
-    \x12\x0c\n\x08EXTERNAL\x10\x02\x12\x10\n\x0cSPENDWITNESS\x10\x03\x12\x14\
-    \n\x10SPENDP2SHWITNESS\x10\x04\x12\x10\n\x0cSPENDTAPROOT\x10\x05*\x99\
-    \x01\n\x10OutputScriptType\x12\x10\n\x0cPAYTOADDRESS\x10\0\x12\x13\n\x0f\
-    PAYTOSCRIPTHASH\x10\x01\x12\x11\n\rPAYTOMULTISIG\x10\x02\x12\x11\n\rPAYT\
-    OOPRETURN\x10\x03\x12\x10\n\x0cPAYTOWITNESS\x10\x04\x12\x14\n\x10PAYTOP2\
-    SHWITNESS\x10\x05\x12\x10\n\x0cPAYTOTAPROOT\x10\x06*.\n\x16DecredStaking\
-    SpendType\x12\t\n\x05SSGen\x10\0\x12\t\n\x05SSRTX\x10\x01*J\n\nAmountUni\
-    t\x12\x0b\n\x07BITCOIN\x10\0\x12\x10\n\x0cMILLIBITCOIN\x10\x01\x12\x10\n\
-    \x0cMICROBITCOIN\x10\x02\x12\x0b\n\x07SATOSHI\x10\x03*8\n\x14MultisigPub\
-    keysOrder\x12\r\n\tPRESERVED\x10\0\x12\x11\n\rLEXICOGRAPHIC\x10\x01B?\n#\
-    com.satoshilabs.trezor.lib.protobufB\x14TrezorMessageBitcoin\x80\xa6\x1d\
-    \x01\
+    _index\x18\x0b\x20\x01(\rR\torigIndex\x12*\n\x11payment_req_index\x18\
+    \x0c\x20\x01(\rR\x0fpaymentReqIndex:\x02\x18\x01\"\xff\x05\n\x07TxInput\
+    \x12\x1b\n\taddress_n\x18\x01\x20\x03(\rR\x08addressN\x12\x1b\n\tprev_ha\
+    sh\x18\x02\x20\x02(\x0cR\x08prevHash\x12\x1d\n\nprev_index\x18\x03\x20\
+    \x02(\rR\tprevIndex\x12\x1d\n\nscript_sig\x18\x04\x20\x01(\x0cR\tscriptS\
+    ig\x12&\n\x08sequence\x18\x05\x20\x01(\r:\n4294967295R\x08sequence\x12Z\
+    \n\x0bscript_type\x18\x06\x20\x01(\x0e2+.hw.trezor.messages.bitcoin.Inpu\
+    tScriptType:\x0cSPENDADDRESSR\nscriptType\x12P\n\x08multisig\x18\x07\x20\
+    \x01(\x0b24.hw.trezor.messages.bitcoin.MultisigRedeemScriptTypeR\x08mult\
+    isig\x12\x16\n\x06amount\x18\x08\x20\x02(\x04R\x06amount\x12\x1f\n\x0bde\
+    cred_tree\x18\t\x20\x01(\rR\ndecredTree\x12\x18\n\x07witness\x18\r\x20\
+    \x01(\x0cR\x07witness\x12'\n\x0fownership_proof\x18\x0e\x20\x01(\x0cR\
+    \x0eownershipProof\x12'\n\x0fcommitment_data\x18\x0f\x20\x01(\x0cR\x0eco\
+    mmitmentData\x12\x1b\n\torig_hash\x18\x10\x20\x01(\x0cR\x08origHash\x12\
+    \x1d\n\norig_index\x18\x11\x20\x01(\rR\torigIndex\x12d\n\x14decred_staki\
+    ng_spend\x18\x12\x20\x01(\x0e22.hw.trezor.messages.bitcoin.DecredStaking\
+    SpendTypeR\x12decredStakingSpend\x12#\n\rscript_pubkey\x18\x13\x20\x01(\
+    \x0cR\x0cscriptPubkey\x12(\n\x0ecoinjoin_flags\x18\x14\x20\x01(\r:\x010R\
+    \rcoinjoinFlagsJ\x04\x08\n\x10\x0bJ\x04\x08\x0b\x10\x0cJ\x04\x08\x0c\x10\
+    \r\"\xa8\x03\n\x08TxOutput\x12\x18\n\x07address\x18\x01\x20\x01(\tR\x07a\
+    ddress\x12\x1b\n\taddress_n\x18\x02\x20\x03(\rR\x08addressN\x12\x16\n\
+    \x06amount\x18\x03\x20\x02(\x04R\x06amount\x12[\n\x0bscript_type\x18\x04\
+    \x20\x01(\x0e2,.hw.trezor.messages.bitcoin.OutputScriptType:\x0cPAYTOADD\
+    RESSR\nscriptType\x12P\n\x08multisig\x18\x05\x20\x01(\x0b24.hw.trezor.me\
+    ssages.bitcoin.MultisigRedeemScriptTypeR\x08multisig\x12$\n\x0eop_return\
+    _data\x18\x06\x20\x01(\x0cR\x0copReturnData\x12\x1b\n\torig_hash\x18\n\
+    \x20\x01(\x0cR\x08origHash\x12\x1d\n\norig_index\x18\x0b\x20\x01(\rR\tor\
+    igIndex\x12*\n\x11payment_req_index\x18\x0c\x20\x01(\rR\x0fpaymentReqInd\
+    exJ\x04\x08\x07\x10\x08J\x04\x08\x08\x10\tJ\x04\x08\t\x10\n\"\xcb\x02\n\
+    \x06PrevTx\x12\x18\n\x07version\x18\x01\x20\x02(\rR\x07version\x12\x1b\n\
+    \tlock_time\x18\x04\x20\x02(\rR\x08lockTime\x12!\n\x0cinputs_count\x18\
+    \x06\x20\x02(\rR\x0binputsCount\x12#\n\routputs_count\x18\x07\x20\x02(\r\
+    R\x0coutputsCount\x12'\n\x0eextra_data_len\x18\t\x20\x01(\r:\x010R\x0cex\
+    traDataLen\x12\x16\n\x06expiry\x18\n\x20\x01(\rR\x06expiry\x12(\n\x10ver\
+    sion_group_id\x18\x0c\x20\x01(\rR\x0eversionGroupId\x12\x1c\n\ttimestamp\
+    \x18\r\x20\x01(\rR\ttimestamp\x12\x1b\n\tbranch_id\x18\x0e\x20\x01(\rR\
+    \x08branchIdJ\x04\x08\x02\x10\x03J\x04\x08\x03\x10\x04J\x04\x08\x05\x10\
+    \x06J\x04\x08\x08\x10\tJ\x04\x08\x0b\x10\x0c\"\xf7\x01\n\tPrevInput\x12\
+    \x1b\n\tprev_hash\x18\x02\x20\x02(\x0cR\x08prevHash\x12\x1d\n\nprev_inde\
+    x\x18\x03\x20\x02(\rR\tprevIndex\x12\x1d\n\nscript_sig\x18\x04\x20\x02(\
+    \x0cR\tscriptSig\x12\x1a\n\x08sequence\x18\x05\x20\x02(\rR\x08sequence\
+    \x12\x1f\n\x0bdecred_tree\x18\t\x20\x01(\rR\ndecredTreeJ\x04\x08\x01\x10\
+    \x02J\x04\x08\x06\x10\x07J\x04\x08\x07\x10\x08J\x04\x08\x08\x10\tJ\x04\
+    \x08\n\x10\x0bJ\x04\x08\x0b\x10\x0cJ\x04\x08\x0c\x10\rJ\x04\x08\r\x10\
+    \x0eJ\x04\x08\x0e\x10\x0fJ\x04\x08\x0f\x10\x10J\x04\x08\x10\x10\x11J\x04\
+    \x08\x11\x10\x12J\x04\x08\x12\x10\x13J\x04\x08\x13\x10\x14\"}\n\nPrevOut\
+    put\x12\x16\n\x06amount\x18\x01\x20\x02(\x04R\x06amount\x12#\n\rscript_p\
+    ubkey\x18\x02\x20\x02(\x0cR\x0cscriptPubkey\x122\n\x15decred_script_vers\
+    ion\x18\x03\x20\x01(\rR\x13decredScriptVersion\"\xac\x01\n\nTxAckInput\
+    \x12H\n\x02tx\x18\x01\x20\x02(\x0b28.hw.trezor.messages.bitcoin.TxAckInp\
+    ut.TxAckInputWrapperR\x02tx\x1aN\n\x11TxAckInputWrapper\x129\n\x05input\
+    \x18\x02\x20\x02(\x0b2#.hw.trezor.messages.bitcoin.TxInputR\x05input:\
+    \x04\x90\xb2\x19\x16\"\xb3\x01\n\x0bTxAckOutput\x12J\n\x02tx\x18\x01\x20\
+    \x02(\x0b2:.hw.trezor.messages.bitcoin.TxAckOutput.TxAckOutputWrapperR\
+    \x02tx\x1aR\n\x12TxAckOutputWrapper\x12<\n\x06output\x18\x05\x20\x02(\
+    \x0b2$.hw.trezor.messages.bitcoin.TxOutputR\x06output:\x04\x90\xb2\x19\
+    \x16\"I\n\rTxAckPrevMeta\x122\n\x02tx\x18\x01\x20\x02(\x0b2\".hw.trezor.\
+    messages.bitcoin.PrevTxR\x02tx:\x04\x90\xb2\x19\x16\"\xbe\x01\n\x0eTxAck\
+    PrevInput\x12P\n\x02tx\x18\x01\x20\x02(\x0b2@.hw.trezor.messages.bitcoin\
+    .TxAckPrevInput.TxAckPrevInputWrapperR\x02tx\x1aT\n\x15TxAckPrevInputWra\
+    pper\x12;\n\x05input\x18\x02\x20\x02(\x0b2%.hw.trezor.messages.bitcoin.P\
+    revInputR\x05input:\x04\x90\xb2\x19\x16\"\xc5\x01\n\x0fTxAckPrevOutput\
+    \x12R\n\x02tx\x18\x01\x20\x02(\x0b2B.hw.trezor.messages.bitcoin.TxAckPre\
+    vOutput.TxAckPrevOutputWrapperR\x02tx\x1aX\n\x16TxAckPrevOutputWrapper\
+    \x12>\n\x06output\x18\x03\x20\x02(\x0b2&.hw.trezor.messages.bitcoin.Prev\
+    OutputR\x06output:\x04\x90\xb2\x19\x16\"\xbb\x01\n\x12TxAckPrevExtraData\
+    \x12X\n\x02tx\x18\x01\x20\x02(\x0b2H.hw.trezor.messages.bitcoin.TxAckPre\
+    vExtraData.TxAckPrevExtraDataWrapperR\x02tx\x1aE\n\x19TxAckPrevExtraData\
+    Wrapper\x12(\n\x10extra_data_chunk\x18\x08\x20\x02(\x0cR\x0eextraDataChu\
+    nk:\x04\x90\xb2\x19\x16\"\x88\x03\n\x11GetOwnershipProof\x12\x1b\n\taddr\
+    ess_n\x18\x01\x20\x03(\rR\x08addressN\x12$\n\tcoin_name\x18\x02\x20\x01(\
+    \t:\x07BitcoinR\x08coinName\x12Z\n\x0bscript_type\x18\x03\x20\x01(\x0e2+\
+    .hw.trezor.messages.bitcoin.InputScriptType:\x0cSPENDWITNESSR\nscriptTyp\
+    e\x12P\n\x08multisig\x18\x04\x20\x01(\x0b24.hw.trezor.messages.bitcoin.M\
+    ultisigRedeemScriptTypeR\x08multisig\x122\n\x11user_confirmation\x18\x05\
+    \x20\x01(\x08:\x05falseR\x10userConfirmation\x12#\n\rownership_ids\x18\
+    \x06\x20\x03(\x0cR\x0cownershipIds\x12)\n\x0fcommitment_data\x18\x07\x20\
+    \x01(\x0c:\0R\x0ecommitmentData\"W\n\x0eOwnershipProof\x12'\n\x0fownersh\
+    ip_proof\x18\x01\x20\x02(\x0cR\x0eownershipProof\x12\x1c\n\tsignature\
+    \x18\x02\x20\x02(\x0cR\tsignature\"\xab\x03\n\x11AuthorizeCoinJoin\x12\
+    \x20\n\x0bcoordinator\x18\x01\x20\x02(\tR\x0bcoordinator\x12\x1d\n\nmax_\
+    rounds\x18\x02\x20\x02(\x04R\tmaxRounds\x127\n\x18max_coordinator_fee_ra\
+    te\x18\x03\x20\x02(\rR\x15maxCoordinatorFeeRate\x12+\n\x12max_fee_per_kv\
+    byte\x18\x04\x20\x02(\rR\x0fmaxFeePerKvbyte\x12\x1b\n\taddress_n\x18\x05\
+    \x20\x03(\rR\x08addressN\x12$\n\tcoin_name\x18\x06\x20\x01(\t:\x07Bitcoi\
+    nR\x08coinName\x12Z\n\x0bscript_type\x18\x07\x20\x01(\x0e2+.hw.trezor.me\
+    ssages.bitcoin.InputScriptType:\x0cSPENDADDRESSR\nscriptType\x12P\n\x0ba\
+    mount_unit\x18\x08\x20\x01(\x0e2&.hw.trezor.messages.bitcoin.AmountUnit:\
+    \x07BITCOINR\namountUnit*~\n\x0fInputScriptType\x12\x10\n\x0cSPENDADDRES\
+    S\x10\0\x12\x11\n\rSPENDMULTISIG\x10\x01\x12\x0c\n\x08EXTERNAL\x10\x02\
+    \x12\x10\n\x0cSPENDWITNESS\x10\x03\x12\x14\n\x10SPENDP2SHWITNESS\x10\x04\
+    \x12\x10\n\x0cSPENDTAPROOT\x10\x05*\x99\x01\n\x10OutputScriptType\x12\
+    \x10\n\x0cPAYTOADDRESS\x10\0\x12\x13\n\x0fPAYTOSCRIPTHASH\x10\x01\x12\
+    \x11\n\rPAYTOMULTISIG\x10\x02\x12\x11\n\rPAYTOOPRETURN\x10\x03\x12\x10\n\
+    \x0cPAYTOWITNESS\x10\x04\x12\x14\n\x10PAYTOP2SHWITNESS\x10\x05\x12\x10\n\
+    \x0cPAYTOTAPROOT\x10\x06*.\n\x16DecredStakingSpendType\x12\t\n\x05SSGen\
+    \x10\0\x12\t\n\x05SSRTX\x10\x01*J\n\nAmountUnit\x12\x0b\n\x07BITCOIN\x10\
+    \0\x12\x10\n\x0cMILLIBITCOIN\x10\x01\x12\x10\n\x0cMICROBITCOIN\x10\x02\
+    \x12\x0b\n\x07SATOSHI\x10\x03*8\n\x14MultisigPubkeysOrder\x12\r\n\tPRESE\
+    RVED\x10\0\x12\x11\n\rLEXICOGRAPHIC\x10\x01B?\n#com.satoshilabs.trezor.l\
+    ib.protobufB\x14TrezorMessageBitcoin\x80\xa6\x1d\x01\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -13711,7 +12487,7 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             let mut deps = ::std::vec::Vec::with_capacity(2);
             deps.push(super::messages_common::file_descriptor().clone());
             deps.push(super::options::file_descriptor().clone());
-            let mut messages = ::std::vec::Vec::with_capacity(45);
+            let mut messages = ::std::vec::Vec::with_capacity(40);
             messages.push(MultisigRedeemScriptType::generated_message_descriptor_data());
             messages.push(GetPublicKey::generated_message_descriptor_data());
             messages.push(PublicKey::generated_message_descriptor_data());
@@ -13730,7 +12506,6 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             messages.push(PrevTx::generated_message_descriptor_data());
             messages.push(PrevInput::generated_message_descriptor_data());
             messages.push(PrevOutput::generated_message_descriptor_data());
-            messages.push(TxAckPaymentRequest::generated_message_descriptor_data());
             messages.push(TxAckInput::generated_message_descriptor_data());
             messages.push(TxAckOutput::generated_message_descriptor_data());
             messages.push(TxAckPrevMeta::generated_message_descriptor_data());
@@ -13748,10 +12523,6 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             messages.push(tx_ack::transaction_type::TxInputType::generated_message_descriptor_data());
             messages.push(tx_ack::transaction_type::TxOutputBinType::generated_message_descriptor_data());
             messages.push(tx_ack::transaction_type::TxOutputType::generated_message_descriptor_data());
-            messages.push(tx_ack_payment_request::PaymentRequestMemo::generated_message_descriptor_data());
-            messages.push(tx_ack_payment_request::TextMemo::generated_message_descriptor_data());
-            messages.push(tx_ack_payment_request::RefundMemo::generated_message_descriptor_data());
-            messages.push(tx_ack_payment_request::CoinPurchaseMemo::generated_message_descriptor_data());
             messages.push(tx_ack_input::TxAckInputWrapper::generated_message_descriptor_data());
             messages.push(tx_ack_output::TxAckOutputWrapper::generated_message_descriptor_data());
             messages.push(tx_ack_prev_input::TxAckPrevInputWrapper::generated_message_descriptor_data());

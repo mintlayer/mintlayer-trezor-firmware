@@ -213,16 +213,10 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef *hpcd)
     GPIO_InitStruct.Alternate = GPIO_AF10_USB_HS;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-    RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
-
     __HAL_RCC_SYSCFG_CLK_ENABLE();
 
-
-    /** Initializes the peripherals clock
-    */
-    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USBPHY;
-    PeriphClkInit.UsbPhyClockSelection = RCC_USBPHYCLKSOURCE_HSE;
-    HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
+    /** Initializes the peripherals clock */
+    __HAL_RCC_USBPHY_CONFIG(RCC_USBPHYCLKSOURCE_HSE);
 
     /** Set the OTG PHY reference clock selection
     */
@@ -238,6 +232,11 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef *hpcd)
     __HAL_RCC_USB_OTG_HS_CLK_ENABLE();
     __HAL_RCC_USBPHYC_CLK_ENABLE();
 
+
+#ifdef SECURE_MODE
+    // If not in secure mode, this initialization is done
+    // in secure monitor
+
     /* Enable VDDUSB */
     __HAL_RCC_PWR_CLK_ENABLE();
     HAL_PWREx_EnableVddUSB();
@@ -245,6 +244,7 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef *hpcd)
     /*configure VOSR register of USB*/
     HAL_PWREx_EnableUSBHSTranceiverSupply();
     __HAL_RCC_PWR_CLK_DISABLE();
+#endif
 
 
     /*Configuring the SYSCFG registers OTG_HS PHY*/

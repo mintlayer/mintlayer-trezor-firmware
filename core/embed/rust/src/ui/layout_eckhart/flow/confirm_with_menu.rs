@@ -1,3 +1,5 @@
+use heapless::Vec;
+
 use crate::{
     error,
     maybe_trace::MaybeTrace,
@@ -19,10 +21,12 @@ use super::super::{
         ActionBar, AllowedTextContent, Header, Hint, ShortMenuVec, TextScreen, TextScreenMsg,
         VerticalMenu, VerticalMenuScreen, VerticalMenuScreenMsg,
     },
-    theme,
+    theme::{self, gradient::Gradient},
 };
 
 const TIMEOUT_MS: u32 = 2000;
+const MENU_ITEM_CANCEL: usize = 0;
+const MENU_ITEM_INFO: usize = 1;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum ConfirmWithMenu {
@@ -44,8 +48,8 @@ impl FlowController for ConfirmWithMenu {
         match (self, msg) {
             (Self::Value, FlowMsg::Confirmed) => self.return_msg(FlowMsg::Confirmed),
             (Self::Value, FlowMsg::Info) => Self::Menu.goto(),
-            (Self::Menu, FlowMsg::Choice(0)) => self.return_msg(FlowMsg::Info),
-            (Self::Menu, FlowMsg::Choice(1)) => self.return_msg(FlowMsg::Cancelled),
+            (Self::Menu, FlowMsg::Choice(MENU_ITEM_INFO)) => self.return_msg(FlowMsg::Info),
+            (Self::Menu, FlowMsg::Choice(MENU_ITEM_CANCEL)) => self.return_msg(FlowMsg::Cancelled),
             (Self::Menu, FlowMsg::Cancelled) => Self::Value.goto(),
             _ => self.do_nothing(),
         }
@@ -58,23 +62,24 @@ pub fn new_confirm_with_menu<T: AllowedTextContent + MaybeTrace + 'static>(
     subtitle: Option<TString<'static>>,
     content: T,
     hint: Option<TString<'static>>,
-    confirm_label: Option<TString<'static>>,
+    verb: Option<TString<'static>>,
     hold: bool,
     extra_menu_label: Option<TString<'static>>,
     cancel_menu_label: Option<TString<'static>>,
 ) -> Result<SwipeFlow, error::Error> {
-    let cancel_menu_label = cancel_menu_label.unwrap_or(TR::buttons__cancel.into());
-
     // Value
     let confirm_button = if hold {
-        let confirm_label = confirm_label.unwrap_or(TR::buttons__hold_to_confirm.into());
-        Button::with_text(confirm_label)
+        let verb = verb.unwrap_or(TR::buttons__hold_to_confirm.into());
+        Button::with_text(verb)
             .with_long_press(theme::CONFIRM_HOLD_DURATION)
             .styled(theme::firmware::button_confirm())
-    } else if let Some(confirm_label) = confirm_label {
-        Button::with_text(confirm_label)
+            .with_gradient(Gradient::SignGreen)
+    } else if let Some(verb) = verb {
+        Button::with_text(verb)
     } else {
-        Button::with_text(TR::buttons__confirm.into()).styled(theme::firmware::button_confirm())
+        Button::with_text(TR::buttons__confirm.into())
+            .styled(theme::firmware::button_confirm())
+            .with_gradient(Gradient::SignGreen)
     };
 
     let mut value_screen = TextScreen::new(content)
@@ -90,24 +95,30 @@ pub fn new_confirm_with_menu<T: AllowedTextContent + MaybeTrace + 'static>(
         TextScreenMsg::Menu => Some(FlowMsg::Info),
     });
 
-    let mut menu_items = VerticalMenu::<ShortMenuVec>::empty();
+    // Menu
+    let mut menu = VerticalMenu::<ShortMenuVec>::empty();
+    let mut menu_items = Vec::<usize, 2>::new();
 
     if let Some(extra_menu_label) = extra_menu_label {
-        menu_items.item(Button::new_menu_item(
+        menu.item(Button::new_menu_item(
             extra_menu_label,
             theme::menu_item_title(),
         ));
+        unwrap!(menu_items.push(MENU_ITEM_INFO));
     }
 
-    menu_items.item(Button::new_menu_item(
-        cancel_menu_label,
-        theme::menu_item_title_orange(),
+    menu.item(Button::new_cancel_menu_item(
+        cancel_menu_label.unwrap_or(TR::buttons__cancel.into()),
     ));
+    unwrap!(menu_items.push(MENU_ITEM_CANCEL));
 
-    let content_menu = VerticalMenuScreen::new(menu_items)
+    let content_menu = VerticalMenuScreen::new(menu)
         .with_header(Header::new(TString::empty()).with_close_button())
         .map(move |msg| match msg {
-            VerticalMenuScreenMsg::Selected(i) => Some(FlowMsg::Choice(i)),
+            VerticalMenuScreenMsg::Selected(i) => {
+                let selected_item = menu_items[i];
+                Some(FlowMsg::Choice(selected_item))
+            }
             VerticalMenuScreenMsg::Close => Some(FlowMsg::Cancelled),
             _ => None,
         });

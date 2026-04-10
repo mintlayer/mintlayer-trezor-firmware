@@ -2,10 +2,13 @@
     "header_len": 4608,
     "text": "UNSAFE, DO NOT USE!",
     "hw_model": "D002",
+    "fw_type": 1,
     "expiry": 0,
     "version": [0, 1],
     "sig_m": 2,
     "trust": {
+        "limit_runtime": true,
+        "deny_provisioning_access": true,
         "allow_run_with_secret": false,
         "show_vendor_string": true,
         "require_user_click": true,

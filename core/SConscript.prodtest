@@ -8,40 +8,50 @@ CMAKELISTS = int(ARGUMENTS.get('CMAKELISTS', 0))
 PRODUCTION = ARGUMENTS.get('PRODUCTION', '0') == '1'
 BOOTLOADER_DEVEL = ARGUMENTS.get('BOOTLOADER_DEVEL', '0') == '1'
 HW_REVISION = ARGUMENTS.get('HW_REVISION', None)
-UI_DEBUG_OVERLAY = ARGUMENTS.get('UI_DEBUG_OVERLAY', '0') == '1'
+UI_PERFORMANCE_OVERLAY = ARGUMENTS.get('UI_PERFORMANCE_OVERLAY', '0') == '1'
+DBG_CONSOLE = ARGUMENTS.get('DBG_CONSOLE', '')
 
 FEATURE_FLAGS = {
     "AES_GCM": True,
 }
 
+
+if TREZOR_MODEL not in ('T2T1', 'T2B1', 'T3B1', 'T3T1', 'D001'):
+    secmon_prodtest = True
+else:
+    secmon_prodtest = False
+
 FEATURES_WANTED = [
     "ble",
+    "boot_ucb",
     "consumption_mask",
     "display",
     "haptic",
     "hw_revision",
     "input",
+    "kernel_mode",
     "nfc",
+    "nrf_auth",
     "optiga",
     "power_manager",
-    "power_save",
     "rgb_led",
     "rtc",
     "sbu",
     "sd_card",
     "secure_domain",
+    "secure_mode",
+    "smp",
+    "suspend",
+    'telemetry',
     "tropic",
     "usb",
-    "smp",
+    "usb_iface_vcp",
     ]
 
 CCFLAGS_MOD = ''
 CPPPATH_MOD = []
 CPPDEFINES_MOD = [
-    'KERNEL_MODE',
-    'SECURE_MODE',
     'AES_128',
-    'USE_INSECURE_PRNG',
 ]
 SOURCE_MOD = []
 SOURCE_MOD_CRYPTO = []
@@ -50,14 +60,25 @@ SOURCE_HAL = []
 PATH_HAL = []
 RUST_UI_FEATURES = []
 
+if DBG_CONSOLE != "":
+    FEATURES_WANTED += ["dbg_console"]
+
+env = Environment(
+    ENV=os.environ,
+    CFLAGS='%s -DPRODUCTION=%s' % (ARGUMENTS.get('CFLAGS', ''), ARGUMENTS.get('PRODUCTION', '0')),
+    CPPDEFINES_IMPLICIT=[],
+    CPPDEFPREFIX="-D'",
+    CPPDEFSUFFIX="'",
+    DBG_CONSOLE=DBG_CONSOLE,
+)
+
+FEATURES_AVAILABLE = models.configure_board(TREZOR_MODEL, HW_REVISION, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
+
 # modtrezorcrypto
 CPPPATH_MOD += [
     'vendor/trezor-crypto',
-    'vendor/trezor-storage',
 ]
-SOURCE_MOD += [
-    'vendor/trezor-storage/flash_area.c',
-]
+
 SOURCE_MOD_CRYPTO += [
     'vendor/trezor-crypto/aes/aes_modes.c',
     'vendor/trezor-crypto/aes/aesccm.c',
@@ -88,6 +109,7 @@ SOURCE_MOD_CRYPTO += [
     'vendor/trezor-crypto/hmac.c',
     'vendor/trezor-crypto/hmac_drbg.c',
     'vendor/trezor-crypto/memzero.c',
+    'vendor/trezor-crypto/noise.c',
     'vendor/trezor-crypto/nist256p1.c',
     'vendor/trezor-crypto/rand.c',
     'vendor/trezor-crypto/ripemd160.c',
@@ -109,6 +131,30 @@ if FEATURE_FLAGS["AES_GCM"]:
         'vendor/trezor-crypto/aes/aesgcm.c',
     ]
 
+if 'boot_ucb' in FEATURES_AVAILABLE:
+    PQ_SIGNATURE_PATH = 'vendor/sphincsplus/ref/'
+    CCFLAGS_MOD += '-DPARAMS=sphincs-sha2-128s '
+    PQ_SIGNATURE_SOURCE = [
+        'vendor/sphincsplus/ref/address.c',
+        'vendor/sphincsplus/ref/fors.c',
+        'vendor/sphincsplus/ref/hash_sha2.c',
+        'vendor/sphincsplus/ref/sha2.c',
+        'vendor/sphincsplus/ref/sign.c',
+        'vendor/sphincsplus/ref/thash_sha2_simple.c',
+        'vendor/sphincsplus/ref/utils.c',
+        'vendor/sphincsplus/ref/wots.c',
+    ]
+
+SOURCE_MLDSA = [
+        'vendor/mldsa-native/mldsa/fips202/fips202.c',
+        'vendor/mldsa-native/mldsa/fips202/fips202x4.c',
+        'vendor/mldsa-native/mldsa/fips202/keccakf1600.c',
+        'vendor/mldsa-native/mldsa/ntt.c',
+        'vendor/mldsa-native/mldsa/packing.c',
+        'vendor/mldsa-native/mldsa/poly.c',
+        'vendor/mldsa-native/mldsa/polyvec.c',
+        'vendor/mldsa-native/mldsa/sign.c',
+]
 
 # modtrezorui
 CPPPATH_MOD += [
@@ -116,24 +162,25 @@ CPPPATH_MOD += [
 ]
 
 SOURCE_MOD += [
-    'embed/gfx/bitblt/gfx_bitblt.c',
-    'embed/gfx/bitblt/gfx_bitblt_rgb565.c',
-    'embed/gfx/bitblt/gfx_bitblt_rgba8888.c',
-    'embed/gfx/bitblt/gfx_bitblt_mono8.c',
-    'embed/gfx/fonts/font_bitmap.c',
-    'embed/gfx/gfx_color.c',
-    'embed/gfx/gfx_draw.c',
-    'embed/gfx/terminal.c',
     'embed/io/display/display_utils.c',
-    'embed/util/bl_check/bl_check.c',
-    'embed/util/image/image.c',
-    'embed/util/rsod/rsod.c',
-    'embed/util/scm_revision/scm_revision.c',
+    'embed/io/gfx/bitblt/gfx_bitblt.c',
+    'embed/io/gfx/bitblt/gfx_bitblt_rgb565.c',
+    'embed/io/gfx/bitblt/gfx_bitblt_rgba8888.c',
+    'embed/io/gfx/bitblt/gfx_bitblt_mono8.c',
+    'embed/io/gfx/gfx_color.c',
+    'embed/io/gfx/gfx_draw.c',
+    'embed/io/gfx/rsod.c',
+    'embed/io/gfx/terminal/font_bitmap.c',
+    'embed/io/gfx/terminal/terminal.c',
     'embed/rtl/cli.c',
     'embed/rtl/error_handling.c',
-    'embed/rtl/mini_printf.c',
+    'embed/rtl/printf.c',
+    'embed/rtl/scm_revision.c',
     'embed/rtl/strutils.c',
     'embed/rtl/unit_test.c',
+    'embed/sec/image/boot_image.c',
+    'embed/sec/image/image.c',
+    'embed/sec/rsod/rsod_special.c',
     'vendor/micropython/lib/uzlib/adler32.c',
     'vendor/micropython/lib/uzlib/crc32.c',
     'vendor/micropython/lib/uzlib/tinflate.c',
@@ -141,25 +188,17 @@ SOURCE_MOD += [
 
 ui.init_ui(TREZOR_MODEL, "prodtest", RUST_UI_FEATURES)
 
-env = Environment(
-    ENV=os.environ,
-    CFLAGS='%s -DPRODUCTION=%s' % (ARGUMENTS.get('CFLAGS', ''), ARGUMENTS.get('PRODUCTION', '0')),
-    CPPDEFINES_IMPLICIT=[],
-    CPPDEFPREFIX="-D'",
-    CPPDEFSUFFIX="'",
-)
-
-FEATURES_AVAILABLE = models.configure_board(TREZOR_MODEL, HW_REVISION, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_HAL, PATH_HAL)
-
 
 SOURCE_PRODTEST = [
     'embed/projects/prodtest/header.S',
     'embed/projects/prodtest/main.c',
     'embed/projects/prodtest/commands.c',
+    'embed/projects/prodtest/cmd/common.c',
     'embed/projects/prodtest/cmd/prodtest_boardloader.c',
     'embed/projects/prodtest/cmd/prodtest_ble.c',
     'embed/projects/prodtest/cmd/prodtest_bootloader.c',
     'embed/projects/prodtest/cmd/prodtest_button.c',
+    'embed/projects/prodtest/cmd/prodtest_crc.c',
     'embed/projects/prodtest/cmd/prodtest_display.c',
     'embed/projects/prodtest/cmd/prodtest_prodtest.c',
     'embed/projects/prodtest/cmd/prodtest_backup_ram.c',
@@ -168,6 +207,7 @@ SOURCE_PRODTEST = [
     'embed/projects/prodtest/cmd/prodtest_help.c',
     'embed/projects/prodtest/cmd/prodtest_hw_revision.c',
     'embed/projects/prodtest/cmd/prodtest_nfc.c',
+    'embed/projects/prodtest/cmd/prodtest_rtc.c',
     'embed/projects/prodtest/cmd/prodtest_nrf.c',
     'embed/projects/prodtest/cmd/prodtest_optiga.c',
     'embed/projects/prodtest/cmd/prodtest_otp_batch.c',
@@ -177,13 +217,24 @@ SOURCE_PRODTEST = [
     'embed/projects/prodtest/cmd/prodtest_reboot.c',
     'embed/projects/prodtest/cmd/prodtest_rgbled.c',
     'embed/projects/prodtest/cmd/prodtest_sdcard.c',
+    'embed/projects/prodtest/cmd/prodtest_secrets.c',
     'embed/projects/prodtest/cmd/prodtest_tamper.c',
     'embed/projects/prodtest/cmd/prodtest_sbu.c',
+    'embed/projects/prodtest/cmd/prodtest_secure_channel.c',
+    'embed/projects/prodtest/cmd/prodtest_telemetry.c',
     'embed/projects/prodtest/cmd/prodtest_touch.c',
     'embed/projects/prodtest/cmd/prodtest_tropic.c',
     'embed/projects/prodtest/cmd/prodtest_unit_test.c',
     'embed/projects/prodtest/cmd/prodtest_wpc.c',
+    'embed/projects/prodtest/cmd/secure_channel.c',
 ]
+
+
+if secmon_prodtest:
+    SOURCE_PRODTEST += [
+        'embed/projects/prodtest/secmon_header.S',
+    ]
+
 
 env.Replace(
     CAT='cat',
@@ -206,13 +257,12 @@ ALLPATHS = [
         'embed/projects/prodtest',
         'embed/rtl/inc',
         'embed/models',
-        'embed/gfx/inc',
+        'embed/io/gfx/inc',
+        'embed/io/translations/inc',
         'embed/sys/bsp/inc',
-        'embed/util/bl_check/inc',
-        'embed/util/image/inc',
-        'embed/util/rsod/inc',
-        'embed/util/scm_revision/inc',
-        'embed/util/translations/inc',
+        'embed/sec/image/inc',
+        'embed/sec/rsod/inc',
+        'embed/sec/storage/inc',
         'embed/upymod/modtrezorui',
     ]
 
@@ -267,14 +317,20 @@ obj_program.extend(env.Object(source=SOURCE_MOD))
 obj_program.extend(env.Object(source=SOURCE_MOD_CRYPTO, CCFLAGS='$CCFLAGS -ftrivial-auto-var-init=zero'))
 obj_program.extend(env.Object(source=SOURCE_PRODTEST))
 obj_program.extend(env.Object(source=SOURCE_HAL))
+obj_program.extend(env.Object(source=SOURCE_MLDSA))
+
+if 'boot_ucb' in FEATURES_AVAILABLE:
+    obj_program += env.Object(
+        source=PQ_SIGNATURE_SOURCE, CCFLAGS="$CCFLAGS -Wno-incompatible-pointer-types"
+    )
 
 #
 # Rust library
 #
 features = ['prodtest',] + FEATURES_AVAILABLE + RUST_UI_FEATURES
 
-if UI_DEBUG_OVERLAY:
-    features.append('ui_debug_overlay')
+if UI_PERFORMANCE_OVERLAY:
+    features.append('ui_performance_overlay')
 
 
 rust = tools.add_rust_lib(
@@ -285,6 +341,7 @@ rust = tools.add_rust_lib(
     all_paths=ALLPATHS,
     build_dir=str(Dir('.').abspath),
 )
+obj_program += [rust]
 
 
 if (vh := ARGUMENTS.get("VENDOR_HEADER", None)):
@@ -298,7 +355,7 @@ elif (vh := os.environ.get("VENDOR_HEADER", None)):
 elif PRODUCTION:
     VENDORHEADER = f'embed/models/{TREZOR_MODEL}/vendorheader/vendorheader_prodtest_signed_prod.bin'
 elif BOOTLOADER_DEVEL:
-    VENDORHEADER = f'embed/models/{TREZOR_MODEL}/vendorheader/vendorheader_dev_DO_NOT_SIGN_signed_dev.bin'
+    VENDORHEADER = f'embed/models/{TREZOR_MODEL}/vendorheader/vendorheader_prodtest_DO_NOT_SIGN_signed_dev.bin'
 else:
     VENDORHEADER = f'embed/models/{TREZOR_MODEL}/vendorheader/vendorheader_unsafe_signed_prod.bin'
 
@@ -325,7 +382,6 @@ program_elf = env.Command(
 )
 
 env.Depends(program_elf, linkerscript_gen)
-env.Depends(program_elf, rust)
 
 BINARY_NAME = f"build/prodtest/prodtest-{TREZOR_MODEL}"
 BINARY_NAME += "-" + tools.get_version('embed/projects/prodtest/version.h')
@@ -336,11 +392,38 @@ BINARY_NAME += ".bin"
 if CMAKELISTS != 0:
     env.Depends(program_elf, cmake_gen)
 
-program_bin = env.Command(
-    target='prodtest.bin',
-    source=program_elf,
-    action=[
-        '$OBJCOPY -O binary -j .vendorheader -j .header -j .flash -j .data -j .confidential $SOURCE $TARGET',
-        '$HEADERTOOL $TARGET ' + ('-D' if ARGUMENTS.get('PRODUCTION', '0') == '0' else ''),
-        '$CP $TARGET ' + BINARY_NAME,
-    ], )
+if secmon_prodtest:
+    secmon_bin = env.Command(
+        target='secmon_prodtest.bin',
+        source=program_elf,
+        action=[
+            '$OBJCOPY -O binary -j .secmon_header -j .flash -j .data $SOURCE $TARGET',
+            '$HEADERTOOL $TARGET ' + ('-D' if ARGUMENTS.get('PRODUCTION', '0') == '0' else ''),
+        ], )
+
+    headers_bin = env.Command(
+        target='headers.bin',
+        source=program_elf,
+        action=[
+            '$OBJCOPY -O binary -j .vendorheader -j .header $SOURCE $TARGET',
+        ], )
+
+    program_bin = env.Command(
+        target='prodtest.bin',
+        source=[ headers_bin, secmon_bin ],
+        action=['cat ${SOURCES[0]} ${SOURCES[1]} > $TARGET',
+                '$HEADERTOOL $TARGET ' + ('-D' if ARGUMENTS.get('PRODUCTION', '0') == '0' else ''),
+                '$CP $TARGET ' + BINARY_NAME,]
+    )
+
+    env.Depends(program_bin, headers_bin)
+    env.Depends(program_bin, secmon_bin)
+else:
+    program_bin = env.Command(
+        target='prodtest.bin',
+        source=program_elf,
+        action=[
+            '$OBJCOPY -O binary -j .vendorheader -j .header -j .flash -j .data $SOURCE $TARGET',
+            '$HEADERTOOL $TARGET ' + ('-D' if ARGUMENTS.get('PRODUCTION', '0') == '0' else ''),
+            '$CP $TARGET ' + BINARY_NAME,
+        ], )

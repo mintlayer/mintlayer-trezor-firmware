@@ -79,6 +79,39 @@ rgbled-set 0 255 0
 OK
 ```
 
+### CRC Checksum
+
+The CLI supports an optional CRC checksum for commands and responses to ensure data integrity over the communication link.
+
+When CRC is enabled, every command MUST include a CRC-32 checksum at the end of the line, preceded by a space.
+
+Command Format:
+`<command> [<args>] <CRC32>` or `checked-<command> [<args> <CRC32>]`
+
+The checksum is calculated using the standard CRC-32 algorithm (polynomial `0xEDB88320`, initial value `0xFFFFFFFF`, and final XOR `0xFFFFFFFF`) over the command string excluding the checksum. In the `checked-<command> [<args> <CRC32>]` format, the `<CRC32>` is the checksum of the string starting after `checked-`.
+
+The device also appends the checksum to every response line (including `OK`, `ERROR`, `PROGRESS`, and `#` traces).
+
+Response Format:
+`<response> <CRC32>`
+
+Example with CRC enabled:
+```
+ping ABC 3240F7DC
+OK ABC 24DA4527
+```
+
+Example with `checked-` prefix (enforces CRC for a single command even if CRC is otherwise disabled):
+```
+checked-ping ABC 3240F7DC
+OK ABC 24DA4527
+```
+If the command has no arguments, the format is `checked-<command> <CRC32>`:
+```
+checked-ping 25D53DFD
+OK  D38BF920
+```
+
 ## List of commands
 
 ### help
@@ -98,10 +131,12 @@ OK
 ### ping
 The `ping` command serves as a no-operation request, and the device responds with `OK` to acknowledge receipt.
 
+`ping [<text>]`
+
 Example:
 ```
-ping
-OK
+ping ABC
+OK ABC
 ```
 
 ### reboot
@@ -133,6 +168,11 @@ boardloader-version
 OK 0.2.6
 ```
 
+### boardloader-update
+Updates the boardloader to the supplied binary file. Only works on development boards, not in production firmware.
+Use `core/tools/bin_update.py` script to update the boardloader binary.
+
+
 ### bootloader-version
 Retrieves the version of the bootloader. The command returns `OK` followed by the version in the format `<major>.<minor>.<patch>`.
 
@@ -144,6 +184,7 @@ OK 2.1.7
 
 ### bootloader-update
 Updates the bootloader to the supplied binary file.
+Use `core/tools/bld_update.py` script to update the bootloader binary.
 
 
 ### ble-adv-start
@@ -194,9 +235,37 @@ ble-erase-bonds
 OK
 ```
 
+### ble-get-bonds
+Retrieves all BLE bonds from the device.
+
+Example:
+```
+ble-get-bonds
+# Initializing the BLE...
+# Got 1 bonds.
+# Bond 1: 5c:dc:49:d1:8d:35
+OK
+```
+
+### ble-unpair
+Unpairs a BLE device. It accepts one parameter, which is index returned by the `ble-get-bonds` command.
+
+`ble-unpair <index>`
+
+Example:
+```
+ble-unpair 1
+# Initializing the BLE...
+# Unpaired.
+OK
+```
 
 ### ble-radio-test
 Runs radio test proxy-client. It requires special nRF radio test firmware, see https://docs.nordicsemi.com/bundle/sdk_nrf5_v17.0.2/page/nrf_radio_test_example.html for usage.
+
+
+### ble-direct-test-mode
+Runs direct-test-mode test proxy-client. It requires special nRF direct-test-mode firmware. To exit, hard reset is required.
 
 
 ### button-test
@@ -234,6 +303,33 @@ Example:
 ```
 display-text hello_world
 OK
+```
+
+### crc-enable
+Enables CRC check for CLI commands. Once enabled, the device expects all subsequent commands to include a CRC-32 checksum. The response to `crc-enable` itself already includes the CRC checksum.
+
+Example:
+```
+crc-enable
+OK @C09F27E9
+```
+
+### crc-disable
+Disables CRC check for CLI commands. The command itself must still include the CRC checksum if CRC was previously enabled.
+
+Example:
+```
+crc-disable @939BC008
+OK
+```
+
+### crc-status
+Returns the current CRC check status. Prints `OK 1` if CRC is enabled and `OK 0` if disabled.
+
+Example:
+```
+crc-status
+OK 1
 ```
 
 ### display-bars
@@ -321,6 +417,29 @@ Example:
 nrf-version
 OK 0.1.2.3
 ```
+
+### nrf-update
+Updates the nRF firmware. Use `core/tools/bin_update.py` script to update the nRF application binary.
+
+
+### nrf-pair
+Writes the pairing secret to the nRF chip to pair it with the MCU.
+This command may be called only after `secrets-init` was executed and before `secrets-lock` is executed.
+
+Example:
+```
+nrf-pair
+OK
+```
+
+### nrf-verify-pairing
+Verifies the pairing between the main MCU and the nRF chip. The command returns `OK` if the pairing is valid, or `ERROR` if it is not.
+Example:
+```
+nrf-verify-pairing
+OK
+```
+
 
 ### touch-draw
 Starts a drawing canvas, where user can draw with finger on pen. Canvas is exited by sending CTRL+C command.
@@ -483,6 +602,28 @@ rgbled-set 255 0 0
 OK
 ```
 
+### rgbled-effect-start
+Start the rgb effect from the predefined list. Command takes two arguments, first argument defines a number of the rgbled effect, second argument then defines number of requested cycles for which the effect should run. `requested_cycles` argument is optional, calling the command without it will run effect indefinitely.
+
+`rgbled-effect-start <effect_num> <requested_cycles>`
+
+Example:
+```
+rgbled-effect-start 0 2
+# Start RGB LED effect #0 for 2 cycles
+OK
+```
+
+### rgbled-effect-stop
+Stop the ongoing rgbled effect.
+
+Examples:
+```
+rgbled-effect-stop
+# Stop ongoing RGB LED effect
+OK
+```
+
 ### otp-batch-read
 Retrieves the batch string from the device's OTP memory. The batch string identifies the model and production batch of the device.
 
@@ -510,40 +651,42 @@ otp-batch-write T2B1-231231 --dry-run
 # !!! It's a dry run, OTP will be left unchanged.
 # !!! Use '--execute' switch to write to OTP memory.
 #
-# Writing device batch info into OTP memory...
+# Writing info into OTP memory...
 # Bytes written: 543242312D323331323331000000000000000000000000000000000000000000
 # Locking OTP block...
 ```
 
 
-### otp-device-id-read
-Retrieves the device ID string from the device's OTP memory. The device ID string is unique for each device.
+### otp-device-sn-read
+Retrieves the device's serial number from the device's OTP memory. The device serial number is unique for each device.
+A QR code with the serial number is displayed on the prodtest screen and printed on the packaging.
 
 If the OTP memory has not been written yet, it returns error code `no-data`.
 
 Example:
 ```
-otp-device-id-read
+otp-device-sn-read
 # Reading device OTP memory...
 # Bytes read: <hexadecimal string>
 ERROR no-data "OTP block is empty."
 ```
 
-### otp-device-id-write
-Writes the device ID string to the device's OTP memory. The device ID string is unique for each device.
+### otp-device-sn-write
+Writes the device serial number to the device's OTP memory. The device serial number is unique for each device.
+A QR code with the serial number is displayed on the prodtest screen and printed on the packaging.
 
-The batch string can be up to 31 characters in length.
+The serial number can be up to 31 characters in length.
 
 In non-production firmware, you must include `--execute` as the last parameter to write the data to the OTP memory. Conversely, in production firmware, you can use `--dry-run` as the last parameter to simulate the command without actually writing to the OTP memory.
 
 Example:
 ```
-otp-device-id-write 123456ABCD --dry-run
+otp-device-sn-write 123456ABCD --dry-run
 #
 # !!! It's a dry run, OTP will be left unchanged.
 # !!! Use '--execute' switch to write to OTP memory.
 #
-# Writing device batch info into OTP memory...
+# Writing info into OTP memory...
 # Bytes written: 3132333435364142434400000000000000000000000000000000000000000000
 # Locking OTP block...
 ```
@@ -557,6 +700,7 @@ Currently, three values are required during production:
 `otp-variant-write <unit_color> <unit_btconly> <unit_packaging>`.
 
 In non-production firmware, you must include `--execute` as the last parameter to write the data to the OTP memory. Conversely, in production firmware, you can use `--dry-run` as the last parameter to simulate the command without actually writing to the OTP memory.
+You can also use `--rework` to fix an incorrectly written value. This is only usable once.
 
 Example (to write 3 bytes into OTP memory):
 ```
@@ -611,6 +755,82 @@ prodtest-homescreen
 OK
 ```
 
+### prodtest-mem-write
+Parses hex data from the argument and stores it into an 8kB RAM buffer.
+
+`prodtest-mem-write <hexdata>`
+
+Example:
+```
+prodtest-mem-write 01020304
+OK
+```
+
+### prodtest-mem-read
+Reads back the data currently stored in the RAM buffer and outputs it as hex.
+
+Example:
+```
+prodtest-mem-read
+OK 01020304
+```
+
+### secrets-init
+Generates random secrets and stores them in the protected storage.
+
+Example:
+```
+secrets-init
+OK
+```
+
+### secrets-lock
+Locks the secret sector.
+
+Example:
+```
+secrets-lock
+Lock successful
+OK
+```
+
+### secrets-get-mcu-device-key
+Returns a cryptogram that encrypts and authenticates the device attestation public key stored in MCU. The commands `secrets-init` and `secure-channel-handshake-2` must be executed before calling this command.
+
+Example:
+```
+secrets-get-mcu-device-key
+OK 638c8a83ddc8fd84cddf5a0a4fa3d9615146cd341685dca942bab1132c2bc99b
+```
+
+### secrets-certdev-write
+Writes the X.509 device attestation certificate issued by the Trezor Company for the attestation key stored in the MCU.
+The `otp-device-sn-write` command must be executed before calling this command.
+
+Example:
+```
+secrets-certdev-write <hexadecimal string>
+OK
+```
+
+### secrets-certdev-read
+Retrieves the X.509 device attestation certificate issued by the Trezor Company for the attestation key stored in the MCU.
+
+Example:
+```
+secrets-certdev-read
+OK <hexadecimal string>
+```
+
+### optiga-pair
+Writes the pairing secret to the Optiga chip to pair it with the MCU. The command `secrets-init` must be executed before calling this command.
+
+Example:
+```
+optiga-pair
+OK
+```
+
 ### optiga-id-read
 Retrieves the coprocessor UID of the Optiga chip as a 27 byte hexadecimal string.
 
@@ -629,17 +849,18 @@ optiga-certinf-read
 OK <hexadecimal string>
 ```
 
-### optiga-certinf-write
-Writes the X.509 certificate issued by the Trezor Company for the device.
+### optiga-certdev-write
+Writes the X.509 certificate issued by the Trezor Company for the device attestation key stored in Optiga.
+The `otp-device-sn-write` command must be executed before calling this command.
 
 Example:
 ```
-optiga-certinf-write <hexadecimal string>
+optiga-certdev-write <hexadecimal string>
 OK
 ```
 
-### optiga-certdev-red
-Retrieves the X.509 certificate issued by the Trezor Company for the device.
+### optiga-certdev-read
+Retrieves the X.509 certificate issued by the Trezor Company for the device attestation key stored in Optiga.
 
 Example:
 ```
@@ -648,7 +869,7 @@ OK <hexadecimal string>
 ```
 
 ### optiga-certfido-write
-Writes the X.509 certificate issued by the Trezor Company for the FIDO attestation key.
+Writes the X.509 certificate issued by the Trezor Company for the FIDO attestation key stored in Optiga.
 
 Example:
 ```
@@ -657,7 +878,7 @@ OK
 ```
 
 ### optiga-certfido-read
-Retrieves the X.509 certificate issued by the Trezor Company for the FIDO attestation key.
+Retrieves the X.509 certificate issued by the Trezor Company for the FIDO attestation key stored in Optiga.
 
 Example:
 ```
@@ -712,43 +933,42 @@ optiga-counter-read
 OK 0E
 ```
 
-### pm-set-soc-limit
-Sets the battery state of charge (SOC) limit. The SOC limit is a percentage value between 10 and 100.
+### optiga-metadata-read
+Retrieves the metadata of the specified data object in Optiga.
+
+Example:
+```
+optiga-metadata-read f1d0
+# Life cycle state: Operational
+# Maximum size: 140
+# Used size: 32
+# Read: Auto(F1D4)
+# Write: Always
+# Execute: Always
+# Data type: AUTOREF
+OK 2017C00107C4018CC50120D00100D10323F1D4D30100E80131
+```
+
+### pm-new-soc-estimate
+Erase power manager recovery data from the backup RAM and immediately reboot the device to run new battery SoC estimate.
+
+Example:
+```
+pm-new-soc-estimate
+# Erasing backup RAM and rebooting...
+OK
+```
+
+### pm-set-soc-target
+Sets the battery state of charge (SOC) target. The SOC limit is a percentage value between 10 and 100.
 
 The command returns `OK` if the operation is successful.
 
 ```
-pm-set-soc-limit 50
-# Set SOC limit to 50%
+pm-set-soc-target 50
+# Set SOC target to 50%
 OK
 
-```
-
-### pm-precharge
-Enables the battery charging and precharge the battery to the 3.45V. Then it disables charging and terminates.
-During the precharge, command will print out power manager report into the console. CTRL+C will terminate the precharge.
-
-Example:
-```
-pm-precharge
-# Precharging the device ...
-# Precharging the device to 3.450 V
-# Power manager report:
-# Power state 5
-#   USB connected
-#   WLC disconnected
-#   Battery voltage: 3.435 V
-#   Battery current: -191.700 mA
-#   Battery temperature: 31.541 C
-#   Battery SoC: 68.92
-#   Battery SoC latched: 69.00
-#   PMIC die temperature: 49.096 C
-#   WLC voltage: 0.000 V
-#   WLC current: 0.000 mA
-#   WLC die temperature: 0.000 C
-#   System voltage: 4.449 V
-PROGRESS 5 USB_connected WLC_disconnected 3.435 -191.700 31.541 68.92 69.00 49.096 0.000 0.000 0.000 4.449
-OK
 ```
 
 ### pm-report
@@ -833,19 +1053,30 @@ OK
 Enters low-power mode.
 
 In low-power mode, the CPU retains its state, including SRAM content.
-The device can be woken by pressing the power button and will continue
-operation from the point where it was suspended.
+
+The following wake-up reasons are currently possible:
+- BUTTON - the power button was pressed
+- POWER - USB or WPC power was detected
+- BLE - BLE communication was detected
+- RTC - the RTC wake-up timer expired
+
+```
+pm-suspend [<wakeup-time>]
+```
+
+The command returns OK followed by a list of wake-up reasons, separated
+by spaces.
 
 Example:
 ```
 pm-suspend
 # Suspending the device to low-power mode...
-# Press the POWER button to resume.
+# Press a button button to resume.
 
 ....
 
 # Resumed to active mode.
-OK
+OK BUTTON
 ```
 
 ### pm-hibernate
@@ -864,6 +1095,31 @@ pm-hibernate
 # Hibernating the the device...
 # Device is powered externally, hibernation is not possible.
 OK
+```
+
+### pm-battery-test
+Acquire <tested_samples> (default=10) battery measurements and check
+the following criteria to pass the test
+ - Every sample battery voltage is within range <2.95, 3.65> V
+ - Every sample NTC temperature is within range <-10, 65> °C
+
+In case any sample fails the test, the line is marked with `!` and test
+ends up with `ERROR error "Battery test failed."`.
+
+Example:
+```
+> pm-battery-test [<tested_samples>]
+PROGRESS Sample 1: Voltage 3.445 V, Temp 23.874 C
+PROGRESS Sample 2: Voltage 3.450 V, Temp 23.874 C
+PROGRESS Sample 3: Voltage 3.445 V, Temp 23.772 C
+PROGRESS Sample 4: Voltage 3.445 V, Temp 23.670 C
+PROGRESS Sample 5: Voltage 3.450 V, Temp 23.772 C
+PROGRESS Sample 6: Voltage 3.445 V, Temp 23.874 C
+PROGRESS Sample 7: Voltage 3.445 V, Temp 23.772 C
+PROGRESS Sample 8: Voltage 3.445 V, Temp 23.670 C
+PROGRESS Sample 9: Voltage 3.445 V, Temp 23.772 C
+PROGRESS Sample 10: Voltage 3.445 V, Temp 23.874 C
+OK Battery test passed.
 ```
 
 ### tamper-read
@@ -899,7 +1155,7 @@ OK 00000300
 
 ### tropic-get-chip-id
 
-Reads the Tropic chip ID. The command returns `OK` followed by the chip ID.
+Reads the Tropic chip ID. The command returns `OK` followed by the 128-byte serialization of `lt_chip_id_t`.
 
 Example:
 ```
@@ -907,14 +1163,294 @@ tropic-get-chip-id
 OK 00000001000000000000000000000000000000000000000000000000000000000000000001000000054400000000FFFFFFFFFFFF01F00F000544545354303103001300000B54524F50494330312D4553FFFFFFFF000100000000FFFF000100000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF13000300
 ```
 
+
+### tropic-update-fw
+
+Updates Tropic firmware to the embedded version.
+
+Example:
+```
+tropic-update-fw
+# Silicon revision: ABAB
+# Rebooting into Maintenance mode
+# Chip is executing bootloader
+# Updating RISC-V FW
+# Updating SPECT FW
+# Rebooting into Application mode
+# Reading RISC-V FW version
+# Chip is executing RISC-V application FW version: 1.0.0 (+ .0)
+# Reading SPECT FW version
+# Chip is executing SPECT FW version: 1.0.0 (+ .0)
+OK
+```
+
+### tropic-certtropic-read
+
+Reads the X.509 certificate issued by Tropic Square for the Tropic chip.
+
+Example:
+```
+tropic-certtropic-read
+OK  308201CB30820151A00302010202100200110308861906100F32000000045B300A06082A8648CE3D0403033047310B300906035504061302435A311D301B060355040A0C1454726F7069632053717561726520732E722E6F2E3119301706035504030C1054524F50494330312D54204341207631301E170D3235303730313130353533325A170D3435303730313130353533325A30173115301306035504030C0C54524F504943303120655345302A300506032B656E032100F582E78C4ECCB186D72A29B6B54E8CAD931C765DBA0C3EDE9405602CB1065246A37E307C300C0603551D130101FF04023000300E0603551D0F0101FF040403020308301F0603551D2304183016801433C711060CE80513B5677B019650644E3B43FAE7303B0603551D1F043430323030A02EA02C862A687474703A2F2F706B692E74726F7069637371756172652E636F6D2F6C332F7430312D5476312E63726C300A06082A8648CE3D0403030368003065023100C46E44F9D1FE26A4DC8AC659D1B6A9A82CEEBE9D283726633053FE410FF665073B7FB6ECE235FD8AB7F87336DDBCF96202300F919622C0A1CF6D00CF43CE4229AC44548055030566E8E03CA98B15D6B29B04DF231B9BF7006A9E28C15E88B07141893082025E308201E4A00302010202027531300A06082A8648CE3D0403033045310B300906035504061302435A311D301B060355040A0C1454726F7069632053717561726520732E722E6F2E3117301506035504030C0E54524F50494330312043412076313020170D3235303333313132303833305A180F32303630303333313132303833305A3047310B300906035504061302435A311D301B060355040A0C1454726F7069632053717561726520732E722E6F2E3119301706035504030C1054524F50494330312D542043412076313076301006072A8648CE3D020106052B8104002203620004A70C3273AE3227DC767EF0293D95CC106691E5BC9AA6C0282BAA8FD4B37CFAC30FEE0D879C32D8D9CE9B0BD7924B5C10097B8C4A5E7ED68D690185E3D128161256C01033C0293DE39A7188A72CFF9EEAF5B3B5DEE898F954C4F226C2ADE70BC6A381A230819F301D0603551D0E0416041433C711060CE80513B5677B019650644E3B43FAE730120603551D130101FF040830060101FF020100300E0603551D0F0101FF040403020106301F0603551D2304183016801443BAB7BDA7CDE728945CF142CBD2F9CD5588A93F30390603551D1F04323030302EA02CA02A8628687474703A2F2F706B692E74726F7069637371756172652E636F6D2F6C322F74303176312E63726C300A06082A8648CE3D0403030368003065023014AEC525E5E8311B5D6312CF0EBB2286700552EEBA32D641672C20F02A612B77E9FC3709C9657CEC6D82D6CDBDDE57C4023100BB9B77CCBBD9DE11086481D4BA9772C38743591E722B9E4D08A89940D879DA2447A55C15F84175C479946326E0F482AF3082028B308201ECA00302010202020BB9300A06082A8648CE3D040304304F310B300906035504061302435A311D301B060355040A0C1454726F7069632053717561726520732E722E6F2E3121301F06035504030C1854726F7069632053717561726520526F6F742043412076313020170D3235303333313132303832395A180F32303635303333313132303832395A3045310B300906035504061302435A311D301B060355040A0C1454726F7069632053717561726520732E722E6F2E3117301506035504030C0E54524F50494330312043412076313076301006072A8648CE3D020106052B81040022036200042301BE5B6ED9A858153F57C6BEBC9F37B858BC2874DDC90C1041BE6D04E7BBF24A7968F2E51173D0ACAC892E65E4FC03EA5BC4381A60154D7CD7CC6DF94591650F5FDC008919157314FC1F8D8295F1A10571DD1573E868BFECA96C92CCBB816FA381A230819F301D0603551D0E0416041443BAB7BDA7CDE728945CF142CBD2F9CD5588A93F30120603551D130101FF040830060101FF020101300E0603551D0F0101FF040403020106301F0603551D230418301680143C18AF711A6699B37914E363963FE25CF304B3BF30390603551D1F04323030302EA02CA02A8628687474703A2F2F706B692E74726F7069637371756172652E636F6D2F6C312F74737276312E63726C300A06082A8648CE3D04030403818C00308188024200BCD02D464329F3FC7DC81723B0C26437E35C2B49782BAE97432789F508B5A220240E6E3E4D12C15C3BDB15A8D3F90CDD19071E2227C4898220B2BEF584B2C20F8F024201EB854F05F9A2C5B466D798FE627C539B98703531735F7AB49546FE5CFB9DF0BF3B6985D700EFBC36DF3FF01692F0ECE98BB8DB2FBB9BF40913EA87EA121A7AD2E730820258308201BBA0030201020202012D300A06082A8648CE3D040304304F310B300906035504061302435A311D301B060355040A0C1454726F7069632053717561726520732E722E6F2E3121301F06035504030C1854726F7069632053717561726520526F6F742043412076313020170D3235303333313132303832355A180F32303735303333313132303832355A304F310B300906035504061302435A311D301B060355040A0C1454726F7069632053717561726520732E722E6F2E3121301F06035504030C1854726F7069632053717561726520526F6F7420434120763130819B301006072A8648CE3D020106052B8104002303818600040187CCEA62837E23092D8A7135789FCC6FBC3D35E79FC01F4F498FC5C2C409CE772F901340090403E8BA4D97E13F1E7594AC6D2F51FD2239F8D457769F378440A18000712BF16A48EA2025837BEFD0502A562FD93941D52CC40ED9553CA79B145BA585F32492BFD792EB96D949D31676CD099F19CE8848697B8C3430AF016FED985E1EB4A3423040301D0603551D0E041604143C18AF711A6699B37914E363963FE25CF304B3BF300F0603551D130101FF040530030101FF300E0603551D0F0101FF040403020106300A06082A8648CE3D04030403818A0030818602416841837339337C182A4EE896CBFD5DA5925F0026E7A6FA3DEE61F49A46B5D9856858D3D86501BE64B0F2F33B05D856DE96F57B947F49E720E875090B30C337791802412FDDB68D166510451FE4C62DBAE0CCD952DC34E03AE6617818CCD0EA28A9DFF045AA13A248A5F066B51139C9BEF471DD004DAC4F78DB56CF7B3E8D6F8F87D048D2
+```
+
+### tropic-lock-check
+
+Returns 'YES' if the Tropic chip has been locked, otherwise returns 'NO'.
+
+Example:
+```
+tropic-lock-check
+OK YES
+```
+
+### tropic-pair
+
+Pairs the MCU with the Tropic chip. This command is idempotent, meaning it can be called multiple times without changing the state of the device. This command is irreversible and cannot be undone. The command `secrets-init` must be executed before calling this command.
+
+Example:
+```
+tropic-pair
+OK
+```
+
+### tropic-get-access-credential
+
+Returns a cryptogram that encrypts and authenticates the Tropic pairing private key and authenticates the Tropic public key. The commands `secrets-init` and `secure-channel-handshake-2` must be executed before calling this command.
+
+Example:
+```
+tropic-get-access-credential
+OK 03ca0e9d74ef59fa80a06161f3d2fceeb3e0c5e2db8182526d337aac78bad2d2ce4cacf05cdcd879843bcc43ed330199
+```
+
+### tropic-get-fido-masking-key
+
+Returns a cryptogram that encrypts and authenticates the FIDO masking key for the Tropic chip. The commands `secrets-init` and `secure-channel-handshake-2` must be executed before calling this command.
+
+Example:
+```
+tropic-get-fido-masking-key
+OK dc106118a32feeef8d9211f54b9c8e9d571abe4cb104dc4ab087531cfee4574283ccf9c6f45e68be712f630d72d4999c
+```
+
+### tropic-handshake
+
+Establishes a secure channel with the Tropic chip. Expects a handshake request as input, returns a handshake response.
+
+```
+tropic-handshake 648724356a6bb22b258557927287af52133a27b7317d3c919db23395cae03d853422af
+OK 09ad6ec70806318313c903094ae8fb63698051210dfa540ea7c7f7e588601dac478eee30432063964574879dee93250d8a5049
+```
+
+### tropic-send-command
+
+Sends a command to the Tropic chip and returns the response. The command `tropic-handshake` must be executed before calling this command.
+
+Example:
+```
+tropic-send-command <hexadecimal string>
+OK <hexadecimal string>
+```
+
+### tropic-certdev-read
+
+Retrieves the X.509 certificate issued by the Trezor Company for the device attestation key stored in Tropic.
+
+Example:
+```
+tropic-certdev-read
+OK <hexadecimal string>
+```
+
+### tropic-certdev-write
+
+Writes the X.509 certificate issued by the Trezor Company for the device attestation key stored in Tropic.
+The `otp-device-sn-write` command must be executed before calling this command.
+
+Example:
+```
+tropic-certdev-write <hexadecimal string>
+OK <hexadecimal string>
+```
+
+### tropic-certfido-read
+
+Retrieves the X.509 certificate issued by the Trezor Company for the FIDO attestation key stored in Tropic.
+
+Example:
+```
+tropic-certfido-read
+OK <hexadecimal string>
+```
+
+### tropic-certfido-write
+
+Writes the X.509 certificate issued by the Trezor Company for the FIDO attestation key stored in Tropic.
+
+Example:
+```
+tropic-certfido-write <hexadecimal string>
+OK <hexadecimal string>
+```
+
+### tropic-keyfido-read
+
+Retrieves the FIDO attestation public key stored in Tropic.
+
+This command can be used to verify that the FIDO attestation key was stored correctly by verifying that the returned string of bytes appears in the FIDO attestation certificate.
+
+Example:
+```
+tropic-keyfido-read
+OK <hexadecimal string>
+```
+
+### tropic-lock
+
+Configures the Tropic chip. This command is idempotent, meaning it can be called multiple times without changing the state of the device. This command is irreversible and cannot be undone. The command `tropic-pair` must be executed before calling this command.
+
+Example:
+```
+tropic-lock
+OK <hexadecimal string>
+```
+
+### tropic-set-sensors
+
+Erases all ECC key slots, data slots and MAC & Destroy slots and then sets the reversible configuration of Tropic sensors to the input value.
+
+Example:
+```
+tropic-set-sensors fffffff5
+# Erasing all ECC key slots, data slots and MAC&Destroy slots
+# All cryptographic data erased successfully
+OK
+```
+
+### tropic-read-sensors
+
+Read the current sensor reversible configuration from Tropic.
+
+Example:
+```
+tropic-read-sensors
+OK 0xFFFFFFF5
+```
+
+### tropic-read-configs
+
+Read whole irreversible and reversible configurations.
+
+Example:
+```
+tropic-read-configs
+# === Reversible Configuration ===
+#   R_config.obj[0]: 0x00000009  (addr: 0x00)
+#   R_config.obj[1]: 0x00000000  (addr: 0x08)
+#   R_config.obj[2]: 0x00000000  (addr: 0x10)
+#   R_config.obj[3]: 0x00000000  (addr: 0x18)
+#   R_config.obj[4]: 0x00000001  (addr: 0x20)
+#   R_config.obj[5]: 0x04040404  (addr: 0x28)
+#   R_config.obj[6]: 0x06060606  (addr: 0x30)
+#   R_config.obj[7]: 0x06060606  (addr: 0x38)
+#   R_config.obj[8]: 0x00000004  (addr: 0x40)
+#   R_config.obj[9]: 0x00000606  (addr: 0x48)
+#   R_config.obj[10]: 0x00000606  (addr: 0x50)
+#   R_config.obj[11]: 0x00000606  (addr: 0x58)
+#   R_config.obj[12]: 0x00000006  (addr: 0x60)
+#   R_config.obj[13]: 0x06060404  (addr: 0x68)
+#   R_config.obj[14]: 0x06060406  (addr: 0x70)
+#   R_config.obj[15]: 0x06060406  (addr: 0x78)
+#   R_config.obj[16]: 0x00000006  (addr: 0x80)
+#   R_config.obj[17]: 0x06060604  (addr: 0x88)
+#   R_config.obj[18]: 0x06060604  (addr: 0x90)
+#   R_config.obj[19]: 0x06060606  (addr: 0x98)
+#   R_config.obj[20]: 0x06060606  (addr: 0xA0)
+#   R_config.obj[21]: 0x06060604  (addr: 0xA8)
+#   R_config.obj[22]: 0x06060604  (addr: 0xB0)
+#   R_config.obj[23]: 0x06060604  (addr: 0xB8)
+#   R_config.obj[24]: 0x06060606  (addr: 0xC0)
+#   R_config.obj[25]: 0x06060606  (addr: 0xC8)
+#   R_config.obj[26]: 0x06060404  (addr: 0xD0)
+#
+# === Irreversible Configuration ===
+#   I_config.obj[0]: 0xFFFFFFF9  (addr: 0x00)
+#   I_config.obj[1]: 0xFFFFFFFF  (addr: 0x08)
+#   I_config.obj[2]: 0xFFFFFFFE  (addr: 0x10)
+#   I_config.obj[3]: 0xFFFFFFFF  (addr: 0x18)
+#   I_config.obj[4]: 0xFFFFFFFF  (addr: 0x20)
+#   I_config.obj[5]: 0xFCFCFCFC  (addr: 0x28)
+#   I_config.obj[6]: 0xFEFEFEFE  (addr: 0x30)
+#   I_config.obj[7]: 0xFEFEFEFE  (addr: 0x38)
+#   I_config.obj[8]: 0xFFFFFFFC  (addr: 0x40)
+#   I_config.obj[9]: 0xFFFFFEFE  (addr: 0x48)
+#   I_config.obj[10]: 0xFFFFFEFE  (addr: 0x50)
+#   I_config.obj[11]: 0xFFFFFEFE  (addr: 0x58)
+#   I_config.obj[12]: 0xFFFFFFFE  (addr: 0x60)
+#   I_config.obj[13]: 0xFEFEFCFC  (addr: 0x68)
+#   I_config.obj[14]: 0xFEFEFCFE  (addr: 0x70)
+#   I_config.obj[15]: 0xFEFEFCFE  (addr: 0x78)
+#   I_config.obj[16]: 0xFFFFFFFE  (addr: 0x80)
+#   I_config.obj[17]: 0xFEFEFEFC  (addr: 0x88)
+#   I_config.obj[18]: 0xFEFEFEFC  (addr: 0x90)
+#   I_config.obj[19]: 0xFEFEFEFE  (addr: 0x98)
+#   I_config.obj[20]: 0xFEFEFEFE  (addr: 0xA0)
+#   I_config.obj[21]: 0xFEFEFEFC  (addr: 0xA8)
+#   I_config.obj[22]: 0xFEFEFEFC  (addr: 0xB0)
+#   I_config.obj[23]: 0xFEFEFEFC  (addr: 0xB8)
+#   I_config.obj[24]: 0xFEFEFEFE  (addr: 0xC0)
+#   I_config.obj[25]: 0xFEFEFEFE  (addr: 0xC8)
+#   I_config.obj[26]: 0xFEFEFCFC  (addr: 0xD0)
+OK
+```
+
+### tropic-erase-all-slots
+
+Erases all ECC key slots, data slots and MAC & Destroy slots.
+
+Example:
+```
+tropic-erase-all-slots
+# Erasing all ECC key slots, data slots and MAC&Destroy slots
+# All cryptographic data erased successfully
+OK
+```
+
+### secure-channel-handshake-1
+
+Returns the first handshake message for establishing a secure channel between the device and HSM.
+
+Example:
+```
+secure-channel-handshake-1
+OK 1e85285cbf805d0418be1f502a325806f68fa07c78fd63b7b960b2d0416f8b49
+```
+
+### secure-channel-handshake-2
+
+Establishes a secure channel between the device and HSM. Expects the second handshake message as input. The command `secure-channel-handshake-1` must be executed before calling this command.
+
+Example:
+```
+secure-channel-handshake-2 e08e84b91413ad8f7b07853c8ce4c1b5547a12d9dd65f30e3adaa1e2398e0359bd7ba0e9fb2c64130c25d56abb811f72
+OK
+```
+
+### tropic-stress-test
+
+Runs a Tropic stress test that repeatedly calls `lt_session_start()`, `lt_mac_and_destroy()` and `lt_ecc_key_generate()` to test that Tropic doesn't enter alarm mode.
+
 ### wpc-info
 Retrieves detailed information from the wireless power receiver, including chip identification, firmware version, configuration settings, and error status.
+
+WARNING: The command will only succeed if the receiver is externally powered (5V present on the VOUT/VRECT test point).
 
 Example:
 ```
 > wpc-info
 # Reading STWLC38 info...
-# chip_id    0x38
+# chip_id    0x26
 # chip_rev   0x3
 # cust_id    0x0
 # rom_id     0x161
@@ -932,13 +1468,13 @@ Example:
 #   nvm_config_err:    0x0
 #   nvm_patch_err:     0x0
 #   nvm_prod_info_err: 0x0
-OK
+OK 0x26 0x4 0x0 0x161 0x1645 0x1D7C 0xC 0x1 0x52353038385055AA09446D0655AA55AA 0x0
 ```
 
 ### wpc-update
 Updates the firmware and configuration of the wireless power receiver.
 
-WARNING: The update will only succeed if the receiver is externally powered (5V present on the VOUT test point).
+WARNING: The command will only succeed if the receiver is externally powered (5V present on the VOUT/VRECT test point).
 
 Example:
 ```
@@ -985,6 +1521,8 @@ Example:
 nfc-write-card [<timeout_ms>]
 # NFC reader on, put the card on the reader (timeout <timeout_ms> ms)
 # Writting URI to NFC tag 7AF403
+OK
+```
 
 ### unit-test-run
 Prodtest have capability to verify the overall firmware functionality by running built-in unit tests which should excercise the basic
@@ -1009,20 +1547,64 @@ Example:
 OK
 ```
 
-### fuel-gauge
-Activates fuel gauge which monitors battery state of charge and reports it on
-display and command line, exit the fuel gauge monitor with CTRL+C
+### rtc-timestamp
+Retrieves the current RTC timestamp as a number of seconds since the device got powered up for the first time.
 
 Example:
-fuel-gauge
-# Initialize Fuel gauge.
-PROGRESS 3.123 122.13 0.281
-PROGRESS 3.125 122.18 0.281
-PROGRESS 3.123 122.13 0.280
+```
+rtc-timestamp
+OK 1886533
 ```
 
+### rtc-set
+Sets the current RTC date and time.
 
+`rtc-set <year> <month> <day> <hour> <minute> <second>`
 
+Example:
+```
+rtc-set 2025 07 03 14 23 00
+OK
+```
 
+### rtc-get
+Reads the current RTC date and time.
 
+Response format:
+`OK <year> <month> <day> <hour> <minute> <second> <day-of-week>`, where `day-of-week` is a number from 1 (Monday) to 7 (Sunday).
 
+Where:
+
+Example:
+```
+rtc-get
+OK 2025 07 03 14 23 00 4
+```
+
+### telemetry-read
+Retrieves stored telemetry data, including minimum and maximum recorded battery temperatures, battery error flags, and battery cycle count.
+
+Response format:
+`OK <min_temp_c> <max_temp_c> <battery_errors> <battery_cycles>`
+
+- `min_temp_c`: Minimum temperature in millidegrees Celsius (°C × 1000)
+- `max_temp_c`: Maximum temperature in millidegrees Celsius (°C × 1000)
+- `battery_errors`: Battery error flags as hexadecimal
+- `battery_cycles`: Battery cycles in millicycles (cycles × 1000)
+
+If telemetry data is not available (not yet initialized), the command returns an error.
+
+Example:
+```
+telemetry-read
+OK 18500 42300 0x00 12450
+```
+
+### telemetry-reset
+Resets all telemetry data to initial state. This clears all stored telemetry values and reinitializes them to default values.
+
+Example:
+```
+telemetry-reset
+OK
+```

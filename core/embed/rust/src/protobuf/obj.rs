@@ -49,7 +49,7 @@ impl MsgObj {
     }
 
     pub fn def(&self) -> MsgDef {
-        unsafe { get_msg(self.msg_offset) }
+        get_msg(self.msg_offset)
     }
 
     fn obj_type() -> &'static Type {
@@ -303,10 +303,12 @@ pub extern "C" fn protobuf_type_for_name(name: Obj) -> Obj {
     unsafe { util::try_or_raise(block) }
 }
 
-pub extern "C" fn protobuf_type_for_wire(wire_id: Obj) -> Obj {
+pub extern "C" fn protobuf_type_for_wire(enum_name: Obj, wire_id: Obj) -> Obj {
     let block = || {
         let wire_id = u16::try_from(wire_id)?;
-        let def = MsgDef::for_wire_id(wire_id).ok_or_else(|| Error::KeyError(wire_id.into()))?;
+        let enum_name = Qstr::try_from(enum_name)?;
+        let def = MsgDef::for_wire_id(enum_name.to_u16(), wire_id)
+            .ok_or_else(|| Error::KeyError(wire_id.into()))?;
         let obj = MsgDefObj::alloc(def)?.into();
         Ok(obj)
     };
@@ -340,12 +342,13 @@ pub static mp_module_trezorproto: Module = obj_module! {
     ///     """Find the message definition for the given protobuf name."""
     Qstr::MP_QSTR_type_for_name => obj_fn_1!(protobuf_type_for_name).as_obj(),
 
-    /// def type_for_wire(wire_id: int) -> type[MessageType]:
-    ///     """Find the message definition for the given wire type (numeric identifier)."""
-    Qstr::MP_QSTR_type_for_wire => obj_fn_1!(protobuf_type_for_wire).as_obj(),
+    /// def type_for_wire(enum_name: str, wire_id: int) -> type[MessageType]:
+    ///     """Find the message definition for the given wire enum name and
+    ///     wire type (numeric identifier)."""
+    Qstr::MP_QSTR_type_for_wire => obj_fn_2!(protobuf_type_for_wire).as_obj(),
 
     /// def decode(
-    ///     buffer: bytes,
+    ///     buffer: AnyBytes,
     ///     msg_type: type[T],
     ///     enable_experimental: bool,
     /// ) -> T:
@@ -356,7 +359,7 @@ pub static mp_module_trezorproto: Module = obj_module! {
     ///     """Calculate length of encoding of the specified message."""
     Qstr::MP_QSTR_encoded_length => obj_fn_1!(protobuf_len).as_obj(),
 
-    /// def encode(buffer: bytearray | memoryview, msg: MessageType) -> int:
+    /// def encode(buffer: AnyBuffer, msg: MessageType) -> int:
     ///     """Encode the message into the specified buffer. Return length of
     ///     encoding."""
     Qstr::MP_QSTR_encode => obj_fn_2!(protobuf_encode).as_obj()

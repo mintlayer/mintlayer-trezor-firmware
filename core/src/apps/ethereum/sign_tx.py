@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from trezor import TR
 from trezor.crypto import rlp
 from trezor.messages import EthereumTxRequest
 from trezor.utils import BufferReader
@@ -7,11 +8,12 @@ from trezor.wire import DataError
 
 from apps.ethereum import sc_constants as constants
 
-from .helpers import bytes_from_address
+from .helpers import address_from_bytes, bytes_from_address
 from .keychain import with_keychain_from_chain_id
 
 if TYPE_CHECKING:
-    from typing import Iterable
+    from buffer_types import AnyBytes
+    from typing import Any, Awaitable, Callable, Coroutine, Iterable
 
     from trezor.messages import (
         EthereumNetworkInfo,
@@ -19,11 +21,15 @@ if TYPE_CHECKING:
         EthereumTokenInfo,
         EthereumTxAck,
     )
+    from trezor.ui.layouts import StrPropertyType
 
     from apps.common.keychain import Keychain
+    from apps.common.payment_request import PaymentRequestVerifier
 
     from .definitions import Definitions
     from .keychain import MsgInSignTx
+
+    ConfirmDataFn = Callable[[AnyBytes], Awaitable[None]]
 
 
 # Maximum chain_id which returns the full signature_v (which must fit into an uint32).
@@ -38,28 +44,34 @@ async def sign_tx(
     keychain: Keychain,
     defs: Definitions,
 ) -> EthereumTxRequest:
-    from trezor import TR
     from trezor.crypto.hashlib import sha3_256
     from trezor.ui.layouts import show_continue_in_app
-    from trezor.ui.layouts.progress import progress
     from trezor.utils import HashWriter
 
-    from apps.common import paths
+    from apps.common import paths, safety_checks
 
     from .helpers import format_ethereum_amount, get_fee_items_regular
 
     data_total = msg.data_length  # local_cache_attribute
+    tx_type = msg.tx_type  # local_cache_attribute
 
-    # check
-    if msg.tx_type not in [1, 6, None]:
+    check_common_fields(msg)
+
+    address_bytes = bytes_from_address(msg.to)
+
+    valid_tx_types = (1, 6, constants.EIP_7702_TX_TYPE, None)
+    if tx_type not in valid_tx_types:
         raise DataError("tx_type out of bounds")
+    if tx_type == constants.EIP_7702_TX_TYPE:
+        if safety_checks.is_strict():
+            raise DataError("EIP-7702 not allowed in strict checks")
+        if address_bytes not in constants.EIP_7702_KNOWN_ADDRESSES:
+            raise DataError("Unknown EIP-7702 address")
     if len(msg.gas_price) + len(msg.gas_limit) > 30:
         raise DataError("Fee overflow")
-    check_common_fields(msg)
 
     # have the user confirm signing
     await paths.validate_path(keychain, msg.address_n)
-    address_bytes = bytes_from_address(msg.to)
     gas_price = int.from_bytes(msg.gas_price, "big")
     gas_limit = int.from_bytes(msg.gas_limit, "big")
     maximum_fee = format_ethereum_amount(gas_price * gas_limit, None, defs.network)
@@ -68,37 +80,52 @@ async def sign_tx(
         gas_limit,
         defs.network,
     )
-    await confirm_tx_data(msg, defs, address_bytes, maximum_fee, fee_items, data_total)
 
-    progress_obj = progress(title=TR.progress__signing_transaction)
-    progress_obj.report(30)
+    payment_req_verifier = None
+    if msg.payment_req:
+        from apps.common.payment_request import PaymentRequestVerifier
 
-    # sign
-    data = bytearray()
-    data += msg.data_initial_chunk
-    data_left = data_total - len(msg.data_initial_chunk)
+        slip44_id = paths.unharden(msg.address_n[1])
+        payment_req_verifier = PaymentRequestVerifier(
+            msg.payment_req,
+            slip44_id,
+            keychain,
+            amount_size_bytes=32,
+        )
 
+    # data chunks will be confirmed during digest (see below)
+    # tx summary will confirmed before signing the digest (see below)
+    confirm_data_chunk, confirm_summary = await confirm_tx_data(
+        msg,
+        defs,
+        tx_type,
+        address_bytes,
+        maximum_fee,
+        fee_items,
+        data_total,
+        payment_req_verifier,
+    )
+
+    # digest
     total_length = _get_total_length(msg, data_total)
 
     sha = HashWriter(sha3_256(keccak=True))
     rlp.write_header(sha, total_length, rlp.LIST_HEADER_BYTE)
 
-    if msg.tx_type is not None:
-        rlp.write(sha, msg.tx_type)
+    if tx_type is not None:
+        rlp.write(sha, tx_type)
 
     for field in (msg.nonce, msg.gas_price, msg.gas_limit, address_bytes, msg.value):
         rlp.write(sha, field)
 
-    if data_left == 0:
-        rlp.write(sha, data)
-    else:
-        rlp.write_header(sha, data_total, rlp.STRING_HEADER_BYTE, data)
-        sha.extend(data)
-
-    progress_obj.report(60)
+    await confirm_data_chunk(msg.data_initial_chunk)
+    data_left = data_total - len(msg.data_initial_chunk)
+    rlp.write_header(sha, data_total, rlp.STRING_HEADER_BYTE, msg.data_initial_chunk)
+    sha.extend(msg.data_initial_chunk)
 
     while data_left > 0:
         resp = await send_request_chunk(data_left)
+        await confirm_data_chunk(resp.data_chunk)
         data_left -= len(resp.data_chunk)
         sha.extend(resp.data_chunk)
 
@@ -108,41 +135,166 @@ async def sign_tx(
     rlp.write(sha, 0)
 
     digest = sha.get_digest()
-    result = _sign_digest(msg, keychain, digest)
 
-    progress_obj.stop()
+    # show tx summary and confirm
+    await confirm_summary
+    # transaction data confirmed, proceed with signing
+    result = _sign_digest(msg, keychain, digest)
 
     show_continue_in_app(TR.send__transaction_signed)
     return result
 
 
+def make_progress(total_len: int, progress_len: int = 0) -> ConfirmDataFn:
+    from trezor.ui.layouts.progress import progress
+
+    if __debug__:
+        from trezor import log
+
+    def _progress_value() -> int:
+        assert 0 <= progress_len <= total_len
+        if total_len == 0:
+            return 1000
+        return (1000 * progress_len) // total_len
+
+    layout = progress(title=TR.progress__loading_transaction)
+    layout.value = _progress_value()
+
+    async def confirm_fn(chunk: AnyBytes) -> None:
+        nonlocal progress_len
+
+        if __debug__:
+            log.debug(
+                __name__,
+                "chunk=%d [%d/%d]",
+                len(chunk),
+                progress_len,
+                total_len,
+            )
+        progress_len += len(chunk)
+        layout.report(_progress_value())
+
+    return confirm_fn
+
+
+def make_confirm_data(total_len: int) -> ConfirmDataFn:
+    from trezor.enums import ButtonRequestType
+    from trezor.ui.layouts import confirm_blob_prefix
+
+    confirmed_len = 0
+    progress_bar: ConfirmDataFn | None = None
+
+    async def confirm_fn(chunk: AnyBytes) -> None:
+        nonlocal confirmed_len
+        nonlocal progress_bar
+
+        if progress_bar is not None:
+            return await progress_bar(chunk)
+
+        # for efficient chunk slicing (see below)
+        chunk = memoryview(chunk)
+        while True:
+            assert 0 <= confirmed_len <= total_len
+            prefix_len = await confirm_blob_prefix(
+                title=TR.ethereum__title_input_data,
+                data=chunk,
+                total_len=total_len,
+                confirmed_len=confirmed_len,
+                br_name="confirm_data",
+                br_code=ButtonRequestType.SignTx,
+            )
+            if prefix_len is None:
+                # skip this and following chunks confirmation - use a progress bar instead
+                assert progress_bar is None
+                progress_bar = make_progress(total_len, confirmed_len)
+                return await progress_bar(chunk)
+            else:
+                confirmed_len += prefix_len
+                chunk = chunk[prefix_len:]
+                if not chunk:
+                    return
+
+    return confirm_fn
+
+
 async def confirm_tx_data(
     msg: MsgInSignTx,
     defs: Definitions,
+    tx_type: int | None,
     address_bytes: bytes,
     maximum_fee: str,
-    fee_items: Iterable[tuple[str, str]],
+    fee_items: Iterable[StrPropertyType],
     data_total_len: int,
-) -> None:
-    # function distinguishes between staking / smart contracts / regular transactions
+    payment_req_verifier: PaymentRequestVerifier | None,
+) -> tuple[ConfirmDataFn, Coroutine[Any, Any, None]]:
+    """Returns data chunk callback and transaction summary layout to be awaited."""
+
+    from trezor.ui.layouts import confirm_value, ethereum_address_title
+
+    from . import tokens
     from .layout import (
+        require_confirm_address,
         require_confirm_approve,
-        require_confirm_other_data,
+        require_confirm_payment_request,
         require_confirm_tx,
+        require_confirm_unknown_token,
     )
 
-    if await handle_staking(msg, defs.network, address_bytes, maximum_fee, fee_items):
-        return
+    # local_cache_attribute
+    payment_req = msg.payment_req
+    SC_FUNC_SIG_APPROVE = constants.SC_FUNC_SIG_APPROVE
+    REVOKE_AMOUNT = constants.SC_FUNC_APPROVE_REVOKE_AMOUNT
+    EIP_7702_TX_TYPE = constants.EIP_7702_TX_TYPE
 
-    # Handle ERC-20 known functions
-    token, token_address, func_sig, recipient, value = await _handle_erc20(
-        msg, defs, address_bytes
+    staking_approver = get_staking_approver(
+        msg, defs.network, address_bytes, maximum_fee, fee_items
+    )
+    if staking_approver is not None:
+        return make_progress(data_total_len), staking_approver
+
+    if tx_type == EIP_7702_TX_TYPE:
+        # we have already made sure that the address is a known address
+        # as part of the initial validation
+        await confirm_value(
+            TR.ethereum__eip_7702_title,
+            constants.EIP_7702_KNOWN_ADDRESSES[address_bytes],
+            TR.ethereum__eip_7702,
+            "confirm_provider",
+        )
+
+    token, token_address, func_sig, recipient, value = (
+        await _handle_known_contract_calls(msg, defs, address_bytes)
     )
 
-    if func_sig == constants.SC_FUNC_SIG_APPROVE:
+    if token is tokens.UNKNOWN_TOKEN:
+        if func_sig == SC_FUNC_SIG_APPROVE:
+            if value == REVOKE_AMOUNT:
+                title = TR.ethereum__approve_intro_title_revoke
+            else:
+                title = TR.ethereum__approve_intro_title
+        else:
+            title = ethereum_address_title()
+        await require_confirm_unknown_token(title)
+        if func_sig != SC_FUNC_SIG_APPROVE:
+            # For unknown tokens we also show the token address immediately after the warning
+            # except in the case of the "approve" flow which shows the token address later on!
+            await require_confirm_address(
+                address_bytes,
+                ethereum_address_title(),
+                TR.ethereum__token_contract,
+                TR.buttons__continue,
+                "unknown_token",
+                TR.ethereum__unknown_contract_address,
+            )
+
+    if func_sig == SC_FUNC_SIG_APPROVE:
         assert token
         assert token_address
-        await require_confirm_approve(
+
+        if payment_req_verifier is not None:
+            raise DataError("Payment Requests not supported for the APPROVE call")
+
+        return make_progress(data_total_len), require_confirm_approve(
             recipient,
             value,
             msg.address_n,
@@ -155,55 +307,85 @@ async def confirm_tx_data(
             chunkify=bool(msg.chunkify),
         )
     else:
-        assert func_sig == constants.SC_FUNC_SIG_TRANSFER or func_sig is None
+        assert value is not None
+
+        recipient_str = (
+            address_from_bytes(recipient, defs.network) if recipient else None
+        )
+        token_address_str = address_from_bytes(address_bytes, defs.network)
 
         is_contract_interaction = token is None and data_total_len > 0
 
-        if is_contract_interaction:
-            await require_confirm_other_data(msg.data_initial_chunk, data_total_len)
+        if payment_req_verifier is not None:
+            if is_contract_interaction:
+                raise DataError("Payment Requests don't support contract interactions")
 
-        assert value is not None
-        await require_confirm_tx(
-            recipient,
-            value,
-            msg.address_n,
-            maximum_fee,
-            fee_items,
-            defs.network,
-            token,
-            is_contract_interaction=is_contract_interaction,
-            chunkify=bool(msg.chunkify),
-        )
+            # If a payment_req_verifier is provided, then msg.payment_req must have been set.
+            assert payment_req is not None
+            assert recipient_str is not None
+            payment_req_verifier.add_output(value, recipient_str or "")
+            payment_req_verifier.verify()
+            return make_progress(data_total_len), require_confirm_payment_request(
+                recipient_str,
+                payment_req,
+                msg.address_n,
+                maximum_fee,
+                fee_items,
+                msg.chain_id,
+                defs.network,
+                token,
+                token_address_str,
+            )
+        else:
+            if is_contract_interaction:
+                confirm_data_chunk = make_confirm_data(data_total_len)
+            else:
+                confirm_data_chunk = make_progress(data_total_len)
+
+            return confirm_data_chunk, require_confirm_tx(
+                recipient_str,
+                value,
+                msg.address_n,
+                maximum_fee,
+                fee_items,
+                defs.network,
+                token,
+                is_send=not is_contract_interaction and tx_type != EIP_7702_TX_TYPE,
+                chunkify=bool(msg.chunkify),
+            )
 
 
-async def handle_staking(
+def get_staking_approver(
     msg: MsgInSignTx,
     network: EthereumNetworkInfo,
     address_bytes: bytes,
     maximum_fee: str,
-    fee_items: Iterable[tuple[str, str]],
-) -> bool:
+    fee_items: Iterable[StrPropertyType],
+) -> Coroutine[Any, Any, None] | None:
+    """
+    Returns a awaitable confirmation for ETH staking approval.
+
+    `None` is returned for non-staking related transactions.
+    """
 
     data_reader = BufferReader(msg.data_initial_chunk)
     if data_reader.remaining_count() < constants.SC_FUNC_SIG_BYTES:
-        return False
+        return None
 
     func_sig = data_reader.read_memoryview(constants.SC_FUNC_SIG_BYTES)
     if address_bytes in constants.ADDRESSES_POOL:
         if func_sig == constants.SC_FUNC_SIG_STAKE:
-            await _handle_staking_tx_stake(
+            return _handle_staking_tx_stake(
                 data_reader, msg, network, address_bytes, maximum_fee, fee_items
             )
-            return True
         if func_sig == constants.SC_FUNC_SIG_UNSTAKE:
-            await _handle_staking_tx_unstake(
+            return _handle_staking_tx_unstake(
                 data_reader, msg, network, address_bytes, maximum_fee, fee_items
             )
-            return True
 
     if address_bytes in constants.ADDRESSES_ACCOUNTING:
         if func_sig == constants.SC_FUNC_SIG_CLAIM:
-            await _handle_staking_tx_claim(
+            return _handle_staking_tx_claim(
                 data_reader,
                 msg,
                 address_bytes,
@@ -212,22 +394,18 @@ async def handle_staking(
                 network,
                 bool(msg.chunkify),
             )
-            return True
 
     # data not corresponding to staking transaction
-    return False
+    return None
 
 
-async def _handle_erc20(
+async def _handle_known_contract_calls(
     msg: MsgInSignTx,
     definitions: Definitions,
     address_bytes: bytes,
-) -> tuple[EthereumTokenInfo | None, bytes | None, bytes | None, bytes, int | None]:
-    from trezor import TR
-
-    from . import tokens
-    from .layout import require_confirm_address, require_confirm_unknown_token
-
+) -> tuple[
+    EthereumTokenInfo | None, AnyBytes | None, AnyBytes | None, AnyBytes, int | None
+]:
     # local_cache_attribute
     data_initial_chunk = msg.data_initial_chunk
     SC_FUNC_SIG_BYTES = constants.SC_FUNC_SIG_BYTES
@@ -238,57 +416,48 @@ async def _handle_erc20(
 
     token = None
     token_address = None
-    func_sig = None
     recipient = address_bytes
     value = int.from_bytes(msg.value, "big")
+
+    data_reader = BufferReader(data_initial_chunk)
+    if data_reader.remaining_count() < SC_FUNC_SIG_BYTES:
+        return token, token_address, None, recipient, value
+    func_sig = data_reader.read_memoryview(SC_FUNC_SIG_BYTES)
+
     if (
         len(msg.to) in (40, 42)
         and len(msg.value) == 0
         and msg.data_length == 68
         and len(data_initial_chunk) == 68
+        and func_sig in (SC_FUNC_SIG_TRANSFER, SC_FUNC_SIG_APPROVE)
     ):
-        data_reader = BufferReader(data_initial_chunk)
-        if data_reader.remaining_count() < SC_FUNC_SIG_BYTES:
-            return token, token_address, func_sig, recipient, value
+        # The two functions happen to have the exact same parameters, so we treat them together.
+        # This will need to be made into a more generic solution eventually.
+        # arg0: address, Address, 20 bytes (left padded with zeroes)
+        # arg1: value, uint256, 32 bytes
 
-        func_sig = data_reader.read_memoryview(SC_FUNC_SIG_BYTES)
-        if func_sig in (SC_FUNC_SIG_TRANSFER, SC_FUNC_SIG_APPROVE):
-            # The two functions happen to have the exact same parameters, so we treat them together.
-            # This will need to be made into a more generic solution eventually.
-
-            # arg0: address, Address, 20 bytes (left padded with zeroes)
-            # arg1: value, uint256, 32 bytes
-            if data_reader.remaining_count() < SC_ARGUMENT_BYTES * 2:
-                return token, token_address, None, recipient, value
-            arg0 = data_reader.read_memoryview(SC_ARGUMENT_BYTES)
-            assert all(
-                byte == 0
-                for byte in arg0[: SC_ARGUMENT_BYTES - SC_ARGUMENT_ADDRESS_BYTES]
-            )
-            recipient = bytes(arg0[SC_ARGUMENT_BYTES - SC_ARGUMENT_ADDRESS_BYTES :])
-            arg1 = data_reader.read_memoryview(SC_ARGUMENT_BYTES)
-            if func_sig == SC_FUNC_SIG_APPROVE and all(byte == 255 for byte in arg1):
-                # "Unlimited" approval (all bits set) is a special case
-                # which we encode as value=None internally.
-                value = None
-            else:
-                value = int.from_bytes(arg1, "big")
+        if data_reader.remaining_count() < SC_ARGUMENT_BYTES * 2:
+            return token, token_address, None, recipient, value
+        arg0 = data_reader.read_memoryview(SC_ARGUMENT_BYTES)
+        assert all(
+            byte == 0 for byte in arg0[: SC_ARGUMENT_BYTES - SC_ARGUMENT_ADDRESS_BYTES]
+        )
+        recipient = bytes(arg0[SC_ARGUMENT_BYTES - SC_ARGUMENT_ADDRESS_BYTES :])
+        arg1 = data_reader.read_memoryview(SC_ARGUMENT_BYTES)
+        if func_sig == SC_FUNC_SIG_APPROVE and all(byte == 255 for byte in arg1):
+            # "Unlimited" approval (all bits set) is a special case
+            # which we encode as value=None internally.
+            value = None
+        else:
+            value = int.from_bytes(arg1, "big")
 
         token = definitions.get_token(address_bytes)
         token_address = address_bytes
-
-        if token is tokens.UNKNOWN_TOKEN:
-            await require_confirm_unknown_token()
-            if func_sig != SC_FUNC_SIG_APPROVE:
-                # For unknown tokens we also show the token address immediately after the warning
-                # except in the case of the "approve" flow which shows the token address later on!
-                await require_confirm_address(
-                    address_bytes,
-                    TR.words__address,
-                    TR.ethereum__token_contract,
-                    TR.buttons__continue,
-                    "unknown_token",
-                )
+    else:
+        # If the function was known but something else (data length) was unexpected,
+        # pretend we did not recognize the function so we fall back to blind signing.
+        # See the approve_avantis test case and ERC-8021.
+        func_sig = None
 
     return token, token_address, func_sig, recipient, value
 
@@ -322,7 +491,6 @@ async def send_request_chunk(data_left: int) -> EthereumTxAck:
     from trezor.messages import EthereumTxAck
     from trezor.wire.context import call
 
-    # TODO: layoutProgress ?
     req = EthereumTxRequest()
     req.data_length = min(data_left, 1024)
     return await call(req, EthereumTxAck)
@@ -381,18 +549,14 @@ async def _handle_staking_tx_stake(
     network: EthereumNetworkInfo,
     address_bytes: bytes,
     maximum_fee: str,
-    fee_items: Iterable[tuple[str, str]],
+    fee_items: Iterable[StrPropertyType],
 ) -> None:
     from .layout import require_confirm_stake
 
     # stake args:
-    # - arg0: uint64, source (should be 1)
+    # - arg0: uint64, source (1 for Trezor)
     try:
-        source = int.from_bytes(
-            data_reader.read_memoryview(constants.SC_ARGUMENT_BYTES), "big"
-        )
-        if source != 1:
-            raise ValueError  # wrong value of 1st argument ('source' should be 1)
+        _ = data_reader.read_memoryview(constants.SC_ARGUMENT_BYTES)  # skip arg0
         if data_reader.remaining_count() != 0:
             raise ValueError  # wrong number of arguments for stake (should be 1)
     except (ValueError, EOFError):
@@ -415,24 +579,20 @@ async def _handle_staking_tx_unstake(
     network: EthereumNetworkInfo,
     address_bytes: bytes,
     maximum_fee: str,
-    fee_items: Iterable[tuple[str, str]],
+    fee_items: Iterable[StrPropertyType],
 ) -> None:
     from .layout import require_confirm_unstake
 
     # unstake args:
     # - arg0: uint256, value
-    # - arg1:  uint16, isAllowedInterchange (bool)
-    # - arg2: uint64, source, should be 1
+    # - arg1: uint16, isAllowedInterchange (bool)
+    # - arg2: uint64, source (1 for Trezor)
     try:
         value = int.from_bytes(
             data_reader.read_memoryview(constants.SC_ARGUMENT_BYTES), "big"
-        )
+        )  # parse arg0
         _ = data_reader.read_memoryview(constants.SC_ARGUMENT_BYTES)  # skip arg1
-        source = int.from_bytes(
-            data_reader.read_memoryview(constants.SC_ARGUMENT_BYTES), "big"
-        )
-        if source != 1:
-            raise ValueError  # wrong value of 3rd argument ('source' should be 1)
+        _ = data_reader.read_memoryview(constants.SC_ARGUMENT_BYTES)  # skip arg2
         if data_reader.remaining_count() != 0:
             raise ValueError  # wrong number of arguments for unstake (should be 3)
     except (ValueError, EOFError):
@@ -454,7 +614,7 @@ async def _handle_staking_tx_claim(
     msg: MsgInSignTx,
     staking_addr: bytes,
     maximum_fee: str,
-    fee_items: Iterable[tuple[str, str]],
+    fee_items: Iterable[StrPropertyType],
     network: EthereumNetworkInfo,
     chunkify: bool,
 ) -> None:

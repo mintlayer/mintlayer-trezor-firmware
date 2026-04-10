@@ -17,12 +17,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef USE_BLE
+#ifdef USE_NRF
 
+#include <trezor_model.h>
 #include <trezor_rtl.h>
 
 #include <io/nrf.h>
 #include <rtl/cli.h>
+#include <sec/secret.h>
+
+#include "common.h"
 
 static void prodtest_nrf_communication(cli_t* cli) {
   cli_trace(cli, "Testing SPI communication...");
@@ -69,6 +73,52 @@ static void prodtest_nrf_version(cli_t* cli) {
          info.version_patch, info.version_tweak);
 }
 
+static bool prodtest_nrf_update_finalize(uint8_t* data, size_t len) {
+  return nrf_update(data, len);
+}
+
+static void prodtest_nrf_update(cli_t* cli) {
+  binary_update(cli, prodtest_nrf_update_finalize);
+}
+
+static void prodtest_nrf_pair(cli_t* cli) {
+  if (cli_arg_count(cli) > 0) {
+    cli_error_arg_count(cli);
+    return;
+  }
+
+  if (secfalse != secret_is_locked()) {
+    if (nrf_authenticate()) {
+      cli_trace(cli, "Already paired");
+      cli_ok(cli, "");
+      return;
+    }
+
+    cli_error(cli, CLI_ERROR,
+              "Secrets sector is locked. Pairing is not allowed.");
+    return;
+  }
+
+  if (nrf_test_pair()) {
+    cli_ok(cli, "");
+  } else {
+    cli_error(cli, CLI_ERROR, "Pairing failed.");
+  }
+}
+
+static void prodtest_nrf_verify_pairing(cli_t* cli) {
+  if (cli_arg_count(cli) > 0) {
+    cli_error_arg_count(cli);
+    return;
+  }
+
+  if (nrf_authenticate()) {
+    cli_ok(cli, "");
+  } else {
+    cli_error(cli, CLI_ERROR, "Pairing verification failed.");
+  }
+}
+
 // clang-format off
 
 PRODTEST_CLI_CMD(
@@ -82,6 +132,27 @@ PRODTEST_CLI_CMD(
   .name = "nrf-version",
   .func = prodtest_nrf_version,
   .info = "Reads NRF firmware version",
+  .args = ""
+);
+
+PRODTEST_CLI_CMD(
+  .name = "nrf-update",
+  .func = prodtest_nrf_update,
+  .info = "Update nRF firmware",
+  .args = "<phase> <hex-data>"
+  );
+
+PRODTEST_CLI_CMD(
+  .name = "nrf-pair",
+  .func = prodtest_nrf_pair,
+  .info = "Pair nRF chip",
+  .args = ""
+  );
+
+PRODTEST_CLI_CMD(
+  .name = "nrf-verify-pairing",
+  .func = prodtest_nrf_verify_pairing,
+  .info = "Verify nRF pairing",
   .args = ""
 );
 

@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - 'release/**'
+      - 'secfix/**'
 
 # cancel any previous runs on the same PR
 concurrency:
@@ -20,6 +21,7 @@ permissions:
   pull-requests: write  # For dflook comments on PR
 
 env:
+  SDL_VIDEODRIVER: dummy
   # See https://yaml-multiline.info/
   PULL_COMMENT: >
     |legacy UI changes|device test|
@@ -48,10 +50,10 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "export PRODUCTION=1 && poetry run legacy/script/cibuild"
-      - run: nix-shell --run "poetry run legacy/script/setup"
-      - run: nix-shell --run "export PRODUCTION=0 && poetry run legacy/script/cibuild"
-      - run: nix-shell --run "poetry run make -C legacy/demo"
+      - run: nix-shell --run "export PRODUCTION=1 && uv run legacy/script/cibuild"
+      - run: nix-shell --run "uv run legacy/script/setup"
+      - run: nix-shell --run "export PRODUCTION=0 && uv run legacy/script/cibuild"
+      - run: nix-shell --run "uv run make -C legacy/demo"
         if: matrix.coins == 'universal' && matrix.type == 'normal'
       - uses: actions/upload-artifact@v4
         with:
@@ -79,7 +81,7 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run legacy/script/cibuild"
+      - run: nix-shell --run "uv run legacy/script/cibuild"
       - run: cp legacy/firmware/trezor.elf legacy/firmware/trezor-emu-legacy-T1B1-${{ matrix.coins }}
       - uses: actions/upload-artifact@v4
         with:
@@ -111,7 +113,7 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run legacy/script/cibuild"
+      - run: nix-shell --run "uv run legacy/script/cibuild"
       - run: mv legacy/firmware/trezor.elf legacy/firmware/trezor-emu-arm-legacy-T1B1-${{ matrix.coins }}
       - uses: actions/upload-artifact@v4
         with:
@@ -142,9 +144,9 @@ jobs:
           path: legacy/firmware
       - run: chmod +x legacy/firmware/*.elf
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "poetry run make -C legacy test_emu_ui"
+      - run: nix-shell --run "uv run make -C legacy test_emu_ui"
         if: matrix.coins == 'universal'
-      - run: nix-shell --run "poetry run make -C legacy test_emu"
+      - run: nix-shell --run "uv run make -C legacy test_emu"
         if: matrix.coins != 'universal'
       - uses: ./.github/actions/ui-report
         with:
@@ -177,8 +179,8 @@ jobs:
           path: legacy/firmware
       - run: chmod +x legacy/firmware/*.elf
       - uses: ./.github/actions/environment
-      - run: nix-shell --run "tests/download_emulators.sh"
-      - run: nix-shell --run "poetry run pytest tests/upgrade_tests"
+      - run: nix-shell --run "tests/download_emulators.sh T1B1"
+      - run: nix-shell --run "uv run pytest tests/upgrade_tests"
 
   legacy_hwi_test:
     name: HWI test
@@ -203,7 +205,7 @@ jobs:
 
   legacy_upload_emu:
     name: Upload emulator binaries
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' && github.repository == 'trezor/trezor-firmware'
     runs-on: ubuntu-latest
     needs:
       - legacy_emu

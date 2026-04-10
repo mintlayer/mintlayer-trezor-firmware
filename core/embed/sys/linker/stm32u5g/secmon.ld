@@ -21,14 +21,11 @@ _data_section_end = ADDR(.data) + SIZEOF(.data);
 _bss_section_start = ADDR(.bss);
 _bss_section_end = ADDR(.bss) + SIZEOF(.bss);
 
-_confidential_section_loadaddr = LOADADDR(.confidential);
-_confidential_section_start = ADDR(.confidential);
-_confidential_section_end = ADDR(.confidential) + SIZEOF(.confidential);
-
 _bootargs_ram_start = BOOTARGS_START;
 _bootargs_ram_end = BOOTARGS_START + BOOTARGS_SIZE;
 
-_codelen = _secmon_flash_end - ORIGIN(FLASH);
+_codelen = _secmon_flash_end - _secmon_code_start;
+_secmon_size = _secmon_flash_end - ORIGIN(FLASH);
 
 SECTIONS {
   .vendorheader : ALIGN(4) {
@@ -39,6 +36,15 @@ SECTIONS {
     . = 1K;
     . = ALIGN(CODE_ALIGNMENT);
   } >FLASH
+
+  .secmon_header : ALIGN(4) {
+    KEEP(*(.secmon_header));
+  } >FLASH
+
+  .padding : ALIGN(4) {
+    _secmon_code_start = .;
+    . = ALIGN(CODE_ALIGNMENT);
+  } >FLASH AT>FLASH
 
   .flash : ALIGN(CODE_ALIGNMENT) {
     KEEP(*(.vector_table));
@@ -55,7 +61,7 @@ SECTIONS {
     *(.text*);
     . = ALIGN(4);
     *(.rodata*);
-    . = ALIGN(512);
+    . = ALIGN(4);
   } >FLASH
 
   .stack : ALIGN(8) {
@@ -64,11 +70,6 @@ SECTIONS {
 
   .data : ALIGN(4) {
     *(.data*);
-    . = ALIGN(512);
-  } >RAM AT>FLASH
-
-  .confidential : ALIGN(512) {
-    *(.confidential*);
     . = ALIGN(4);
   } >RAM AT>FLASH
 
@@ -99,8 +100,9 @@ SECTIONS {
   }
 
   .flash : {
-    . = ALIGN(8K) - 1;
     BYTE(0x00)
+    FILL(0x00)
+    . = ALIGN(8K);
     _secmon_flash_end = .;
   } >FLASH
 }

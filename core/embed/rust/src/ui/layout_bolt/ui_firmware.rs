@@ -4,11 +4,11 @@ use crate::{
     error::{value_error, Error},
     io::BinaryData,
     micropython::{buffer::StrBuffer, gc::Gc, iter::IterBuf, list::List, obj::Obj, util},
+    storage,
     strutil::TString,
     translations::TR,
     ui::{
         component::{
-            connect::Connect,
             image::BlendedImage,
             text::{
                 op::OpTextLayout,
@@ -25,9 +25,10 @@ use crate::{
             obj::{LayoutMaybeTrace, LayoutObj, RootComponent},
             util::{ConfirmValueParams, PropsList, RecoveryType},
         },
+        notification::Notification,
         ui_firmware::{
-            FirmwareUI, ERROR_NOT_IMPLEMENTED, MAX_CHECKLIST_ITEMS, MAX_GROUP_SHARE_LINES,
-            MAX_WORD_QUIZ_ITEMS,
+            FirmwareUI, MAX_CHECKLIST_ITEMS, MAX_GROUP_SHARE_LINES, MAX_MENU_ITEMS,
+            MAX_PAIRED_DEVICES, MAX_WORD_QUIZ_ITEMS,
         },
         ModelUI,
     },
@@ -51,12 +52,14 @@ impl FirmwareUI for UIBolt {
         description: Option<TString<'static>>,
         _subtitle: Option<TString<'static>>,
         verb: Option<TString<'static>>,
+        _cancel: bool,
         verb_cancel: Option<TString<'static>>,
         hold: bool,
         hold_danger: bool,
         reverse: bool,
         _prompt_screen: bool,
         _prompt_title: Option<TString<'static>>,
+        _external_menu: bool, // TODO: will eventually replace the internal menu
     ) -> Result<impl LayoutMaybeTrace, Error> {
         let paragraphs = {
             let action = action.unwrap_or("".into());
@@ -102,6 +105,16 @@ impl FirmwareUI for UIBolt {
             .into_layout()
     }
 
+    fn confirm_trade(
+        _title: TString<'static>,
+        _subtitle: TString<'static>,
+        _sell_amount: Option<TString<'static>>,
+        _buy_amount: TString<'static>,
+        _back_button: bool,
+    ) -> Result<impl LayoutMaybeTrace, Error> {
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
+    }
+
     fn confirm_value(
         title: TString<'static>,
         value: Obj,
@@ -117,15 +130,19 @@ impl FirmwareUI for UIBolt {
         _page_counter: bool,
         _prompt_screen: bool,
         _cancel: bool,
+        _back_button: bool,
         _warning_footer: Option<TString<'static>>,
-    ) -> Result<Gc<LayoutObj>, Error> {
-        ConfirmValue::new(title, value, description, verb, verb_cancel, hold)
+        _external_menu: bool,
+    ) -> Result<impl LayoutMaybeTrace, Error> {
+        let frame = ConfirmValue::new(title, value, description, verb, verb_cancel, hold)
             .with_text_mono(is_data)
             .with_subtitle(subtitle)
             .with_extra(extra)
             .with_chunkify(chunkify)
             .with_info_button(info)
-            .into_layout()
+            .into_frame()?;
+        let layout = RootComponent::new(frame);
+        Ok(layout)
     }
 
     fn confirm_value_intro(
@@ -137,7 +154,7 @@ impl FirmwareUI for UIBolt {
         _hold: bool,
         _chunkify: bool,
     ) -> Result<Gc<LayoutObj>, Error> {
-        Err::<Gc<LayoutObj>, Error>(ERROR_NOT_IMPLEMENTED)
+        Err::<Gc<LayoutObj>, Error>(Error::NotImplementedError)
     }
 
     fn confirm_homescreen(
@@ -190,14 +207,14 @@ impl FirmwareUI for UIBolt {
         let mut ops = OpTextLayout::new(theme::TEXT_NORMAL);
         for item in IterBuf::new().try_iterate(items)? {
             if item.is_str() {
-                ops.add_text(TString::try_from(item)?, fonts::FONT_NORMAL);
+                ops.add_text_with_font(TString::try_from(item)?, fonts::FONT_NORMAL);
             } else {
                 let [emphasis, text]: [Obj; 2] = util::iter_into_array(item)?;
                 let text: TString = text.try_into()?;
                 if emphasis.try_into()? {
-                    ops.add_text(text, fonts::FONT_DEMIBOLD);
+                    ops.add_text_with_font(text, fonts::FONT_DEMIBOLD);
                 } else {
-                    ops.add_text(text, fonts::FONT_NORMAL);
+                    ops.add_text_with_font(text, fonts::FONT_NORMAL);
                 }
             }
         }
@@ -375,23 +392,26 @@ impl FirmwareUI for UIBolt {
 
     fn confirm_properties(
         title: TString<'static>,
-        items: Obj,
         _subtitle: Option<TString<'static>>,
+        items: Obj,
         hold: bool,
+        verb: Option<TString<'static>>,
+        external_menu: bool,
     ) -> Result<impl LayoutMaybeTrace, Error> {
-        let paragraphs = PropsList::new(
-            items,
-            &theme::TEXT_NORMAL,
-            &theme::TEXT_MONO,
-            &theme::TEXT_MONO_DATA,
-        )?;
+        let paragraphs = PropsList::new(items)?;
         let page = if hold {
             ButtonPage::new(paragraphs.into_paragraphs(), theme::BG).with_hold()?
         } else {
             ButtonPage::new(paragraphs.into_paragraphs(), theme::BG)
-                .with_cancel_confirm(None, Some(TR::buttons__confirm.into()))
+                .with_cancel_confirm(None, Some(verb.unwrap_or(TR::buttons__confirm.into())))
         };
-        let layout = RootComponent::new(Frame::left_aligned(theme::label_title(), title, page));
+        let mut frame = Frame::left_aligned(theme::label_title(), title, page);
+        if external_menu {
+            // Note: this could become a hamburger button when we would actually
+            // support menus, but for now all we have on model T is an info button
+            frame = frame.with_info_button();
+        }
+        let layout = RootComponent::new(frame);
         Ok(layout)
     }
 
@@ -437,6 +457,8 @@ impl FirmwareUI for UIBolt {
         extra_items: Option<Obj>,
         _extra_title: Option<TString<'static>>,
         verb_cancel: Option<TString<'static>>,
+        _back_button: bool,
+        _external_menu: bool, // TODO: will eventually replace the internal menu
     ) -> Result<impl LayoutMaybeTrace, Error> {
         let info_button: bool = account_items.is_some() || extra_items.is_some();
         let mut paragraphs = ParagraphVecShort::new();
@@ -468,11 +490,13 @@ impl FirmwareUI for UIBolt {
 
     fn confirm_with_info(
         title: TString<'static>,
+        _subtitle: Option<TString<'static>>,
         items: Obj,
         verb: TString<'static>,
         verb_info: TString<'static>,
         _verb_cancel: Option<TString<'static>>,
-    ) -> Result<impl LayoutMaybeTrace, Error> {
+        _external_menu: bool,
+    ) -> Result<Gc<LayoutObj>, Error> {
         let mut paragraphs = ParagraphVecShort::new();
 
         for para in IterBuf::new().try_iterate(items)? {
@@ -497,14 +521,22 @@ impl FirmwareUI for UIBolt {
         }
         .styled(theme::button_confirm());
 
-        let buttons = Button::cancel_info_confirm(confirm_button, verb_info);
-
-        let layout = RootComponent::new(Frame::left_aligned(
-            theme::label_title(),
-            title,
-            Dialog::new(paragraphs.into_paragraphs(), buttons),
-        ));
-        Ok(layout)
+        if verb_info.is_empty() {
+            // hide the info button if its verb is empty
+            let buttons = Button::cancel_confirm_text(None, Some(verb));
+            LayoutObj::new(Frame::left_aligned(
+                theme::label_title(),
+                title,
+                Dialog::new(paragraphs.into_paragraphs(), buttons),
+            ))
+        } else {
+            let buttons = Button::cancel_info_confirm(confirm_button, verb_info);
+            LayoutObj::new(Frame::left_aligned(
+                theme::label_title(),
+                title,
+                Dialog::new(paragraphs.into_paragraphs(), buttons),
+            ))
+        }
     }
 
     fn check_homescreen_format(image: BinaryData, _accept_toif: bool) -> bool {
@@ -560,8 +592,7 @@ impl FirmwareUI for UIBolt {
         _subtitle: Option<TString<'static>>,
         _description: Option<TString<'static>>,
         _extra: Option<TString<'static>>,
-        _message: Obj,
-        _amount: Option<Obj>,
+        _message: TString<'static>,
         _chunkify: bool,
         _text_mono: bool,
         _account_title: TString<'static>,
@@ -569,30 +600,22 @@ impl FirmwareUI for UIBolt {
         _account_path: Option<TString<'static>>,
         _br_code: u16,
         _br_name: TString<'static>,
-        _address_item: Option<(TString<'static>, Obj)>,
-        _extra_item: Option<(TString<'static>, Obj)>,
-        _summary_items: Option<Obj>,
-        _fee_items: Option<Obj>,
-        _summary_title: Option<TString<'static>>,
-        _summary_br_code: Option<u16>,
-        _summary_br_name: Option<TString<'static>>,
+        _address_item: Option<Obj>,
         _cancel_text: Option<TString<'static>>,
     ) -> Result<impl LayoutMaybeTrace, Error> {
-        Err::<RootComponent<Empty, ModelUI>, Error>(ERROR_NOT_IMPLEMENTED)
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
     }
 
-    fn flow_confirm_set_new_pin(
-        _title: TString<'static>,
-        _description: TString<'static>,
-    ) -> Result<impl LayoutMaybeTrace, Error> {
-        Err::<RootComponent<Empty, ModelUI>, Error>(ERROR_NOT_IMPLEMENTED)
+    fn flow_confirm_set_new_code(_is_wipe_code: bool) -> Result<impl LayoutMaybeTrace, Error> {
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
     }
 
     fn flow_get_address(
-        _address: Obj,
+        _address: TString<'static>,
         _title: TString<'static>,
+        _subtitle: Option<TString<'static>>,
         _description: Option<TString<'static>>,
-        _extra: Option<TString<'static>>,
+        _hint: Option<TString<'static>>,
         _chunkify: bool,
         _address_qr: TString<'static>,
         _case_sensitive: bool,
@@ -602,7 +625,21 @@ impl FirmwareUI for UIBolt {
         _br_code: u16,
         _br_name: TString<'static>,
     ) -> Result<impl LayoutMaybeTrace, Error> {
-        Err::<RootComponent<Empty, ModelUI>, Error>(ERROR_NOT_IMPLEMENTED)
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
+    }
+
+    fn flow_get_pubkey(
+        _pubkey: TString<'static>,
+        _title: TString<'static>,
+        _subtitle: Option<TString<'static>>,
+        _hint: Option<TString<'static>>,
+        _pubkey_qr: TString<'static>,
+        _account: Option<TString<'static>>,
+        _path: Option<TString<'static>>,
+        _br_code: u16,
+        _br_name: TString<'static>,
+    ) -> Result<impl LayoutMaybeTrace, Error> {
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
     }
 
     fn multiple_pages_texts(
@@ -610,11 +647,11 @@ impl FirmwareUI for UIBolt {
         _verb: TString<'static>,
         _items: Gc<List>,
     ) -> Result<impl LayoutMaybeTrace, Error> {
-        Err::<RootComponent<Empty, ModelUI>, Error>(ERROR_NOT_IMPLEMENTED)
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
     }
 
     fn prompt_backup() -> Result<impl LayoutMaybeTrace, Error> {
-        Err::<RootComponent<Empty, ModelUI>, Error>(ERROR_NOT_IMPLEMENTED)
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
     }
 
     fn request_bip39(
@@ -668,30 +705,49 @@ impl FirmwareUI for UIBolt {
         _max_ms: u32,
         _description: Option<TString<'static>>,
     ) -> Result<impl LayoutMaybeTrace, Error> {
-        Err::<RootComponent<Empty, ModelUI>, Error>(ERROR_NOT_IMPLEMENTED)
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
     }
 
     fn request_pin(
         prompt: TString<'static>,
-        subprompt: TString<'static>,
+        attempts: TString<'static>,
         allow_cancel: bool,
-        warning: bool,
+        wrong_pin: bool,
+        _last_attempt: bool,
     ) -> Result<impl LayoutMaybeTrace, Error> {
-        let warning = if warning {
+        let warning = if wrong_pin {
             Some(TR::pin__wrong_pin.into())
         } else {
             None
         };
-        let layout = RootComponent::new(PinKeyboard::new(prompt, subprompt, warning, allow_cancel));
+        let layout = RootComponent::new(PinKeyboard::new(prompt, attempts, warning, allow_cancel));
         Ok(layout)
     }
 
     fn request_passphrase(
         _prompt: TString<'static>,
-        _max_len: u32,
+        _prompt_empty: TString<'static>,
+        max_len: usize,
     ) -> Result<impl LayoutMaybeTrace, Error> {
-        let layout = RootComponent::new(PassphraseKeyboard::new());
+        let layout = RootComponent::new(PassphraseKeyboard::new(max_len));
         Ok(layout)
+    }
+
+    fn request_string(
+        _prompt: TString<'static>,
+        _max_len: usize,
+        _allow_empty: bool,
+        _prefill: Option<TString<'static>>,
+    ) -> Result<impl LayoutMaybeTrace, Error> {
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
+    }
+
+    fn select_menu(
+        _items: heapless::Vec<TString<'static>, MAX_MENU_ITEMS>,
+        _current: usize,
+        _cancel: Option<TString<'static>>,
+    ) -> Result<impl LayoutMaybeTrace, Error> {
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
     }
 
     fn select_word(
@@ -736,12 +792,19 @@ impl FirmwareUI for UIBolt {
     }
 
     fn set_brightness(current_brightness: Option<u8>) -> Result<impl LayoutMaybeTrace, Error> {
+        let current = match current_brightness {
+            Some(value) => {
+                // Set the brightness immediately so it is applied in the `_first_paint` UI
+                // layout function
+                unwrap!(storage::set_brightness(value));
+                value
+            }
+            None => theme::backlight::get_backlight_normal(),
+        };
         let layout = RootComponent::new(Frame::centered(
             theme::label_title(),
             TR::brightness__title.into(),
-            SetBrightnessDialog::new(
-                current_brightness.unwrap_or(theme::backlight::get_backlight_normal()),
-            ),
+            SetBrightnessDialog::new(current),
         ));
 
         Ok(layout)
@@ -820,7 +883,7 @@ impl FirmwareUI for UIBolt {
         _menu_title: Option<TString<'static>>,
         _verb_cancel: Option<TString<'static>>,
     ) -> Result<impl LayoutMaybeTrace, Error> {
-        Err::<RootComponent<Empty, ModelUI>, Error>(ERROR_NOT_IMPLEMENTED)
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
     }
 
     fn show_error(
@@ -863,33 +926,42 @@ impl FirmwareUI for UIBolt {
 
     fn show_homescreen(
         label: TString<'static>,
-        notification: Option<TString<'static>>,
-        notification_level: u8,
+        notification: Option<Notification>,
         lockable: bool,
     ) -> Result<impl LayoutMaybeTrace, Error> {
-        let notification = notification.map(|w| (w, notification_level));
         let layout = RootComponent::new(Homescreen::new(label, notification, lockable));
         Ok(layout)
     }
 
     fn show_device_menu(
-        _failed_backup: bool,
-        _firmware_version: TString<'static>,
-        _device_name: TString<'static>,
-        _paired_devices: heapless::Vec<TString<'static>, 1>,
-        _auto_lock_delay: TString<'static>,
+        _init_submenu_idx: Option<u8>,
+        _backup_failed: bool,
+        _backup_needed: bool,
+        _ble_enabled: bool,
+        _paired_devices: heapless::Vec<
+            (TString<'static>, Option<[TString<'static>; 2]>),
+            MAX_PAIRED_DEVICES,
+        >,
+        _connected_idx: Option<u8>,
+        _pin_enabled: Option<bool>,
+        _auto_lock: Option<[TString<'static>; 2]>,
+        _wipe_code_enabled: Option<bool>,
+        _backup_check_allowed: bool,
+        _device_name: Option<TString<'static>>,
+        _brightness: Option<TString<'static>>,
+        _haptics_enabled: Option<bool>,
+        _led_enabled: Option<bool>,
+        _about_items: Obj,
+        _production_year: Option<TString<'static>>,
     ) -> Result<impl LayoutMaybeTrace, Error> {
-        Err::<RootComponent<Empty, ModelUI>, Error>(Error::ValueError(
-            c"show_device_menu not supported",
-        ))
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
     }
 
     fn show_pairing_device_name(
+        _description: StrBuffer,
         _device_name: TString<'static>,
     ) -> Result<impl LayoutMaybeTrace, Error> {
-        Err::<RootComponent<Empty, ModelUI>, Error>(Error::ValueError(
-            c"show_pairing_device_name not supported",
-        ))
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
     }
 
     #[cfg(feature = "ble")]
@@ -898,9 +970,12 @@ impl FirmwareUI for UIBolt {
         _description: TString<'static>,
         _code: TString<'static>,
     ) -> Result<impl LayoutMaybeTrace, Error> {
-        Err::<RootComponent<Empty, ModelUI>, Error>(Error::ValueError(
-            c"show_ble_pairing_code not supported",
-        ))
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
+    }
+
+    #[cfg(feature = "ble")]
+    fn wait_ble_host_confirmation() -> Result<impl LayoutMaybeTrace, Error> {
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
     }
 
     fn show_thp_pairing_code(
@@ -914,13 +989,22 @@ impl FirmwareUI for UIBolt {
             Some(description),
             None,
             None,
+            true,
             None,
             false,
             false,
             false,
             false,
             None,
+            false,
         )
+    }
+
+    fn confirm_thp_pairing(
+        _title: TString<'static>,
+        _description: (StrBuffer, Obj),
+    ) -> Result<impl LayoutMaybeTrace, Error> {
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
     }
 
     fn show_info(
@@ -962,7 +1046,7 @@ impl FirmwareUI for UIBolt {
         let mut paragraphs = ParagraphVecShort::new();
 
         for para in IterBuf::new().try_iterate(items)? {
-            let [key, value]: [Obj; 2] = util::iter_into_array(para)?;
+            let [key, value, _]: [Obj; 3] = util::iter_into_array(para)?;
             let key: TString = key.try_into()?;
             let value: TString = value.try_into()?;
             paragraphs.add(Paragraph::new(&theme::TEXT_NORMAL, key).no_break());
@@ -1072,6 +1156,14 @@ impl FirmwareUI for UIBolt {
         Ok(obj)
     }
 
+    fn show_properties(
+        _title: TString<'static>,
+        _subtitle: Option<TString<'static>>,
+        _value: Obj,
+    ) -> Result<impl LayoutMaybeTrace, Error> {
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
+    }
+
     fn show_share_words(
         words: heapless::Vec<TString<'static>, 33>,
         title: Option<TString<'static>>,
@@ -1095,7 +1187,7 @@ impl FirmwareUI for UIBolt {
         _text_confirm: TString<'static>,
         _text_check: TString<'static>,
     ) -> Result<impl LayoutMaybeTrace, Error> {
-        Err::<RootComponent<Empty, ModelUI>, Error>(ERROR_NOT_IMPLEMENTED)
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
     }
 
     fn show_remaining_shares(pages_iterable: Obj) -> Result<impl LayoutMaybeTrace, Error> {
@@ -1184,9 +1276,9 @@ impl FirmwareUI for UIBolt {
     }
 
     fn show_wait_text(text: TString<'static>) -> Result<impl LayoutMaybeTrace, Error> {
-        let layout =
-            RootComponent::new(Connect::new(text, fonts::FONT_NORMAL, theme::FG, theme::BG));
-        Ok(layout)
+        Ok(RootComponent::new(
+            Paragraph::new(&theme::TEXT_NORMAL, text).into_paragraphs(),
+        ))
     }
 
     fn show_warning(
@@ -1216,8 +1308,12 @@ impl FirmwareUI for UIBolt {
         )
     }
 
+    fn confirm_cancel() -> Result<impl LayoutMaybeTrace, Error> {
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
+    }
+
     fn tutorial() -> Result<impl LayoutMaybeTrace, Error> {
-        Err::<RootComponent<Empty, ModelUI>, Error>(ERROR_NOT_IMPLEMENTED)
+        Err::<RootComponent<Empty, ModelUI>, Error>(Error::NotImplementedError)
     }
 }
 
@@ -1349,7 +1445,7 @@ impl ConfirmValue {
         self
     }
 
-    fn into_layout(self) -> Result<Gc<LayoutObj>, Error> {
+    fn into_frame(self) -> Result<Frame<ButtonPage<Paragraphs<ConfirmValueParams>>>, Error> {
         let description = self.description.unwrap_or("".into());
         let extra = self.extra.unwrap_or("".into());
         let paragraphs = ConfirmValueParams {
@@ -1388,7 +1484,11 @@ impl ConfirmValue {
         if self.info_button {
             frame = frame.with_info_button();
         }
-        LayoutObj::new(frame)
+        Ok(frame)
+    }
+
+    fn into_layout(self) -> Result<Gc<LayoutObj>, Error> {
+        LayoutObj::new(self.into_frame()?)
     }
 }
 
@@ -1417,11 +1517,11 @@ mod tests {
         );
 
         let mut ops = OpTextLayout::new(theme::TEXT_NORMAL);
-        ops.add_text(
+        ops.add_text_with_font(
             "Testing text layout, with some text, and some more text. And ",
             fonts::FONT_NORMAL,
         )
-        .add_text("parameters!", fonts::FONT_BOLD_UPPER);
+        .add_text_with_font("parameters!", fonts::FONT_BOLD_UPPER);
         let formatted = FormattedText::new(ops);
         let mut layout = Dialog::new(formatted, buttons);
         layout.place(SCREEN);

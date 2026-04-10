@@ -70,13 +70,30 @@ async def sign_tx_eip1559(
         gas_limit,
         defs.network,
     )
-    await confirm_tx_data(msg, defs, address_bytes, maximum_fee, fee_items, data_total)
 
-    # transaction data confirmed, proceed with signing
-    data = bytearray()
-    data += msg.data_initial_chunk
-    data_left = data_total - len(msg.data_initial_chunk)
+    payment_req_verifier = None
+    if msg.payment_req:
+        from apps.common.payment_request import PaymentRequestVerifier
 
+        slip44_id = paths.unharden(msg.address_n[1])
+        payment_req_verifier = PaymentRequestVerifier(
+            msg.payment_req, slip44_id, keychain, amount_size_bytes=32
+        )
+
+    # data chunks will be confirmed during digest (see below)
+    # tx summary will approved before signing the digest (see below)
+    confirm_data_chunk, approve_summary = await confirm_tx_data(
+        msg,
+        defs,
+        None,
+        address_bytes,
+        maximum_fee,
+        fee_items,
+        data_total,
+        payment_req_verifier,
+    )
+
+    # digest
     total_length = _get_total_length(msg, data_total)
 
     sha = HashWriter(sha3_256(keccak=True))
@@ -97,14 +114,14 @@ async def sign_tx_eip1559(
     for field in fields:
         rlp.write(sha, field)
 
-    if data_left == 0:
-        rlp.write(sha, data)
-    else:
-        rlp.write_header(sha, data_total, rlp.STRING_HEADER_BYTE, data)
-        sha.extend(data)
+    await confirm_data_chunk(msg.data_initial_chunk)
+    data_left = data_total - len(msg.data_initial_chunk)
+    rlp.write_header(sha, data_total, rlp.STRING_HEADER_BYTE, msg.data_initial_chunk)
+    sha.extend(msg.data_initial_chunk)
 
     while data_left > 0:
         resp = await send_request_chunk(data_left)
+        await confirm_data_chunk(resp.data_chunk)
         data_left -= len(resp.data_chunk)
         sha.extend(resp.data_chunk)
 
@@ -120,6 +137,8 @@ async def sign_tx_eip1559(
         rlp.write(sha, item.storage_keys)
 
     digest = sha.get_digest()
+    await approve_summary
+    # transaction data confirmed, proceed with signing
     result = _sign_digest(msg, keychain, digest)
 
     show_continue_in_app(TR.send__transaction_signed)

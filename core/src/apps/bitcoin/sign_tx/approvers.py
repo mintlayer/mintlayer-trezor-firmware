@@ -12,17 +12,18 @@ from . import helpers, tx_weight
 from .tx_info import OriginalTxInfo
 
 if TYPE_CHECKING:
+    from buffer_types import AnyBytes
     from typing import Optional
 
     from trezor.crypto import bip32
-    from trezor.messages import SignTx, TxAckPaymentRequest, TxInput, TxOutput
+    from trezor.messages import PaymentRequest, SignTx, TxInput, TxOutput
 
     from apps.common.coininfo import CoinInfo
     from apps.common.keychain import Keychain
+    from apps.common.payment_request import PaymentRequestVerifier
 
     from ..authorization import CoinJoinAuthorization
     from .bitcoin import Bitcoin
-    from .payment_request import PaymentRequestVerifier
     from .tx_info import TxInfo
 
 
@@ -35,7 +36,6 @@ class Approver:
         self.coin = coin
         self.weight = tx_weight.TxWeightCalculator()
         self.payment_req_verifier: PaymentRequestVerifier | None = None
-        self.show_payment_req_details = False
 
         # amounts in the current transaction
         self.total_in = 0  # sum of input amounts
@@ -85,29 +85,36 @@ class Approver:
             if txi.orig_hash:
                 self.orig_external_in += txi.amount
 
-    async def _add_output(self, txo: TxOutput, script_pubkey: bytes) -> None:
+    async def _add_output(self, txo: TxOutput, script_pubkey: AnyBytes) -> None:
         self.weight.add_output(script_pubkey)
         self.total_out += txo.amount
 
     async def add_payment_request(
-        self, msg: TxAckPaymentRequest, keychain: Keychain
+        self,
+        payment_request: PaymentRequest,
+        keychain: Keychain,
+        _tx_info: TxInfo | None,
+        _txo: TxOutput,
     ) -> None:
-        from .payment_request import PaymentRequestVerifier
+        from apps.common.payment_request import PaymentRequestVerifier
 
         self.finish_payment_request()
-        self.payment_req_verifier = PaymentRequestVerifier(msg, self.coin, keychain)
+        self.payment_req_verifier = PaymentRequestVerifier(
+            payment_request, self.coin.slip44, keychain
+        )
 
     def finish_payment_request(self) -> None:
         if self.payment_req_verifier:
             self.payment_req_verifier.verify()
         self.payment_req_verifier = None
-        self.show_payment_req_details = False
 
-    async def add_change_output(self, txo: TxOutput, script_pubkey: bytes) -> None:
+    async def add_change_output(self, txo: TxOutput, script_pubkey: AnyBytes) -> None:
         await self._add_output(txo, script_pubkey)
         self.change_out += txo.amount
         if self.payment_req_verifier:
-            self.payment_req_verifier.add_change_output(txo)
+            # txo.address filled in by output_derive_script().
+            assert txo.address is not None
+            self.payment_req_verifier.add_output(txo.amount, txo.address, change=True)
 
     def add_orig_change_output(self, txo: TxOutput) -> None:
         self.orig_total_out += txo.amount
@@ -116,13 +123,15 @@ class Approver:
     async def add_external_output(
         self,
         txo: TxOutput,
-        script_pubkey: bytes,
+        script_pubkey: AnyBytes,
         tx_info: TxInfo | None,
         orig_txo: TxOutput | None = None,
     ) -> None:
         await self._add_output(txo, script_pubkey)
         if self.payment_req_verifier:
-            self.payment_req_verifier.add_external_output(txo)
+            # External outputs have txo.address filled by definition.
+            assert txo.address is not None
+            self.payment_req_verifier.add_output(txo.amount, txo.address)
 
     def add_orig_external_output(self, txo: TxOutput) -> None:
         self.orig_total_out += txo.amount
@@ -169,7 +178,7 @@ class BasicApprover(Approver):
         ):
             raise ProcessError("Transaction has changed during signing")
 
-    async def _add_output(self, txo: TxOutput, script_pubkey: bytes) -> None:
+    async def _add_output(self, txo: TxOutput, script_pubkey: AnyBytes) -> None:
         if txo.address_n and not validate_path_against_script_type(
             self.coin,
             address_n=txo.address_n,
@@ -180,14 +189,14 @@ class BasicApprover(Approver):
 
         await super()._add_output(txo, script_pubkey)
 
-    async def add_change_output(self, txo: TxOutput, script_pubkey: bytes) -> None:
+    async def add_change_output(self, txo: TxOutput, script_pubkey: AnyBytes) -> None:
         await super().add_change_output(txo, script_pubkey)
         self.change_count += 1
 
     async def add_external_output(
         self,
         txo: TxOutput,
-        script_pubkey: bytes,
+        script_pubkey: AnyBytes,
         tx_info: TxInfo | None,
         orig_txo: TxOutput | None = None,
     ) -> None:
@@ -223,7 +232,7 @@ class BasicApprover(Approver):
                 raise ProcessError(
                     "Adding new OP_RETURN outputs in replacement transactions is not supported."
                 )
-        elif txo.payment_req_index is None or self.show_payment_req_details:
+        elif txo.payment_req_index is None:
             source_path = (
                 tx_info.change_detector.wallet_path.get_path() if tx_info else None
             )
@@ -240,16 +249,29 @@ class BasicApprover(Approver):
             self.external_output_index += 1
 
     async def add_payment_request(
-        self, msg: TxAckPaymentRequest, keychain: Keychain
+        self,
+        payment_request: PaymentRequest,
+        keychain: Keychain,
+        tx_info: TxInfo | None,
+        txo: TxOutput,
     ) -> None:
-        await super().add_payment_request(msg, keychain)
-        if msg.amount is None:
+        await super().add_payment_request(payment_request, keychain, tx_info, txo)
+        if payment_request.amount is None:
             raise DataError("Missing payment request amount.")
 
-        result = await helpers.should_show_payment_request_details(
-            msg, self.coin, self.amount_unit
+        source_path = (
+            tx_info.change_detector.wallet_path.get_path() if tx_info else None
         )
-        self.show_payment_req_details = result is True
+
+        assert txo.address
+
+        await helpers.show_payment_request_details(
+            txo.address,
+            payment_request,
+            self.coin,
+            self.amount_unit,
+            source_path,
+        )
 
     async def approve_orig_txids(
         self, tx_info: TxInfo, orig_txs: list[OriginalTxInfo]

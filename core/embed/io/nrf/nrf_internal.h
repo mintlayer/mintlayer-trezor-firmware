@@ -22,22 +22,26 @@
 #include <trezor_types.h>
 
 #include <io/nrf.h>
+#include <io/tsqueue.h>
 #include <sys/systimer.h>
-#include <util/tsqueue.h>
 
 #define TX_QUEUE_SIZE (8)
 
-#define MAX_SPI_DATA_SIZE (244)
+#define MAX_SPI_DATA_SIZE (251)
 
 typedef enum {
   MGMT_CMD_SYSTEM_OFF = 0x00,
   MGMT_CMD_INFO = 0x01,
   MGMT_CMD_START_UART = 0x02,
   MGMT_CMD_STOP_UART = 0x03,
+  MGMT_CMD_SUSPEND = 0x04,
+  MGMT_CMD_RESUME = 0x05,
+  MGMT_CMD_AUTH_CHALLENGE = 0x06,
 } management_cmd_t;
 
 typedef enum {
   MGMT_RESP_INFO = 0,
+  MGMT_RESP_AUTH_RESPONSE = 1,
 } management_resp_t;
 
 typedef struct {
@@ -84,11 +88,17 @@ typedef struct {
   bool info_valid;
   nrf_info_t info;
 
+  bool auth_data_valid;
+  uint8_t auth_data[SHA256_DIGEST_LENGTH];
+
   systimer_t *timer;
   bool pending_spi_transaction;
 
   bool dfu_mode;
   bool dfu_tx_pending;
+
+  bool dtm_mode;
+  void (*dtm_callback)(uint8_t byte);
 
 } nrf_driver_t;
 

@@ -98,7 +98,7 @@ ifdef SMALL
 CFLAGS += -DUSE_PRECOMPUTED_CP=0
 endif
 
-SRCS   = bignum.c ecdsa.c curves.c secp256k1.c nist256p1.c rand.c hmac.c bip32.c bip39.c bip39_english.c pbkdf2.c base58.c base32.c
+SRCS   = bignum.c ecdsa.c curves.c secp256k1.c nist256p1.c rand.c rand_insecure.c hmac.c bip32.c bip39.c bip39_english.c pbkdf2.c base58.c base32.c
 SRCS  += address.c
 SRCS  += script.c
 SRCS  += ripemd160.c
@@ -112,6 +112,7 @@ SRCS  += ed25519-donna/ed25519.c ed25519-donna/curve25519-donna-scalarmult-base.
 SRCS  += monero/base58.c
 SRCS  += monero/serialize.c
 SRCS  += monero/xmr.c
+SRCS  += noise.c
 SRCS  += blake256.c
 SRCS  += blake2b.c blake2s.c
 SRCS  += chacha_drbg.c

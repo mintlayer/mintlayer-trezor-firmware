@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 from base64 import b64decode
 from hashlib import sha256
-import requests
 
+import requests
 
 REPO = "certifi/python-certifi"
 
 
-def fetch_certdata():
-    r = requests.get("https://api.github.com/repos/%s/git/refs/heads/master" % REPO)
+def fetch_certdata() -> tuple[str, str]:
+    r = requests.get(f"https://api.github.com/repos/{REPO}/git/refs/heads/master")
     assert r.status_code == 200
     commithash = r.json()["object"]["sha"]
 
     r = requests.get(
-        "https://raw.githubusercontent.com/%s/%s/certifi/cacert.pem"
-        % (REPO, commithash)
+        f"https://raw.githubusercontent.com/{REPO}/{commithash}/certifi/cacert.pem"
     )
     assert r.status_code == 200
     certdata = r.text
@@ -23,7 +23,7 @@ def fetch_certdata():
     return commithash, certdata
 
 
-def process_certdata(data):
+def process_certdata(data: str) -> dict[str, bytes]:
     certs = {}
     lines = [x.strip() for x in data.split("\n")]
     label = None
@@ -49,26 +49,25 @@ def process_certdata(data):
     return certs
 
 
-def main():
+def main() -> None:
     commithash, certdata = fetch_certdata()
 
-    print("# fetched from https://github.com/%s" % REPO)
-    print("# commit %s" % commithash)
+    print(f"# fetched from https://github.com/{REPO}")
+    print(f"# commit {commithash}")
 
     certs = process_certdata(certdata)
 
     size = sum([len(x) for x in certs.values()])
     print(
-        "# certs: %d | digests size: %d | total size: %d"
-        % (len(certs), len(certs) * 32, size)
+        f"# certs: {len(certs)} | digests size: {len(certs) * 32} | total size: {size}"
     )
 
     print("cert_bundle = [")
     for k, v in certs.items():
         h = sha256(v)
-        print("  # %s" % k)
-        print("  # %s" % h.hexdigest())
-        print("  %s," % h.digest())
+        print(f"  # {k}")
+        print(f"  # {h.hexdigest()}" % h.hexdigest())
+        print(f"  {h.digest()},")
     print("]")
 
 

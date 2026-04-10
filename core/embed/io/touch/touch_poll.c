@@ -22,13 +22,14 @@
 #include <trezor_rtl.h>
 
 #include <io/touch.h>
+#include <sys/logging.h>
 #include <sys/sysevent_source.h>
 #include <sys/systask.h>
 #include <sys/systick.h>
 
 #include "touch_poll.h"
 
-// #define TOUCH_TRACE_EVENT
+LOG_DECLARE(touch_driver);
 
 typedef struct {
   // Time (in ticks) when the tls was last updated
@@ -64,25 +65,6 @@ static void touch_fsm_clear(touch_fsm_t* fsm) {
 bool touch_fsm_event_ready(touch_fsm_t* fsm, uint32_t touch_state) {
   return fsm->state != touch_state;
 }
-
-#ifdef TOUCH_TRACE_EVENT
-void trace_event(uint32_t event) {
-  char event_type = (event & TOUCH_START)  ? 'D'
-                    : (event & TOUCH_MOVE) ? 'M'
-                    : (event & TOUCH_END)  ? 'U'
-                                           : '-';
-
-  uint16_t x = touch_unpack_x(event);
-  uint16_t y = touch_unpack_y(event);
-
-  uint32_t time = hal_ticks_ms() % 10000;
-
-  systask_id_t task_id = systask_id(systask_active());
-
-  printf("%04ld [task=%d, event=%c, x=%3d, y=%3d]\r\n", time, task_id,
-         event_type, x, y);
-}
-#endif
 
 uint32_t touch_fsm_get_event(touch_fsm_t* fsm, uint32_t touch_state) {
   uint32_t ticks = hal_ticks_ms();
@@ -136,6 +118,10 @@ uint32_t touch_fsm_get_event(touch_fsm_t* fsm, uint32_t touch_state) {
         // This suggests that the previous touch was very short,
         // or/and the driver is not called very frequently.
         event = TOUCH_START | xy;
+
+        // We have to remember "false" touch state to convince
+        // the state machine to signal the TOUCH_END event next.
+        touch_state = event;
       } else {
         // Either the driver is starving or the coordinates
         // have not changed, which would suggest that the TOUCH_END
@@ -160,6 +146,13 @@ uint32_t touch_fsm_get_event(touch_fsm_t* fsm, uint32_t touch_state) {
   return event;
 }
 
+static inline char event_type_char(uint32_t event) {
+  return (event & TOUCH_START)  ? 'D'
+         : (event & TOUCH_MOVE) ? 'M'
+         : (event & TOUCH_END)  ? 'U'
+                                : '-';
+}
+
 uint32_t touch_get_event(void) {
   touch_fsm_t* fsm = &g_touch_tls[systask_id(systask_active())];
 
@@ -167,11 +160,10 @@ uint32_t touch_get_event(void) {
 
   uint32_t event = touch_fsm_get_event(fsm, touch_state);
 
-#ifdef TOUCH_TRACE_EVENT
   if (event != 0) {
-    trace_event(event);
+    LOG_DBG("touch_event: ev=%c, x=%d, y=%d", event_type_char(event),
+            touch_unpack_x(event), touch_unpack_y(event));
   }
-#endif
 
   return event;
 }

@@ -25,7 +25,7 @@ if TYPE_CHECKING:
         Busy = 15
         ThpUnallocatedSession = 16
         InvalidProtocol = 17
-        BufferError = 18
+        InProgress = 19
         FirmwareError = 99
 
     class ButtonRequestType(IntEnum):
@@ -234,6 +234,7 @@ if TYPE_CHECKING:
         Haptic = 21
         BLE = 22
         NFC = 23
+        Tron = 24
         Mintlayer = 99
 
     class SdProtectOperationType(IntEnum):
@@ -269,6 +270,11 @@ if TYPE_CHECKING:
         LEFT_BTN = 0
         MIDDLE_BTN = 1
         RIGHT_BTN = 2
+
+    class DebugTouchEventType(IntEnum):
+        TOUCH_FULL_CLICK = 0
+        TOUCH_START = 1
+        TOUCH_END = 2
 
     class DebugWaitType(IntEnum):
         IMMEDIATE = 0
@@ -374,11 +380,44 @@ if TYPE_CHECKING:
         Nay = 1
         Pass = 2
 
+    class ThpMessageType(IntEnum):
+        Cancel = 20
+        ButtonRequest = 26
+        ButtonAck = 27
+        ThpPairingRequest = 1008
+        ThpPairingRequestApproved = 1009
+        ThpSelectMethod = 1010
+        ThpPairingPreparationsFinished = 1011
+        ThpCredentialRequest = 1016
+        ThpCredentialResponse = 1017
+        ThpEndRequest = 1018
+        ThpEndResponse = 1019
+        ThpCodeEntryCommitment = 1024
+        ThpCodeEntryChallenge = 1025
+        ThpCodeEntryCpaceTrezor = 1026
+        ThpCodeEntryCpaceHostTag = 1027
+        ThpCodeEntrySecret = 1028
+        ThpQrCodeTag = 1032
+        ThpQrCodeSecret = 1033
+        ThpNfcTagHost = 1040
+        ThpNfcTagTrezor = 1041
+
     class ThpPairingMethod(IntEnum):
         SkipPairing = 1
         CodeEntry = 2
         QrCode = 3
         NFC = 4
+
+    class TronResourceCode(IntEnum):
+        BANDWIDTH = 0
+        ENERGY = 1
+
+    class TronRawContractType(IntEnum):
+        TransferContract = 1
+        TriggerSmartContract = 31
+        FreezeBalanceV2Contract = 54
+        UnfreezeBalanceV2Contract = 55
+        WithdrawExpireUnfreezeContract = 56
 
     class MessageType(IntEnum):
         Initialize = 0
@@ -406,6 +445,7 @@ if TYPE_CHECKING:
         BackupDevice = 34
         EntropyRequest = 35
         EntropyAck = 36
+        PaymentRequest = 37
         EntropyCheckReady = 994
         EntropyCheckContinue = 995
         PassphraseRequest = 41
@@ -433,6 +473,8 @@ if TYPE_CHECKING:
         DataChunkRequest = 991
         DataChunkAck = 992
         SetBrightness = 993
+        GetSerialNumber = 996
+        SerialNumber = 997
         SetU2FCounter = 63
         GetNextU2FCounter = 80
         NextU2FCounter = 81
@@ -450,7 +492,6 @@ if TYPE_CHECKING:
         TxAck = 22
         GetAddress = 29
         Address = 30
-        TxAckPaymentRequest = 37
         SignMessage = 38
         VerifyMessage = 39
         MessageSignature = 40
@@ -465,6 +506,7 @@ if TYPE_CHECKING:
         SignedIdentity = 54
         GetECDHSessionKey = 61
         ECDHSessionKey = 62
+        PaymentNotification = 52
         DebugLinkDecision = 100
         DebugLinkGetState = 101
         DebugLinkState = 102
@@ -485,6 +527,7 @@ if TYPE_CHECKING:
         DebugLinkGcInfo = 9010
         DebugLinkGetPairingInfo = 9011
         DebugLinkPairingInfo = 9012
+        DebugLinkSetLogFilter = 9013
         EthereumGetPublicKey = 450
         EthereumPublicKey = 451
         EthereumGetAddress = 56
@@ -563,6 +606,10 @@ if TYPE_CHECKING:
         CardanoTxInlineDatumChunk = 335
         CardanoTxReferenceScriptChunk = 336
         CardanoTxReferenceInput = 337
+        CardanoSignMessageInit = 338
+        CardanoMessageDataRequest = 339
+        CardanoMessageDataResponse = 340
+        CardanoMessageSignature = 341
         RippleGetAddress = 400
         RippleAddress = 401
         RippleSignTx = 402
@@ -620,31 +667,34 @@ if TYPE_CHECKING:
         SolanaSignTx = 904
         SolanaTxSignature = 905
         ThpCreateNewSession = 1000
-        ThpPairingRequest = 1006
-        ThpPairingRequestApproved = 1007
-        ThpSelectMethod = 1008
-        ThpPairingPreparationsFinished = 1009
-        ThpCredentialRequest = 1010
-        ThpCredentialResponse = 1011
-        ThpEndRequest = 1012
-        ThpEndResponse = 1013
-        ThpCodeEntryCommitment = 1016
-        ThpCodeEntryChallenge = 1017
-        ThpCodeEntryCpaceTrezor = 1018
-        ThpCodeEntryCpaceHostTag = 1019
-        ThpCodeEntrySecret = 1020
-        ThpQrCodeTag = 1024
-        ThpQrCodeSecret = 1025
-        ThpNfcTagHost = 1032
-        ThpNfcTagTrezor = 1033
+        ThpCredentialRequest = 1016
+        ThpCredentialResponse = 1017
         NostrGetPubkey = 2001
         NostrPubkey = 2002
         NostrSignEvent = 2003
         NostrEventSignature = 2004
+        EvoluGetNode = 2100
+        EvoluNode = 2101
+        EvoluSignRegistrationRequest = 2102
+        EvoluRegistrationRequest = 2103
+        EvoluGetDelegatedIdentityKey = 2104
+        EvoluDelegatedIdentityKey = 2105
+        TronGetAddress = 2200
+        TronAddress = 2201
+        TronSignTx = 2202
+        TronSignature = 2203
+        TronContractRequest = 2204
+        TronTransferContract = 2205
+        TronTriggerSmartContract = 2206
+        TronFreezeBalanceV2Contract = 2207
+        TronUnfreezeBalanceV2Contract = 2208
+        TronWithdrawUnfreeze = 2209
         BenchmarkListNames = 9100
         BenchmarkNames = 9101
         BenchmarkRun = 9102
         BenchmarkResult = 9103
+        TelemetryGet = 1100
+        Telemetry = 1101
         MintlayerGetFirmwareInfo = 10000
         MintlayerFirmwareInfo = 10001
         MintlayerGetAddress = 10002

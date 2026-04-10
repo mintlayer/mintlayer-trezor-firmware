@@ -9,9 +9,9 @@ PY_FILES = $(shell find . -type f -name '*.py'   | sed 'sO^\./OO' | grep -f ./to
 C_FILES =  $(shell find . -type f -name '*.[ch]' | grep -f ./tools/style.c.include  | grep -v -f ./tools/style.c.exclude )
 
 
-style_check: pystyle_check ruststyle_check cstyle_check changelog_check yaml_check docs_summary_check editor_check ## run all style checks
+style_check: pystyle_check ruststyle_check cstyle_check changelog_check translations_style_check yaml_check docs_summary_check editor_check ## run all style checks
 
-style: pystyle ruststyle cstyle changelog_style ## apply all code styles (C+Rust+Py+Changelog)
+style: pystyle ruststyle cstyle changelog_style translations_style ## apply all code styles (C+Rust+Py+Changelog+translation JSON)
 
 pystyle_check: ## run code style check on application sources and tests
 	flake8 --version
@@ -21,6 +21,8 @@ pystyle_check: ## run code style check on application sources and tests
 	pyright --version
 	@echo [TYPECHECK]
 	@make -C core typecheck
+	@echo [TYPECHECK - COMMON and TOOLS]
+	@make typecheck
 	@echo [FLAKE8]
 	@flake8 $(PY_FILES)
 	@echo [ISORT]
@@ -44,6 +46,8 @@ pystyle: ## apply code style on application sources and tests
 	@black $(PY_FILES)
 	@echo [TYPECHECK]
 	@make -C core typecheck
+	@echo [TYPECHECK - COMMON and TOOLS]
+	@make typecheck
 	@echo [FLAKE8]
 	@flake8 $(PY_FILES)
 	@echo [PYLINT]
@@ -56,6 +60,14 @@ changelog_check: ## check changelog format
 
 changelog_style: ## fix changelog format
 	./tools/changelog.py style
+
+translations_style: ## Format translation files
+	@echo [TRANSLATIONS-STYLE]
+	@./core/tools/translations/sort_keys.py
+
+translations_style_check: ## Check that translation files are properly formatted
+	@echo [TRANSLATIONS-STYLE-CHECK]
+	@./core/tools/translations/sort_keys.py check
 
 yaml_check: ## check yaml formatting
 	yamllint .
@@ -82,16 +94,19 @@ defs_check: ## check validity of coin definitions and protobuf files
 ruststyle:
 	@echo [RUSTFMT]
 	@cd core/embed/rust ; cargo fmt
-	@cd rust/trezor-client ; cargo fmt
+	make -C rust style
 
 ruststyle_check:
 	rustfmt --version
 	@echo [RUSTFMT]
 	@cd core/embed/rust ; cargo fmt -- --check
-	@cd rust/trezor-client ; cargo fmt -- --check
+	make -C rust style_check
 
-python_support_check:
-	./tests/test_python_support.py
+
+typecheck: pyright
+
+pyright:
+	python ./tools/pyright_tool.py
 
 ## code generation commands:
 
@@ -150,6 +165,12 @@ lsgen: ## generate linker scripts
 lsgen_check: ## check generated linker scripts
 	lsgen --check
 
-gen:  templates mocks icons protobuf vendorheader solana_templates bootloader_hashes lsgen ## regenerate auto-generated files from sources
+tropic_model_config:
+	./core/tools/generate_tropic_model_config.py
 
-gen_check: templates_check mocks_check icons_check protobuf_check vendorheader_check solana_templates_check bootloader_hashes_check lsgen_check ## check validity of auto-generated files
+tropic_model_config_check:
+	./core/tools/generate_tropic_model_config.py --check
+
+gen:  templates mocks icons protobuf vendorheader solana_templates bootloader_hashes lsgen tropic_model_config ## regenerate auto-generated files from sources
+
+gen_check: templates_check mocks_check icons_check protobuf_check vendorheader_check solana_templates_check bootloader_hashes_check lsgen_check tropic_model_config_check ## check validity of auto-generated files

@@ -20,14 +20,11 @@ _data_section_end = ADDR(.data) + SIZEOF(.data);
 _bss_section_start = ADDR(.bss);
 _bss_section_end = ADDR(.bss) + SIZEOF(.bss);
 
-_confidential_section_loadaddr = LOADADDR(.confidential);
-_confidential_section_start = ADDR(.confidential);
-_confidential_section_end = ADDR(.confidential) + SIZEOF(.confidential);
-
 _bootargs_ram_start = BOOTARGS_START;
 _bootargs_ram_end = BOOTARGS_START + BOOTARGS_SIZE;
 
-_codelen = SIZEOF(.padding) + SIZEOF(.flash) + SIZEOF(.data) + SIZEOF(.confidential);
+_codelen = SIZEOF(.secmon_header) + SIZEOF(.padding) + SIZEOF(.flash) + SIZEOF(.data);
+_secmon_codelen = SIZEOF(.padding) + SIZEOF(.flash) + SIZEOF(.data);
 
 SECTIONS {
   .vendorheader : ALIGN(4) {
@@ -36,6 +33,10 @@ SECTIONS {
 
   .header : ALIGN(4) {
     KEEP(*(.header));
+  } >FLASH AT>FLASH
+
+  .secmon_header : ALIGN(CODE_ALIGNMENT) {
+    KEEP(*(.secmon_header));
   } >FLASH AT>FLASH
 
   .padding : ALIGN(4) {
@@ -64,8 +65,8 @@ SECTIONS {
   } >FLASH AT>FLASH
 
   .stack : ALIGN(8) {
-    . = 12K; /* Overflow causes UsageFault */
-  } >MAIN_RAM
+    . = 128K; /* Overflow causes UsageFault */
+  } >AUX1_RAM
 
   .data : ALIGN(4) {
     *(.data*);
@@ -81,11 +82,6 @@ SECTIONS {
     *(.bss*);
     . = ALIGN(4);
   } >AUX1_RAM
-
-  .confidential : ALIGN(512) {
-    *(.confidential*);
-    . = ALIGN(512);
-  } >MAIN_RAM AT>FLASH
 
   .fb1 : ALIGN(4) {
     *(.fb1*);

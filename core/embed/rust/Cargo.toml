@@ -21,6 +21,7 @@ display_mono = []
 display_rgb565 = ["ui_antialiasing"]
 display_rgba8888 = ["ui_antialiasing"]
 ui_debug = []
+ui_performance_overlay = []
 ui_debug_overlay = []
 ui_antialiasing = []
 ui_blurring = []
@@ -30,12 +31,14 @@ ui_overlay = []
 ui_empty_lock = []
 ui_jpeg = []
 hw_jpeg_decoder = []
+boot_ucb = []
 bootloader = []
 prodtest = []
 button = []
 touch = []
 clippy = []
-debug = ["ui_debug"]
+debug = ["ui_debug", "dev_keys"]
+dev_keys = []
 sbu = []
 haptic = []
 sd_card = []
@@ -49,8 +52,13 @@ ble = []
 nrf = []
 smp = []
 tropic = []
+serial_number = []
+storage = []
+telemetry = []
 translations = ["crypto"]
 secmon_layout = []
+dbg_console = []
+app_loading = []
 test = [
     "backlight",
     "button",
@@ -65,6 +73,7 @@ test = [
     "optiga",
     "protobuf",
     "smp",
+    "storage",
     "touch",
     "translations",
     "ui",
@@ -107,7 +116,7 @@ qrcodegen = { version = "1.8.0", path = "../../vendor/QR-Code-generator/rust-no-
 spin = { version = "0.9.8", features = ["rwlock"], default-features = false }
 trezor-tjpgdec = { version = "0.1.0", path = "../../../rust/trezor-tjpgdec" }
 ufmt = "0.2.0"
-zeroize = { version = "1.7.0", default-features = false, optional = true }
+zeroize = { version = "1.8.2", default-features = false, optional = true }
 
 # Mintlayer
 
@@ -169,7 +178,7 @@ default-features = false
 # Build dependencies
 
 [build-dependencies.bindgen]
-version = "0.69.4"
+version = "0.72.1"
 default-features = false
 features = ["runtime"]
 
@@ -188,4 +197,5 @@ version = "0.3.0"
 prost-build = "0.14"
 
 [dev-dependencies]
+hex = "0.4.3"
 serde_json = "1.0.96"

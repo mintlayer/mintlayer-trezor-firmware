@@ -5,15 +5,13 @@ use crate::ui::event::ButtonEvent;
 #[cfg(feature = "touch")]
 use crate::ui::event::TouchEvent;
 use crate::ui::{
-    component::{Component, EventCtx, Never},
+    component::{base::AttachType, Component, EventCtx, Never},
     display, CommonUI, ModelUI,
 };
 
 use crate::ui::{component::Event, display::color::Color, shape::render_on_display};
-use num_traits::ToPrimitive;
 
-use crate::trezorhal::sysevent::{sysevents_poll, Syshandle};
-use heapless::Vec;
+use num_traits::ToPrimitive;
 
 pub trait ReturnToC {
     fn return_to_c(self) -> u32;
@@ -35,7 +33,7 @@ where
 }
 
 #[cfg(feature = "button")]
-fn button_eval() -> Option<ButtonEvent> {
+pub fn button_eval() -> Option<ButtonEvent> {
     let event = button_get_event();
     let (event_btn, event_type) = event?;
     let event = ButtonEvent::new(event_type, event_btn);
@@ -58,7 +56,7 @@ pub fn touch_unpack(event: u32) -> Option<TouchEvent> {
     TouchEvent::new(event_type, ex as _, ey as _).ok()
 }
 
-pub(crate) fn render(frame: &mut impl Component) {
+pub fn render(frame: &mut impl Component) {
     display::sync();
     render_on_display(None, Some(Color::black()), |target| {
         frame.render(target);
@@ -84,47 +82,20 @@ where
     0
 }
 
-pub fn run(frame: &mut impl Component<Msg = impl ReturnToC>) -> u32 {
+pub fn show(frame: &mut impl Component<Msg = impl ReturnToC>, fading: bool) -> u32 {
     frame.place(ModelUI::SCREEN);
-    ModelUI::fadeout();
-    render(frame);
-    ModelUI::fadein();
 
-    // flush any pending events
-    #[cfg(feature = "button")]
-    while button_eval().is_some() {}
+    let e = Event::Attach(AttachType::Initial);
+    let mut ctx = EventCtx::new();
 
-    let mut ifaces: Vec<Syshandle, 16> = Vec::new();
+    let msg = frame.event(&mut ctx, e);
 
-    #[cfg(feature = "ble")]
-    unwrap!(ifaces.push(Syshandle::Ble));
-
-    #[cfg(feature = "button")]
-    unwrap!(ifaces.push(Syshandle::Button));
-
-    #[cfg(feature = "touch")]
-    unwrap!(ifaces.push(Syshandle::Touch));
-
-    loop {
-        let event = sysevents_poll(ifaces.as_slice());
-
-        if let Some(e) = event {
-            let mut ctx = EventCtx::new();
-
-            let msg = frame.event(&mut ctx, e);
-
-            if let Some(message) = msg {
-                return message.return_to_c();
-            }
-            render(frame);
-        }
+    if let Some(message) = msg {
+        return message.return_to_c();
     }
-}
 
-pub fn show(frame: &mut impl Component, fading: bool) {
-    frame.place(ModelUI::SCREEN);
-
-    if fading {
+    #[cfg(feature = "backlight")]
+    if fading && display::get_backlight() > 0 {
         ModelUI::fadeout()
     };
 
@@ -133,4 +104,6 @@ pub fn show(frame: &mut impl Component, fading: bool) {
     if fading {
         ModelUI::fadein()
     };
+
+    0
 }

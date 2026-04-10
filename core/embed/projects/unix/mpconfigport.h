@@ -175,6 +175,9 @@
 #define MICROPY_PY_USOCKET          (0)
 #define MICROPY_PY_NETWORK          (0)
 
+// allocate traceback data only on debug builds
+#define MICROPY_PY_SYS_TRACEBACK_DISABLE (PYOPT)
+
 // Debugging and interactive functionality.
 #define MICROPY_DEBUG_PRINTERS      (1)
 // Printing debug to stderr may give tests which
@@ -218,6 +221,7 @@ extern const struct _mp_print_t mp_stderr_print;
 #define MICROPY_PY_TREZORPROTO      (1)
 #define MICROPY_PY_TREZORTRANSLATE  (1)
 #define MICROPY_PY_TREZORUI_API     (1)
+#define MICROPY_PY_TREZORAPP        (USE_APP_LOADING)
 
 #define MP_STATE_PORT MP_STATE_VM
 

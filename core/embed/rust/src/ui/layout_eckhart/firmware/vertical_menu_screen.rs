@@ -3,20 +3,27 @@ use crate::{
     ui::{
         component::{
             swipe_detect::{SwipeConfig, SwipeSettings},
-            Component, Event, EventCtx, SwipeDetect,
+            text::{layout::LayoutFit, TextStyle},
+            Component, Event, EventCtx, Label, LineBreaking, SwipeDetect, TextLayout,
         },
+        display::Icon,
         event::SwipeEvent,
         flow::Swipable,
-        geometry::{Alignment2D, Direction, Rect},
+        geometry::{Alignment2D, Direction, Insets, Offset, Rect},
         shape::{Renderer, ToifImage},
         util::{animation_disabled, Pager},
     },
 };
 
-use super::{constant::SCREEN, theme, Header, HeaderMsg, MenuItems, VerticalMenu, VerticalMenuMsg};
+use super::{
+    constant::SCREEN, theme, Header, HeaderMsg, MenuItems, ShortMenuVec, VerticalMenu,
+    VerticalMenuMsg,
+};
 
 pub struct VerticalMenuScreen<T> {
     header: Header,
+    /// Optional subtitle label
+    subtitle: Option<Label<'static>>,
     /// Scrollable vertical menu
     menu: VerticalMenu<T>,
     /// Base position of the menu sliding window to scroll around
@@ -38,21 +45,40 @@ pub enum VerticalMenuScreenMsg {
 }
 
 impl<T: MenuItems> VerticalMenuScreen<T> {
-    const TOUCH_SENSITIVITY_DIVIDER: i16 = 15;
+    const TOUCH_SENSITIVITY_DIVIDER: i16 = 12;
+    const SUBTITLE_STYLE: TextStyle =
+        theme::TEXT_MEDIUM_GREY.with_line_breaking(LineBreaking::BreakAtWhitespace);
+    const SUBTITLE_HEIGHT: i16 = 68;
+    const SUBTITLE_DOUBLE_HEIGHT: i16 = 100;
+    const SUBTITLE_PADDING: i16 = 20;
+    const OVERFLOW_ARROW_Y_OFFSET: i16 = 18;
+    const OVERFLOW_ARROW_ICON: Icon = theme::ICON_CHEVRON_DOWN_MINI;
+
     pub fn new(menu: VerticalMenu<T>) -> Self {
         Self {
             header: Header::new(TString::empty()),
+            subtitle: None,
             menu,
             offset_base: 0,
             swipe: None,
             swipe_config: SwipeConfig::new()
-                .with_swipe(Direction::Up, SwipeSettings::default())
-                .with_swipe(Direction::Down, SwipeSettings::default()),
+                .with_swipe(Direction::Up, SwipeSettings::Default)
+                .with_swipe(Direction::Down, SwipeSettings::Default),
         }
     }
 
     pub fn with_header(mut self, header: Header) -> Self {
         self.header = header;
+        self
+    }
+
+    pub fn with_subtitle(mut self, subtitle: TString<'static>) -> Self {
+        if !subtitle.is_empty() {
+            self.subtitle =
+                Some(Label::left_aligned(subtitle, Self::SUBTITLE_STYLE).vertically_centered());
+            // The menu shouldn't overlap the subtitle area
+            self.menu.no_top_component_overlap();
+        }
         self
     }
 
@@ -139,6 +165,7 @@ impl<T: MenuItems> VerticalMenuScreen<T> {
 
                     self.menu.set_offset(offset);
                     self.menu.update_button_states(ctx);
+                    ctx.request_paint();
                 }
                 _ => {}
             }
@@ -153,10 +180,15 @@ impl<T: MenuItems> VerticalMenuScreen<T> {
 
         // Render the down arrow if the menu overflows and can be scrolled further down
         if self.swipe.is_some() && !self.menu.is_max_offset() {
-            ToifImage::new(SCREEN.bottom_center(), theme::ICON_CHEVRON_DOWN_MINI.toif)
-                .with_align(Alignment2D::BOTTOM_CENTER)
-                .with_fg(theme::GREY_LIGHT)
-                .render(target);
+            ToifImage::new(
+                SCREEN
+                    .bottom_center()
+                    .ofs(Offset::y(Self::OVERFLOW_ARROW_Y_OFFSET).neg()),
+                Self::OVERFLOW_ARROW_ICON.toif,
+            )
+            .with_align(Alignment2D::BOTTOM_CENTER)
+            .with_fg(theme::GREY_LIGHT)
+            .render(target);
         }
     }
 }
@@ -169,7 +201,35 @@ impl<T: MenuItems> Component for VerticalMenuScreen<T> {
         debug_assert_eq!(bounds.height(), SCREEN.height());
         debug_assert_eq!(bounds.width(), SCREEN.width());
 
-        let (header_area, menu_area) = bounds.split_top(Header::HEADER_HEIGHT);
+        let (header_area, rest) = bounds.split_top(Header::HEADER_HEIGHT);
+
+        let menu_area = if let Some(subtitle) = &mut self.subtitle {
+            // Choose appropriate height for the subtitle
+            let subtitle_height = if let LayoutFit::OutOfBounds { .. } =
+                subtitle.text().map(|text| {
+                    TextLayout::new(Self::SUBTITLE_STYLE)
+                        .with_bounds(
+                            Rect::from_size(Offset::new(bounds.width(), Self::SUBTITLE_HEIGHT))
+                                .inset(Insets::new(
+                                    Self::SUBTITLE_PADDING,
+                                    theme::PADDING,
+                                    Self::SUBTITLE_PADDING,
+                                    theme::PADDING,
+                                )),
+                        )
+                        .fit_text(text)
+                }) {
+                Self::SUBTITLE_DOUBLE_HEIGHT
+            } else {
+                Self::SUBTITLE_HEIGHT
+            };
+
+            let (subtitle_area, rest) = rest.split_top(subtitle_height);
+            subtitle.place(subtitle_area.inset(theme::SIDE_INSETS));
+            rest
+        } else {
+            rest.outset(Insets::top(VerticalMenu::<ShortMenuVec>::BUTTON_TOP_SHRINK))
+        };
 
         self.header.place(header_area);
         self.menu.place(menu_area);
@@ -201,8 +261,15 @@ impl<T: MenuItems> Component for VerticalMenuScreen<T> {
     }
 
     fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
-        self.header.render(target);
-        self.menu.render(target);
+        self.subtitle.render(target);
+        // Render overlapping components in correct order
+        if self.header.pressed() {
+            self.menu.render(target);
+            self.header.render(target);
+        } else {
+            self.header.render(target);
+            self.menu.render(target);
+        }
         self.render_overflow_arrow(target);
     }
 }
@@ -224,5 +291,23 @@ impl<T: MenuItems> crate::trace::Trace for VerticalMenuScreen<T> {
         t.component("VerticalMenuScreen");
         t.child("Header", &self.header);
         t.child("Menu", &self.menu);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{super::VerticalMenu, *};
+
+    #[test]
+    fn test_min_offset() {
+        // The top of the overflow arrow must be less than the bottom padding to avoid
+        // hiding the button content
+        debug_assert!(
+            VerticalMenuScreen::<ShortMenuVec>::OVERFLOW_ARROW_Y_OFFSET
+                + VerticalMenuScreen::<ShortMenuVec>::OVERFLOW_ARROW_ICON
+                    .toif
+                    .height()
+                < VerticalMenu::<ShortMenuVec>::TEST_MENU_ITEM_CONTENT_PADDING
+        );
     }
 }
