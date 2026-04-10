@@ -8,6 +8,8 @@ from apps.common.keychain import with_slip44_keychain
 from . import CURVE, PATTERNS, SLIP44_ID, find_coin_by_chain_type
 
 if TYPE_CHECKING:
+    from buffer_types import AnyBytes
+
     from trezor.messages import MessageSignature, MintlayerSignMessage
 
     from apps.common.keychain import Keychain
@@ -79,7 +81,7 @@ async def sign_message(
 #    know for sure what they're signing.
 # So we just check if the entire string consists only of printable ascii characters; if not, we
 # convert it to hex.
-def decode_message_if_ascii(message: bytes) -> str:
+def decode_message_if_ascii(message: AnyBytes) -> str:
     from ubinascii import hexlify
 
     if is_printable_ascii(message):
@@ -88,5 +90,5 @@ def decode_message_if_ascii(message: bytes) -> str:
         return f"hex({hexlify(message).decode()})"
 
 
-def is_printable_ascii(byte_string: bytes) -> bool:
+def is_printable_ascii(byte_string: AnyBytes) -> bool:
     return all(32 <= byte <= 126 for byte in byte_string)

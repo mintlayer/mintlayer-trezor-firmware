@@ -17,7 +17,7 @@
 import pytest
 
 from trezorlib import messages, mintlayer
-from trezorlib.debuglink import TrezorClientDebugLink as Client
+from trezorlib.debuglink import DebugSession as Session
 from trezorlib.exceptions import TrezorFailure
 from trezorlib.tools import parse_path
 
@@ -52,14 +52,14 @@ CHAIN_TYPE_TO_COIN = {1: 19788, 2: 1, 3: 1, 4: 1}
 
 @pytest.mark.parametrize("chain_type, pub_key, chain_code", GET_PUBLIC_KEY_VECTORS)
 def test_mintlayer_get_public_key(
-    client: Client, chain_type: int, pub_key: str, chain_code: str
+    session: Session, chain_type: int, pub_key: str, chain_code: str
 ):
     coin = CHAIN_TYPE_TO_COIN[chain_type]
-    with client:
+    with session.test_ctx as client:
         IF = InputFlowShowXpubQRCode(client)
         client.set_input_flow(IF.get())
         result = mintlayer.get_public_key(
-            client,
+            session,
             chain_type=1,
             address_n=parse_path(f"m/44h/{coin}h/0h/0/0"),
             show_display=True,
@@ -76,41 +76,40 @@ CHAIN_TYPES = [1, 2, 3, 4]
 
 
 @pytest.mark.parametrize("chain_type", CHAIN_TYPES)
-def test_mintlayer_get_public_key_forbidden_path(client: Client, chain_type: int):
+def test_mintlayer_get_public_key_forbidden_path(session: Session, chain_type: int):
     coin = CHAIN_TYPE_TO_COIN[chain_type]
-    with client:
-        # invalid coin
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            mintlayer.get_public_key(
-                client,
-                chain_type=chain_type,
-                address_n=parse_path(f"m/44h/{coin + 1}h/0h/0/0"),
-                show_display=True,
-            )
+    # invalid coin
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        mintlayer.get_public_key(
+            session,
+            chain_type=chain_type,
+            address_n=parse_path(f"m/44h/{coin + 1}h/0h/0/0"),
+            show_display=True,
+        )
 
-        # invalid bip44
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            mintlayer.get_public_key(
-                client,
-                chain_type=chain_type,
-                address_n=parse_path(f"m/43h/{coin}h/0h/0/0"),
-                show_display=True,
-            )
+    # invalid bip44
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        mintlayer.get_public_key(
+            session,
+            chain_type=chain_type,
+            address_n=parse_path(f"m/43h/{coin}h/0h/0/0"),
+            show_display=True,
+        )
 
-        # short path
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            mintlayer.get_public_key(
-                client,
-                chain_type=chain_type,
-                address_n=parse_path(f"m/44h/{coin}h"),
-                show_display=True,
-            )
+    # short path
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        mintlayer.get_public_key(
+            session,
+            chain_type=chain_type,
+            address_n=parse_path(f"m/44h/{coin}h"),
+            show_display=True,
+        )
 
-        # short path
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            mintlayer.get_public_key(
-                client,
-                chain_type=chain_type,
-                address_n=parse_path("m/44h"),
-                show_display=True,
-            )
+    # short path
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        mintlayer.get_public_key(
+            session,
+            chain_type=chain_type,
+            address_n=parse_path("m/44h"),
+            show_display=True,
+        )

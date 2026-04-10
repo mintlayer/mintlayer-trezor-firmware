@@ -1,4 +1,5 @@
 from typing import *
+from buffer_types import *
 
 
 # upymod/modtrezormintlayer/modtrezormintlayer-input-comm.h
@@ -9,7 +10,7 @@ def encode_empty_input_commitment() -> bytes:
 
 
 # upymod/modtrezormintlayer/modtrezormintlayer-input-comm.h
-def encode_input_commitment_for_utxo(encoded_utxo: bytes) -> bytes:
+def encode_input_commitment_for_utxo(encoded_utxo: AnyBytes) -> bytes:
     """
     Encodes an input commitment for a utxo.
     in v1 it works for any utxo input except ProduceBlockFromStake.
@@ -18,7 +19,7 @@ def encode_input_commitment_for_utxo(encoded_utxo: bytes) -> bytes:
 
 # upymod/modtrezormintlayer/modtrezormintlayer-input-comm.h
 def encode_input_commitment_v1_for_produce_block_from_stake_utxo(
-  encoded_utxo: bytes, staker_balance_amount: bytes
+  encoded_utxo: AnyBytes, staker_balance_amount: AnyBytes
 ) -> bytes:
     """
     Encodes an input commitment for a ProduceBlockFromStake utxo (v1 only).
@@ -27,8 +28,8 @@ def encode_input_commitment_v1_for_produce_block_from_stake_utxo(
 
 # upymod/modtrezormintlayer/modtrezormintlayer-input-comm.h
 def encode_input_commitment_v1_for_fill_order(
-    asked_token: bytes, initially_asked_amount: bytes,
-    given_token: bytes, initially_given_amount: bytes,
+    asked_token: AnyBytes, initially_asked_amount: AnyBytes,
+    given_token: AnyBytes, initially_given_amount: AnyBytes,
 ) -> bytes:
     """
     Encodes input commitment for filling an order (v1 only);
@@ -39,9 +40,12 @@ def encode_input_commitment_v1_for_fill_order(
 
 # upymod/modtrezormintlayer/modtrezormintlayer-input-comm.h
 def encode_input_commitment_v1_for_conclude_order(
-    asked_token: bytes, initially_asked_amount: bytes, ask_balance_amount:
-    bytes, given_token: bytes, initially_given_amount: bytes,
-    give_balance_amount: bytes
+    asked_token: AnyBytes,
+    initially_asked_amount: AnyBytes,
+    ask_balance_amount: AnyBytes,
+    given_token: AnyBytes,
+    initially_given_amount: AnyBytes,
+    give_balance_amount: AnyBytes
 ) -> bytes:
     """
     Encodes input commitment for concluding an order (v1 only);
@@ -51,7 +55,9 @@ def encode_input_commitment_v1_for_conclude_order(
 
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
-def encode_utxo_input(tx_hash: bytes, index: int, utxo_type: int) -> bytes:
+def encode_utxo_input(
+    tx_hash: AnyBytes, index: int, utxo_type: int
+) -> bytes:
     """
     encodes an utxo input from tx_hash and index
     """
@@ -59,7 +65,7 @@ def encode_utxo_input(tx_hash: bytes, index: int, utxo_type: int) -> bytes:
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_account_spending_input(
-    nonce: int, delegation_id: bytes, amount: bytes
+    nonce: int, delegation_id: AnyBytes, amount: AnyBytes
 ) -> bytes:
     """
     encodes an utxo account spending from nonce and delegation id
@@ -68,7 +74,7 @@ def encode_account_spending_input(
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_token_account_command_input(
-    nonce: int, command_type: int, token_id: bytes, data: bytes
+    nonce: int, command_type: int, token_id: AnyBytes, data: AnyBytes
 ) -> bytes:
     """
     encodes an account command from the nonce, command type, token id
@@ -78,7 +84,7 @@ def encode_token_account_command_input(
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_conclude_order_account_command_input(
-    nonce: int, order_id: bytes
+    nonce: int, order_id: AnyBytes
 ) -> bytes:
     """
     encodes an conclude order account command from the nonce and order id
@@ -87,7 +93,7 @@ def encode_conclude_order_account_command_input(
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_fill_order_account_command_input(
-    nonce: int, order_id: bytes, amount: bytes, destination: bytes
+    nonce: int, order_id: AnyBytes, amount: AnyBytes, destination: AnyBytes
 ) -> bytes:
     """
     encodes a fill order account command from the nonce, order id, output
@@ -96,14 +102,16 @@ def encode_fill_order_account_command_input(
 
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
-def encode_conclude_order_v1_order_command_input(order_id: bytes) -> bytes:
+def encode_conclude_order_v1_order_command_input(
+    order_id: AnyBytes
+) -> bytes:
     """
     encodes a conclude order v1 order command from the order id
     """
 
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
-def encode_freeze_order_order_command_input(order_id: bytes) -> bytes:
+def encode_freeze_order_order_command_input(order_id: AnyBytes) -> bytes:
     """
     encodes a freeze order v1 order command from the order id
     """
@@ -111,7 +119,7 @@ def encode_freeze_order_order_command_input(order_id: bytes) -> bytes:
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_fill_order_v1_order_command_input(
-    order_id: bytes, amount: bytes
+    order_id: AnyBytes, amount: AnyBytes
 ) -> bytes:
     """
     encodes a fill order v1 order command from the order id and output
@@ -121,7 +129,7 @@ def encode_fill_order_v1_order_command_input(
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_transfer_output(
-    amount: bytes, token_id: bytes, address: bytes
+    amount: AnyBytes, token_id: AnyBytes, address: AnyBytes
 ) -> bytes:
     """
     encodes a transfer output with given amount and destination address
@@ -130,8 +138,8 @@ def encode_transfer_output(
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_lock_then_transfer_output(
-    amount: bytes, token_id: bytes, lock_type: int, lock_amount: int,
-    address: bytes
+    amount: AnyBytes, token_id: AnyBytes, lock_type: int, lock_amount: int,
+    address: AnyBytes
 ) -> bytes:
     """
     encodes a transfer output with given amount, lock type and amount, and
@@ -140,7 +148,7 @@ def encode_lock_then_transfer_output(
 
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
-def encode_burn_output(amount: bytes, token_id: bytes) -> bytes:
+def encode_burn_output(amount: AnyBytes, token_id: AnyBytes) -> bytes:
     """
     encodes a burn output with given amount
     """
@@ -148,9 +156,9 @@ def encode_burn_output(amount: bytes, token_id: bytes) -> bytes:
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_create_stake_pool_output(
-    pool_id: bytes, pledge_amount: bytes, staker: bytes,
-    vrf_public_key: bytes, decommission_key: bytes,
-    margin_ratio_per_thousand: int, cost_per_block: bytes
+    pool_id: AnyBytes, pledge_amount: AnyBytes, staker: AnyBytes,
+    vrf_public_key: AnyBytes, decommission_key: AnyBytes,
+    margin_ratio_per_thousand: int, cost_per_block: AnyBytes
 ) -> bytes:
     """
     encodes a create stake pool output
@@ -159,7 +167,7 @@ def encode_create_stake_pool_output(
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_produce_from_stake_output(
-    destination: bytes, pool_id: bytes
+    destination: AnyBytes, pool_id: AnyBytes
 ) -> bytes:
     """
     encodes a produce from stake output
@@ -168,7 +176,7 @@ def encode_produce_from_stake_output(
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_create_delegation_id_output(
-    destination: bytes, pool_id: bytes
+    destination: AnyBytes, pool_id: AnyBytes
 ) -> bytes:
     """
     encodes a create delegation id output
@@ -177,7 +185,7 @@ def encode_create_delegation_id_output(
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_delegate_staking_output(
-    amount: bytes, delegation_id: bytes
+    amount: AnyBytes, delegation_id: AnyBytes
 ) ->bytes:
     """
     encodes a delegation staking output, given the amount and delegation id
@@ -186,8 +194,8 @@ def encode_delegate_staking_output(
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_issue_fungible_token_output(
-    token_ticker: bytes, number_of_decimals: int, metadata_uri: bytes,
-    total_supply_type: int, fixed_amount: bytes, authority: bytes,
+    token_ticker: AnyBytes, number_of_decimals: int, metadata_uri: AnyBytes,
+    total_supply_type: int, fixed_amount: AnyBytes, authority: AnyBytes,
     is_freezable: bool
 ) -> bytes:
     """
@@ -197,9 +205,10 @@ def encode_issue_fungible_token_output(
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_issue_nft_output(
-    token_id: bytes, creator: bytes, name: bytes, destination: bytes,
-    ticker: bytes, icon_uri: bytes, additional_metadata_uri: bytes,
-    media_uri: bytes, media_hash: bytes, destination: bytes
+    token_id: AnyBytes, creator: AnyBytes, name: AnyBytes,
+    destination: AnyBytes, ticker: AnyBytes, icon_uri: AnyBytes,
+    additional_metadata_uri: AnyBytes, media_uri: AnyBytes,
+    media_hash: AnyBytes, destination: AnyBytes
 ) -> bytes:
     """
     encodes a issue NFT output
@@ -207,7 +216,7 @@ def encode_issue_nft_output(
 
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
-def encode_data_deposit_output(deposit: bytes) -> bytes:
+def encode_data_deposit_output(deposit: AnyBytes) -> bytes:
     """
     encodes a data deposit output
     """
@@ -215,8 +224,8 @@ def encode_data_deposit_output(deposit: bytes) -> bytes:
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_htlc_output(
-    amount: bytes, token_id: bytes, lock_type: int, lock_amount: int,
-    refund_key: bytes, spend_key: bytes, secret_has: bytes
+    amount: AnyBytes, token_id: AnyBytes, lock_type: int, lock_amount: int,
+    refund_key: AnyBytes, spend_key: AnyBytes, secret_hash: AnyBytes
 ) -> bytes:
     """
     encodes an htlc output with given amount and lock
@@ -225,8 +234,8 @@ def encode_htlc_output(
 
 # upymod/modtrezormintlayer/modtrezormintlayer.h
 def encode_create_order_output(
-    destination: bytes, ask_amount: bytes, ask_token_id: bytes,
-    give_amount: bytes, give_token_id: bytes
+    destination: AnyBytes, ask_amount: AnyBytes, ask_token_id: AnyBytes,
+    give_amount: AnyBytes, give_token_id: AnyBytes
 ) -> bytes:
     """
     encodes a create order output with given the conclude key, give and

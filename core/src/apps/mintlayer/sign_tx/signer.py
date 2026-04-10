@@ -22,7 +22,8 @@ from .helpers import mintlayer_decode
 from .progress import Progress
 
 if TYPE_CHECKING:
-    from typing import Dict, List, Tuple
+    from buffer_types import AnyBytes
+    from typing import Dict, List, Sequence, Tuple
 
     from trezor.crypto import bip32
     from trezor.messages import MintlayerAddressPath, MintlayerOutputValue
@@ -32,7 +33,11 @@ if TYPE_CHECKING:
 
 class OutputValueTpl:
     def __init__(
-        self, coin_or_token_id: str, ticker: bytes, number_of_decimals: int, amount: int
+        self,
+        coin_or_token_id: str,
+        ticker: AnyBytes,
+        number_of_decimals: int,
+        amount: int,
     ) -> None:
         self.coin_or_token_id = coin_or_token_id
         self.ticker = ticker
@@ -215,9 +220,9 @@ class Mintlayer:
             ]
 
         def update_totals_for_fill_order(
-            fill_amount_bytes: bytes,
-            ask_balance_bytes: bytes,
-            give_balance_bytes: bytes,
+            fill_amount_bytes: AnyBytes,
+            ask_balance_bytes: AnyBytes,
+            give_balance_bytes: AnyBytes,
             give_token_or_coin: str,
         ) -> None:
             fill_amount = int.from_bytes(fill_amount_bytes, "big")
@@ -232,9 +237,9 @@ class Mintlayer:
 
         def update_totals_for_conclude_order(
             initially_asked_value: MintlayerOutputValue,
-            ask_balance_bytes: bytes,
+            ask_balance_bytes: AnyBytes,
             initially_given_value: MintlayerOutputValue,
-            give_balance_bytes: bytes,
+            give_balance_bytes: AnyBytes,
         ) -> None:
             ask_token_or_coin = (
                 initially_asked_value.token.token_id
@@ -709,9 +714,9 @@ class Mintlayer:
     def serialize_input_commitment_for_conclude_order(
         self,
         initially_asked: MintlayerOutputValue,
-        ask_balance: bytes,
+        ask_balance: AnyBytes,
         initially_given: MintlayerOutputValue,
-        give_balance: bytes,
+        give_balance: AnyBytes,
     ) -> bytes:
         if self.using_v1_input_commitments():
             asked_token = decode_nullable_token_id(
@@ -769,9 +774,9 @@ class Mintlayer:
 
     async def step5_sign_inputs(
         self,
-        encoded_inputs: List[bytes],
-        encoded_input_commitments: List[bytes],
-        encoded_outputs: List[bytes],
+        encoded_inputs: Sequence[AnyBytes],
+        encoded_input_commitments: Sequence[AnyBytes],
+        encoded_outputs: Sequence[AnyBytes],
     ) -> List[List[Tuple[bytes, int | None]]]:
         from trezor.utils import HashWriter
 
@@ -819,7 +824,7 @@ class Mintlayer:
         return signatures
 
     async def step6_finish(
-        self, signatures: List[List[Tuple[bytes, int | None]]]
+        self, signatures: Sequence[Sequence[Tuple[AnyBytes, int | None]]]
     ) -> None:
         sigs = [
             MintlayerSignaturesForInput(

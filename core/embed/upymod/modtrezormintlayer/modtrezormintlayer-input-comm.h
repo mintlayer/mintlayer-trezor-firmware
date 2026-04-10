@@ -28,7 +28,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_0(
     mod_trezormintlayer_utils_mintlayer_encode_empty_input_commitment_obj,
     mod_trezormintlayer_utils_mintlayer_encode_empty_input_commitment);
 
-/// def encode_input_commitment_for_utxo(encoded_utxo: bytes) -> bytes:
+/// def encode_input_commitment_for_utxo(encoded_utxo: AnyBytes) -> bytes:
 ///     """
 ///     Encodes an input commitment for a utxo.
 //      Note: in input commitments v0 this works for any utxo input;
@@ -51,7 +51,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(
     mod_trezormintlayer_utils_mintlayer_encode_input_commitment_for_utxo);
 
 /// def encode_input_commitment_v1_for_produce_block_from_stake_utxo(
-///   encoded_utxo: bytes, staker_balance_amount: bytes
+///   encoded_utxo: AnyBytes, staker_balance_amount: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     Encodes an input commitment for a ProduceBlockFromStake utxo (v1 only).
@@ -78,8 +78,8 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
     mod_trezormintlayer_utils_mintlayer_encode_input_commitment_v1_for_produce_block_from_stake_utxo);
 
 /// def encode_input_commitment_v1_for_fill_order(
-///     asked_token: bytes, initially_asked_amount: bytes,
-///     given_token: bytes, initially_given_amount: bytes,
+///     asked_token: AnyBytes, initially_asked_amount: AnyBytes,
+///     given_token: AnyBytes, initially_given_amount: AnyBytes,
 /// ) -> bytes:
 ///     """
 ///     Encodes input commitment for filling an order (v1 only);
@@ -115,9 +115,12 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_trezormintlayer_utils_mintlayer_encode_input_commitment_v1_for_fill_order);
 
 /// def encode_input_commitment_v1_for_conclude_order(
-///     asked_token: bytes, initially_asked_amount: bytes, ask_balance_amount:
-///     bytes, given_token: bytes, initially_given_amount: bytes,
-///     give_balance_amount: bytes
+///     asked_token: AnyBytes,
+///     initially_asked_amount: AnyBytes,
+///     ask_balance_amount: AnyBytes,
+///     given_token: AnyBytes,
+///     initially_given_amount: AnyBytes,
+///     give_balance_amount: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     Encodes input commitment for concluding an order (v1 only);

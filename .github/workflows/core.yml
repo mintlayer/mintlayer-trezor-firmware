@@ -292,7 +292,9 @@ jobs:
       ACTIONS_DO_UI_TEST: ${{ matrix.coins == 'universal' && matrix.asan == 'noasan' }}
       TEST_LANG: ${{ matrix.lang }}
       TESTOPTS: "--durations 10 --session-timeout 1800"  # 30m pytest global timeout
-    timeout-minutes: 40
+    # Mintlayer: it looks like the original timeout of 40 min is not enough on our CI, resulting
+    # in the job being cancelled occasionally. So we use 60 instead.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:

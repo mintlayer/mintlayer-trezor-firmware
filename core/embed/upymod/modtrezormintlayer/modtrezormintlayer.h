@@ -12,7 +12,9 @@
 
 #include "utils.h"
 
-/// def encode_utxo_input(tx_hash: bytes, index: int, utxo_type: int) -> bytes:
+/// def encode_utxo_input(
+///     tx_hash: AnyBytes, index: int, utxo_type: int
+/// ) -> bytes:
 ///     """
 ///     encodes an utxo input from tx_hash and index
 ///     """
@@ -34,7 +36,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(
     mod_trezormintlayer_utils_mintlayer_encode_utxo_input);
 
 /// def encode_account_spending_input(
-///     nonce: int, delegation_id: bytes, amount: bytes
+///     nonce: int, delegation_id: AnyBytes, amount: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     encodes an utxo account spending from nonce and delegation id
@@ -61,7 +63,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(
     mod_trezormintlayer_utils_mintlayer_encode_account_spending_input);
 
 /// def encode_token_account_command_input(
-///     nonce: int, command_type: int, token_id: bytes, data: bytes
+///     nonce: int, command_type: int, token_id: AnyBytes, data: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     encodes an account command from the nonce, command type, token id
@@ -91,7 +93,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_trezormintlayer_utils_mintlayer_encode_token_account_command_input);
 
 /// def encode_conclude_order_account_command_input(
-///     nonce: int, order_id: bytes
+///     nonce: int, order_id: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     encodes an conclude order account command from the nonce and order id
@@ -115,7 +117,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
     mod_trezormintlayer_utils_mintlayer_encode_conclude_order_account_command_input);
 
 /// def encode_fill_order_account_command_input(
-///     nonce: int, order_id: bytes, amount: bytes, destination: bytes
+///     nonce: int, order_id: AnyBytes, amount: AnyBytes, destination: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     encodes a fill order account command from the nonce, order id, output
@@ -145,7 +147,9 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     4, 4,
     mod_trezormintlayer_utils_mintlayer_encode_fill_order_account_command_input);
 
-/// def encode_conclude_order_v1_order_command_input(order_id: bytes) -> bytes:
+/// def encode_conclude_order_v1_order_command_input(
+///     order_id: AnyBytes
+/// ) -> bytes:
 ///     """
 ///     encodes a conclude order v1 order command from the order id
 ///     """
@@ -166,7 +170,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(
     mod_trezormintlayer_utils_mintlayer_encode_conclude_order_v1_order_command_input_obj,
     mod_trezormintlayer_utils_mintlayer_encode_conclude_order_v1_order_command_input);
 
-/// def encode_freeze_order_order_command_input(order_id: bytes) -> bytes:
+/// def encode_freeze_order_order_command_input(order_id: AnyBytes) -> bytes:
 ///     """
 ///     encodes a freeze order v1 order command from the order id
 ///     """
@@ -188,7 +192,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(
     mod_trezormintlayer_utils_mintlayer_encode_freeze_order_order_command_input);
 
 /// def encode_fill_order_v1_order_command_input(
-///     order_id: bytes, amount: bytes
+///     order_id: AnyBytes, amount: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     encodes a fill order v1 order command from the order id and output
@@ -214,7 +218,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
     mod_trezormintlayer_utils_mintlayer_encode_fill_order_v1_order_command_input);
 
 /// def encode_transfer_output(
-///     amount: bytes, token_id: bytes, address: bytes
+///     amount: AnyBytes, token_id: AnyBytes, address: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     encodes a transfer output with given amount and destination address
@@ -240,8 +244,8 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(
     mod_trezormintlayer_utils_mintlayer_encode_transfer_output);
 
 /// def encode_lock_then_transfer_output(
-///     amount: bytes, token_id: bytes, lock_type: int, lock_amount: int,
-///     address: bytes
+///     amount: AnyBytes, token_id: AnyBytes, lock_type: int, lock_amount: int,
+///     address: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     encodes a transfer output with given amount, lock type and amount, and
@@ -270,7 +274,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_trezormintlayer_utils_mintlayer_encode_lock_then_transfer_output_obj, 5,
     5, mod_trezormintlayer_utils_mintlayer_encode_lock_then_transfer_output);
 
-/// def encode_burn_output(amount: bytes, token_id: bytes) -> bytes:
+/// def encode_burn_output(amount: AnyBytes, token_id: AnyBytes) -> bytes:
 ///     """
 ///     encodes a burn output with given amount
 ///     """
@@ -292,9 +296,9 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
     mod_trezormintlayer_utils_mintlayer_encode_burn_output);
 
 /// def encode_create_stake_pool_output(
-///     pool_id: bytes, pledge_amount: bytes, staker: bytes,
-///     vrf_public_key: bytes, decommission_key: bytes,
-///     margin_ratio_per_thousand: int, cost_per_block: bytes
+///     pool_id: AnyBytes, pledge_amount: AnyBytes, staker: AnyBytes,
+///     vrf_public_key: AnyBytes, decommission_key: AnyBytes,
+///     margin_ratio_per_thousand: int, cost_per_block: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     encodes a create stake pool output
@@ -331,7 +335,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     7, mod_trezormintlayer_utils_mintlayer_encode_create_stake_pool_output);
 
 /// def encode_produce_from_stake_output(
-///     destination: bytes, pool_id: bytes
+///     destination: AnyBytes, pool_id: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     encodes a produce from stake output
@@ -355,7 +359,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
     mod_trezormintlayer_utils_mintlayer_encode_produce_from_stake_output);
 
 /// def encode_create_delegation_id_output(
-///     destination: bytes, pool_id: bytes
+///     destination: AnyBytes, pool_id: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     encodes a create delegation id output
@@ -379,7 +383,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
     mod_trezormintlayer_utils_mintlayer_encode_create_delegation_id_output);
 
 /// def encode_delegate_staking_output(
-///     amount: bytes, delegation_id: bytes
+///     amount: AnyBytes, delegation_id: AnyBytes
 /// ) ->bytes:
 ///     """
 ///     encodes a delegation staking output, given the amount and delegation id
@@ -403,8 +407,8 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(
     mod_trezormintlayer_utils_mintlayer_encode_delegate_staking_output);
 
 /// def encode_issue_fungible_token_output(
-///     token_ticker: bytes, number_of_decimals: int, metadata_uri: bytes,
-///     total_supply_type: int, fixed_amount: bytes, authority: bytes,
+///     token_ticker: AnyBytes, number_of_decimals: int, metadata_uri: AnyBytes,
+///     total_supply_type: int, fixed_amount: AnyBytes, authority: AnyBytes,
 ///     is_freezable: bool
 /// ) -> bytes:
 ///     """
@@ -440,9 +444,10 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_trezormintlayer_utils_mintlayer_encode_issue_fungible_token_output);
 
 /// def encode_issue_nft_output(
-///     token_id: bytes, creator: bytes, name: bytes, destination: bytes,
-///     ticker: bytes, icon_uri: bytes, additional_metadata_uri: bytes,
-///     media_uri: bytes, media_hash: bytes, destination: bytes
+///     token_id: AnyBytes, creator: AnyBytes, name: AnyBytes,
+///     destination: AnyBytes, ticker: AnyBytes, icon_uri: AnyBytes,
+///     additional_metadata_uri: AnyBytes, media_uri: AnyBytes,
+///     media_hash: AnyBytes, destination: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     encodes a issue NFT output
@@ -485,7 +490,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_trezormintlayer_utils_mintlayer_encode_issue_nft_output_obj, 10, 10,
     mod_trezormintlayer_utils_mintlayer_encode_issue_nft_output);
 
-/// def encode_data_deposit_output(deposit: bytes) -> bytes:
+/// def encode_data_deposit_output(deposit: AnyBytes) -> bytes:
 ///     """
 ///     encodes a data deposit output
 ///     """
@@ -505,8 +510,8 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(
     mod_trezormintlayer_utils_mintlayer_encode_data_deposit_output);
 
 /// def encode_htlc_output(
-///     amount: bytes, token_id: bytes, lock_type: int, lock_amount: int,
-///     refund_key: bytes, spend_key: bytes, secret_has: bytes
+///     amount: AnyBytes, token_id: AnyBytes, lock_type: int, lock_amount: int,
+///     refund_key: AnyBytes, spend_key: AnyBytes, secret_hash: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     encodes an htlc output with given amount and lock
@@ -539,8 +544,8 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(
     mod_trezormintlayer_utils_mintlayer_encode_htlc_output);
 
 /// def encode_create_order_output(
-///     destination: bytes, ask_amount: bytes, ask_token_id: bytes,
-///     give_amount: bytes, give_token_id: bytes
+///     destination: AnyBytes, ask_amount: AnyBytes, ask_token_id: AnyBytes,
+///     give_amount: AnyBytes, give_token_id: AnyBytes
 /// ) -> bytes:
 ///     """
 ///     encodes a create order output with given the conclude key, give and

@@ -17,7 +17,7 @@
 import pytest
 
 from trezorlib import mintlayer
-from trezorlib.debuglink import TrezorClientDebugLink as Client
+from trezorlib.debuglink import DebugSession as Session
 from trezorlib.exceptions import TrezorFailure
 from trezorlib.tools import parse_path
 
@@ -34,58 +34,56 @@ CHAIN_TYPE_TO_COIN = {1: 19788, 2: 1, 3: 1, 4: 1}
 
 
 @pytest.mark.parametrize("chain_type, address", GET_ADDRESS_VECTORS)
-def test_mintlayer_get_address(client: Client, chain_type: int, address: str):
-    with client:
-        assert (
-            mintlayer.get_address(
-                client,
-                chain_type=chain_type,
-                address_n=parse_path(f"m/44h/{CHAIN_TYPE_TO_COIN[chain_type]}h/0h/0/0"),
-                show_display=True,
-            )
-            == address
+def test_mintlayer_get_address(session: Session, chain_type: int, address: str):
+    assert (
+        mintlayer.get_address(
+            session,
+            chain_type=chain_type,
+            address_n=parse_path(f"m/44h/{CHAIN_TYPE_TO_COIN[chain_type]}h/0h/0/0"),
+            show_display=True,
         )
+        == address
+    )
 
 
 CHAIN_TYPES = [1, 2, 3, 4]
 
 
 @pytest.mark.parametrize("chain_type", CHAIN_TYPES)
-def test_mintlayer_get_address_forbidden_path(client: Client, chain_type: int):
+def test_mintlayer_get_address_forbidden_path(session: Session, chain_type: int):
     coin = CHAIN_TYPE_TO_COIN[chain_type]
-    with client:
-        # invalid coin
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            mintlayer.get_address(
-                client,
-                chain_type=chain_type,
-                address_n=parse_path(f"m/44h/{coin + 1}h/0h/0/0"),
-                show_display=True,
-            )
+    # invalid coin
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        mintlayer.get_address(
+            session,
+            chain_type=chain_type,
+            address_n=parse_path(f"m/44h/{coin + 1}h/0h/0/0"),
+            show_display=True,
+        )
 
-        # invalid bip44
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            mintlayer.get_address(
-                client,
-                chain_type=chain_type,
-                address_n=parse_path(f"m/43h/{coin}h/0h/0/0"),
-                show_display=True,
-            )
+    # invalid bip44
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        mintlayer.get_address(
+            session,
+            chain_type=chain_type,
+            address_n=parse_path(f"m/43h/{coin}h/0h/0/0"),
+            show_display=True,
+        )
 
-        # short path
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            mintlayer.get_address(
-                client,
-                chain_type=chain_type,
-                address_n=parse_path(f"m/44h/{coin}h"),
-                show_display=True,
-            )
+    # short path
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        mintlayer.get_address(
+            session,
+            chain_type=chain_type,
+            address_n=parse_path(f"m/44h/{coin}h"),
+            show_display=True,
+        )
 
-        # short path
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            mintlayer.get_address(
-                client,
-                chain_type=chain_type,
-                address_n=parse_path("m/44h"),
-                show_display=True,
-            )
+    # short path
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        mintlayer.get_address(
+            session,
+            chain_type=chain_type,
+            address_n=parse_path("m/44h"),
+            show_display=True,
+        )

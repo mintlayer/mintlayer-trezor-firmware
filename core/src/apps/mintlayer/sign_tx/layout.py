@@ -7,6 +7,8 @@ from trezor.ui import layouts
 from trezor.wire.errors import DataError
 
 if TYPE_CHECKING:
+    from buffer_types import AnyBytes
+
     from trezor.messages import (
         MintlayerOutputTimeLock,
         MintlayerTokenOutputValue,
@@ -17,7 +19,7 @@ if TYPE_CHECKING:
 
 
 def format_coin_amount(
-    amount: bytes, token: MintlayerTokenOutputValue | None, coininfo: CoinInfo
+    amount: AnyBytes, token: MintlayerTokenOutputValue | None, coininfo: CoinInfo
 ) -> str:
     return format_coin_amount_int(int.from_bytes(amount, "big"), token, coininfo)
 
@@ -32,7 +34,7 @@ def format_coin_amount_int(
         return f"{amount_str} {name}"
     else:
         decimals = token.number_of_decimals
-        ticker = token.token_ticker.decode("utf-8")
+        ticker = bytes(token.token_ticker).decode("utf-8")
         decimal_amount_str = format_amount(amount_int, decimals)
 
         # TODO: check if it's a known token, see https://github.com/mintlayer/mintlayer-trezor-firmware/issues/6
@@ -114,8 +116,8 @@ Cost per block: {int.from_bytes(x.cost_per_block, "big")}
         address_label = "Delegate staking"
     elif output.issue_fungible_token:
         x = output.issue_fungible_token
-        ticker = x.token_ticker.decode("utf-8")
-        metadata_uri = x.metadata_uri.decode("utf-8") if x.metadata_uri else None
+        ticker = bytes(x.token_ticker).decode("utf-8")
+        metadata_uri = bytes(x.metadata_uri).decode("utf-8") if x.metadata_uri else None
         if x.total_supply.type == MintlayerTokenTotalSupplyType.UNLIMITED:
             total_supply = "UNLIMITED"
         elif x.total_supply.type == MintlayerTokenTotalSupplyType.LOCKABLE:
@@ -139,15 +141,15 @@ Is freezable: {is_freezable}"""
         address_label = "Issue fungible token"
     elif output.issue_nft:
         x = output.issue_nft
-        ticker = x.ticker.decode("utf-8")
-        name = x.name.decode("utf-8")
-        icon_uri = x.icon_uri.decode("utf-8") if x.icon_uri else None
+        ticker = bytes(x.ticker).decode("utf-8")
+        name = bytes(x.name).decode("utf-8")
+        icon_uri = bytes(x.icon_uri).decode("utf-8") if x.icon_uri else None
         additional_metadata_uri = (
-            x.additional_metadata_uri.decode("utf-8")
+            bytes(x.additional_metadata_uri).decode("utf-8")
             if x.additional_metadata_uri
             else None
         )
-        media_uri = x.media_uri.decode("utf-8") if x.media_uri else None
+        media_uri = bytes(x.media_uri).decode("utf-8") if x.media_uri else None
         address_short = f"""Name: {name}
 Creator: {x.creator}
 Ticker: {ticker}
@@ -213,5 +215,4 @@ async def confirm_total(
     await layouts.confirm_total(
         format_coin_amount_int(spending, token, coininfo),
         format_coin_amount_int(fee, token, coininfo),
-        fee_rate_amount=None,
     )
