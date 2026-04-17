@@ -22,7 +22,7 @@ use super::super::{
         ActionBar, FidoCredential, Header, LongMenuGc, ShortMenuVec, TextScreen, TextScreenMsg,
         VerticalMenu, VerticalMenuScreen, VerticalMenuScreenMsg,
     },
-    theme,
+    theme::{self, gradient::Gradient},
 };
 
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -146,7 +146,9 @@ pub fn new_confirm_fido(
         ActionBar::new_cancel_confirm()
     } else {
         ActionBar::new_single(
-            Button::with_text(TR::words__authenticate.into()).styled(theme::button_confirm()),
+            Button::with_text(TR::words__authenticate.into())
+                .styled(theme::button_confirm())
+                .with_gradient(Gradient::SignGreen),
         )
     };
 
@@ -161,9 +163,10 @@ pub fn new_confirm_fido(
             });
 
     // Menu screen
-    let content_menu = VerticalMenuScreen::new(VerticalMenu::<ShortMenuVec>::empty().with_item(
-        Button::new_menu_item(TR::buttons__cancel.into(), theme::menu_item_title_orange()),
-    ))
+    let content_menu = VerticalMenuScreen::new(
+        VerticalMenu::<ShortMenuVec>::empty()
+            .with_item(Button::new_cancel_menu_item(TR::buttons__cancel.into())),
+    )
     .with_header(Header::new(title).with_close_button())
     .map(|msg| match msg {
         VerticalMenuScreenMsg::Selected(0) => Some(FlowMsg::Choice(0)),

@@ -6,10 +6,11 @@ use crate::{
         event::BLEEvent,
         geometry::{Alignment, Offset, Rect},
         layout::simplified::ReturnToC,
-        layout_bolt::component::{Button, ButtonMsg},
         shape::{self, Renderer},
     },
 };
+
+use super::{Button, ButtonMsg};
 
 #[repr(u32)]
 pub enum PairingMsg {
@@ -72,6 +73,9 @@ impl Component for PairingMode {
             return Some(PairingMsg::Pairing(code));
         }
         if let Event::BLE(BLEEvent::PairingCanceled) = event {
+            return Some(PairingMsg::Cancel);
+        }
+        if let Event::BLE(BLEEvent::Disconnected) = event {
             return Some(PairingMsg::Cancel);
         }
 

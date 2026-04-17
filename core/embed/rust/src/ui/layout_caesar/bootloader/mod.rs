@@ -5,8 +5,7 @@ use crate::ui::{
     constant::{self, HEIGHT, SCREEN},
     display::{self, Color, Icon},
     geometry::{Alignment2D, Offset, Point},
-    layout::simplified::{run, show, ReturnToC},
-    ui_bootloader::BootloaderLayoutType,
+    layout::simplified::{show, ReturnToC},
 };
 
 use super::{
@@ -22,7 +21,10 @@ use super::{
     UICaesar,
 };
 
-use crate::ui::{display::toif::Toif, geometry::Alignment, shape, shape::render_on_display};
+use crate::{
+    bootloader::run,
+    ui::{display::toif::Toif, geometry::Alignment, shape, shape::render_on_display},
+};
 
 use ufmt::uwrite;
 
@@ -32,9 +34,7 @@ mod welcome;
 
 mod connect;
 
-use crate::ui::{
-    component::Event, layout::simplified::process_frame_event, ui_bootloader::BootloaderUI,
-};
+use crate::{time::Duration, trezorhal::time, ui::ui_bootloader::BootloaderUI};
 use connect::Connect;
 use intro::Intro;
 use menu::Menu;
@@ -91,54 +91,24 @@ impl UICaesar {
     }
 }
 
-pub enum BootloaderLayout {
-    Welcome(Welcome),
-    Menu(Menu),
-    Connect(Connect),
-}
-
-impl BootloaderLayoutType for BootloaderLayout {
-    fn event(&mut self, event: Option<Event>) -> u32 {
-        match self {
-            BootloaderLayout::Welcome(f) => process_frame_event::<Welcome>(f, event),
-            BootloaderLayout::Menu(f) => process_frame_event::<Menu>(f, event),
-            BootloaderLayout::Connect(f) => process_frame_event::<Connect>(f, event),
-        }
-    }
-
-    fn show(&mut self) {
-        match self {
-            BootloaderLayout::Welcome(f) => show(f, false),
-            BootloaderLayout::Menu(f) => show(f, false),
-            BootloaderLayout::Connect(f) => show(f, false),
-        }
-    }
-
-    fn init_welcome() -> Self {
-        Self::Welcome(Welcome::new())
-    }
-
-    fn init_menu(_initial_setup: bool) -> Self {
-        Self::Menu(Menu::new())
-    }
-
-    fn init_connect(_initial_setup: bool, _auto_update: bool) -> Self {
-        Self::Connect(Connect::new(
-            "Waiting for host...",
-            fonts::FONT_NORMAL,
-            BLD_FG,
-            BLD_BG,
-        ))
-    }
-
-    #[cfg(feature = "ble")]
-    fn init_pairing_mode(_initial_setup: bool) -> Self {
-        unimplemented!()
-    }
-}
-
 impl BootloaderUI for UICaesar {
-    type CLayoutType = BootloaderLayout;
+    fn screen_welcome() -> (u32, u32) {
+        // let the previous screen on for some time
+        time::sleep(Duration::from_millis(1500));
+        let mut frame = Welcome::new();
+        run(&mut frame, true, true)
+    }
+
+    fn screen_menu(_initial_setup: bool, communication: bool) -> (u32, u32) {
+        let mut frame = Menu::new();
+        run(&mut frame, true, communication)
+    }
+
+    fn screen_connect(_initial_setup: bool, _show_menu: bool) -> (u32, u32) {
+        let mut frame = Connect::new("Waiting for host...", fonts::FONT_NORMAL, BLD_FG, BLD_BG);
+
+        run(&mut frame, true, true)
+    }
 
     fn screen_install_success(restart_seconds: u8, _initial_setup: bool, complete_draw: bool) {
         let mut reboot_msg = BootloaderString::new();
@@ -221,7 +191,9 @@ impl BootloaderUI for UICaesar {
             false,
         )
         .with_info_screen("FW FINGERPRINT".into(), fingerprint);
-        run(&mut frame)
+
+        let (_, res) = run(&mut frame, true, false);
+        res
     }
 
     fn screen_wipe_confirm() -> u32 {
@@ -237,12 +209,16 @@ impl BootloaderUI for UICaesar {
             false,
         );
 
-        run(&mut frame)
+        let (_, res) = run(&mut frame, true, false);
+        res
     }
 
     fn screen_unlock_bootloader_confirm() -> u32 {
-        let message = Label::left_aligned("This action cannot be undone!".into(), TEXT_NORMAL)
-            .vertically_centered();
+        let message = Label::left_aligned(
+            "Your seed will be erased. Unlocking bootloader is irreversible.".into(),
+            TEXT_NORMAL,
+        )
+        .vertically_centered();
 
         let mut frame = Confirm::new(
             BLD_BG,
@@ -253,7 +229,8 @@ impl BootloaderUI for UICaesar {
             true,
         );
 
-        run(&mut frame)
+        let (_, res) = run(&mut frame, true, false);
+        res
     }
 
     fn screen_unlock_bootloader_success() {
@@ -263,7 +240,8 @@ impl BootloaderUI for UICaesar {
             .vertically_centered();
 
         let mut frame = ResultScreen::new(BLD_FG, BLD_BG, ICON_SPINNER, title, content, true);
-        show(&mut frame, false);
+
+        run(&mut frame, true, false);
     }
 
     fn screen_intro(bld_version: &str, vendor: &str, version: &str, fw_ok: bool) -> u32 {
@@ -282,11 +260,13 @@ impl BootloaderUI for UICaesar {
             version_str.as_str().into(),
             fw_ok,
         );
-        run(&mut frame)
+
+        let (_, res) = run(&mut frame, true, false);
+        res
     }
 
     fn screen_boot_stage_1(_fading: bool) {
-        let mut frame = WelcomeScreen::new(cfg!(ui_empty_lock));
+        let mut frame = WelcomeScreen::new(cfg!(feature = "ui_empty_lock"));
         show(&mut frame, false);
     }
 
@@ -302,7 +282,12 @@ impl BootloaderUI for UICaesar {
         );
     }
 
-    fn screen_install_progress(progress: u16, initialize: bool, _initial_setup: bool) {
+    fn screen_install_progress(
+        progress: u16,
+        initialize: bool,
+        _initial_setup: bool,
+        _wireless: bool,
+    ) {
         Self::screen_progress(
             "Installing",
             "firmware",
@@ -321,7 +306,8 @@ impl BootloaderUI for UICaesar {
             .vertically_centered();
 
         let mut frame = ResultScreen::new(BLD_FG, BLD_BG, ICON_SPINNER, title, content, true);
-        show(&mut frame, false);
+
+        run(&mut frame, true, false);
     }
 
     fn screen_wipe_fail() {
@@ -347,7 +333,7 @@ impl BootloaderUI for UICaesar {
             // Draw vendor image if it's valid and has size of 24x24
             if let Ok(toif) = Toif::new(vendor_img) {
                 if (toif.width() == 24) && (toif.height() == 24) {
-                    let pos = Point::new((constant::WIDTH - 22) / 2, 0);
+                    let pos = Point::new(constant::WIDTH / 2, 0);
                     shape::ToifImage::new(pos, toif)
                         .with_align(Alignment2D::TOP_CENTER)
                         .with_fg(BLD_FG)

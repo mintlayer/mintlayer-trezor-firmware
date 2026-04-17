@@ -22,7 +22,7 @@ from typing import Optional
 import pytest
 
 from trezorlib import messages, mintlayer
-from trezorlib.debuglink import TrezorClientDebugLink as Client
+from trezorlib.debuglink import DebugSession as Session
 from trezorlib.exceptions import TrezorFailure
 from trezorlib.tools import parse_path
 
@@ -168,7 +168,7 @@ CHAIN_TYPE_TO_COIN = {1: 19788, 2: 1, 3: 1, 4: 1}
     SIGN_TX_VECTORS,
 )
 def test_mintlayer_sign_tx(
-    client: Client,
+    session: Session,
     chain_type: int,
     multisig_addr: str,
     delegation_id: str,
@@ -181,11 +181,11 @@ def test_mintlayer_sign_tx(
     sig2: str,
 ):
     coin = CHAIN_TYPE_TO_COIN[chain_type]
-    with client:
+    with session.test_ctx as client:
         path = parse_path(f"m/44h/{coin}h/0h/0/0")
         address_0 = messages.MintlayerAddressPath(address_n=path)
         wallet_dest0 = mintlayer.get_address(
-            client,
+            session,
             chain_type=chain_type,
             address_n=parse_path(f"m/44h/{coin}h/0h/0/0"),
             show_display=True,
@@ -557,7 +557,7 @@ def test_mintlayer_sign_tx(
         )
 
         results = mintlayer.sign_tx(
-            client, chain_type, inputs, outputs, prev_txs, input_commitments_version
+            session, chain_type, inputs, outputs, prev_txs, input_commitments_version
         )
 
         expected_multi_sigs = {
@@ -580,10 +580,10 @@ def test_mintlayer_sign_tx(
 # so they cannot use randomization that affects the UI. This is why we use an array of predefined
 # seeds instead of a random one.
 @pytest.mark.parametrize("seed", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-def test_mintlayer_random_sign_tx(client: Client, seed: int):
+def test_mintlayer_random_sign_tx(session: Session, seed: int):
     rng = make_rng_with_seed(seed)
 
-    with client:
+    with session.test_ctx as client:
         num_inputs = rng.randint(1, 10)
         input_commitments_version = rng.randint(0, 1)
 
@@ -681,7 +681,7 @@ def test_mintlayer_random_sign_tx(client: Client, seed: int):
         )
 
         result = mintlayer.sign_tx(
-            client, 3, inputs, outputs, prev_txs, input_commitments_version
+            session, 3, inputs, outputs, prev_txs, input_commitments_version
         )
 
         assert len(result) == num_inputs
@@ -691,7 +691,7 @@ CHAIN_TYPES = [1, 2, 3, 4]
 
 
 @pytest.mark.parametrize("chain_type", CHAIN_TYPES)
-def test_mintlayer_sign_tx_forbidden_path(client: Client, chain_type: int):
+def test_mintlayer_sign_tx_forbidden_path(session: Session, chain_type: int):
     coin = CHAIN_TYPE_TO_COIN[chain_type]
 
     rng = make_rng()
@@ -706,7 +706,7 @@ def test_mintlayer_sign_tx_forbidden_path(client: Client, chain_type: int):
     )
 
     wallet_dest0 = mintlayer.get_address(
-        client,
+        session,
         chain_type=chain_type,
         address_n=parse_path(f"m/44h/{coin}h/0h/0/0"),
         show_display=True,
@@ -717,68 +717,67 @@ def test_mintlayer_sign_tx_forbidden_path(client: Client, chain_type: int):
 
     prev_txs = {prev_hash: {prev_utxo_index: utxo_out}}
 
-    with client:
-        # invalid coin
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            path = parse_path(f"m/44h/{coin + 1}h/0h/0/0")
-            address = messages.MintlayerAddressPath(address_n=path)
+    # invalid coin
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        path = parse_path(f"m/44h/{coin + 1}h/0h/0/0")
+        address = messages.MintlayerAddressPath(address_n=path)
 
-            inp = messages.MintlayerTxInput(
-                utxo=messages.MintlayerUtxoTxInput(
-                    prev_hash=prev_hash,
-                    prev_index=prev_utxo_index,
-                    addresses=[address],
-                    type=rng.choice(list(messages.MintlayerUtxoType)),
-                )
+        inp = messages.MintlayerTxInput(
+            utxo=messages.MintlayerUtxoTxInput(
+                prev_hash=prev_hash,
+                prev_index=prev_utxo_index,
+                addresses=[address],
+                type=rng.choice(list(messages.MintlayerUtxoType)),
             )
-            mintlayer.sign_tx(client, chain_type, [inp], [], prev_txs)
+        )
+        mintlayer.sign_tx(session, chain_type, [inp], [], prev_txs)
 
-        # invalid bip44
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            path = parse_path(f"m/43h/{coin}h/0h/0/0")
-            address = messages.MintlayerAddressPath(address_n=path)
+    # invalid bip44
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        path = parse_path(f"m/43h/{coin}h/0h/0/0")
+        address = messages.MintlayerAddressPath(address_n=path)
 
-            inp = messages.MintlayerTxInput(
-                utxo=messages.MintlayerUtxoTxInput(
-                    prev_hash=prev_hash,
-                    prev_index=prev_utxo_index,
-                    addresses=[address],
-                    type=rng.choice(list(messages.MintlayerUtxoType)),
-                )
+        inp = messages.MintlayerTxInput(
+            utxo=messages.MintlayerUtxoTxInput(
+                prev_hash=prev_hash,
+                prev_index=prev_utxo_index,
+                addresses=[address],
+                type=rng.choice(list(messages.MintlayerUtxoType)),
             )
-            mintlayer.sign_tx(client, chain_type, [inp], [], prev_txs)
+        )
+        mintlayer.sign_tx(session, chain_type, [inp], [], prev_txs)
 
-        # short path
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            path = parse_path(f"m/44h/{coin}h")
-            address = messages.MintlayerAddressPath(address_n=path)
+    # short path
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        path = parse_path(f"m/44h/{coin}h")
+        address = messages.MintlayerAddressPath(address_n=path)
 
-            inp = messages.MintlayerTxInput(
-                utxo=messages.MintlayerUtxoTxInput(
-                    prev_hash=prev_hash,
-                    prev_index=prev_utxo_index,
-                    addresses=[address],
-                    type=rng.choice(list(messages.MintlayerUtxoType)),
-                )
+        inp = messages.MintlayerTxInput(
+            utxo=messages.MintlayerUtxoTxInput(
+                prev_hash=prev_hash,
+                prev_index=prev_utxo_index,
+                addresses=[address],
+                type=rng.choice(list(messages.MintlayerUtxoType)),
             )
-            mintlayer.sign_tx(client, chain_type, [inp], [], prev_txs)
+        )
+        mintlayer.sign_tx(session, chain_type, [inp], [], prev_txs)
 
-        # short path
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            path = parse_path("m/44h")
-            address = messages.MintlayerAddressPath(address_n=path)
+    # short path
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        path = parse_path("m/44h")
+        address = messages.MintlayerAddressPath(address_n=path)
 
-            inp = messages.MintlayerTxInput(
-                utxo=messages.MintlayerUtxoTxInput(
-                    prev_hash=prev_hash,
-                    prev_index=prev_utxo_index,
-                    addresses=[address],
-                    type=rng.choice(list(messages.MintlayerUtxoType)),
-                )
+        inp = messages.MintlayerTxInput(
+            utxo=messages.MintlayerUtxoTxInput(
+                prev_hash=prev_hash,
+                prev_index=prev_utxo_index,
+                addresses=[address],
+                type=rng.choice(list(messages.MintlayerUtxoType)),
             )
-            mintlayer.sign_tx(
-                client, chain_type, [inp], [], prev_txs, input_commitments_version
-            )
+        )
+        mintlayer.sign_tx(
+            session, chain_type, [inp], [], prev_txs, input_commitments_version
+        )
 
 
 def make_rng() -> random.Random:

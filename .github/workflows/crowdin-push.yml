@@ -1,0 +1,38 @@
+name: Crowdin - push sources (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crowdin-push
+  cancel-in-progress: false
+
+jobs:
+  crowdin-push-sources:
+    name: Split and upload sources
+    if: github.ref_name == 'main'  # run only when dispatched from main
+    runs-on: ubuntu-latest
+    environment: crowdin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup environment
+        uses: ./.github/actions/environment
+
+      - name: Split en.json into per-layout files
+        run: nix-shell --run "uv run python core/translations/crowdin.py split"
+
+      - name: Upload sources to Crowdin
+        uses: crowdin/github-action@v2
+        with:
+          config: core/translations/crowdin.yml
+          upload_sources: true
+        env:
+          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_TOKEN }}
+          CROWDIN_PROJECT_ID: ${{ secrets.CROWDIN_PROJECT_ID }}

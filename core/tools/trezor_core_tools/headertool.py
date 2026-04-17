@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
+from typing import Any, BinaryIO, List, Tuple
+
 import click
 
 from trezorlib import cosi, firmware
 from trezorlib._internal import firmware_headers
-
-from typing import List, Sequence, Tuple
 
 # =========================== signing =========================
 
@@ -28,6 +30,9 @@ def do_rehash(fw: firmware_headers.SignableImageProto) -> None:
     """Recalculate the code hashes inside the header."""
     if isinstance(fw, firmware.FirmwareImage):
         fw.header.hashes = fw.code_hashes()
+    if isinstance(fw, firmware.SecmonImage):
+        assert isinstance(fw.header, firmware.SecmonHeader)
+        fw.header.hash = fw.code_hash()
     elif isinstance(fw, firmware_headers.VendorFirmware):
         fw.firmware.header.hashes = fw.firmware.code_hashes()
     # else: do nothing, other kinds of images do not need rehashing
@@ -36,7 +41,9 @@ def do_rehash(fw: firmware_headers.SignableImageProto) -> None:
 # ===================== CLI actions =========================
 
 
-def do_replace_vendorheader(fw, vh_file) -> None:
+def do_replace_vendorheader(
+    fw: firmware_headers.SignableImageProto, vh_file: BinaryIO
+) -> None:
     if not isinstance(fw, firmware_headers.VendorFirmware):
         raise click.ClickException("Invalid image type (must be firmware).")
 
@@ -45,6 +52,11 @@ def do_replace_vendorheader(fw, vh_file) -> None:
         raise click.ClickException("New vendor header must have the same size.")
 
     fw.vendor_header = vh
+
+
+def no_echo(*args: Any, **kwargs: Any) -> None:
+    """A no-op function to replace click.echo when quiet mode is enabled."""
+    pass
 
 
 @click.command()
@@ -81,22 +93,22 @@ def do_replace_vendorheader(fw, vh_file) -> None:
 @click.option("-q", "--quiet", is_flag=True, help="Do not print anything.")
 @click.argument("firmware_file", type=click.File("rb+"))
 def cli(
-    firmware_file,
-    verbose,
-    rehash,
-    dry_run,
-    privkey_data,
-    sign_dev_keys,
-    insert_signature,
-    replace_vendor_header,
-    print_digest,
-    quiet,
-):
+    firmware_file: BinaryIO,
+    verbose: bool,
+    rehash: bool,
+    dry_run: bool,
+    privkey_data: list[str],
+    sign_dev_keys: bool,
+    insert_signature: tuple[str, str] | None,
+    replace_vendor_header: BinaryIO | None,
+    print_digest: bool,
+    quiet: bool,
+) -> None:
     """Manage firmware headers.
 
     This tool supports three types of files: raw vendor headers (TRZV), bootloader
-    images (TRZB), and firmware images which are prefixed with a vendor header
-    (TRZV+TRZF).
+    images (TRZB), firmware images which are prefixed with a vendor header
+    (TRZV+TRZF), and secmon images (TSEC).
 
     Run with no options on a file to dump information about that file.
 
@@ -132,7 +144,7 @@ def cli(
         traceback.print_exc()
         magic = firmware_data[:4]
         raise click.ClickException(
-            "Could not parse file (magic bytes: {!r})".format(magic)
+            f"Could not parse file (magic bytes: {magic})"
         ) from e
 
     digest = fw.digest()
@@ -141,7 +153,7 @@ def cli(
         return
 
     if quiet:
-        echo = lambda *args, **kwargs: None
+        echo = no_echo
     else:
         echo = click.echo
 

@@ -3,22 +3,25 @@ use crate::{
     translations::TR,
     ui::{
         button_request::ButtonRequestCode,
-        component::{text::op::OpTextLayout, ButtonRequestExt, ComponentExt, FormattedText},
+        component::{
+            text::paragraphs::{Paragraph, ParagraphSource},
+            ButtonRequestExt, ComponentExt,
+        },
         flow::{
             base::{Decision, DecisionBuilder as _},
             FlowController, FlowMsg, SwipeFlow,
         },
-        geometry::{Alignment, Direction},
-        layout_eckhart::{component::Button, firmware::ShortMenuVec},
+        geometry::{Direction, LinearPlacement},
     },
 };
 
 use super::super::{
+    component::Button,
     firmware::{
-        ActionBar, Header, HeaderMsg, Hint, TextScreen, TextScreenMsg, VerticalMenu,
+        ActionBar, Header, Hint, ShortMenuVec, TextScreen, TextScreenMsg, VerticalMenu,
         VerticalMenuScreen, VerticalMenuScreenMsg,
     },
-    fonts, theme,
+    theme::{self, gradient::Gradient},
 };
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -61,16 +64,17 @@ pub fn new_confirm_reset(recovery: bool) -> Result<SwipeFlow, error::Error> {
         )
     };
 
-    let mut op = OpTextLayout::new(theme::TEXT_REGULAR);
-    op.add_text(TR::reset__by_continuing, fonts::FONT_SATOSHI_REGULAR_38)
-        .add_alignment(Alignment::Start);
+    let paragraphs_intro = Paragraph::new(&theme::TEXT_REGULAR, TR::reset__by_continuing)
+        .into_paragraphs()
+        .with_placement(LinearPlacement::vertical());
 
-    let content_intro = TextScreen::new(FormattedText::new(op))
+    let content_intro = TextScreen::new(paragraphs_intro)
         .with_header(Header::new(title).with_menu_button())
         .with_action_bar(ActionBar::new_single(
             Button::with_text(TR::instructions__hold_to_continue.into())
                 .with_long_press(theme::CONFIRM_HOLD_DURATION)
-                .styled(theme::button_confirm()),
+                .styled(theme::button_confirm())
+                .with_gradient(Gradient::SignGreen),
         ))
         .with_hint(Hint::new_instruction(
             TR::reset__tos_link,
@@ -83,13 +87,11 @@ pub fn new_confirm_reset(recovery: bool) -> Result<SwipeFlow, error::Error> {
         })
         .one_button_request(br);
 
-    let content_menu = VerticalMenuScreen::new(VerticalMenu::<ShortMenuVec>::empty().with_item(
-        Button::new_menu_item(TR::buttons__cancel.into(), theme::menu_item_title_orange()),
-    ))
-    .with_header(
-        Header::new(title)
-            .with_right_button(Button::with_icon(theme::ICON_CROSS), HeaderMsg::Cancelled),
+    let content_menu = VerticalMenuScreen::new(
+        VerticalMenu::<ShortMenuVec>::empty()
+            .with_item(Button::new_cancel_menu_item(TR::buttons__cancel.into())),
     )
+    .with_header(Header::new(title).with_close_button())
     .map(|msg| match msg {
         VerticalMenuScreenMsg::Selected(i) => Some(FlowMsg::Choice(i)),
         VerticalMenuScreenMsg::Close => Some(FlowMsg::Cancelled),

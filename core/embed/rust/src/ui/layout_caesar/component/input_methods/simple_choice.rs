@@ -1,6 +1,5 @@
 use crate::{
     strutil::TString,
-    translations::TR,
     ui::{
         component::{Component, Event, EventCtx},
         geometry::Rect,
@@ -20,11 +19,20 @@ const MAX_LENGTH: usize = 5;
 struct ChoiceFactorySimple {
     choices: Vec<TString<'static>, MAX_LENGTH>,
     controls: ChoiceControls,
+    select_text: TString<'static>,
 }
 
 impl ChoiceFactorySimple {
-    fn new(choices: Vec<TString<'static>, MAX_LENGTH>, controls: ChoiceControls) -> Self {
-        Self { choices, controls }
+    fn new(
+        choices: Vec<TString<'static>, MAX_LENGTH>,
+        controls: ChoiceControls,
+        select_text: TString<'static>,
+    ) -> Self {
+        Self {
+            choices,
+            controls,
+            select_text,
+        }
     }
 
     fn get_string(&self, choice_index: usize) -> TString<'static> {
@@ -42,12 +50,8 @@ impl ChoiceFactory for ChoiceFactorySimple {
 
     fn get(&self, choice_index: usize) -> (Self::Item, Self::Action) {
         let text = &self.choices[choice_index];
-        let mut choice_item = text.map(|t| {
-            ChoiceItem::new(
-                t,
-                ButtonLayout::arrow_armed_arrow(TR::buttons__select.into()),
-            )
-        });
+        let mut choice_item =
+            text.map(|t| ChoiceItem::new(t, ButtonLayout::arrow_armed_arrow(self.select_text)));
 
         // Disabling prev/next buttons for the first/last choice when not in carousel.
         // (could be done to the same item if there is only one)
@@ -72,17 +76,32 @@ impl ChoiceFactory for ChoiceFactorySimple {
 /// inputting a list of values and receiving the chosen one.
 pub struct SimpleChoice {
     choice_page: ChoicePage<ChoiceFactorySimple, usize>,
-    pub return_index: bool,
+    page_count: u16,
+    return_index: bool,
+    ignore_cancelled: bool,
 }
 
 impl SimpleChoice {
-    pub fn new(str_choices: Vec<TString<'static>, MAX_LENGTH>, controls: ChoiceControls) -> Self {
-        let choices = ChoiceFactorySimple::new(str_choices, controls);
+    pub fn new(
+        str_choices: Vec<TString<'static>, MAX_LENGTH>,
+        controls: ChoiceControls,
+        select_text: TString<'static>,
+    ) -> Self {
+        let page_count = str_choices.len() as u16;
+        let choices = ChoiceFactorySimple::new(str_choices, controls, select_text);
         let choice_page = ChoicePage::new(choices).with_controls(controls);
         Self {
             choice_page,
+            page_count,
             return_index: false,
+            ignore_cancelled: false,
         }
+    }
+
+    /// Set the page counter at the very beginning.
+    pub fn with_initial_page_counter(mut self, page_counter: usize) -> Self {
+        self.choice_page = self.choice_page.with_initial_page_counter(page_counter);
+        self
     }
 
     /// Show only the currently selected item, nothing left/right.
@@ -103,6 +122,12 @@ impl SimpleChoice {
         self
     }
 
+    /// Returning `CONFIRMED` to MicroPython (instead of `CANCELLED`).
+    pub fn with_ignore_cancelled(mut self) -> Self {
+        self.ignore_cancelled = true;
+        self
+    }
+
     /// Translating the resulting index into actual string choice.
     pub fn result_by_index(&self, index: usize) -> TString<'static> {
         self.choice_page.choice_factory().get_string(index)
@@ -117,11 +142,46 @@ impl Component for SimpleChoice {
     }
 
     fn event(&mut self, ctx: &mut EventCtx, event: Event) -> Option<Self::Msg> {
+        ctx.set_page_count(self.page_count);
         self.choice_page.event(ctx, event)
     }
 
     fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
         self.choice_page.render(target);
+    }
+}
+
+#[cfg(feature = "micropython")]
+mod micropython {
+    use super::SimpleChoice;
+    use crate::{
+        error::Error,
+        micropython::obj::Obj,
+        ui::layout::{
+            obj::ComponentMsgObj,
+            result::{CANCELLED, CONFIRMED},
+        },
+    };
+
+    impl ComponentMsgObj for SimpleChoice {
+        fn msg_try_into_obj(&self, msg: Self::Msg) -> Result<Obj, Error> {
+            match msg {
+                Self::Msg::Cancel => Ok(if self.ignore_cancelled {
+                    // avoid raising `ActionCancelled` exception
+                    CONFIRMED.as_obj()
+                } else {
+                    CANCELLED.as_obj()
+                }),
+                Self::Msg::Choice { item, .. } => {
+                    if self.return_index {
+                        item.try_into()
+                    } else {
+                        let text = self.result_by_index(item);
+                        text.try_into()
+                    }
+                }
+            }
+        }
     }
 }
 

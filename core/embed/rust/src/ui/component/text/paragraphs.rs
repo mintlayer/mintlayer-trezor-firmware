@@ -3,7 +3,7 @@ use heapless::Vec;
 use crate::{
     strutil::TString,
     ui::{
-        component::{paginated::SinglePage, Component, Event, EventCtx, Never, PaginateFull},
+        component::{paginated::SinglePage, Component, Event, EventCtx, Never, Paginate},
         display::{font::Font, toif::Icon, Color},
         geometry::{Alignment, Dimensions, Insets, LinearPlacement, Offset, Point, Rect},
         shape::{self, Renderer},
@@ -26,7 +26,8 @@ pub const PARAGRAPH_TOP_SPACE: i16 = -1;
 /// Offset of paragraph bounding box bottom relative to bottom of its text.
 pub const PARAGRAPH_BOTTOM_SPACE: i16 = 5;
 
-pub type ParagraphVecLong<'a> = Vec<Paragraph<'a>, 32>;
+// Size derived from MAX_XPUBS + 2 more props
+pub type ParagraphVecLong<'a> = Vec<Paragraph<'a>, 36>;
 pub type ParagraphVecShort<'a> = Vec<Paragraph<'a>, 8>;
 
 pub trait ParagraphSource<'a> {
@@ -242,7 +243,7 @@ where
     }
 }
 
-impl<'a, T> PaginateFull for Paragraphs<T>
+impl<'a, T> Paginate for Paragraphs<T>
 where
     T: ParagraphSource<'a>,
 {

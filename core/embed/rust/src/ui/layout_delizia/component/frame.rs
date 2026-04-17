@@ -4,7 +4,7 @@ use crate::{
     ui::{
         component::{
             base::AttachType,
-            paginated::PaginateFull,
+            paginated::Paginate,
             swipe_detect::{SwipeConfig, SwipeSettings},
             text::TextStyle,
             Component,
@@ -93,6 +93,10 @@ pub struct Frame<T> {
     swipe: SwipeConfig,
     horizontal_swipe: HorizontalSwipe,
     margin: usize,
+    #[cfg(feature = "ui_debug")]
+    has_menu: bool,
+    #[cfg(feature = "ui_debug")]
+    has_flow_menu: bool,
 }
 
 pub enum FrameMsg<T> {
@@ -102,7 +106,7 @@ pub enum FrameMsg<T> {
 
 impl<T> Frame<T>
 where
-    T: Component + PaginateFull,
+    T: Component + Paginate,
 {
     pub const fn new(alignment: Alignment, title: TString<'static>, content: T) -> Self {
         Self {
@@ -115,6 +119,10 @@ where
             swipe: SwipeConfig::new(),
             horizontal_swipe: HorizontalSwipe::new(),
             margin: 0,
+            #[cfg(feature = "ui_debug")]
+            has_menu: false,
+            #[cfg(feature = "ui_debug")]
+            has_flow_menu: false,
         }
     }
 
@@ -168,6 +176,34 @@ where
             .button_styled(theme::button_danger())
     }
 
+    // `has_menu` is used to gradually introduce multi-item menus (#5189).
+    // TODO: After the migration, this flag should be set in `with_button()`.
+    #[cfg(feature = "ui_debug")]
+    pub fn with_external_menu(mut self) -> Self {
+        // Allow visiting this menu automatically by tests
+        self.has_menu = true;
+        self
+    }
+    #[cfg(not(feature = "ui_debug"))]
+    pub fn with_external_menu(self) -> Self {
+        self
+    }
+
+    // `has_flow_menu` is used to traverse old style (aka non-"external" menus)
+    // which are implemented as part of swipe flows.
+    // TODO: Once we have eventually replaced all these with new style "external
+    // menu" we should get rid of this flag and the related debuglink code.
+    #[cfg(feature = "ui_debug")]
+    pub fn with_flow_menu(mut self) -> Self {
+        // Allow visiting this menu automatically by tests
+        self.has_flow_menu = true;
+        self
+    }
+    #[cfg(not(feature = "ui_debug"))]
+    pub fn with_flow_menu(self) -> Self {
+        self
+    }
+
     pub fn title_styled(mut self, style: TextStyle) -> Self {
         self.header = self.header.styled(style);
         self
@@ -203,7 +239,7 @@ where
         use crate::translations::TR;
 
         self.with_footer(TR::instructions__tap.into(), description)
-            .with_swipe(Direction::Up, SwipeSettings::default())
+            .with_swipe(Direction::Up, SwipeSettings::Default)
     }
 
     #[cfg(feature = "translations")]
@@ -211,7 +247,7 @@ where
         use crate::translations::TR;
 
         self.with_footer(TR::instructions__tap_to_continue.into(), description)
-            .with_swipe(Direction::Up, SwipeSettings::default())
+            .with_swipe(Direction::Up, SwipeSettings::Default)
     }
 
     #[inline(never)]
@@ -319,7 +355,7 @@ where
 
 impl<T> Component for Frame<T>
 where
-    T: Component + PaginateFull,
+    T: Component + Paginate,
 {
     type Msg = FrameMsg<T::Msg>;
 
@@ -428,7 +464,7 @@ fn frame_place(
 }
 
 #[cfg(feature = "micropython")]
-impl<T: PaginateFull> crate::ui::flow::Swipable for Frame<T> {
+impl<T: Paginate> crate::ui::flow::Swipable for Frame<T> {
     fn get_swipe_config(&self) -> SwipeConfig {
         self.swipe
     }
@@ -451,5 +487,8 @@ where
         if let Some(footer) = &self.footer {
             t.child("footer", footer);
         }
+
+        t.bool("has_menu", self.has_menu);
+        t.bool("has_flow_menu", self.has_flow_menu);
     }
 }

@@ -2,8 +2,10 @@
 Creates a header file containing image data.
 """
 
-import click
 import pathlib
+from typing import BinaryIO
+
+import click
 
 h_file_template = """\
 // clang-format off
@@ -14,7 +16,7 @@ unsigned int {name}_jpg_len = {length};
 
 @click.command()
 @click.argument("infile", type=click.File("rb"))
-def convert(infile):
+def convert(infile: BinaryIO) -> None:
 
     path = pathlib.Path(infile.name)
 
@@ -40,7 +42,13 @@ def convert(infile):
     image_bytes = image_bytes.rstrip(", \n")
 
     with open(h_file_name, "w") as f:
-        f.write(h_file_template.format(name=img_name, content=content.format(image_bytes=image_bytes), length=len(image_data)))
+        f.write(
+            h_file_template.format(
+                name=img_name,
+                content=content.format(image_bytes=image_bytes),
+                length=len(image_data),
+            )
+        )
 
 
 if __name__ == "__main__":

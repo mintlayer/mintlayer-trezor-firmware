@@ -1,10 +1,11 @@
 import argparse
+from typing import Iterable
 
 
-def gen(sources, dirs, defs):
+def gen(sources: Iterable[str], dirs: Iterable[str], defs: Iterable[str]) -> None:
     target = "CMakeLists.txt"
 
-    with open(target, 'w') as f:
+    with open(target, "w") as f:
 
         f.write("cmake_minimum_required(VERSION 3.20)\n")
         f.write("project(core)\n")
@@ -16,20 +17,20 @@ def gen(sources, dirs, defs):
 
         f.write("add_definitions(\n")
         for d in defs:
-            f.write(f'        -D{d}\n')
+            f.write(f"        -D{d}\n")
         f.write(")\n")
 
         f.write("\n")
         f.write("\n")
         for d in dirs:
-            f.write(f'include_directories({d})\n')
+            f.write(f"include_directories({d})\n")
 
         f.write("\n")
         f.write("\n")
         f.write("add_executable(core\n")
 
         for s in sources:
-            f.write(f'        {s}\n')
+            f.write(f"        {s}\n")
         f.write(")\n")
         f.write("\n")
 

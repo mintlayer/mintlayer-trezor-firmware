@@ -22,12 +22,9 @@
 #include <trezor_model.h>
 #include <trezor_rtl.h>
 
-#include <sys/sysevent.h>
 #include <sys/systick.h>
 #include <sys/types.h>
-#include <util/image.h>
 
-#include "antiglitch.h"
 #include "protob/protob.h"
 #include "wire/wire_iface_usb.h"
 #include "workflow.h"
@@ -36,108 +33,70 @@
 #include <wire/wire_iface_ble.h>
 #endif
 
-workflow_result_t workflow_host_control(const vendor_header *const vhdr,
-                                        const image_header *const hdr,
-                                        c_layout_t *wait_layout,
-                                        uint32_t *ui_action_result,
-                                        protob_ios_t *ios) {
-  workflow_result_t result = WF_ERROR_FATAL;
-
-  sysevents_t awaited = {0};
-
-  if (ios != NULL) {
-    for (size_t i = 0; i < ios->count; i++) {
-      awaited.read_ready |= 1 << protob_get_iface_flag(&ios->ifaces[i]);
-    }
+static workflow_result_t bootloader_process_comm(wire_iface_t *wire_iface) {
+  if (wire_iface == NULL) {
+    // continue with the event processing
+    return WF_OK;
   }
+
+  protob_io_t active_iface;
+  protob_init(&active_iface, wire_iface);
+
+  uint16_t msg_id = 0;
+  if (sectrue != protob_get_msg_header(&active_iface, &msg_id)) {
+    return WF_OK;
+  }
+
+  fw_info_t fw;
+  memset(&fw, 0, sizeof(fw));
+
+  switch (msg_id) {
+    case MessageType_MessageType_Initialize:
+      fw_check(&fw);
+      workflow_initialize(&active_iface, &fw);
+      // continue with the event processing
+      return WF_OK;
+      break;
+    case MessageType_MessageType_Ping:
+      workflow_ping(&active_iface);
+      // continue with the event processing
+      return WF_OK;
+      break;
+    case MessageType_MessageType_GetFeatures:
+      fw_check(&fw);
+      workflow_get_features(&active_iface, &fw);
+      // continue with the event processing
+      return WF_OK;
+      break;
+    case MessageType_MessageType_WipeDevice:
+      return workflow_wipe_device(&active_iface);
+      break;
+    case MessageType_MessageType_FirmwareErase:
+      return workflow_firmware_update(&active_iface);
+      break;
+#if defined LOCKABLE_BOOTLOADER
+    case MessageType_MessageType_UnlockBootloader:
+      return workflow_unlock_bootloader(&active_iface);
+      break;
+#endif
+    default:
+      recv_msg_unknown(&active_iface);
+      // continue with the event processing
+      return WF_OK;
+  }
+}
+
+workflow_result_t bootloader_process_usb(void) {
+  wire_iface_t *iface = usb_iface_get();
+  return bootloader_process_comm(iface);
+}
 
 #ifdef USE_BLE
-  awaited.read_ready |= 1 << SYSHANDLE_BLE;
-#endif
-#ifdef USE_BUTTON
-  awaited.read_ready |= 1 << SYSHANDLE_BUTTON;
-#endif
-#ifdef USE_TOUCH
-  awaited.read_ready |= 1 << SYSHANDLE_TOUCH;
-#endif
-
-  for (;;) {
-    sysevents_t signalled = {0};
-
-    sysevents_poll(&awaited, &signalled, ticks_timeout(100));
-
-    if (signalled.read_ready == 0) {
-      continue;
-    }
-
-    uint16_t msg_id = 0;
-    protob_io_t *active_iface = NULL;
-
-    if (ios != NULL) {
-      for (size_t i = 0; i < ios->count; i++) {
-        if (signalled.read_ready ==
-                (1 << protob_get_iface_flag(&ios->ifaces[i])) &&
-            sectrue == protob_get_msg_header(&ios->ifaces[i], &msg_id)) {
-          active_iface = &ios->ifaces[i];
-          break;
-        }
-      }
-    }
-
-    // no data, lets pass the event signal to UI
-    if (active_iface == NULL) {
-      uint32_t res = screen_event(wait_layout, &signalled);
-
-      if (res != 0) {
-        if (ui_action_result != NULL) {
-          *ui_action_result = res;
-        }
-        result = WF_OK_UI_ACTION;
-        goto exit_host_control;
-      }
-      continue;
-    }
-
-    switch (msg_id) {
-      case MessageType_MessageType_Initialize:
-        workflow_initialize(active_iface, vhdr, hdr);
-        // whatever the result, we stay here and continue
-        break;
-      case MessageType_MessageType_Ping:
-        workflow_ping(active_iface);
-        // whatever the result, we stay here and continue
-        break;
-      case MessageType_MessageType_GetFeatures:
-        workflow_get_features(active_iface, vhdr, hdr);
-        // whatever the result, we stay here and continue
-        break;
-      case MessageType_MessageType_WipeDevice:
-        result = workflow_wipe_device(active_iface);
-        goto exit_host_control;
-        break;
-      case MessageType_MessageType_FirmwareErase:
-        result = workflow_firmware_update(active_iface);
-        if (result == WF_OK_FIRMWARE_INSTALLED) {
-          jump_allow_1();
-          jump_allow_2();
-        }
-        goto exit_host_control;
-        break;
-#if defined LOCKABLE_BOOTLOADER
-      case MessageType_MessageType_UnlockBootloader:
-        result = workflow_unlock_bootloader(active_iface);
-        goto exit_host_control;
-        break;
-#endif
-      default:
-        recv_msg_unknown(active_iface);
-        break;
-    }
-  }
-
-exit_host_control:
-  return result;
+workflow_result_t bootloader_process_ble(void) {
+  wire_iface_t *iface = ble_iface_get();
+  return bootloader_process_comm(iface);
 }
+#endif
 
 void workflow_ifaces_init(secbool usb21_landing, protob_ios_t *ios) {
   size_t cnt = 1;

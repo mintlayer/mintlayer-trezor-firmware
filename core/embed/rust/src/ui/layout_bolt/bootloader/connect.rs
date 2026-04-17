@@ -4,15 +4,16 @@ use crate::{
         component::{Component, Event, EventCtx, Pad},
         display::{Color, Font, Icon},
         geometry::{Alignment, Insets, Offset, Point, Rect},
-        layout_bolt::{
-            component::{Button, ButtonMsg},
-            constant::WIDTH,
-            theme::bootloader::{
-                button_bld, button_bld_menu, button_initial, BLD_BG, BUTTON_AREA_START,
-                BUTTON_HEIGHT, CONTENT_PADDING, CORNER_BUTTON_AREA, MENU32, WELCOME_COLOR,
-            },
-        },
         shape::{self, Renderer},
+    },
+};
+
+use super::super::{
+    component::{Button, ButtonMsg},
+    constant::WIDTH,
+    theme::bootloader::{
+        button_bld, button_bld_menu, button_initial, BLD_BG, BUTTON_AREA_START, BUTTON_HEIGHT,
+        CONTENT_PADDING, CORNER_BUTTON_AREA, MENU32, WELCOME_COLOR,
     },
 };
 
@@ -34,7 +35,7 @@ pub struct Connect {
 }
 
 impl Connect {
-    pub fn new<T>(message: T, font: Font, fg: Color, initial_setup: bool, auto_update: bool) -> Self
+    pub fn new<T>(message: T, font: Font, fg: Color, initial_setup: bool, show_menu: bool) -> Self
     where
         T: Into<TString<'static>>,
     {
@@ -56,7 +57,7 @@ impl Connect {
             )
         };
 
-        let menu = if auto_update { Some(menu_btn) } else { None };
+        let menu = if show_menu { Some(menu_btn) } else { None };
 
         let mut instance = Self {
             fg,

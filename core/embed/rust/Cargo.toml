@@ -21,6 +21,7 @@ display_mono = []
 display_rgb565 = ["ui_antialiasing"]
 display_rgba8888 = ["ui_antialiasing"]
 ui_debug = []
+ui_performance_overlay = []
 ui_debug_overlay = []
 ui_antialiasing = []
 ui_blurring = []
@@ -30,12 +31,14 @@ ui_overlay = []
 ui_empty_lock = []
 ui_jpeg = []
 hw_jpeg_decoder = []
+boot_ucb = []
 bootloader = []
 prodtest = []
 button = []
 touch = []
 clippy = []
-debug = ["ui_debug"]
+debug = ["ui_debug", "dev_keys"]
+dev_keys = []
 sbu = []
 haptic = []
 sd_card = []
@@ -49,8 +52,13 @@ ble = []
 nrf = []
 smp = []
 tropic = []
+serial_number = []
+storage = []
+telemetry = []
 translations = ["crypto"]
 secmon_layout = []
+dbg_console = []
+app_loading = []
 test = [
     "backlight",
     "button",
@@ -65,6 +73,7 @@ test = [
     "optiga",
     "protobuf",
     "smp",
+    "storage",
     "touch",
     "translations",
     "ui",
@@ -107,14 +116,9 @@ qrcodegen = { version = "1.8.0", path = "../../vendor/QR-Code-generator/rust-no-
 spin = { version = "0.9.8", features = ["rwlock"], default-features = false }
 trezor-tjpgdec = { version = "0.1.0", path = "../../../rust/trezor-tjpgdec" }
 ufmt = "0.2.0"
-zeroize = { version = "1.7.0", default-features = false, optional = true }
+zeroize = { version = "1.8.2", default-features = false, optional = true }
 
 # Mintlayer
-
-parity-scale-codec = { version = "3.7", default-features = false, features = [
-    "derive",
-    "chain-error",
-], optional = true }
 
 mintlayer-firmware-deps = { path = "src/mintlayer/deps", optional = true }
 
@@ -122,6 +126,17 @@ mintlayer-firmware-deps = { path = "src/mintlayer/deps", optional = true }
 # this is needed for the no_std support.
 prost = { version = "0.14", default-features = false, optional = true }
 prost-types = { version = "0.14", default-features = false, optional = true }
+
+# Use a specific commit because we need a fix (github.com/paritytech/parity-scale-codec/pull/751)
+# that has not been released yet (should be part of the release coming after v3.7.5).
+# Note that the fix is needed for the Ledger app, but we have to use the same version of parity-scale-codec
+# across Trezor, Ledger, mintlayer-core and mintlayer-core-primitives repos.
+[dependencies.parity-scale-codec]
+git = "https://github.com/paritytech/parity-scale-codec.git"
+rev = "5021525697edc0661591ebc71392c48d950a10b0"
+default-features = false
+features = ["derive", "chain-error"]
+optional = true
 
 # Runtime dependencies
 
@@ -169,7 +184,7 @@ default-features = false
 # Build dependencies
 
 [build-dependencies.bindgen]
-version = "0.69.4"
+version = "0.72.1"
 default-features = false
 features = ["runtime"]
 
@@ -188,4 +203,5 @@ version = "0.3.0"
 prost-build = "0.14"
 
 [dev-dependencies]
+hex = "0.4.3"
 serde_json = "1.0.96"

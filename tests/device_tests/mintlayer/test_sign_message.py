@@ -2,7 +2,7 @@ import pytest
 from construct import itertools
 
 from trezorlib import messages, mintlayer
-from trezorlib.debuglink import TrezorClientDebugLink as Client
+from trezorlib.debuglink import DebugSession as Session
 from trezorlib.exceptions import TrezorFailure
 from trezorlib.tools import parse_path
 
@@ -37,23 +37,22 @@ CHAIN_TYPE_TO_COIN = {1: 19788, 2: 1, 3: 1, 4: 1}
     "chain_type, addr_type, expected_address, expected_signature", SIGN_TEST_VECTORS
 )
 def test_mintlayer_sign_message(
-    client: Client,
+    session: Session,
     chain_type: int,
     addr_type: str,
     expected_address: str,
     expected_signature: str,
 ):
-    with client:
-        result = mintlayer.sign_message(
-            client,
-            chain_type=chain_type,
-            address_type=addr_type,
-            address_n=parse_path(f"m/44h/{CHAIN_TYPE_TO_COIN[chain_type]}h/0h/0/0"),
-            message="Message to sign".encode(),
-        )
-        if isinstance(result, messages.MessageSignature):
-            assert result.signature.hex() == expected_signature
-            assert result.address == expected_address
+    result = mintlayer.sign_message(
+        session,
+        chain_type=chain_type,
+        address_type=addr_type,
+        address_n=parse_path(f"m/44h/{CHAIN_TYPE_TO_COIN[chain_type]}h/0h/0/0"),
+        message="Message to sign".encode(),
+    )
+    if isinstance(result, messages.MessageSignature):
+        assert result.signature.hex() == expected_signature
+        assert result.address == expected_address
 
 
 INVALID_PATH_TEST_VECTORS = itertools.product(
@@ -63,46 +62,45 @@ INVALID_PATH_TEST_VECTORS = itertools.product(
 
 @pytest.mark.parametrize("chain_type, addr_type", INVALID_PATH_TEST_VECTORS)
 def test_mintlayer_sign_message_error_path(
-    client: Client, chain_type: int, addr_type: str
+    session: Session, chain_type: int, addr_type: str
 ):
     coin = CHAIN_TYPE_TO_COIN[chain_type]
-    with client:
-        # invalid coin
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            mintlayer.sign_message(
-                client,
-                address_type=addr_type,
-                chain_type=chain_type,
-                address_n=parse_path(f"m/44h/{coin + 1}h/0h/0/0"),
-                message="Message to sign".encode(),
-            )
+    # invalid coin
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        mintlayer.sign_message(
+            session,
+            address_type=addr_type,
+            chain_type=chain_type,
+            address_n=parse_path(f"m/44h/{coin + 1}h/0h/0/0"),
+            message="Message to sign".encode(),
+        )
 
-        # invalid bip44
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            mintlayer.sign_message(
-                client,
-                address_type=addr_type,
-                chain_type=chain_type,
-                address_n=parse_path(f"m/43h/{coin}h/0h/0/0"),
-                message="Message to sign".encode(),
-            )
+    # invalid bip44
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        mintlayer.sign_message(
+            session,
+            address_type=addr_type,
+            chain_type=chain_type,
+            address_n=parse_path(f"m/43h/{coin}h/0h/0/0"),
+            message="Message to sign".encode(),
+        )
 
-        # short path
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            mintlayer.sign_message(
-                client,
-                address_type=addr_type,
-                chain_type=chain_type,
-                address_n=parse_path(f"m/44h/{coin}h"),
-                message="Message to sign".encode(),
-            )
+    # short path
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        mintlayer.sign_message(
+            session,
+            address_type=addr_type,
+            chain_type=chain_type,
+            address_n=parse_path(f"m/44h/{coin}h"),
+            message="Message to sign".encode(),
+        )
 
-        # short path
-        with pytest.raises(TrezorFailure, match="Forbidden key path"):
-            mintlayer.sign_message(
-                client,
-                address_type=addr_type,
-                chain_type=chain_type,
-                address_n=parse_path("m/44h"),
-                message="Message to sign".encode(),
-            )
+    # short path
+    with pytest.raises(TrezorFailure, match="Forbidden key path"):
+        mintlayer.sign_message(
+            session,
+            address_type=addr_type,
+            chain_type=chain_type,
+            address_n=parse_path("m/44h"),
+            message="Message to sign".encode(),
+        )

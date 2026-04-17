@@ -4,7 +4,7 @@ use crate::{
     ui::{
         component::{
             swipe_detect::SwipeConfig, text::TextStyle, Component, Event, EventCtx, Label, Never,
-            PaginateFull, Swipe,
+            Paginate, Swipe,
         },
         flow::Swipable,
         geometry::{Alignment, Direction, Insets, Offset, Rect},
@@ -150,6 +150,7 @@ impl<'a> Component for ShareWordsScreen<'a> {
             .inset(theme::SIDE_INSETS)
             .with_height(Self::WORD_AREA_HEIGHT);
 
+        self.page_swipe.place(bounds);
         self.header.place(header_area);
         self.subtitle.place(subtitle_area.inset(theme::SIDE_INSETS));
         self.content.place(content_area);
@@ -257,7 +258,7 @@ impl<'a> ShareWords<'a> {
 }
 
 // Pagination
-impl<'a> PaginateFull for ShareWords<'a> {
+impl<'a> Paginate for ShareWords<'a> {
     fn pager(&self) -> Pager {
         self.pager
     }

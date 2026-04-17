@@ -19,15 +19,16 @@
 
 #ifdef USE_OPTIGA
 
+#include <trezor_model.h>
 #include <trezor_rtl.h>
 
 #include <rtl/cli.h>
 #include <sec/optiga_commands.h>
 #include <sec/optiga_transport.h>
-#include <sec/secret.h>
+#include <sec/secret_keys.h>
 
 #include "aes/aes.h"
-#include "buffer.h"
+#include "common.h"
 #include "der.h"
 #include "ecdsa.h"
 #include "memzero.h"
@@ -48,19 +49,7 @@
 #define OID_KEY_FIDO (OPTIGA_OID_ECC_KEY + 2)
 #define OID_KEY_PAIRING OPTIGA_OID_PTFBIND_SECRET
 #define OID_TRUST_ANCHOR (OPTIGA_OID_CA_CERT + 0)
-
-typedef enum {
-  OPTIGA_PAIRING_UNPAIRED = 0,
-  OPTIGA_PAIRING_PAIRED,
-  OPTIGA_PAIRING_ERR_RNG,
-  OPTIGA_PAIRING_ERR_READ_FLASH,
-  OPTIGA_PAIRING_ERR_WRITE_FLASH,
-  OPTIGA_PAIRING_ERR_WRITE_OPTIGA,
-  OPTIGA_PAIRING_ERR_HANDSHAKE1,
-  OPTIGA_PAIRING_ERR_HANDSHAKE2,
-} optiga_pairing;
-
-static optiga_pairing optiga_pairing_state = OPTIGA_PAIRING_UNPAIRED;
+#define UNRECOGNIZED_STR "UNRECOGNIZED"
 
 // Data object access conditions.
 static const optiga_metadata_item ACCESS_PAIRED =
@@ -69,54 +58,6 @@ static const optiga_metadata_item KEY_USE_SIGN =
     OPTIGA_META_VALUE(OPTIGA_KEY_USAGE_SIGN);
 static const optiga_metadata_item TYPE_PTFBIND =
     OPTIGA_META_VALUE(OPTIGA_DATA_TYPE_PTFBIND);
-
-// Identifier of context-specific constructed tag 3, which is used for
-// extensions in X.509.
-#define DER_X509_EXTENSIONS 0xa3
-
-// Identifier of context-specific primitive tag 0, which is used for
-// keyIdentifier in authorityKeyIdentifier.
-#define DER_X509_KEY_IDENTIFIER 0x80
-
-// DER-encoded object identifier of the authority key identifier extension
-// (id-ce-authorityKeyIdentifier).
-const uint8_t OID_AUTHORITY_KEY_IDENTIFIER[] = {0x06, 0x03, 0x55, 0x1d, 0x23};
-
-// forward declaration
-static bool check_device_cert_chain(cli_t* cli, const uint8_t* chain,
-                                    size_t chain_size);
-
-static bool optiga_paired(cli_t* cli) {
-  const char* details = "";
-
-  switch (optiga_pairing_state) {
-    case OPTIGA_PAIRING_PAIRED:
-      return true;
-    case OPTIGA_PAIRING_ERR_RNG:
-      details = "optiga_get_random error";
-      break;
-    case OPTIGA_PAIRING_ERR_READ_FLASH:
-      details = "failed to read pairing secret from flash";
-      break;
-    case OPTIGA_PAIRING_ERR_WRITE_FLASH:
-      details = "failed to write pairing secret to flash";
-      break;
-    case OPTIGA_PAIRING_ERR_WRITE_OPTIGA:
-      details = "failed to write pairing secret to Optiga";
-      break;
-    case OPTIGA_PAIRING_ERR_HANDSHAKE1:
-      details = "failed optiga_sec_chan_handshake 1";
-      break;
-    case OPTIGA_PAIRING_ERR_HANDSHAKE2:
-      details = "failed optiga_sec_chan_handshake 2";
-      break;
-    default:
-      break;
-  }
-
-  cli_error(cli, CLI_ERROR, "Optiga not paired (%s).", details);
-  return false;
-}
 
 static bool set_metadata(cli_t* cli, uint16_t oid,
                          const optiga_metadata* metadata, bool report_error) {
@@ -163,22 +104,27 @@ static bool set_metadata(cli_t* cli, uint16_t oid,
   return true;
 }
 
-void pair_optiga(cli_t* cli) {
-  uint8_t secret[SECRET_KEY_LEN] = {0};
+void prodtest_optiga_pair(cli_t* cli) {
+  if (cli_arg_count(cli) > 0) {
+    cli_error_arg_count(cli);
+    return;
+  }
 
-  if (secret_optiga_get(secret) != sectrue) {
-    if (secret_optiga_writable() != sectrue) {
-      // optiga pairing secret is unwritable, so fail
-      optiga_pairing_state = OPTIGA_PAIRING_ERR_WRITE_FLASH;
-      return;
-    }
+  uint8_t pairing_secret[OPTIGA_PAIRING_SECRET_SIZE] = {0};
 
-    // Generate the pairing secret.
-    if (OPTIGA_SUCCESS != optiga_get_random(secret, sizeof(secret))) {
-      optiga_pairing_state = OPTIGA_PAIRING_ERR_RNG;
-      return;
-    }
-    random_xor(secret, sizeof(secret));
+  // Load the pairing secret from the flash memory.
+  if (sectrue != secret_key_optiga_pairing(pairing_secret)) {
+    cli_error(cli, CLI_ERROR,
+              "`secret_key_optiga_pairing` failed. You have to call "
+              "`secrets_write` first.");
+    goto cleanup;
+  }
+
+  // Execute the handshake to verify whether the secret is stored in Optiga.
+  if (OPTIGA_SUCCESS !=
+      optiga_sec_chan_handshake(pairing_secret, sizeof(pairing_secret))) {
+    optiga_soft_reset();
+    optiga_open_application();
 
     // Enable writing the pairing secret to OPTIGA.
     optiga_metadata metadata = {0};
@@ -189,43 +135,25 @@ void pair_optiga(cli_t* cli) {
                        false);  // Ignore result.
 
     // Store the pairing secret in OPTIGA.
-    if (OPTIGA_SUCCESS != optiga_set_data_object(OID_KEY_PAIRING, false, secret,
-                                                 sizeof(secret))) {
-      optiga_pairing_state = OPTIGA_PAIRING_ERR_WRITE_OPTIGA;
-      return;
+    if (OPTIGA_SUCCESS != optiga_set_data_object(OID_KEY_PAIRING, false,
+                                                 pairing_secret,
+                                                 sizeof(pairing_secret))) {
+      cli_error(cli, CLI_ERROR, "`optiga_set_data_object` failed.");
+      goto cleanup;
     }
 
-    // Execute the handshake to verify that the secret was stored correctly in
-    // Optiga.
-    if (OPTIGA_SUCCESS != optiga_sec_chan_handshake(secret, sizeof(secret))) {
-      optiga_pairing_state = OPTIGA_PAIRING_ERR_HANDSHAKE1;
-      return;
-    }
-
-    // Store the pairing secret in the flash memory.
-    if (sectrue != secret_optiga_set(secret)) {
-      optiga_pairing_state = OPTIGA_PAIRING_ERR_WRITE_FLASH;
-      return;
-    }
-
-    // Reload the pairing secret from the flash memory.
-    memzero(secret, sizeof(secret));
-    if (sectrue != secret_optiga_get(secret)) {
-      optiga_pairing_state = OPTIGA_PAIRING_ERR_READ_FLASH;
-      return;
+    // Execute the handshake to verify that the secret is stored in Optiga.
+    if (OPTIGA_SUCCESS !=
+        optiga_sec_chan_handshake(pairing_secret, sizeof(pairing_secret))) {
+      cli_error(cli, CLI_ERROR, "`optiga_sec_chan_handshake` failed.");
+      goto cleanup;
     }
   }
 
-  // Execute the handshake to verify that the secret is stored correctly in both
-  // Optiga and MCU flash.
-  optiga_result ret = optiga_sec_chan_handshake(secret, sizeof(secret));
-  memzero(secret, sizeof(secret));
-  if (OPTIGA_SUCCESS != ret) {
-    optiga_pairing_state = OPTIGA_PAIRING_ERR_HANDSHAKE2;
-    return;
-  }
+  cli_ok(cli, "");
 
-  optiga_pairing_state = OPTIGA_PAIRING_PAIRED;
+cleanup:
+  memzero(pairing_secret, sizeof(pairing_secret));
   return;
 }
 
@@ -242,7 +170,10 @@ static void prodtest_optiga_lock(cli_t* cli) {
     return;
   }
 
-  if (!optiga_paired(cli)) return;
+  // TODO: For every slot that is going to be locked, we might want to verify
+  // that the slot has already been written to. This check can be performed here
+  // or within a separate command, depending on who we want to be responsible
+  // for not locking a partially provisioned optiga.
 
   // Delete trust anchor.
   optiga_result ret =
@@ -313,8 +244,6 @@ static void prodtest_optiga_lock(cli_t* cli) {
 }
 
 optiga_locked_status get_optiga_locked_status(cli_t* cli) {
-  if (!optiga_paired(cli)) return OPTIGA_LOCKED_ERROR;
-
   const uint16_t oids[] = {OID_CERT_DEV, OID_CERT_FIDO, OID_KEY_DEV,
                            OID_KEY_FIDO, OID_KEY_PAIRING};
 
@@ -373,8 +302,6 @@ static void prodtest_optiga_id_read(cli_t* cli) {
     return;
   }
 
-  if (!optiga_paired(cli)) return;
-
   uint8_t optiga_id[27] = {0};
   size_t optiga_id_size = 0;
 
@@ -396,8 +323,6 @@ static void cert_read(cli_t* cli, uint16_t oid) {
     return;
   }
 
-  if (!optiga_paired(cli)) return;
-
   static uint8_t cert[OPTIGA_MAX_CERT_SIZE] = {0};
   size_t cert_size = 0;
   optiga_result ret =
@@ -410,31 +335,47 @@ static void cert_read(cli_t* cli, uint16_t oid) {
 
   size_t offset = 0;
   if (cert[0] == 0xC0) {
-    // TLS identity certificate chain.
-    size_t tls_identity_size = (cert[1] << 8) + cert[2];
-    size_t cert_chain_size = (cert[3] << 16) + (cert[4] << 8) + cert[5];
-    size_t first_cert_size = (cert[6] << 16) + (cert[7] << 8) + cert[8];
-    if (tls_identity_size + 3 > cert_size ||
-        cert_chain_size + 3 > tls_identity_size ||
-        first_cert_size > cert_chain_size) {
-      cli_error(cli, CLI_ERROR, "invalid TLS identity in 0x%04x.", oid);
-      return;
-    }
+    // TLS identity certificate chain. We assume there is only one certificate.
     offset = 9;
-    cert_size = first_cert_size;
   }
 
-  if (cert_size == 0) {
-    cli_error(cli, CLI_ERROR, "no certificate in 0x%04x.", oid);
-    return;
+  cli_ok_hexdata(cli, cert + offset, cert_size - offset);
+}
+
+static bool check_device_cert_chain(cli_t* cli, const uint8_t* chain,
+                                    size_t chain_size) {
+  // Enable signing with the device private key.
+  optiga_metadata metadata = {0};
+  metadata.key_usage = KEY_USE_SIGN;
+  metadata.execute = OPTIGA_META_ACCESS_ALWAYS;
+  if (!set_metadata(cli, OID_KEY_DEV, &metadata, true)) {
+    return false;
   }
 
-  cli_ok_hexdata(cli, cert + offset, cert_size);
+  // Generate a P-256 signature using the device private key.
+  uint8_t challenge[CHALLENGE_SIZE] = {
+      0};  // The challenge is intentionally constant zero.
+  uint8_t digest[SHA256_DIGEST_LENGTH] = {0};
+  sha256_Raw(challenge, sizeof(challenge), digest);
+
+  uint8_t der_sig[72] = {DER_SEQUENCE};
+  size_t der_sig_size = 0;
+  if (optiga_calc_sign(OID_KEY_DEV, digest, sizeof(digest), &der_sig[2],
+                       sizeof(der_sig) - 2, &der_sig_size) != OPTIGA_SUCCESS) {
+    cli_error(cli, CLI_ERROR, "check_device_cert_chain, optiga_calc_sign.");
+    return false;
+  }
+  der_sig[1] = der_sig_size;
+
+  if (!check_cert_chain(cli, chain, chain_size, der_sig, der_sig_size + 2,
+                        challenge)) {
+    return false;
+  }
+
+  return true;
 }
 
 static void cert_write(cli_t* cli, uint16_t oid) {
-  if (!optiga_paired(cli)) return;
-
   // Enable writing to the certificate slot.
   optiga_metadata metadata = {0};
   metadata.change = OPTIGA_META_ACCESS_ALWAYS;
@@ -457,6 +398,11 @@ static void cert_write(cli_t* cli, uint16_t oid) {
     return;
   }
 
+  if (oid == OID_CERT_DEV && !check_device_cert_chain(cli, data_bytes, len)) {
+    // Error returned by check_device_cert_chain().
+    return;
+  }
+
   optiga_result ret = optiga_set_data_object(oid, false, data_bytes, len);
   if (OPTIGA_SUCCESS != ret) {
     cli_error(cli, CLI_ERROR, "optiga_set_data error %d for 0x%04x.", ret, oid);
@@ -474,21 +420,15 @@ static void cert_write(cli_t* cli, uint16_t oid) {
     return;
   }
 
-  if (oid == OID_CERT_DEV && !check_device_cert_chain(cli, cert, cert_size)) {
-    // Error returned by check_device_cert_chain().
-    return;
-  }
-
   cli_ok(cli, "");
 }
 
-static void pubkey_read(cli_t* cli, uint16_t oid) {
+static void pubkey_read(cli_t* cli, uint16_t oid,
+                        const uint8_t masking_key[ECDSA_PRIVATE_KEY_SIZE]) {
   if (cli_arg_count(cli) > 0) {
     cli_error_arg_count(cli);
     return;
   }
-
-  if (!optiga_paired(cli)) return;
 
   // Enable key agreement usage.
 
@@ -508,22 +448,44 @@ static void pubkey_read(cli_t* cli, uint16_t oid) {
       0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb, 0x4a,
       0x7c, 0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31, 0x5e, 0xce,
       0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5};
-  uint8_t public_key[32] = {0};
-  size_t public_key_size = 0;
+  uint8_t public_key_x[ECDSA_COORDINATE_SIZE] = {0};
+  size_t public_key_x_size = 0;
   optiga_result ret =
       optiga_calc_ssec(OPTIGA_CURVE_P256, oid, BASE_POINT, sizeof(BASE_POINT),
-                       public_key, sizeof(public_key), &public_key_size);
+                       public_key_x, sizeof(public_key_x), &public_key_x_size);
   if (OPTIGA_SUCCESS != ret) {
     cli_error(cli, CLI_ERROR, "optiga_calc_ssec error %d.", ret);
     return;
   }
 
-  cli_ok_hexdata(cli, public_key, public_key_size);
+#ifdef SECRET_KEY_MASKING
+  if (masking_key != NULL) {
+    // Since ecdsa_unmask_public_key() needs to work with an ECC point and we
+    // only have the point's x-coordinate, we arbitrarily pick one of the two
+    // possible y-coordinates by assigning 0x02 to the first byte. After
+    // multiplying the point by the inverse of the masking key we only return
+    // the x-coordinate, which does not depend on the arbitrary choice we made
+    // for the y-coordinate here.
+    uint8_t masked_public_key[ECDSA_PUBLIC_KEY_COMPRESSED_SIZE] = {0x02};
+    if (public_key_x_size != sizeof(public_key_x)) {
+      cli_error(cli, CLI_ERROR, "unexpected public key size");
+      return;
+    }
+    memcpy(&masked_public_key[1], public_key_x, sizeof(public_key_x));
+
+    uint8_t unmasked_pub_key[ECDSA_PUBLIC_KEY_SIZE] = {0};
+    if (ecdsa_unmask_public_key(&nist256p1, masking_key, masked_public_key,
+                                unmasked_pub_key) != 0) {
+      cli_error(cli, CLI_ERROR, "key masking error");
+      return;
+    }
+    memcpy(public_key_x, &unmasked_pub_key[1], sizeof(public_key_x));
+  }
+#endif  // SECRET_KEY_MASKING
+  cli_ok_hexdata(cli, public_key_x, public_key_x_size);
 }
 
 static void prodtest_optiga_keyfido_write(cli_t* cli) {
-  if (!optiga_paired(cli)) return;
-
   const size_t EPH_PUB_KEY_SIZE = 33;
   const size_t PAYLOAD_SIZE = 32;
   const size_t CIPHERTEXT_OFFSET = EPH_PUB_KEY_SIZE;
@@ -635,6 +597,16 @@ static void prodtest_optiga_keyfido_write(cli_t* cli) {
     return;
   }
 
+#ifdef SECRET_KEY_MASKING
+  uint8_t masking_key[ECDSA_PRIVATE_KEY_SIZE] = {0};
+  if (secret_key_optiga_masking(masking_key) != sectrue ||
+      ecdsa_mask_scalar(&nist256p1, masking_key, fido_key, fido_key) != 0) {
+    memzero(fido_key, sizeof(fido_key));
+    cli_error(cli, CLI_ERROR, "key masking error.");
+    return;
+  }
+#endif  // SECRET_KEY_MASKING
+
   // Store the FIDO attestation key.
   ret = optiga_set_priv_key(OID_KEY_FIDO, fido_key);
   memzero(fido_key, sizeof(fido_key));
@@ -652,8 +624,6 @@ static void prodtest_optiga_counter_read(cli_t* cli) {
     return;
   }
 
-  if (!optiga_paired(cli)) return;
-
   uint8_t sec = 0;
   size_t size = 0;
 
@@ -666,265 +636,6 @@ static void prodtest_optiga_counter_read(cli_t* cli) {
   }
 
   cli_ok_hexdata(cli, &sec, sizeof(sec));
-}
-
-// clang-format off
-static const uint8_t ECDSA_WITH_SHA256[] = {
-  0x30, 0x0a, // a sequence of 10 bytes
-    0x06, 0x08, // an OID of 8 bytes
-      0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x02,
-};
-// clang-format on
-
-static bool get_cert_extensions(DER_ITEM* tbs_cert, DER_ITEM* extensions) {
-  // Find the certificate extensions in the tbsCertificate.
-  DER_ITEM cert_item = {0};
-  while (der_read_item(&tbs_cert->buf, &cert_item)) {
-    if (cert_item.id == DER_X509_EXTENSIONS) {
-      // Open the extensions sequence.
-      return der_read_item(&cert_item.buf, extensions) &&
-             extensions->id == DER_SEQUENCE;
-    }
-  }
-  return false;
-}
-
-static bool get_extension_value(const uint8_t* extension_oid,
-                                size_t extension_oid_size, DER_ITEM* extensions,
-                                DER_ITEM* extension_value) {
-  // Find the extension with the given OID.
-  DER_ITEM extension = {0};
-  while (der_read_item(&extensions->buf, &extension)) {
-    DER_ITEM extension_id = {0};
-    if (der_read_item(&extension.buf, &extension_id) &&
-        extension_id.buf.size == extension_oid_size &&
-        memcmp(extension_id.buf.data, extension_oid, extension_oid_size) == 0) {
-      // Find the extension's extnValue, skipping the optional critical flag.
-      while (der_read_item(&extension.buf, extension_value)) {
-        if (extension_value->id == DER_OCTET_STRING) {
-          return true;
-        }
-      }
-      memzero(extension_value, sizeof(DER_ITEM));
-      return false;
-    }
-  }
-  return false;
-}
-
-static bool get_authority_key_digest(cli_t* cli, DER_ITEM* tbs_cert,
-                                     const uint8_t** authority_key_digest) {
-  DER_ITEM extensions = {0};
-  if (!get_cert_extensions(tbs_cert, &extensions)) {
-    cli_error(cli, CLI_ERROR,
-              "get_authority_key_digest, extensions not found.");
-    return false;
-  }
-
-  // Find the authority key identifier extension's extnValue.
-  DER_ITEM extension_value = {0};
-  if (!get_extension_value(OID_AUTHORITY_KEY_IDENTIFIER,
-                           sizeof(OID_AUTHORITY_KEY_IDENTIFIER), &extensions,
-                           &extension_value)) {
-    cli_error(cli, CLI_ERROR,
-              "get_authority_key_digest, authority key identifier extension "
-              "not found.");
-    return false;
-  }
-
-  // Open the AuthorityKeyIdentifier sequence.
-  DER_ITEM auth_key_id = {0};
-  if (!der_read_item(&extension_value.buf, &auth_key_id) ||
-      auth_key_id.id != DER_SEQUENCE) {
-    cli_error(cli, CLI_ERROR,
-              "get_authority_key_digest, failed to open authority key "
-              "identifier extnValue.");
-    return false;
-  }
-
-  // Find the keyIdentifier field.
-  DER_ITEM key_id = {0};
-  if (!der_read_item(&auth_key_id.buf, &key_id) ||
-      key_id.id != DER_X509_KEY_IDENTIFIER) {
-    cli_error(cli, CLI_ERROR,
-              "get_authority_key_digest, failed to find keyIdentifier field.");
-    return false;
-  }
-
-  // Return the pointer to the keyIdentifier data.
-  if (buffer_remaining(&key_id.buf) != SHA1_DIGEST_LENGTH ||
-      !buffer_ptr(&key_id.buf, authority_key_digest)) {
-    cli_error(cli, CLI_ERROR,
-              "get_authority_key_digest, invalid length of keyIdentifier.");
-    return false;
-  }
-
-  return true;
-}
-
-static bool check_device_cert_chain(cli_t* cli, const uint8_t* chain,
-                                    size_t chain_size) {
-  // Checks the integrity of the device certificate chain to ensure that the
-  // certificate data was not corrupted in transport and that the device
-  // certificate belongs to this device. THIS IS NOT A FULL VERIFICATION OF THE
-  // CERTIFICATE CHAIN.
-
-  // Enable signing with the device private key.
-  optiga_metadata metadata = {0};
-  metadata.key_usage = KEY_USE_SIGN;
-  metadata.execute = OPTIGA_META_ACCESS_ALWAYS;
-  if (!set_metadata(cli, OID_KEY_DEV, &metadata, true)) {
-    return false;
-  }
-
-  // Generate a P-256 signature using the device private key.
-  uint8_t digest[SHA256_DIGEST_LENGTH] = {1};
-  uint8_t der_sig[72] = {DER_SEQUENCE};
-  size_t der_sig_size = 0;
-  if (optiga_calc_sign(OID_KEY_DEV, digest, sizeof(digest), &der_sig[2],
-                       sizeof(der_sig) - 2, &der_sig_size) != OPTIGA_SUCCESS) {
-    cli_error(cli, CLI_ERROR, "check_device_cert_chain, optiga_calc_sign.");
-    return false;
-  }
-  der_sig[1] = der_sig_size;
-
-  uint8_t sig[64] = {0};
-  if (ecdsa_sig_from_der(der_sig, der_sig_size + 2, sig) != 0) {
-    cli_error(cli, CLI_ERROR, "check_device_cert_chain, ecdsa_sig_from_der.");
-    return false;
-  }
-
-  // This will be populated with a pointer to the key identifier data of the
-  // AuthorityKeyIdentifier extension from the last certificate in the chain.
-  const uint8_t* authority_key_digest = NULL;
-
-  BUFFER_READER chain_reader = {0};
-  buffer_reader_init(&chain_reader, chain, chain_size);
-  int cert_count = 0;
-  while (buffer_remaining(&chain_reader) > 0) {
-    // Read the next certificate in the chain.
-    cert_count += 1;
-    DER_ITEM cert = {0};
-    if (!der_read_item(&chain_reader, &cert) || cert.id != DER_SEQUENCE) {
-      cli_error(cli, CLI_ERROR,
-                "check_device_cert_chain, der_read_item 1, cert %d.",
-                cert_count);
-      return false;
-    }
-
-    // Read the tbsCertificate.
-    DER_ITEM tbs_cert = {0};
-    if (!der_read_item(&cert.buf, &tbs_cert)) {
-      cli_error(cli, CLI_ERROR,
-                "check_device_cert_chain, der_read_item 2, cert %d.",
-                cert_count);
-      return false;
-    }
-
-    // Read the Subject Public Key Info.
-    DER_ITEM pub_key_info = {0};
-    for (int i = 0; i < 7; ++i) {
-      if (!der_read_item(&tbs_cert.buf, &pub_key_info)) {
-        cli_error(cli, CLI_ERROR,
-                  "check_device_cert_chain, der_read_item 3, cert %d.",
-                  cert_count);
-        return false;
-      }
-    }
-
-    // Read the public key.
-    DER_ITEM pub_key = {0};
-    uint8_t unused_bits = 0;
-    const uint8_t* pub_key_bytes = NULL;
-    for (int i = 0; i < 2; ++i) {
-      if (!der_read_item(&pub_key_info.buf, &pub_key)) {
-        cli_error(cli, CLI_ERROR,
-                  "check_device_cert_chain, der_read_item 4, cert %d.",
-                  cert_count);
-        return false;
-      }
-    }
-
-    if (!buffer_get(&pub_key.buf, &unused_bits) ||
-        buffer_remaining(&pub_key.buf) != 65 ||
-        !buffer_ptr(&pub_key.buf, &pub_key_bytes)) {
-      cli_error(cli, CLI_ERROR,
-                "check_device_cert_chain, reading public key, cert %d.",
-                cert_count);
-      return false;
-    }
-
-    // Verify the previous signature.
-    if (ecdsa_verify_digest(&nist256p1, pub_key_bytes, sig, digest) != 0) {
-      cli_error(cli, CLI_ERROR,
-                "check_device_cert_chain, ecdsa_verify_digest, cert %d.",
-                cert_count);
-      return false;
-    }
-
-    // Get the authority key identifier from the last certificate.
-    if (buffer_remaining(&chain_reader) == 0 &&
-        !get_authority_key_digest(cli, &tbs_cert, &authority_key_digest)) {
-      // Error returned by get_authority_key_digest().
-      return false;
-    }
-
-    // Prepare the hash of tbsCertificate for the next signature verification.
-    sha256_Raw(tbs_cert.buf.data, tbs_cert.buf.size, digest);
-
-    // Read the signatureAlgorithm and ensure it matches ECDSA_WITH_SHA256.
-    DER_ITEM sig_alg = {0};
-    if (!der_read_item(&cert.buf, &sig_alg) ||
-        sig_alg.buf.size != sizeof(ECDSA_WITH_SHA256) ||
-        memcmp(ECDSA_WITH_SHA256, sig_alg.buf.data,
-               sizeof(ECDSA_WITH_SHA256)) != 0) {
-      cli_error(cli, CLI_ERROR,
-                "check_device_cert_chain, checking signatureAlgorithm, cert "
-                "%d.",
-                cert_count);
-      return false;
-    }
-
-    // Read the signatureValue.
-    DER_ITEM sig_val = {0};
-    if (!der_read_item(&cert.buf, &sig_val) || sig_val.id != DER_BIT_STRING ||
-        !buffer_get(&sig_val.buf, &unused_bits) || unused_bits != 0) {
-      cli_error(cli, CLI_ERROR,
-                "check_device_cert_chain, reading signatureValue, cert %d.",
-                cert_count);
-      return false;
-    }
-
-    // Extract the signature for the next signature verification.
-    const uint8_t* sig_bytes = NULL;
-    if (!buffer_ptr(&sig_val.buf, &sig_bytes) ||
-        ecdsa_sig_from_der(sig_bytes, buffer_remaining(&sig_val.buf), sig) !=
-            0) {
-      cli_error(cli, CLI_ERROR,
-                "check_device_cert_chain, ecdsa_sig_from_der, cert %d.",
-                cert_count);
-      return false;
-    }
-  }
-
-  // Verify that the signature of the last certificate in the chain matches its
-  // own AuthorityKeyIdentifier to verify the integrity of the certificate data.
-  uint8_t pub_key[65] = {0};
-  uint8_t pub_key_digest[SHA1_DIGEST_LENGTH] = {0};
-  for (int recid = 0; recid < 4; ++recid) {
-    if (ecdsa_recover_pub_from_sig(&nist256p1, pub_key, sig, digest, recid) ==
-        0) {
-      sha1_Raw(pub_key, sizeof(pub_key), pub_key_digest);
-      if (memcmp(authority_key_digest, pub_key_digest,
-                 sizeof(pub_key_digest)) == 0) {
-        return true;
-      }
-    }
-  }
-
-  cli_error(cli, CLI_ERROR,
-            "check_device_cert_chain, ecdsa_verify_digest root.");
-  return false;
 }
 
 static void prodtest_optiga_certinf_read(cli_t* cli) {
@@ -948,7 +659,319 @@ static void prodtest_optiga_certfido_write(cli_t* cli) {
 }
 
 static void prodtest_optiga_keyfido_read(cli_t* cli) {
-  pubkey_read(cli, OID_KEY_FIDO);
+#ifdef SECRET_KEY_MASKING
+  uint8_t masking_key[ECDSA_PRIVATE_KEY_SIZE] = {0};
+  if (secret_key_optiga_masking(masking_key) != sectrue) {
+    cli_error(cli, CLI_ERROR, "masking key not available");
+    return;
+  }
+  pubkey_read(cli, OID_KEY_FIDO, masking_key);
+  memzero(masking_key, sizeof(masking_key));
+#else
+  pubkey_read(cli, OID_KEY_FIDO, NULL);
+#endif  // SECRET_KEY_MASKING
+}
+
+static const char* optiga_lifecycle_state_str(uint8_t lcs) {
+  switch (lcs) {
+    case OPTIGA_LCS_CR:
+      return "Creation";
+    case OPTIGA_LCS_IN:
+      return "Initialization";
+    case OPTIGA_LCS_OP:
+      return "Operational";
+    case OPTIGA_LCS_TE:
+      return "Termination";
+    default:
+      return NULL;
+  }
+}
+
+static const char* optiga_algorithm_str(uint8_t alg) {
+  switch (alg) {
+    case OPTIGA_CURVE_P256:
+      return "NIST P256 ECC";
+    case OPTIGA_CURVE_P384:
+      return "NIST P384 ECC";
+    case OPTIGA_CURVE_P521:
+      return "NIST P521 ECC";
+    case OPTIGA_AES_128:
+      return "AES-128";
+    case OPTIGA_AES_192:
+      return "AES-192";
+    case OPTIGA_AES_256:
+      return "AES-256";
+    default:
+      return NULL;
+  }
+}
+
+#define FLAGS_STR_MAX_SIZE 24
+static void optiga_key_usage_str(uint8_t usage,
+                                 char usage_str[FLAGS_STR_MAX_SIZE]) {
+  memzero(usage_str, FLAGS_STR_MAX_SIZE);
+  if ((usage & OPTIGA_KEY_USAGE_AUTH) != 0) {
+    usage &= ~OPTIGA_KEY_USAGE_AUTH;
+    strcat(usage_str, "Auth ");
+  }
+
+  if ((usage & OPTIGA_KEY_USAGE_ENC) != 0) {
+    usage &= ~OPTIGA_KEY_USAGE_ENC;
+    strcat(usage_str, "Enc ");
+  }
+
+  if ((usage & OPTIGA_KEY_USAGE_SIGN) != 0) {
+    usage &= ~OPTIGA_KEY_USAGE_SIGN;
+    strcat(usage_str, "Sign ");
+  }
+
+  if ((usage & OPTIGA_KEY_USAGE_KEYAGREE) != 0) {
+    usage &= ~OPTIGA_KEY_USAGE_KEYAGREE;
+    strcat(usage_str, "KeyAgree ");
+  }
+
+  // Ensure that there are no unrecognized flags.
+  if (usage != 0) {
+    strcpy(usage_str, UNRECOGNIZED_STR);
+  }
+}
+
+static const char* optiga_data_type_str(uint8_t type) {
+  switch (type) {
+    case OPTIGA_DATA_TYPE_BSTR:
+      return "BSTR";
+    case OPTIGA_DATA_TYPE_UPCTR:
+      return "UPCTR";
+    case OPTIGA_DATA_TYPE_TA:
+      return "TA";
+    case OPTIGA_DATA_TYPE_DEVCERT:
+      return "DEVCERT";
+    case OPTIGA_DATA_TYPE_PRESSEC:
+      return "PRESSEC";
+    case OPTIGA_DATA_TYPE_PTFBIND:
+      return "PTFBIND";
+    case OPTIGA_DATA_TYPE_UPDATSEC:
+      return "UPDATSEC";
+    case OPTIGA_DATA_TYPE_AUTOREF:
+      return "AUTOREF";
+    default:
+      return NULL;
+  }
+}
+
+// Single-byte access conditions.
+static const char* optiga_access_cond_simple_str(uint8_t cond) {
+  switch (cond) {
+    case OPTIGA_ACCESS_COND_ALW:
+      return "Always";
+    case OPTIGA_ACCESS_COND_NEV:
+      return "Never";
+    default:
+      return NULL;
+  }
+}
+
+// Access condition references.
+static const char* optiga_access_cond_ref_str(uint8_t ref) {
+  switch (ref) {
+    case OPTIGA_ACCESS_COND_CONF:
+      return "Conf";
+    case OPTIGA_ACCESS_COND_INT:
+      return "Int";
+    case OPTIGA_ACCESS_COND_AUTO:
+      return "Auto";
+    case OPTIGA_ACCESS_COND_LUC:
+      return "Luc";
+    default:
+      return NULL;
+  }
+}
+
+// Access condition lifecycle states.
+static const char* optiga_access_cond_lcs_str(uint8_t lcs) {
+  switch (lcs) {
+    case OPTIGA_ACCESS_COND_LCSG:
+      return "LcsG";
+    case OPTIGA_ACCESS_COND_LCSA:
+      return "LcsA";
+    case OPTIGA_ACCESS_COND_LCSO:
+      return "LcsO";
+    default:
+      return NULL;
+  }
+}
+
+// Access condition qualifiers.
+static const char* optiga_access_cond_qual_str(uint8_t qual) {
+  switch (qual) {
+    case OPTIGA_ACCESS_COND_EQUAL:
+      return "==";
+    case OPTIGA_ACCESS_COND_GREATER:
+      return ">";
+    case OPTIGA_ACCESS_COND_LESS:
+      return "<";
+    default:
+      return NULL;
+  }
+}
+
+static void trace_flags_metadata(cli_t* cli, const char* description,
+                                 void (*str_func)(uint8_t, char*),
+                                 const optiga_metadata_item* item) {
+  if (item->ptr == NULL) {
+    return;
+  }
+
+  char value[FLAGS_STR_MAX_SIZE] = UNRECOGNIZED_STR;
+  if (item->len == 1) {
+    str_func(item->ptr[0], value);
+  }
+
+  cli_trace(cli, "%s: %s", description, value);
+}
+
+static void trace_simple_metadata(cli_t* cli, const char* description,
+                                  const char* (*str_func)(uint8_t),
+                                  const optiga_metadata_item* item) {
+  if (item->ptr == NULL) {
+    return;
+  }
+
+  const char* value = NULL;
+  if (item->len == 1) {
+    value = str_func(item->ptr[0]);
+  }
+
+  if (value == NULL) {
+    value = UNRECOGNIZED_STR;
+  }
+  cli_trace(cli, "%s: %s", description, value);
+}
+
+static void trace_size_metadata(cli_t* cli, const char* description,
+                                const optiga_metadata_item* item) {
+  if (item->ptr == NULL) {
+    return;
+  }
+
+  if (item->len == 1) {
+    cli_trace(cli, "%s: %d", description, item->ptr[0]);
+  } else if (item->len == 2) {
+    cli_trace(cli, "%s: %d", description, (item->ptr[0] << 8) + item->ptr[1]);
+  } else {
+    cli_trace(cli, "%s: %s", description, UNRECOGNIZED_STR);
+  }
+}
+
+static void trace_hexadecimal_metadata(cli_t* cli, const char* description,
+                                       const optiga_metadata_item* item) {
+  if (item->ptr == NULL) {
+    return;
+  }
+
+  if (item->len == 1) {
+    cli_trace(cli, "%s: 0x%02x", description, item->ptr[0]);
+  } else if (item->len == 2) {
+    cli_trace(cli, "%s: 0x%02x%02x", description, item->ptr[0], item->ptr[1]);
+  } else {
+    cli_trace(cli, "%s: %s", description, UNRECOGNIZED_STR);
+  }
+}
+
+static void trace_access_cond_metadata(cli_t* cli, const char* description,
+                                       const optiga_metadata_item* item) {
+  if (item->ptr == NULL) {
+    return;
+  }
+
+  if (item->len == 1) {
+    const char* cond = optiga_access_cond_simple_str(item->ptr[0]);
+    if (cond != NULL) {
+      cli_trace(cli, "%s: %s", description, cond);
+      return;
+    }
+  } else if (item->len == 3) {
+    const char* ref = optiga_access_cond_ref_str(item->ptr[0]);
+    if (ref != NULL) {
+      uint16_t linked_oid = (item->ptr[1] << 8) + item->ptr[2];
+      cli_trace(cli, "%s: %s(%04X)", description, ref, linked_oid);
+      return;
+    }
+
+    const char* lcs = optiga_access_cond_lcs_str(item->ptr[0]);
+    const char* qual = optiga_access_cond_qual_str(item->ptr[1]);
+    const char* state = optiga_lifecycle_state_str(item->ptr[2]);
+    if (lcs != NULL && qual != NULL && state != NULL) {
+      cli_trace(cli, "%s: %s %s %s", description, lcs, qual, state);
+      return;
+    }
+  }
+
+  cli_trace(cli, "%s: %s", description, UNRECOGNIZED_STR);
+}
+
+static void prodtest_optiga_metadata_read(cli_t* cli) {
+  uint8_t oid_bytes[2] = {0};
+  size_t oid_len = 0;
+
+  if (!cli_arg_hex(cli, "oid", oid_bytes, sizeof(oid_bytes), &oid_len)) {
+    if (oid_len == sizeof(oid_bytes)) {
+      cli_error(cli, CLI_ERROR,
+                "OID too long. Four hexadecimal digits expected.");
+    } else {
+      cli_error(cli, CLI_ERROR, "Hexadecimal decoding error.");
+    }
+    return;
+  }
+
+  if (cli_arg_count(cli) > 1) {
+    cli_error_arg_count(cli);
+    return;
+  }
+
+  if (oid_len != sizeof(oid_bytes)) {
+    cli_error(cli, CLI_ERROR,
+              "OID too short. Four hexadecimal digits expected.");
+    return;
+  }
+
+  uint16_t oid = (oid_bytes[0] << 8) + oid_bytes[1];
+  uint8_t serialized[OPTIGA_MAX_METADATA_SIZE] = {0};
+
+  size_t size = 0;
+  optiga_result ret =
+      optiga_get_data_object(oid, true, serialized, sizeof(serialized), &size);
+  if (OPTIGA_SUCCESS != ret) {
+    cli_error(cli, CLI_ERROR, "optiga_get_metadata error %d for OID 0x%04x.",
+              ret, oid);
+    return;
+  }
+
+  optiga_metadata metadata = {0};
+  ret = optiga_parse_metadata(serialized, size, &metadata);
+  if (OPTIGA_SUCCESS != ret) {
+    cli_error(cli, CLI_ERROR, "optiga_parse_metadata error %d.", ret);
+    return;
+  }
+
+  trace_simple_metadata(cli, "Life cycle state", optiga_lifecycle_state_str,
+                        &metadata.lcso);
+  trace_hexadecimal_metadata(cli, "Version", &metadata.version);
+  trace_size_metadata(cli, "Maximum size", &metadata.max_size);
+  trace_size_metadata(cli, "Used size", &metadata.used_size);
+  trace_access_cond_metadata(cli, "Read", &metadata.read);
+  trace_access_cond_metadata(cli, "Write", &metadata.change);
+  trace_access_cond_metadata(cli, "Execute", &metadata.execute);
+  trace_access_cond_metadata(cli, "Metadata update", &metadata.meta_update);
+  trace_simple_metadata(cli, "Algorithm", optiga_algorithm_str,
+                        &metadata.algorithm);
+  trace_flags_metadata(cli, "Key usage", optiga_key_usage_str,
+                       &metadata.key_usage);
+  trace_simple_metadata(cli, "Data type", optiga_data_type_str,
+                        &metadata.data_type);
+  trace_hexadecimal_metadata(cli, "Reset type", &metadata.reset_type);
+
+  cli_ok_hexdata(cli, serialized, size);
 }
 
 // clang-format off
@@ -957,6 +980,13 @@ PRODTEST_CLI_CMD(
   .name = "optiga-id-read",
   .func = prodtest_optiga_id_read,
   .info = "Retrieve the unique ID of the Optiga chip",
+  .args = ""
+);
+
+PRODTEST_CLI_CMD(
+  .name = "optiga-pair",
+  .func = prodtest_optiga_pair,
+  .info = "Write the pairing secret to Optiga",
   .args = ""
 );
 
@@ -970,28 +1000,28 @@ PRODTEST_CLI_CMD(
 PRODTEST_CLI_CMD(
   .name = "optiga-certdev-read",
   .func = prodtest_optiga_certdev_read,
-  .info = "Read the device's X.509 certificate",
+  .info = "Read the device's X.509 certificate from Optiga",
   .args = ""
 );
 
 PRODTEST_CLI_CMD(
   .name = "optiga-certdev-write",
   .func = prodtest_optiga_certdev_write,
-  .info = "Write the device's X.509 certificate",
+  .info = "Write the device's X.509 certificate to Optiga",
   .args = "<hex-data>"
 );
 
 PRODTEST_CLI_CMD(
   .name = "optiga-certfido-read",
   .func = prodtest_optiga_certfido_read,
-  .info = "Read the X.509 certificate for the FIDO key",
+  .info = "Read the X.509 certificate for the FIDO key from Optiga",
   .args = ""
 );
 
 PRODTEST_CLI_CMD(
   .name = "optiga-certfido-write",
   .func = prodtest_optiga_certfido_write,
-  .info = "Write the X.509 certificate for the FIDO key",
+  .info = "Write the X.509 certificate for the FIDO key to Optiga",
   .args = "<hex-data>"
 );
 
@@ -1028,6 +1058,13 @@ PRODTEST_CLI_CMD(
   .func = prodtest_optiga_counter_read,
   .info = "Read the Optiga security event counter",
   .args = ""
+);
+
+PRODTEST_CLI_CMD(
+  .name = "optiga-metadata-read",
+  .func = prodtest_optiga_metadata_read,
+  .info = "Read the metadata of the specified data object in Optiga",
+  .args = "<oid>"
 );
 
 #endif  // USE_OPTIGA

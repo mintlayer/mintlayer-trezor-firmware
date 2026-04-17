@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import os
 import secrets
+import shlex
 from dataclasses import dataclass
 from typing import Any
-from typing_extensions import Self
 
 import click
 import requests
 import serial
-import shlex
+from typing_extensions import Self
 
 SERVER_TOKEN = ""
 SERVER_URL = "http://localhost:8000/provision"
@@ -114,9 +114,9 @@ class Connection:
             if res.startswith(b"ERROR"):
                 error_args = res[len(b"ERROR ") :].decode()
                 parts = shlex.split(error_args)
-                error_text = parts[0] # error code
+                error_text = parts[0]  # error code
                 if len(parts) > 1:
-                    error_text = parts[1] # error description
+                    error_text = parts[1]  # error description
                 raise ProdtestException(error_text)
             elif res.startswith(b"OK"):
                 res_arg = res[len(b"OK ") :]
@@ -129,6 +129,7 @@ class Connection:
             elif not res.startswith(b"#"):
                 raise ProdtestException("Unexpected response: " + res.decode())
 
+
 def provision_request(
     device: DeviceInfo, url: str, model: str, verify: bool = True
 ) -> ProvisioningResult:
@@ -140,7 +141,7 @@ def provision_request(
         "cert": device.device_cert.hex(),
         "model": model,
     }
-    resp = requests.post(url + '/provision', json=request, verify=verify)
+    resp = requests.post(url + "/provision", json=request, verify=verify)
     if resp.status_code == 400:
         print("Server returned error:", resp.text)
     resp.raise_for_status()
@@ -155,7 +156,7 @@ def cli() -> None:
 
 @cli.command()
 @click.option("-d", "--device", default="/dev/ttyACM0", help="Device path")
-def identify(device) -> None:
+def identify(device: str) -> None:
     connection = Connection(device)
     connection.command("ping")
     DeviceInfo.read(connection)
@@ -164,7 +165,7 @@ def identify(device) -> None:
 @cli.command()
 @click.option("-d", "--device", default="/dev/ttyACM0", help="Device path")
 @click.option("--wipe", is_flag=True, help="Wipe the device")
-def lock(device, wipe) -> None:
+def lock(device: str, wipe: bool) -> None:
     connection = Connection(device)
     connection.command("ping")
     connection.command("optiga-lock")
@@ -182,7 +183,7 @@ def lock(device, wipe) -> None:
 @click.option(
     "--lock/--no-lock", default=True, help="Lock the device after provisioning"
 )
-def provision(url, device, model, no_verify, lock) -> None:
+def provision(url: str, device: str, model: str, no_verify: bool, lock: bool) -> None:
     global SERVER_TOKEN
 
     SERVER_TOKEN = os.environ.get("SERVER_TOKEN")
@@ -194,9 +195,9 @@ def provision(url, device, model, no_verify, lock) -> None:
     connection.command("ping")
 
     # grab CPUID, OPTIGAID and device certificate
-    device = DeviceInfo.read(connection)
+    device_info = DeviceInfo.read(connection)
     # call the provisioning server
-    result = provision_request(device, url, model, not no_verify)
+    result = provision_request(device_info, url, model, not no_verify)
     # write provisioning result to the device
     result.write(connection)
 

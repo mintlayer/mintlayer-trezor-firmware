@@ -418,13 +418,13 @@ int point_multiply(const ecdsa_curve *curve, const bignum256 *k,
   }
 
   int i = 0, j = 0;
-  static CONFIDENTIAL bignum256 a;
+  LOCAL_CONFIDENTIAL bignum256 a;
   uint32_t *aptr = NULL;
   uint32_t abits = 0;
   int ashift = 0;
   uint32_t is_even = (k->val[0] & 1) - 1;
   uint32_t bits = {0}, sign = {0}, nsign = {0};
-  static CONFIDENTIAL jacobian_curve_point jres;
+  LOCAL_CONFIDENTIAL jacobian_curve_point jres;
   curve_point pmult[8] = {0};
   const bignum256 *prime = &curve->prime;
 
@@ -544,10 +544,10 @@ int scalar_multiply(const ecdsa_curve *curve, const bignum256 *k,
   }
 
   int i = {0}, j = {0};
-  static CONFIDENTIAL bignum256 a;
+  LOCAL_CONFIDENTIAL bignum256 a;
   uint32_t is_even = (k->val[0] & 1) - 1;
   uint32_t lowbits = 0;
-  static CONFIDENTIAL jacobian_curve_point jres;
+  LOCAL_CONFIDENTIAL jacobian_curve_point jres;
   const bignum256 *prime = &curve->prime;
 
   // is_even = 0xffffffff if k is even, 0 otherwise.
@@ -1376,4 +1376,85 @@ ecdsa_tweak_pubkey_result ecdsa_tweak_pubkey(const ecdsa_curve *curve,
   }
 #endif
   return tc_ecdsa_tweak_pubkey(curve, pub_key, tweak, tweaked_pub_key);
+}
+
+int ecdsa_mask_scalar(const ecdsa_curve *curve,
+                      const uint8_t masking_key[ECDSA_PRIVATE_KEY_SIZE],
+                      const uint8_t scalar[ECDSA_PRIVATE_KEY_SIZE],
+                      uint8_t masked_scalar[ECDSA_PRIVATE_KEY_SIZE]) {
+  bignum256 k = {0};
+  bn_read_be(masking_key, &k);
+  if (bn_is_zero(&k) || !bn_is_less(&k, &curve->order)) {
+    // Invalid masking key.
+    memzero(&k, sizeof(k));
+    return 1;
+  }
+
+  bignum256 s = {0};
+  bn_read_be(scalar, &s);
+  bn_multiply(&k, &s, &curve->order);  // s = s * k
+  bn_mod(&s, &curve->order);
+  bn_write_be(&s, masked_scalar);
+  memzero(&k, sizeof(k));
+  memzero(&s, sizeof(s));
+  return 0;
+}
+
+int ecdsa_unmask_scalar(const ecdsa_curve *curve,
+                        const uint8_t masking_key[ECDSA_PRIVATE_KEY_SIZE],
+                        const uint8_t masked_scalar[ECDSA_PRIVATE_KEY_SIZE],
+                        uint8_t scalar[ECDSA_PRIVATE_KEY_SIZE]) {
+  bignum256 k = {0};
+  bn_read_be(masking_key, &k);
+  if (bn_is_zero(&k) || !bn_is_less(&k, &curve->order)) {
+    // Invalid masking key.
+    memzero(&k, sizeof(k));
+    return 1;
+  }
+
+  bignum256 s = {0};
+  bn_read_be(masked_scalar, &s);
+  bn_inverse(&k, &curve->order);       // k = k^-1
+  bn_multiply(&k, &s, &curve->order);  // s = s * k
+  bn_mod(&s, &curve->order);
+  bn_write_be(&s, scalar);
+  memzero(&k, sizeof(k));
+  memzero(&s, sizeof(s));
+  return 0;
+}
+
+// masked_pub_key may be compressed or uncompressed
+int ecdsa_unmask_public_key(const ecdsa_curve *curve,
+                            const uint8_t masking_key[ECDSA_PRIVATE_KEY_SIZE],
+                            const uint8_t *masked_pub_key,
+                            uint8_t pub_key[ECDSA_PUBLIC_KEY_SIZE]) {
+  int ret = 0;
+
+  curve_point point = {0};
+  if (!ecdsa_read_pubkey(curve, masked_pub_key, &point)) {
+    // Invalid public key.
+    ret = 1;
+    goto cleanup;
+  }
+
+  bignum256 k = {0};
+  bn_read_be(masking_key, &k);
+  if (bn_is_zero(&k) || !bn_is_less(&k, &curve->order)) {
+    // Invalid masking key.
+    ret = 2;
+    goto cleanup;
+  }
+
+  bn_inverse(&k, &curve->order);
+  bn_mod(&k, &curve->order);
+  point_multiply(curve, &k, &point, &point);
+
+  pub_key[0] = 0x04;
+  bn_write_be(&point.x, pub_key + 1);
+  bn_write_be(&point.y, pub_key + 33);
+
+cleanup:
+  memzero(&point, sizeof(point));
+  memzero(&k, sizeof(k));
+  return ret;
 }

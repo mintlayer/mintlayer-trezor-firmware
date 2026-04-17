@@ -27,4 +27,5 @@ if not utils.BITCOIN_ONLY:
     Tezos = 13
     U2F = 14
     Solana = 18
+    Tron = 24
     Mintlayer = 99

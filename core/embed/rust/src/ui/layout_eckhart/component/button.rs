@@ -1,24 +1,23 @@
+#[cfg(feature = "translations")]
+use crate::translations::TR;
 #[cfg(feature = "haptic")]
 use crate::trezorhal::haptic::{play, HapticEffect};
+
 use crate::{
     strutil::TString,
-    time::{Duration, ShortDuration},
+    time::{Duration, Instant, ShortDuration},
     ui::{
-        component::{text::TextStyle, Component, Event, EventCtx, Timer},
+        component::{text::TextStyle, Component, Event, EventCtx, Marquee, Timer},
         constant,
         display::{toif::Icon, Color, Font},
         event::TouchEvent,
         geometry::{Alignment, Alignment2D, Insets, Offset, Point, Rect},
-        lerp::Lerp,
         shape::{self, Renderer},
         util::split_two_lines,
     },
 };
 
-use super::super::theme;
-
-#[cfg(feature = "bootloader")]
-use super::super::fonts;
+use super::super::theme::{self, Gradient};
 
 pub enum ButtonMsg {
     Pressed,
@@ -29,7 +28,7 @@ pub enum ButtonMsg {
 
 enum RadiusOrGradient {
     Radius(u8),
-    Gradient,
+    Gradient(Gradient),
     None,
 }
 
@@ -46,34 +45,42 @@ pub struct Button {
     long_press_danger: bool,
     long_timer: Timer,
     haptic: bool,
+    subtext_marquee: Option<Marquee>,
+    #[cfg(feature = "ui_debug")]
+    skip_test_visit: bool, // used by debuglink
 }
 
 impl Button {
-    #[cfg(not(feature = "bootloader"))]
-    const DEFAULT_SUBTEXT_STYLE: TextStyle = theme::label_menu_item_subtitle();
-    #[cfg(feature = "bootloader")]
-    const DEFAULT_SUBTEXT_STYLE: TextStyle = theme::TEXT_NORMAL;
-    #[cfg(not(feature = "bootloader"))]
-    pub const SUBTEXT_STYLE_GREEN: TextStyle = theme::label_menu_item_subtitle_green();
-    #[cfg(feature = "bootloader")]
-    pub const SUBTEXT_STYLE_GREEN: TextStyle = TextStyle::new(
-        fonts::FONT_SATOSHI_REGULAR_38,
-        theme::GREEN,
-        theme::BG,
-        theme::GREEN,
-        theme::GREEN,
-    );
     const MENU_ITEM_RADIUS: u8 = 12;
     const MENU_ITEM_ALIGNMENT: Alignment = Alignment::Start;
     pub const MENU_ITEM_CONTENT_OFFSET: Offset = Offset::x(12);
+    const CONN_ICON_WIDTH: i16 = 34;
+
+    #[cfg(feature = "micropython")]
+    const DEFAULT_STYLESHEET: ButtonStyleSheet = theme::firmware::button_default();
+    #[cfg(not(feature = "micropython"))]
+    const DEFAULT_STYLESHEET: ButtonStyleSheet = theme::bootloader::button_default();
 
     pub const fn new(content: ButtonContent) -> Self {
+        let subtext_marquee = match content {
+            ButtonContent::TextAndSubtext {
+                subtext,
+                subtext_style,
+                ..
+            } => Some(Marquee::new(
+                subtext,
+                subtext_style.text_font,
+                subtext_style.text_color,
+                subtext_style.background_color,
+            )),
+            _ => None,
+        };
         Self {
             content,
             content_offset: Offset::zero(),
             area: Rect::zero(),
             touch_expand: Insets::zero(),
-            stylesheet: theme::button_default(),
+            stylesheet: Self::DEFAULT_STYLESHEET,
             text_align: Alignment::Center,
             radius_or_gradient: RadiusOrGradient::None,
             state: State::Initial,
@@ -81,6 +88,9 @@ impl Button {
             long_press_danger: false,
             long_timer: Timer::new(),
             haptic: true,
+            subtext_marquee,
+            #[cfg(feature = "ui_debug")]
+            skip_test_visit: false,
         }
     }
 
@@ -90,6 +100,16 @@ impl Button {
             .with_content_offset(Self::MENU_ITEM_CONTENT_OFFSET)
             .styled(stylesheet)
             .with_radius(Self::MENU_ITEM_RADIUS)
+    }
+
+    #[cfg(feature = "micropython")]
+    pub fn new_cancel_menu_item(text: TString<'static>) -> Self {
+        Self::with_text(text)
+            .with_text_align(Self::MENU_ITEM_ALIGNMENT)
+            .with_content_offset(Self::MENU_ITEM_CONTENT_OFFSET)
+            .styled(theme::firmware::menu_item_title_orange())
+            .with_radius(Self::MENU_ITEM_RADIUS)
+            .set_is_cancel()
     }
 
     pub fn new_single_line_menu_item(text: TString<'static>, stylesheet: ButtonStyleSheet) -> Self {
@@ -104,9 +124,47 @@ impl Button {
         text: TString<'static>,
         stylesheet: ButtonStyleSheet,
         subtext: TString<'static>,
-        subtext_style: Option<&'static TextStyle>,
+        subtext_style: &'static TextStyle,
     ) -> Self {
         Self::with_text_and_subtext(text, subtext, subtext_style)
+            .with_text_align(Self::MENU_ITEM_ALIGNMENT)
+            .with_content_offset(Self::MENU_ITEM_CONTENT_OFFSET)
+            .styled(stylesheet)
+            .with_radius(Self::MENU_ITEM_RADIUS)
+    }
+
+    pub fn new_single_line_menu_item_with_subtext(
+        text: TString<'static>,
+        stylesheet: ButtonStyleSheet,
+        subtext: TString<'static>,
+        subtext_style: &'static TextStyle,
+    ) -> Self {
+        Self::with_single_line_text_and_subtext(text, subtext, subtext_style)
+            .with_text_align(Self::MENU_ITEM_ALIGNMENT)
+            .with_content_offset(Self::MENU_ITEM_CONTENT_OFFSET)
+            .styled(stylesheet)
+            .with_radius(Self::MENU_ITEM_RADIUS)
+    }
+
+    #[cfg(feature = "micropython")]
+    pub fn new_connection_item(
+        text: TString<'static>,
+        stylesheet: ButtonStyleSheet,
+        connected: bool,
+    ) -> Self {
+        let (subtext, subtext_style) = if connected {
+            (
+                TR::words__connected.into(),
+                &theme::TEXT_MENU_ITEM_SUBTITLE_GREEN,
+            )
+        } else {
+            (
+                TR::words__disconnected.into(),
+                &theme::TEXT_MENU_ITEM_SUBTITLE,
+            )
+        };
+
+        Self::with_clipped_text_and_subtext(text, subtext, subtext_style)
             .with_text_align(Self::MENU_ITEM_ALIGNMENT)
             .with_content_offset(Self::MENU_ITEM_CONTENT_OFFSET)
             .styled(stylesheet)
@@ -124,21 +182,41 @@ impl Button {
     pub fn with_text_and_subtext(
         text: TString<'static>,
         subtext: TString<'static>,
-        subtext_style: Option<&'static TextStyle>,
+        subtext_style: &'static TextStyle,
     ) -> Self {
-        Self::new(ButtonContent::TextAndSubtext {
+        Self::new(ButtonContent::text_and_subtext(
             text,
             subtext,
-            subtext_style: subtext_style.unwrap_or(&Self::DEFAULT_SUBTEXT_STYLE),
-        })
+            subtext_style,
+        ))
+    }
+
+    pub fn with_clipped_text_and_subtext(
+        text: TString<'static>,
+        subtext: TString<'static>,
+        subtext_style: &'static TextStyle,
+    ) -> Self {
+        Self::new(ButtonContent::clipped_text_and_subtext(
+            text,
+            subtext,
+            subtext_style,
+        ))
+    }
+
+    pub fn with_single_line_text_and_subtext(
+        text: TString<'static>,
+        subtext: TString<'static>,
+        subtext_style: &'static TextStyle,
+    ) -> Self {
+        Self::new(ButtonContent::single_line_text_and_subtext(
+            text,
+            subtext,
+            subtext_style,
+        ))
     }
 
     pub const fn with_icon(icon: Icon) -> Self {
         Self::new(ButtonContent::Icon(icon))
-    }
-
-    pub const fn with_icon_and_text(content: IconText) -> Self {
-        Self::new(ButtonContent::IconAndText(content))
     }
 
     #[cfg(feature = "micropython")]
@@ -191,8 +269,23 @@ impl Button {
         self
     }
 
-    pub fn with_gradient(mut self) -> Self {
-        self.radius_or_gradient = RadiusOrGradient::Gradient;
+    pub fn with_gradient(mut self, gradient: Gradient) -> Self {
+        self.radius_or_gradient = RadiusOrGradient::Gradient(gradient);
+        self
+    }
+
+    pub fn has_gradient(&self) -> bool {
+        matches!(self.radius_or_gradient, RadiusOrGradient::Gradient(_))
+    }
+
+    #[cfg(feature = "ui_debug")]
+    pub fn set_is_cancel(mut self) -> Self {
+        self.skip_test_visit = true;
+        self
+    }
+
+    #[cfg(not(feature = "ui_debug"))]
+    pub fn set_is_cancel(self) -> Self {
         self
     }
 
@@ -212,10 +305,16 @@ impl Button {
     }
 
     pub fn enable(&mut self, ctx: &mut EventCtx) {
+        if let Some(m) = &mut self.subtext_marquee {
+            m.start(ctx, Instant::now());
+        }
         self.set(ctx, State::Initial)
     }
 
     pub fn disable(&mut self, ctx: &mut EventCtx) {
+        if let Some(m) = &mut self.subtext_marquee {
+            m.reset();
+        }
         self.set(ctx, State::Disabled)
     }
 
@@ -254,7 +353,7 @@ impl Button {
         self.content_offset = offset;
     }
 
-    pub fn content(&self) -> &ButtonContent {
+    pub const fn content(&self) -> &ButtonContent {
         &self.content
     }
 
@@ -281,9 +380,15 @@ impl Button {
         }
     }
 
-    fn text_height(&self, text: &str, single_line: bool, width: i16) -> i16 {
+    fn text_height(&self, text: &str, single_line: bool, break_words: bool, width: i16) -> i16 {
         if single_line {
             self.style().font.line_height()
+        } else if break_words {
+            if self.stylesheet.normal.font.text_width(text) <= width {
+                return self.style().font.line_height();
+            } else {
+                self.style().font.line_height() * 2 - constant::LINE_SPACE
+            }
         } else {
             let (t1, t2) = split_two_lines(text, self.stylesheet.normal.font, width);
             if t1.is_empty() || t2.is_empty() {
@@ -299,17 +404,18 @@ impl Button {
         match &self.content {
             ButtonContent::Empty => 0,
             ButtonContent::Text { text, single_line } => {
-                text.map(|t| self.text_height(t, *single_line, width))
+                text.map(|t| self.text_height(t, *single_line, false, width))
             }
             ButtonContent::Icon(icon) => icon.toif.height(),
-            ButtonContent::IconAndText(child) => {
-                let text_height = self.style().font.line_height();
-                let icon_height = child.icon.toif.height();
-                text_height.max(icon_height)
-            }
-            ButtonContent::TextAndSubtext { text, .. } => {
-                text.map(|t| self.text_height(t, false, width) + self.baseline_subtext_height())
-            }
+            ButtonContent::TextAndSubtext {
+                text,
+                single_line,
+                break_words,
+                ..
+            } => text.map(|t| {
+                self.text_height(t, *single_line, *break_words, width)
+                    + self.baseline_subtext_height()
+            }),
             #[cfg(feature = "micropython")]
             ButtonContent::HomeBar(..) => theme::ACTION_BAR_HEIGHT,
         }
@@ -348,44 +454,6 @@ impl Button {
         }
     }
 
-    fn render_gradient_bar<'s>(&self, target: &mut impl Renderer<'s>, style: &ButtonStyle) {
-        let height = self.area.height();
-        let half_width = (self.area.width() / 2) as f32;
-        let x_mid = self.area.center().x;
-
-        // Layer 1: Horizontal Gradient (Overall intensity: 100%)
-        // Stops:    21%, 100%
-        // Opacity: 100%,  20%
-        for y in self.area.y0..self.area.y1 {
-            let factor = (y - self.area.y0) as f32 / height as f32;
-            let slice = Rect::new(Point::new(self.area.x0, y), Point::new(self.area.x1, y + 1));
-            let factor_grad = ((factor - 0.21) / (1.00 - 0.21)).clamp(0.0, 1.0);
-            let alpha = u8::lerp(u8::MAX, 51, factor_grad);
-            shape::Bar::new(slice)
-                .with_bg(style.button_color)
-                .with_alpha(alpha)
-                .render(target);
-        }
-
-        // Layer 2: Vertical Gradient (Overall intensity: 100%)
-        // distance from mid
-        for x in self.area.x0..self.area.x1 {
-            let slice = Rect::new(Point::new(x, self.area.y0), Point::new(x + 1, self.area.y1));
-            let dist_from_mid = (x - x_mid).abs() as f32 / half_width;
-            let alpha = u8::lerp(u8::MIN, u8::MAX, dist_from_mid);
-            shape::Bar::new(slice)
-                .with_bg(theme::BG)
-                .with_alpha(alpha)
-                .render(target);
-        }
-
-        // Layer 3: Black overlay (Overall intensity: 20%)
-        shape::Bar::new(self.area)
-            .with_bg(theme::BG)
-            .with_alpha(51)
-            .render(target);
-    }
-
     pub fn render_background<'s>(
         &self,
         target: &mut impl Renderer<'s>,
@@ -395,16 +463,16 @@ impl Button {
         match self.radius_or_gradient {
             RadiusOrGradient::Radius(radius) => {
                 shape::Bar::new(self.area)
-                    .with_bg(style.background_color)
+                    .with_bg(style.button_color)
+                    .with_fg(style.button_color)
                     .with_radius(radius as i16)
                     .with_thickness(2)
-                    .with_fg(style.button_color)
                     .with_alpha(alpha)
                     .render(target);
             }
             // Gradient bar is rendered only in `normal` state, not `active` or `disabled`
-            RadiusOrGradient::Gradient if self.state.is_normal() => {
-                self.render_gradient_bar(target, style);
+            RadiusOrGradient::Gradient(gradient) if self.state.is_normal() => {
+                gradient.render(target, self.area, 1);
             }
             _ => {
                 shape::Bar::new(self.area)
@@ -429,13 +497,13 @@ impl Button {
                 .with_alpha(alpha)
                 .render(target)
         };
-        let render_origin = |y_offset: i16| {
+        let render_origin = |offset: Offset| {
             match self.text_align {
                 Alignment::Start => self.area.left_center().ofs(self.content_offset),
                 Alignment::Center => self.area.center().ofs(self.content_offset),
                 Alignment::End => self.area.right_center().ofs(self.content_offset.neg()),
             }
-            .ofs(Offset::y(y_offset))
+            .ofs(offset)
         };
 
         match &self.content {
@@ -444,24 +512,28 @@ impl Button {
                 let text_baseline_height = self.baseline_text_height();
                 text.map(|t| {
                     if *single_line {
-                        show_text(t, render_origin(text_baseline_height / 2));
+                        show_text(t, render_origin(Offset::y(text_baseline_height / 2)));
                     } else {
                         let (t1, t2) = split_two_lines(
                             t,
                             stylesheet.font,
-                            self.area.width() - 2 * self.content_offset.x,
+                            self.area.width() - 2 * self.content_offset.x.abs(),
                         );
 
                         if t1.is_empty() || t2.is_empty() {
-                            show_text(t, render_origin(text_baseline_height / 2));
+                            show_text(t, render_origin(Offset::y(text_baseline_height / 2)));
                         } else {
                             show_text(
                                 t1,
-                                render_origin(-(text_baseline_height / 2 + constant::LINE_SPACE)),
+                                render_origin(Offset::y(
+                                    -(text_baseline_height / 2 + constant::LINE_SPACE),
+                                )),
                             );
                             show_text(
                                 t2,
-                                render_origin(text_baseline_height + constant::LINE_SPACE * 2),
+                                render_origin(Offset::y(
+                                    text_baseline_height + constant::LINE_SPACE * 2,
+                                )),
                             );
                         }
                     }
@@ -469,58 +541,101 @@ impl Button {
             }
             ButtonContent::TextAndSubtext {
                 text,
-                subtext,
-                subtext_style,
+                single_line,
+                break_words,
+                ..
             } => {
                 let text_baseline_height = self.baseline_text_height();
-                let single_line_text = text.map(|t| {
-                    let (t1, t2) = split_two_lines(
-                        t,
-                        stylesheet.font,
-                        self.area.width() - 2 * self.content_offset.x,
-                    );
-                    if t1.is_empty() || t2.is_empty() {
+                let available_width = self.area.width() - 2 * self.content_offset.x;
+                text.map(|t| {
+                    if *single_line {
                         show_text(
                             t,
-                            render_origin(text_baseline_height / 2 - constant::LINE_SPACE * 2),
+                            render_origin(Offset::y(
+                                text_baseline_height / 2 - constant::LINE_SPACE * 2,
+                            )),
                         );
-                        true
+                    } else if *break_words {
+                        let first = stylesheet
+                            .font
+                            .longest_prefix_break_words(available_width, t);
+
+                        if first == t {
+                            // The first line fits
+                            show_text(
+                                first,
+                                render_origin(Offset::y(
+                                    text_baseline_height / 2 - constant::LINE_SPACE * 2,
+                                )),
+                            );
+                        } else {
+                            show_text(
+                                first,
+                                render_origin(Offset::y(
+                                    -(text_baseline_height / 2 + constant::LINE_SPACE * 3),
+                                )),
+                            );
+                            let remaining = t[first.len()..].trim();
+                            if stylesheet.font.text_width(remaining) <= available_width {
+                                // The second line fits
+                                show_text(
+                                    remaining,
+                                    render_origin(Offset::y(
+                                        text_baseline_height - constant::LINE_SPACE * 2,
+                                    )),
+                                );
+                            } else {
+                                // Break the second line and add the ellipsis
+                                let ellipsis = "...";
+                                let width = available_width - stylesheet.font.text_width(ellipsis);
+                                let second =
+                                    stylesheet.font.longest_prefix_break_words(width, remaining);
+                                show_text(
+                                    second,
+                                    render_origin(Offset::y(
+                                        text_baseline_height - constant::LINE_SPACE * 2,
+                                    )),
+                                );
+                                show_text(
+                                    ellipsis,
+                                    render_origin(Offset::new(
+                                        stylesheet.font.text_width(second),
+                                        text_baseline_height - constant::LINE_SPACE * 2,
+                                    )),
+                                );
+                            }
+                        }
                     } else {
-                        show_text(
-                            t1,
-                            render_origin(-(text_baseline_height / 2 + constant::LINE_SPACE * 3)),
-                        );
-                        show_text(
-                            t2,
-                            render_origin(text_baseline_height - constant::LINE_SPACE * 2),
-                        );
-                        false
+                        let (t1, t2) = split_two_lines(t, stylesheet.font, available_width);
+                        if t1.is_empty() || t2.is_empty() {
+                            show_text(
+                                t,
+                                render_origin(Offset::y(
+                                    text_baseline_height / 2 - constant::LINE_SPACE * 2,
+                                )),
+                            );
+                        } else {
+                            show_text(
+                                t1,
+                                render_origin(Offset::y(
+                                    -(text_baseline_height / 2 + constant::LINE_SPACE * 3),
+                                )),
+                            );
+                            show_text(
+                                t2,
+                                render_origin(Offset::y(
+                                    text_baseline_height - constant::LINE_SPACE * 2,
+                                )),
+                            );
+                        }
                     }
                 });
 
-                subtext.map(|subtext| {
-                    #[cfg(feature = "ui_debug")]
-                    if subtext_style.text_font.text_width(subtext) > self.area.width() {
-                        fatal_error!(&uformat!(len: 128, "Subtext too long: '{}'", subtext));
-                    }
-                    shape::Text::new(
-                        render_origin(if single_line_text {
-                            text_baseline_height / 2
-                                + constant::LINE_SPACE
-                                + self.baseline_subtext_height()
-                        } else {
-                            text_baseline_height
-                                + constant::LINE_SPACE * 2
-                                + self.baseline_subtext_height()
-                        }),
-                        subtext,
-                        subtext_style.text_font,
-                    )
-                    .with_fg(subtext_style.text_color)
-                    .with_align(self.text_align)
-                    .with_alpha(alpha)
-                    .render(target);
-                });
+                if let Some(m) = &self.subtext_marquee {
+                    m.render(target);
+                } else {
+                    unreachable!();
+                };
             }
             ButtonContent::Icon(icon) => {
                 shape::ToifImage::new(self.area.center() + self.content_offset, icon.toif)
@@ -528,9 +643,6 @@ impl Button {
                     .with_fg(stylesheet.icon_color)
                     .with_alpha(alpha)
                     .render(target);
-            }
-            ButtonContent::IconAndText(child) => {
-                child.render(target, self.area, self.style(), self.content_offset, alpha);
             }
             #[cfg(feature = "micropython")]
             ButtonContent::HomeBar(text) => {
@@ -571,10 +683,26 @@ impl Component for Button {
 
     fn place(&mut self, bounds: Rect) -> Rect {
         self.area = bounds;
+
+        if let ButtonContent::TextAndSubtext { .. } = self.content {
+            let subtext_start = (bounds.height() + self.content_height(bounds.width())) / 2
+                - self.baseline_subtext_height();
+            if let Some(m) = self.subtext_marquee.as_mut() {
+                let marquee_area = self
+                    .area
+                    .inset(Insets::top(subtext_start))
+                    .inset(Insets::sides(self.content_offset.x));
+                m.place(marquee_area);
+            }
+        }
+
         self.area
     }
 
     fn event(&mut self, ctx: &mut EventCtx, event: Event) -> Option<Self::Msg> {
+        if let Some(m) = &mut self.subtext_marquee {
+            m.event(ctx, event);
+        }
         let touch_area = self.touch_area();
         match event {
             Event::Touch(TouchEvent::TouchStart(pos)) => {
@@ -665,6 +793,7 @@ impl Component for Button {
             }
             _ => {}
         };
+
         None
     }
 
@@ -679,14 +808,11 @@ impl Component for Button {
 impl crate::trace::Trace for Button {
     fn trace(&self, t: &mut dyn crate::trace::Tracer) {
         t.component("Button");
+        t.bool("skip_test_visit", self.skip_test_visit);
         match &self.content {
             ButtonContent::Empty => {}
             ButtonContent::Text { text, .. } => t.string("text", *text),
             ButtonContent::Icon(_) => t.bool("icon", true),
-            ButtonContent::IconAndText(content) => {
-                t.string("text", content.text);
-                t.bool("icon", true);
-            }
             ButtonContent::TextAndSubtext { text, .. } => {
                 t.string("text", *text);
             }
@@ -723,11 +849,12 @@ pub enum ButtonContent {
     },
     TextAndSubtext {
         text: TString<'static>,
+        single_line: bool,
+        break_words: bool,
         subtext: TString<'static>,
         subtext_style: &'static TextStyle,
     },
     Icon(Icon),
-    IconAndText(IconText),
     #[cfg(feature = "micropython")]
     HomeBar(Option<TString<'static>>),
 }
@@ -746,6 +873,48 @@ impl ButtonContent {
             single_line: true,
         }
     }
+
+    pub const fn text_and_subtext(
+        text: TString<'static>,
+        subtext: TString<'static>,
+        subtext_style: &'static TextStyle,
+    ) -> Self {
+        Self::TextAndSubtext {
+            text,
+            single_line: false,
+            break_words: false,
+            subtext,
+            subtext_style,
+        }
+    }
+
+    pub const fn clipped_text_and_subtext(
+        text: TString<'static>,
+        subtext: TString<'static>,
+        subtext_style: &'static TextStyle,
+    ) -> Self {
+        Self::TextAndSubtext {
+            text,
+            single_line: false,
+            break_words: true,
+            subtext,
+            subtext_style,
+        }
+    }
+
+    pub const fn single_line_text_and_subtext(
+        text: TString<'static>,
+        subtext: TString<'static>,
+        subtext_style: &'static TextStyle,
+    ) -> Self {
+        Self::TextAndSubtext {
+            text,
+            single_line: true,
+            break_words: false,
+            subtext,
+            subtext_style,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -761,7 +930,6 @@ pub struct ButtonStyle {
     pub text_color: Color,
     pub button_color: Color,
     pub icon_color: Color,
-    pub background_color: Color,
 }
 
 #[derive(PartialEq, Eq, Clone)]

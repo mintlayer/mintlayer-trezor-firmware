@@ -18,7 +18,9 @@ def configure(
     hw_revision = 0
     mcu = "STM32U585xx"
 
-    unix_common_files(env, defines, sources, paths)
+    features_available += unix_common_files(
+        env, features_wanted, defines, sources, paths
+    )
 
     defines += [
         "FRAMEBUFFER",
@@ -59,6 +61,6 @@ def configure(
         features_available.append("button")
         defines += [("USE_BUTTON", "1")]
 
-    sources += ["embed/util/flash/stm32u5/flash_layout.c"]
+    sources += ["embed/sys/flash/stm32u5/flash_layout.c"]
 
     return features_available

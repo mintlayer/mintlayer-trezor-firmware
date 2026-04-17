@@ -17,29 +17,31 @@
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 from . import messages
-from .tools import session
+from .tools import workflow
 
 if TYPE_CHECKING:
-    from .client import TrezorClient
+    from .client import Session
     from .protobuf import MessageType
     from .tools import Address
 
 
-def get_firmware_info(client: "TrezorClient") -> messages.MintlayerFirmwareInfo:
-    return client.call(
+@workflow(capability=messages.Capability.Mintlayer)
+def get_firmware_info(session: "Session") -> messages.MintlayerFirmwareInfo:
+    return session.call(
         messages.MintlayerGetFirmwareInfo(),
         expect=messages.MintlayerFirmwareInfo,
     )
 
 
+@workflow(capability=messages.Capability.Mintlayer)
 def get_address(
-    client: "TrezorClient",
+    session: "Session",
     address_n: "Address",
     chain_type: int,
     show_display: bool = False,
     chunkify: bool = False,
 ) -> str:
-    return client.call(
+    return session.call(
         messages.MintlayerGetAddress(
             address_n=address_n,
             chain_type=messages.MintlayerChainType(chain_type),
@@ -50,13 +52,14 @@ def get_address(
     ).address
 
 
+@workflow(capability=messages.Capability.Mintlayer)
 def get_public_key(
-    client: "TrezorClient",
+    session: "Session",
     address_n: "Address",
     chain_type: int,
     show_display: bool = False,
 ) -> "MessageType":
-    return client.call(
+    return session.call(
         messages.MintlayerGetPublicKey(
             address_n=address_n,
             chain_type=messages.MintlayerChainType(chain_type),
@@ -65,8 +68,9 @@ def get_public_key(
     )
 
 
+@workflow(capability=messages.Capability.Mintlayer)
 def sign_message(
-    client: "TrezorClient",
+    session: "Session",
     address_n: "Address",
     chain_type: int,
     address_type: str,
@@ -79,7 +83,7 @@ def sign_message(
     else:
         raise ValueError(f"Invalid address type {address_type}")
 
-    return client.call(
+    return session.call(
         messages.MintlayerSignMessage(
             chain_type=messages.MintlayerChainType(chain_type),
             address_type=addr_type,
@@ -94,9 +98,9 @@ Output = messages.MintlayerTxOutput
 TxHash = bytes
 
 
-@session
+@workflow(capability=messages.Capability.Mintlayer)
 def sign_tx(
-    client: "TrezorClient",
+    session: "Session",
     chain_type: int,
     inputs: List[Input],
     outputs: List[Output],
@@ -105,7 +109,7 @@ def sign_tx(
     version: Optional["int"] = 1,
     chunkify: Optional["bool"] = None,
 ) -> List[messages.MintlayerSignaturesForInput]:
-    res = client.call(
+    res = session.call(
         messages.MintlayerSignTx(
             outputs_count=len(outputs),
             inputs_count=len(inputs),
@@ -123,7 +127,7 @@ def sign_tx(
         if res.input_request:
             msg = inputs[res.input_request.input_index]
             msg = messages.MintlayerTxAck(input=msg)
-            res = client.call(msg)
+            res = session.call(msg)
         elif res.output_request:
             if res.output_request.tx_hash:
                 out = prev_txs[res.output_request.tx_hash][
@@ -132,6 +136,6 @@ def sign_tx(
             else:
                 out = outputs[res.output_request.output_index]
             msg = messages.MintlayerTxAck(output=out)
-            res = client.call(msg)
+            res = session.call(msg)
 
     raise Exception("Invalid response from trezor")

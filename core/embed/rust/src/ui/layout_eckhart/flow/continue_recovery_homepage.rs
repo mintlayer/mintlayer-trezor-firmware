@@ -27,7 +27,7 @@ use super::super::{
         ActionBar, Header, ShortMenuVec, TextScreen, TextScreenMsg, VerticalMenu,
         VerticalMenuScreen, VerticalMenuScreenMsg,
     },
-    theme,
+    theme::{self, gradient::Gradient},
 };
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -128,7 +128,7 @@ pub fn new_continue_recovery_homepage(
     subtext: Option<TString<'static>>,
     recovery_type: RecoveryType,
     show_instructions: bool, // 1st screen of the recovery process
-    remaining_shares: Option<(OpTextLayout<'static>, usize)>,
+    remaining_shares: Option<(OpTextLayout<'static>, u16)>,
 ) -> Result<SwipeFlow, error::Error> {
     let is_multigroup_check = subtext.is_none();
     let (header, verb, cancel_btn, cancel_title, cancel_intro) = match recovery_type {
@@ -192,10 +192,11 @@ pub fn new_continue_recovery_homepage(
         pars_main
             .into_paragraphs()
             .with_placement(LinearPlacement::vertical())
-            .with_spacing(24),
+            .with_spacing(theme::TEXT_VERTICAL_SPACING),
     )
     .with_header(header)
     .with_action_bar(ActionBar::new_single(Button::with_text(verb.into())))
+    .with_page_limit(1)
     .repeated_button_request(ButtonRequest::new(
         ButtonRequestCode::RecoveryHomepage,
         "recovery".into(),
@@ -214,8 +215,11 @@ pub fn new_continue_recovery_homepage(
         .with_header(Header::new(cancel_title.into()))
         .with_action_bar(ActionBar::new_double(
             Button::with_icon(theme::ICON_CHEVRON_LEFT),
-            Button::with_text(TR::buttons__cancel.into()).styled(theme::button_cancel()),
+            Button::with_text(TR::buttons__cancel.into())
+                .styled(theme::button_actionbar_danger())
+                .with_gradient(Gradient::Alert),
         ))
+        .with_page_limit(1)
         .map(|msg| match msg {
             TextScreenMsg::Confirmed => Some(FlowMsg::Confirmed),
             TextScreenMsg::Cancelled => Some(FlowMsg::Cancelled),
@@ -242,9 +246,9 @@ fn flow_before_shares(
     >,
     cancel_btn: TString<'static>,
 ) -> Result<SwipeFlow, error::Error> {
-    let content_menu = VerticalMenuScreen::new(VerticalMenu::<ShortMenuVec>::empty().with_item(
-        Button::new_menu_item(cancel_btn, theme::menu_item_title_orange()),
-    ))
+    let content_menu = VerticalMenuScreen::new(
+        VerticalMenu::<ShortMenuVec>::empty().with_item(Button::new_cancel_menu_item(cancel_btn)),
+    )
     .with_header(Header::new(TString::empty()).with_close_button())
     .map(|msg| match msg {
         VerticalMenuScreenMsg::Selected(i) => Some(FlowMsg::Choice(i)),
@@ -276,12 +280,9 @@ fn flow_between_shares_simple(
                 TR::words__recovery_share.into(),
                 theme::menu_item_title(),
                 TR::buttons__more_info.into(),
-                None,
+                &theme::TEXT_MENU_ITEM_SUBTITLE,
             ))
-            .with_item(Button::new_menu_item(
-                TR::buttons__cancel.into(),
-                theme::menu_item_title_orange(),
-            )),
+            .with_item(Button::new_cancel_menu_item(TR::buttons__cancel.into())),
     )
     .with_header(Header::new(TR::recovery__title.into()).with_close_button())
     .map(|msg| match msg {
@@ -329,7 +330,7 @@ fn flow_between_shares_advanced(
         >,
     >,
     pages: OpTextLayout<'static>,
-    n_remaining_shares: usize,
+    n_remaining_shares: u16,
     cancel_btn: TString<'static>,
 ) -> Result<SwipeFlow, error::Error> {
     let content_menu = VerticalMenuScreen::new(
@@ -338,10 +339,7 @@ fn flow_between_shares_advanced(
                 TR::recovery__title_remaining_shares.into(),
                 theme::menu_item_title(),
             ))
-            .with_item(Button::new_menu_item(
-                cancel_btn,
-                theme::menu_item_title_orange(),
-            )),
+            .with_item(Button::new_cancel_menu_item(cancel_btn)),
     )
     .with_header(Header::new(TString::empty()).with_close_button())
     .map(|msg| match msg {

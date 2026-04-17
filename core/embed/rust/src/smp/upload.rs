@@ -1,6 +1,6 @@
 use super::{
-    receiver_acquire, send_request, wait_for_response, MsgType, SmpBuffer, SmpHeader,
-    SMP_CMD_ID_IMAGE_UPLOAD, SMP_GROUP_IMAGE, SMP_HEADER_SIZE, SMP_OP_WRITE,
+    receiver_acquire, receiver_release, send_request, wait_for_response, MsgType, SmpBuffer,
+    SmpHeader, SMP_CMD_ID_IMAGE_UPLOAD, SMP_GROUP_IMAGE, SMP_HEADER_SIZE, SMP_OP_WRITE,
 };
 use crate::time::Duration;
 use minicbor::Encoder;
@@ -44,13 +44,18 @@ pub fn upload_image(image_data: &[u8], image_hash: &[u8]) -> bool {
     data[..SMP_HEADER_SIZE].copy_from_slice(&header);
     data[SMP_HEADER_SIZE..SMP_HEADER_SIZE + data_len].copy_from_slice(&cbor_data[..data_len]);
 
-    send_request(&mut data[..SMP_HEADER_SIZE + data_len], &mut buffer);
+    let res = send_request(&mut data[..SMP_HEADER_SIZE + data_len], &mut buffer);
+
+    if res.is_err() {
+        receiver_release();
+        return false;
+    }
 
     let mut resp_buffer = [0u8; 64];
     if wait_for_response(
         MsgType::ImageUploadResponse,
         &mut resp_buffer,
-        Duration::from_millis(100),
+        Duration::from_millis(500),
     )
     .is_err()
     {
@@ -81,13 +86,18 @@ pub fn upload_image(image_data: &[u8], image_hash: &[u8]) -> bool {
         data[..SMP_HEADER_SIZE].copy_from_slice(&header);
         data[SMP_HEADER_SIZE..SMP_HEADER_SIZE + data_len].copy_from_slice(&cbor_data[..data_len]);
 
-        send_request(&mut data[..SMP_HEADER_SIZE + data_len], &mut buffer);
+        let res = send_request(&mut data[..SMP_HEADER_SIZE + data_len], &mut buffer);
+
+        if res.is_err() {
+            receiver_release();
+            return false;
+        }
 
         let mut resp_buffer = [0u8; 64];
         if wait_for_response(
             MsgType::ImageUploadResponse,
             &mut resp_buffer,
-            Duration::from_millis(100),
+            Duration::from_millis(500),
         )
         .is_err()
         {

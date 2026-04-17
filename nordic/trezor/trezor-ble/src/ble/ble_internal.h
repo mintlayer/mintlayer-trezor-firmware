@@ -28,6 +28,7 @@
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/bluetooth/uuid.h>
 
+#include <ble/ble.h>
 #include <trz_comm/trz_comm.h>
 
 /** @brief UUID of the NUS Service. **/
@@ -42,11 +43,16 @@
 #define BT_UUID_TRZ_RX_VAL \
   BT_UUID_128_ENCODE(0x8c000002, 0xa59b, 0x4d58, 0xa9ad, 0x073df69fa1b1)
 
+/** @brief UUID of the Notify Characteristic. **/
+#define BT_UUID_TRZ_NOTIFY_VAL \
+  BT_UUID_128_ENCODE(0x8c000004, 0xa59b, 0x4d58, 0xa9ad, 0x073df69fa1b1)
+
 #define BT_UUID_TRZ_SERVICE BT_UUID_DECLARE_128(BT_UUID_TRZ_VAL)
 #define BT_UUID_TRZ_RX BT_UUID_DECLARE_128(BT_UUID_TRZ_RX_VAL)
 #define BT_UUID_TRZ_TX BT_UUID_DECLARE_128(BT_UUID_TRZ_TX_VAL)
+#define BT_UUID_TRZ_NOTIFY BT_UUID_DECLARE_128(BT_UUID_TRZ_NOTIFY_VAL)
 
-#define BLE_TX_PACKET_SIZE 64
+#define BLE_TX_PACKET_SIZE 244
 #define BLE_RX_PACKET_SIZE 244
 
 #define BLE_PAIRING_CODE_LEN 6
@@ -60,7 +66,11 @@ typedef struct {
 
   uint8_t peer_count;
   uint8_t busy_flag;
-  uint8_t reserved;
+  struct {
+    bool bonded_connection : 1;
+    bool high_speed : 1;
+    uint8_t reserved : 6;
+  } flags;
   uint8_t sd_version_number;
 
   uint16_t sd_company_id;
@@ -69,6 +79,10 @@ typedef struct {
   uint32_t app_version;
   uint32_t bld_version;
 
+  uint8_t connected_addr[6];  // MAC address of the connected device
+  uint8_t connected_addr_type;
+
+  int8_t power_level;
 } event_status_msg_t;
 
 typedef enum {
@@ -79,6 +93,7 @@ typedef enum {
   INTERNAL_EVENT_PAIRING_CANCELLED = 0x05,
   INTERNAL_EVENT_MAC = 0x06,
   INTERNAL_EVENT_PAIRING_COMPLETED = 0x07,
+  INTERNAL_EVENT_BOND_LIST = 0x08,
 } internal_event_t;
 
 typedef enum {
@@ -93,14 +108,25 @@ typedef enum {
   INTERNAL_CMD_UNPAIR = 0x08,
   INTERNAL_CMD_GET_MAC = 0x09,
   INTERNAL_CMD_SET_BUSY = 0x0A,
+  INTERNAL_CMD_GET_BOND_LIST = 0x0B,
+  INTERNAL_CMD_SET_SPEED_HIGH = 0x0C,
+  INTERNAL_CMD_SET_SPEED_LOW = 0x0D,
+  INTERNAL_CMD_NOTIFY = 0x0E,
+  INTERNAL_CMD_BATTERY_UPDATE = 0x0F,
+  INTERNAL_CMD_SET_TX_POWER = 0x10,
 } internal_cmd_t;
 
 typedef struct {
   uint8_t cmd_id;
-  uint8_t whitelist;
+  struct {
+    uint8_t whitelist : 1;
+    uint8_t user_disconnect : 1;  // If set, the device should not try to
+                                  // reconnect after disconnecting
+    uint8_t reserved : 6;
+  } flags;
   uint8_t color;
   uint8_t static_addr;
-  uint32_t device_code;
+  uint8_t device_code;
   uint8_t name[BLE_ADV_NAME_LEN];
 } cmd_advertising_on_t;
 
@@ -118,6 +144,12 @@ typedef struct {
 void ble_set_busy_flag(uint8_t flag);
 
 uint8_t ble_get_busy_flag(void);
+
+int ble_set_tx_power(int8_t tx_power_level);
+
+int8_t ble_get_tx_power(void);
+
+int ble_reconfigure_tx_power(void);
 
 // BLE management functions
 // Initialization
@@ -138,15 +170,18 @@ bool bonds_erase_all(void);
 int bonds_get_count(void);
 // Erase current bond
 bool bonds_erase_current(void);
+// Erase bonds for a specific device
+bool bonds_erase_device(const bt_addr_le_t *addr);
+// Get all bonded devices
+size_t bonds_get_all(bt_addr_le_t *addr, size_t max_count);
 
 // Advertising functions
 // Initialization
 void advertising_init(void);
 // Start advertising, with or without whitelist
-void advertising_start(bool wl, uint8_t color, uint32_t device_code,
-                       bool static_addr, char *name, int name_len);
-// Stop advertising
-void advertising_stop(void);
+void advertising_start(bool wl, bool user_disconnect, uint8_t color,
+                       uint8_t device_code, bool static_addr, char *name,
+                       int name_len);
 // Check if advertising is active
 bool advertising_is_advertising(void);
 // Check if advertising is active with whitelist
@@ -163,6 +198,14 @@ void connection_disconnect(void);
 bool connection_is_connected(void);
 // Get current connection
 struct bt_conn *connection_get_current(void);
+// Is current connection bonded
+bool connection_is_bonded(void);
+// Is current connection high speed
+bool connection_is_high_speed(void);
+// Set connection to high speed
+void connection_set_high_speed(void);
+// Set connection to low speed
+void connection_set_low_speed(void);
 
 // Pairing functions
 // Initialization
@@ -180,5 +223,7 @@ typedef void (*service_received_cb)(struct bt_conn *conn,
 int service_init(service_received_cb callbacks);
 // Send data to the connected device
 int service_send(struct bt_conn *conn, trz_packet_t *data);
+// Notify listener of device state change
+int service_notify(struct bt_conn *conn, uint8_t *data, size_t len);
 // Send hard-coded error response
 void service_send_busy(void);

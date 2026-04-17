@@ -1,12 +1,14 @@
 # pylint: disable=E0602
 
 import os
-import shlex
 import tools, models, ui
 
 TREZOR_MODEL = ARGUMENTS.get('TREZOR_MODEL', 'T2T1')
 CMAKELISTS = int(ARGUMENTS.get('CMAKELISTS', 0))
+BOOTLOADER_QA = ARGUMENTS.get('BOOTLOADER_QA', '0') == '1'
+PRODUCTION = 0 if BOOTLOADER_QA else ARGUMENTS.get('PRODUCTION', '0') == '1'
 HW_REVISION = 'emulator'
+DBG_CONSOLE = ARGUMENTS.get('DBG_CONSOLE', '')
 
 if not models.has_emulator(TREZOR_MODEL):
     # skip bootloader build
@@ -21,13 +23,20 @@ if not models.has_emulator(TREZOR_MODEL):
     Return()
 
 FEATURES_WANTED = [
+    "ble",
     "display",
     "dma2d",
     "input",
-    "optiga",
+    "kernel_mode",
     "power_manager",
     "rgb_led",
+    "secure_mode",
+    "usb",
+    "usb_iface_wire",
     ]
+
+if DBG_CONSOLE != "":
+    FEATURES_WANTED += ["dbg_console"]
 
 CCFLAGS_MOD = ''
 CPPPATH_MOD = []
@@ -42,11 +51,8 @@ RUST_UI_FEATURES = []
 CCFLAGS_MOD += '-Wno-sequence-point '
 CPPPATH_MOD += [
     'vendor/trezor-crypto',
-    'vendor/trezor-storage',
 ]
 CPPDEFINES_MOD += [
-    'KERNEL_MODE',
-    'SECURE_MODE',
     'AES_128',
     'AES_192',
     'USE_KECCAK',
@@ -67,6 +73,7 @@ SOURCE_MOD_CRYPTO += [
     'vendor/trezor-crypto/ed25519-donna/modm-donna-32bit.c',
     'vendor/trezor-crypto/memzero.c',
     'vendor/trezor-crypto/rand.c',
+    'vendor/trezor-crypto/rand_insecure.c',
     'vendor/trezor-crypto/sha2.c',
 ]
 
@@ -76,27 +83,29 @@ CPPPATH_MOD += [
 ]
 
 SOURCE_MOD += [
-    'embed/upymod/modtrezorcrypto/rand.c',
-    'embed/gfx/bitblt/gfx_bitblt.c',
-    'embed/gfx/bitblt/gfx_bitblt_mono8.c',
-    'embed/gfx/bitblt/gfx_bitblt_rgb565.c',
-    'embed/gfx/bitblt/gfx_bitblt_rgba8888.c',
-    'embed/gfx/fonts/font_bitmap.c',
-    'embed/gfx/gfx_color.c',
-    'embed/gfx/gfx_draw.c',
-    'embed/gfx/terminal.c',
     'embed/io/display/display_utils.c',
-    'embed/util/flash/flash_utils.c',
-    'embed/util/image/image.c',
-    'embed/util/rsod/rsod.c',
-    'embed/util/scm_revision/scm_revision.c',
+    'embed/io/gfx/bitblt/gfx_bitblt.c',
+    'embed/io/gfx/bitblt/gfx_bitblt_mono8.c',
+    'embed/io/gfx/bitblt/gfx_bitblt_rgb565.c',
+    'embed/io/gfx/bitblt/gfx_bitblt_rgba8888.c',
+    'embed/io/gfx/gfx_color.c',
+    'embed/io/gfx/gfx_draw.c',
+    'embed/io/gfx/rsod.c',
+    'embed/io/gfx/terminal/font_bitmap.c',
+    'embed/io/gfx/terminal/terminal.c',
     'embed/rtl/error_handling.c',
-    'embed/rtl/mini_printf.c',
+    'embed/rtl/scm_revision.c',
+    'embed/rtl/strutils.c',
+    'embed/sec/image/image.c',
+    'embed/sec/rsod/rsod_special.c',
+    'embed/sys/flash/flash_utils.c',
     'vendor/micropython/lib/uzlib/adler32.c',
     'vendor/micropython/lib/uzlib/crc32.c',
     'vendor/micropython/lib/uzlib/tinflate.c',
-    'vendor/trezor-storage/flash_area.c',
 ]
+
+if not PRODUCTION:
+    SOURCE_MOD += ['embed/rtl/printf.c']
 
 SOURCE_NANOPB = [
     'vendor/nanopb/pb_common.c',
@@ -107,7 +116,7 @@ SOURCE_NANOPB = [
 SOURCE_BOOTLOADER = [
     'embed/projects/bootloader/bootui.c',
     'embed/projects/bootloader/main.c',
-    'embed/projects/bootloader/antiglitch.c',
+    'embed/projects/bootloader/ui_helpers.c',
     'embed/projects/bootloader/workflow/wf_firmware_update.c',
     'embed/projects/bootloader/workflow/wf_wipe_device.c',
     'embed/projects/bootloader/workflow/wf_get_features.c',
@@ -117,10 +126,13 @@ SOURCE_BOOTLOADER = [
     'embed/projects/bootloader/workflow/wf_empty_device.c',
     'embed/projects/bootloader/workflow/wf_auto_update.c',
     'embed/projects/bootloader/workflow/wf_host_control.c',
+    'embed/projects/bootloader/workflow/wf_ble_pairing_request.c',
     'embed/projects/bootloader/wire/codec_v1.c',
     'embed/projects/bootloader/wire/wire_iface_usb.c',
+    'embed/projects/bootloader/wire/wire_iface_ble.c',
     'embed/projects/bootloader/protob/protob.c',
     'embed/projects/bootloader/protob/pb/messages.pb.c',
+    'embed/projects/bootloader/fw_check.c',
     'embed/projects/bootloader/version_check.c',
     'embed/projects/bootloader/emulator.c',
 ]
@@ -140,7 +152,7 @@ env = Environment(
 
 FEATURES_AVAILABLE = models.configure_board(TREZOR_MODEL, HW_REVISION, FEATURES_WANTED, env, CPPDEFINES_HAL, SOURCE_UNIX, PATH_HAL)
 
-if 'optiga' in FEATURES_AVAILABLE:
+if ('LOCKABLE_BOOTLOADER', '1') in CPPDEFINES_HAL:
     SOURCE_BOOTLOADER += [
         'embed/projects/bootloader/workflow/wf_unlock_bootloader.c',
     ]
@@ -168,11 +180,10 @@ ALLPATHS = ['embed/rust',
            'embed/models',
            'embed/projects/unix',
            'embed/upymod/modtrezorui',
-           'embed/gfx/inc',
-           'embed/util/image/inc',
-           'embed/util/rsod/inc',
-           'embed/util/scm_revision/inc',
-           'embed/util/translations/inc',
+           'embed/io/gfx/inc',
+           'embed/io/translations/inc',
+           'embed/sec/image/inc',
+           'embed/sec/rsod/inc',
            'vendor/nanopb',
        ] + CPPPATH_MOD + PATH_HAL
 
@@ -255,14 +266,13 @@ obj_program += env.Object(source=SOURCE_MOD_CRYPTO, CCFLAGS='$CCFLAGS -ftrivial-
 obj_program += env.Object(source=SOURCE_BOOTLOADER)
 obj_program += env.Object(source=SOURCE_NANOPB)
 obj_program += env.Object(source=SOURCE_UNIX)
+obj_program += [rust]
 
 program_elf = env.Command(
     target='bootloader.elf',
     source=obj_program,
     action=
     '$CC -o $TARGET $SOURCES $_LIBDIRFLAGS $_LIBFLAGS $LINKFLAGS')
-
-env.Depends(program_elf, rust)
 
 if CMAKELISTS != 0:
     env.Depends(program_elf, cmake_gen)

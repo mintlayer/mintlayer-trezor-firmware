@@ -24,7 +24,7 @@
 #include <sha2.h>
 
 // maximum data size allowed to be sent
-#define NRF_MAX_TX_DATA_SIZE (244)
+#define NRF_MAX_TX_DATA_SIZE (251)
 
 typedef enum {
   NRF_SERVICE_BLE = 0,
@@ -77,6 +77,11 @@ void nrf_deinit(void);
  * @brief Suspend the NRF driver.
  */
 void nrf_suspend(void);
+
+/**
+ * @brief Resume the NRF driver.
+ */
+void nrf_resume(void);
 
 /**
  * @brief Check if the NRF communication is currently running.
@@ -146,6 +151,14 @@ bool nrf_abort_msg(int32_t id);
 bool nrf_get_info(nrf_info_t *info);
 
 /**
+ * Get application/firmware version of the NRF device.
+ *
+ * @return version number of the NRF device as a 32-bit integer - with major
+ * being MSB. Returns zero in case of failure.
+ */
+uint32_t nrf_get_version(void);
+
+/**
  * @brief Place the NRF device into system-off (deep sleep) mode.
  *
  * @return true if the command was acknowledged; false otherwise
@@ -162,8 +175,9 @@ void nrf_reboot(void);
  *
  * @param data  Pointer to the data buffer
  * @param len   Length of the data buffer
+ * @param timeout_ms  Timeout in milliseconds for the operation
  */
-void nrf_send_uart_data(const uint8_t *data, uint32_t len);
+bool nrf_send_uart_data(const uint8_t *data, uint32_t len, uint32_t timeout_ms);
 
 /**
  * @brief Check if an nRF device firmware update is required by comparing SHA256
@@ -185,6 +199,13 @@ bool nrf_update_required(const uint8_t *image_ptr, size_t image_len);
  * @return true always (indicates that the update process was initiated)
  */
 bool nrf_update(const uint8_t *image_ptr, size_t image_len);
+
+/**
+ * @brief Authenticate pairing of nRF chip with Trezor
+ *
+ * @return true if nrf chip is properly paired
+ */
+bool nrf_authenticate(void);
 
 ///////////////////////////////////////////////////////////////////////////////
 // TEST-only functions
@@ -223,4 +244,31 @@ bool nrf_test_gpio_stay_in_bld(void);
  * @return true if the GPIO behavior is correct; false otherwise
  */
 bool nrf_test_gpio_reserved(void);
+
+/**
+ * @brief Pair the NRF MCU with Trezor.
+ *
+ * @return true if pairing is successful; false otherwise
+ */
+bool nrf_test_pair(void);
+
+/**
+ * @brief Set the Direct Test Mode (DTM) on the NRF device.
+ *
+ * @param set       true to enable DTM mode, false to disable
+ * @param callback  Function to call with received bytes in DTM mode
+ */
+void nrf_set_dtm_mode(bool set, void (*callback)(uint8_t byte));
+
+/**
+ * @brief Send data in Direct Test Mode (DTM) on the NRF device.
+ *
+ * This function sends raw data bytes in DTM mode. It is only valid when DTM
+ * mode is enabled.
+ *
+ * @param data  Pointer to the data buffer to send
+ * @param len   Length of the data buffer
+ */
+void nrf_dtm_send_data(const uint8_t *data, uint32_t len);
+
 ///////////////////////////////////////////////////////////////////////////////

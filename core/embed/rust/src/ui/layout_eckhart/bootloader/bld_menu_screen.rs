@@ -1,12 +1,14 @@
-use crate::ui::{
-    component::{Component, Event, EventCtx},
-    geometry::{Alignment, Rect},
-    layout_eckhart::component::Button,
-    shape::Renderer,
+use crate::{
+    trezorhal::ble,
+    ui::{
+        component::{Component, Event, EventCtx},
+        geometry::{Alignment, Rect},
+        shape::Renderer,
+    },
 };
 
 use super::{
-    super::{cshape::ScreenBorder, theme},
+    super::{component::Button, cshape::ScreenBorder, theme},
     bld_menu::BldMenuSelectionMsg,
     BldHeader, BldHeaderMsg, BldMenu,
 };
@@ -27,18 +29,19 @@ pub enum BldMenuMsg {
 pub struct BldMenuScreen {
     header: BldHeader<'static>,
     menu: BldMenu,
-    screen_border: ScreenBorder,
+    screen_border: Option<ScreenBorder>,
 }
 
 impl BldMenuScreen {
     pub fn new() -> Self {
         let bluetooth = Button::with_text("Pair new device".into())
             .styled(theme::bootloader::button_bld_menu())
-            .with_text_align(Alignment::Start);
-        let reboot = Button::with_text("Reboot".into())
+            .with_text_align(Alignment::Start)
+            .initially_enabled(ble::get_enabled());
+        let reboot = Button::with_text("Restart".into())
             .styled(theme::bootloader::button_bld_menu())
             .with_text_align(Alignment::Start);
-        let turnoff = Button::with_text("Power off".into())
+        let turnoff = Button::with_text("Turn off".into())
             .styled(theme::bootloader::button_bld_menu())
             .with_text_align(Alignment::Start);
         let reset = Button::with_text("Factory reset".into())
@@ -51,10 +54,15 @@ impl BldMenuScreen {
             .item(turnoff)
             .item(reset);
         Self {
-            header: BldHeader::new("Bootloader".into()).with_close_button(),
+            header: BldHeader::new_with_fuel_gauge().with_close_button(),
             menu,
-            screen_border: ScreenBorder::new(theme::BLUE),
+            screen_border: None,
         }
+    }
+
+    pub fn with_screen_border(mut self, screen_border: ScreenBorder) -> Self {
+        self.screen_border = Some(screen_border);
+        self
     }
 }
 
@@ -90,6 +98,8 @@ impl Component for BldMenuScreen {
     fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
         self.header.render(target);
         self.menu.render(target);
-        self.screen_border.render(u8::MAX, target);
+        if let Some(screen_border) = &self.screen_border {
+            screen_border.render(u8::MAX, target);
+        }
     }
 }

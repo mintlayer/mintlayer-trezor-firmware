@@ -23,12 +23,17 @@
 #include <trezor_rtl.h>
 
 #include <io/nrf.h>
+#include <io/tsqueue.h>
+#include <sec/secret_keys.h>
 #include <sys/irq.h>
 #include <sys/mpu.h>
-#include <sys/power_manager.h>
+#include <sys/rng.h>
 #include <sys/systick.h>
 #include <sys/systimer.h>
-#include <util/tsqueue.h>
+
+#ifdef USE_SUSPEND
+#include <io/suspend.h>
+#endif
 
 #include "../crc8.h"
 #include "../nrf_internal.h"
@@ -104,6 +109,10 @@ void nrf_management_rx_cb(const uint8_t *data, uint32_t len) {
     case MGMT_RESP_INFO:
       drv->info_valid = true;
       memcpy(&drv->info, &data[1], MIN(len - 1, sizeof(nrf_info_t)));
+      break;
+    case MGMT_RESP_AUTH_RESPONSE:
+      drv->auth_data_valid = true;
+      memcpy(&drv->auth_data, &data[1], MIN(len - 1, sizeof(drv->auth_data)));
       break;
     default:
       break;
@@ -217,9 +226,7 @@ void nrf_init(void) {
   }
 }
 
-void nrf_suspend(void) {
-  nrf_driver_t *drv = &g_nrf_driver;
-
+static void nrf_deinit_common(nrf_driver_t *drv) {
   nrf_stop();
 
   systimer_delete(drv->timer);
@@ -243,10 +250,75 @@ void nrf_suspend(void) {
 
   nrf_spi_deinit();
 
-  drv->initialized = false;
-
   drv->pending_spi_transaction = false;
+}
+
+void nrf_suspend(void) {
+  nrf_driver_t *drv = &g_nrf_driver;
+
+  uint8_t data[1] = {MGMT_CMD_SUSPEND};
+  nrf_send_msg(NRF_SERVICE_MANAGEMENT, data, 1, NULL, NULL);
+
+  systick_delay_ms(2);
+
+  nrf_deinit_common(drv);
+
   drv->wakeup = true;
+}
+
+void nrf_resume(void) {
+  nrf_driver_t *drv = &g_nrf_driver;
+
+  drv->timer = systimer_create(nrf_timer_callback, drv);
+
+  GPIO_InitTypeDef GPIO_InitStructure = {0};
+
+  NRF_OUT_RESET_CLK_ENA();
+  HAL_GPIO_WritePin(NRF_OUT_RESET_PORT, NRF_OUT_RESET_PIN, GPIO_PIN_SET);
+  GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStructure.Pull = GPIO_PULLDOWN;
+  GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStructure.Pin = NRF_OUT_RESET_PIN;
+  HAL_GPIO_Init(NRF_OUT_RESET_PORT, &GPIO_InitStructure);
+
+  NRF_IN_RESERVED_CLK_ENA();
+  GPIO_InitStructure.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStructure.Pull = GPIO_PULLDOWN;
+  GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStructure.Pin = NRF_IN_RESERVED_PIN;
+  HAL_GPIO_Init(NRF_IN_RESERVED_PORT, &GPIO_InitStructure);
+
+  NRF_OUT_SPI_READY_CLK_ENA();
+  GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStructure.Pull = GPIO_NOPULL;
+  GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStructure.Pin = NRF_OUT_SPI_READY_PIN;
+  HAL_GPIO_Init(NRF_OUT_SPI_READY_PORT, &GPIO_InitStructure);
+
+  NRF_OUT_STAY_IN_BLD_CLK_ENA();
+  GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStructure.Pull = GPIO_NOPULL;
+  GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStructure.Pin = NRF_OUT_STAY_IN_BLD_PIN;
+  HAL_GPIO_Init(NRF_OUT_STAY_IN_BLD_PORT, &GPIO_InitStructure);
+
+#ifdef USE_SMP
+  nrf_uart_init(drv);
+#endif
+
+  nrf_spi_init(drv);
+
+#ifdef USE_SMP
+  NVIC_EnableIRQ(USART3_IRQn);
+#endif
+  NVIC_EnableIRQ(GPDMA1_Channel1_IRQn);
+  NVIC_EnableIRQ(GPDMA1_Channel2_IRQn);
+  NVIC_EnableIRQ(SPI1_IRQn);
+
+  nrf_start();
+
+  uint8_t data[1] = {MGMT_CMD_RESUME};
+  nrf_send_msg(NRF_SERVICE_MANAGEMENT, data, 1, NULL, NULL);
 }
 
 void nrf_deinit(void) {
@@ -258,7 +330,8 @@ void nrf_deinit(void) {
     HAL_GPIO_DeInit(NRF_IN_SPI_REQUEST_PORT, NRF_IN_SPI_REQUEST_PIN);
     HAL_EXTI_ClearConfigLine(&drv->exti);
 
-    nrf_suspend();
+    nrf_deinit_common(drv);
+    drv->initialized = false;
   }
 }
 
@@ -305,10 +378,10 @@ void NRF_EXTI_INTERRUPT_HANDLER(void) {
 
   nrf_driver_t *drv = &g_nrf_driver;
 
-#ifdef USE_POWER_MANAGER
+#ifdef USE_SUSPEND
   if (drv->wakeup) {
     // Inform the power manager module about nrf/ble wakeup
-    pm_wakeup_flags_set(PM_WAKEUP_FLAG_BLE);
+    wakeup_flags_set(WAKEUP_FLAG_BLE);
     drv->wakeup = false;
   }
 #endif
@@ -418,6 +491,35 @@ bool nrf_get_info(nrf_info_t *info) {
   return false;
 }
 
+uint32_t nrf_get_version(void) {
+  nrf_driver_t *drv = &g_nrf_driver;
+  if (!drv->initialized) {
+    return 0;
+  }
+
+  drv->info_valid = false;
+
+  uint8_t data[1] = {MGMT_CMD_INFO};
+  if (nrf_send_msg(NRF_SERVICE_MANAGEMENT, data, 1, NULL, NULL) < 0) {
+    return 0;
+  }
+
+  uint32_t timeout = ticks_timeout(100);
+
+  while (!ticks_expired(timeout)) {
+    if (drv->info_valid) {
+      uint32_t version = 0;
+      version |= drv->info.version_major << 24;
+      version |= drv->info.version_minor << 16;
+      version |= drv->info.version_patch << 8;
+      version |= drv->info.version_tweak;
+      return version;
+    }
+  }
+
+  return 0;
+}
+
 bool nrf_system_off(void) {
   nrf_driver_t *drv = &g_nrf_driver;
   if (!drv->initialized) {
@@ -441,6 +543,54 @@ bool nrf_system_off(void) {
   }
 
   return true;
+}
+
+bool nrf_authenticate(void) {
+  nrf_driver_t *drv = &g_nrf_driver;
+  if (!drv->initialized) {
+    return false;
+  }
+
+  uint32_t timeout = ticks_timeout(5000);
+
+  // check that nRF communication is running prior to auth check
+  while (!ticks_expired(timeout)) {
+    if (nrf_get_info(&drv->info)) {
+      break;
+    }
+  }
+
+  drv->info_valid = false;
+
+  uint32_t challenge[8] = {0};
+
+  uint8_t data[1 + sizeof(challenge)] = {MGMT_CMD_AUTH_CHALLENGE};
+
+  // generate random challenge
+  rng_fill_buffer(challenge, sizeof(challenge));
+
+  memcpy(data + 1, challenge, sizeof(challenge));
+
+  drv->auth_data_valid = false;
+  memset(drv->auth_data, 0, sizeof(drv->auth_data));
+
+  if (nrf_send_msg(NRF_SERVICE_MANAGEMENT, data, sizeof(data), NULL, NULL) <
+      0) {
+    return false;
+  }
+
+  timeout = ticks_timeout(100);
+
+  while (!ticks_expired(timeout)) {
+    if (drv->auth_data_valid) {
+      secbool auth =
+          secret_validate_nrf_pairing((uint8_t *)challenge, sizeof(challenge),
+                                      drv->auth_data, SHA256_DIGEST_LENGTH);
+      return sectrue == auth;
+    }
+  }
+
+  return false;
 }
 
 #endif

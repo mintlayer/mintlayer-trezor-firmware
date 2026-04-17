@@ -11,12 +11,12 @@ use crate::ui::{
     },
     geometry::{Alignment, Offset, Rect},
     layout::simplified::{process_frame_event, show},
-    layout_eckhart::{cshape::ScreenBorder, fonts, prodtest::welcome::Welcome, UIEckhart},
-    shape,
-    shape::render_on_display,
+    shape::{self, render_on_display},
     ui_prodtest::{ProdtestLayoutType, ProdtestUI},
 };
 use heapless::Vec;
+
+use super::{cshape::ScreenBorder, fonts, prodtest::welcome::Welcome, UIEckhart};
 
 #[allow(clippy::large_enum_variant)]
 pub enum ProdtestLayout {
@@ -30,7 +30,7 @@ impl ProdtestLayoutType for ProdtestLayout {
         }
     }
 
-    fn show(&mut self) {
+    fn show(&mut self) -> u32 {
         match self {
             ProdtestLayout::Welcome(f) => show(f, false),
         }

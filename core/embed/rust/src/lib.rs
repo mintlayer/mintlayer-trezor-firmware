@@ -1,6 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 #![deny(clippy::all)]
 #![allow(clippy::new_without_default)]
+#![allow(clippy::ptr_offset_with_cast)] // workaround https://github.com/rust-lang/rust-bindgen/issues/3053
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(internal_features)]
 // Allowing dead code not to cause a lot of warnings when building for a specific target
@@ -9,6 +10,8 @@
 #![feature(lang_items)]
 #![feature(optimize_attribute)]
 #![feature(trait_alias)]
+#![no_main]
+#![reexport_test_harness_main = "test_main"]
 
 #[macro_use]
 extern crate num_derive;
@@ -16,6 +19,7 @@ extern crate num_derive;
 #[macro_use]
 mod macros;
 
+mod align;
 #[cfg(feature = "debug")]
 mod coverage;
 #[cfg(feature = "crypto")]
@@ -29,6 +33,7 @@ mod maybe_trace;
 mod micropython;
 #[cfg(feature = "protobuf")]
 mod protobuf;
+#[cfg(feature = "storage")]
 mod storage;
 mod strutil;
 mod time;
@@ -53,6 +58,9 @@ pub mod util;
 #[cfg(feature = "mintlayer")]
 pub mod mintlayer;
 
+#[cfg(feature = "bootloader")]
+mod bootloader;
+
 #[cfg(feature = "debug")]
 #[cfg(not(test))]
 #[panic_handler]
@@ -62,10 +70,11 @@ pub mod mintlayer;
 fn panic_debug(panic_info: &core::panic::PanicInfo) -> ! {
     // Filling at least the file and line information, if available.
     // TODO: find out how to display message from panic_info.message()
+    let msg = panic_info.message().as_str().unwrap_or("rs");
     if let Some(location) = panic_info.location() {
-        trezorhal::fatal_error::__fatal_error("rs", location.file(), location.line());
+        trezorhal::fatal_error::__fatal_error(msg, location.file(), location.line());
     } else {
-        trezorhal::fatal_error::__fatal_error("rs", "", 0);
+        trezorhal::fatal_error::__fatal_error(msg, "", 0);
     }
 }
 
@@ -92,3 +101,23 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 #[lang = "eh_personality"]
 /// Needed by full debuginfo `opt-level = 0` builds for some reason.
 extern "C" fn eh_personality() {}
+
+#[cfg(test)]
+#[no_mangle]
+pub fn main() -> i32 {
+    // Initialize the C driver code before running tests
+    unsafe {
+        extern "C" {
+            fn rust_tests_c_setup();
+        }
+        rust_tests_c_setup();
+    }
+    // Call the Rust test harness main function
+    // The function panics if any test fails.
+    // Asserting that it returns () to ensure that if a future Rust version
+    // changes the signature and behavior, we'll be notified.
+    assert_eq!(test_main(), ());
+
+    // Return 0 to indicate success
+    0
+}

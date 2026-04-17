@@ -3,10 +3,13 @@ Taken from  https://gist.github.com/patrickfuller/e2ea8a94badc5b6967ef3ca0a9452a
 
 Currently writes all issues that have some Weight.
 """
+
 import argparse
 import csv
-import requests
 import os.path
+from typing import Any
+
+import requests
 
 token = None
 
@@ -25,7 +28,7 @@ SEVERITIES = ("S1", "S2", "S3", "S4")
 WEIGHTS = ("W0", "W1/2", "W1", "W2", "W3", "W5", "W8", "W13", "W20", "W40", "W100")
 
 
-def write_issues(r, csvout):
+def write_issues(r: requests.Response, csvout: Any) -> None:
     """Parses JSON response and writes to CSV."""
     if r.status_code != 200:
         raise Exception(r.status_code)
@@ -49,7 +52,6 @@ def write_issues(r, csvout):
             if not weight:
                 continue
             labels = ", ".join(labels)
-            date = issue["created_at"].split("T")[0]
             milestone = issue["milestone"]["title"] if issue["milestone"] else ""
             assignee = issue["assignee"]["login"] if issue["assignee"] else ""
 
@@ -69,7 +71,7 @@ def write_issues(r, csvout):
             )
 
 
-def get_issues(name):
+def get_issues(name: str) -> None:
     """Requests issues from GitHub API and writes to CSV file."""
     url = f"https://api.github.com/repos/{name}/issues?state=all"
     if token is not None:

@@ -54,7 +54,7 @@ impl ThpDeviceProperties {
         ::std::default::Default::default()
     }
 
-    // optional string internal_model = 1;
+    // required string internal_model = 1;
 
     pub fn internal_model(&self) -> &str {
         match self.internal_model.as_ref() {
@@ -93,7 +93,7 @@ impl ThpDeviceProperties {
     // optional uint32 model_variant = 2;
 
     pub fn model_variant(&self) -> u32 {
-        self.model_variant.unwrap_or(0)
+        self.model_variant.unwrap_or(0u32)
     }
 
     pub fn clear_model_variant(&mut self) {
@@ -109,7 +109,7 @@ impl ThpDeviceProperties {
         self.model_variant = ::std::option::Option::Some(v);
     }
 
-    // optional uint32 protocol_version_major = 3;
+    // required uint32 protocol_version_major = 3;
 
     pub fn protocol_version_major(&self) -> u32 {
         self.protocol_version_major.unwrap_or(0)
@@ -128,7 +128,7 @@ impl ThpDeviceProperties {
         self.protocol_version_major = ::std::option::Option::Some(v);
     }
 
-    // optional uint32 protocol_version_minor = 4;
+    // required uint32 protocol_version_minor = 4;
 
     pub fn protocol_version_minor(&self) -> u32 {
         self.protocol_version_minor.unwrap_or(0)
@@ -187,6 +187,15 @@ impl ::protobuf::Message for ThpDeviceProperties {
     const NAME: &'static str = "ThpDeviceProperties";
 
     fn is_initialized(&self) -> bool {
+        if self.internal_model.is_none() {
+            return false;
+        }
+        if self.protocol_version_major.is_none() {
+            return false;
+        }
+        if self.protocol_version_minor.is_none() {
+            return false;
+        }
         true
     }
 
@@ -710,6 +719,8 @@ pub struct ThpPairingRequest {
     // message fields
     // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpPairingRequest.host_name)
     pub host_name: ::std::option::Option<::std::string::String>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpPairingRequest.app_name)
+    pub app_name: ::std::option::Option<::std::string::String>,
     // special fields
     // @@protoc_insertion_point(special_field:hw.trezor.messages.thp.ThpPairingRequest.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -726,7 +737,7 @@ impl ThpPairingRequest {
         ::std::default::Default::default()
     }
 
-    // optional string host_name = 1;
+    // required string host_name = 1;
 
     pub fn host_name(&self) -> &str {
         match self.host_name.as_ref() {
@@ -762,13 +773,54 @@ impl ThpPairingRequest {
         self.host_name.take().unwrap_or_else(|| ::std::string::String::new())
     }
 
+    // required string app_name = 2;
+
+    pub fn app_name(&self) -> &str {
+        match self.app_name.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_app_name(&mut self) {
+        self.app_name = ::std::option::Option::None;
+    }
+
+    pub fn has_app_name(&self) -> bool {
+        self.app_name.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_app_name(&mut self, v: ::std::string::String) {
+        self.app_name = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_app_name(&mut self) -> &mut ::std::string::String {
+        if self.app_name.is_none() {
+            self.app_name = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.app_name.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_app_name(&mut self) -> ::std::string::String {
+        self.app_name.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(1);
+        let mut fields = ::std::vec::Vec::with_capacity(2);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "host_name",
             |m: &ThpPairingRequest| { &m.host_name },
             |m: &mut ThpPairingRequest| { &mut m.host_name },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "app_name",
+            |m: &ThpPairingRequest| { &m.app_name },
+            |m: &mut ThpPairingRequest| { &mut m.app_name },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<ThpPairingRequest>(
             "ThpPairingRequest",
@@ -782,6 +834,12 @@ impl ::protobuf::Message for ThpPairingRequest {
     const NAME: &'static str = "ThpPairingRequest";
 
     fn is_initialized(&self) -> bool {
+        if self.host_name.is_none() {
+            return false;
+        }
+        if self.app_name.is_none() {
+            return false;
+        }
         true
     }
 
@@ -790,6 +848,9 @@ impl ::protobuf::Message for ThpPairingRequest {
             match tag {
                 10 => {
                     self.host_name = ::std::option::Option::Some(is.read_string()?);
+                },
+                18 => {
+                    self.app_name = ::std::option::Option::Some(is.read_string()?);
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -806,6 +867,9 @@ impl ::protobuf::Message for ThpPairingRequest {
         if let Some(v) = self.host_name.as_ref() {
             my_size += ::protobuf::rt::string_size(1, &v);
         }
+        if let Some(v) = self.app_name.as_ref() {
+            my_size += ::protobuf::rt::string_size(2, &v);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -814,6 +878,9 @@ impl ::protobuf::Message for ThpPairingRequest {
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
         if let Some(v) = self.host_name.as_ref() {
             os.write_string(1, v)?;
+        }
+        if let Some(v) = self.app_name.as_ref() {
+            os.write_string(2, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -833,12 +900,14 @@ impl ::protobuf::Message for ThpPairingRequest {
 
     fn clear(&mut self) {
         self.host_name = ::std::option::Option::None;
+        self.app_name = ::std::option::Option::None;
         self.special_fields.clear();
     }
 
     fn default_instance() -> &'static ThpPairingRequest {
         static instance: ThpPairingRequest = ThpPairingRequest {
             host_name: ::std::option::Option::None,
+            app_name: ::std::option::Option::None,
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -987,7 +1056,7 @@ impl ThpSelectMethod {
         ::std::default::Default::default()
     }
 
-    // optional .hw.trezor.messages.thp.ThpPairingMethod selected_pairing_method = 1;
+    // required .hw.trezor.messages.thp.ThpPairingMethod selected_pairing_method = 1;
 
     pub fn selected_pairing_method(&self) -> ThpPairingMethod {
         match self.selected_pairing_method {
@@ -1029,6 +1098,9 @@ impl ::protobuf::Message for ThpSelectMethod {
     const NAME: &'static str = "ThpSelectMethod";
 
     fn is_initialized(&self) -> bool {
+        if self.selected_pairing_method.is_none() {
+            return false;
+        }
         true
     }
 
@@ -1234,7 +1306,7 @@ impl ThpCodeEntryCommitment {
         ::std::default::Default::default()
     }
 
-    // optional bytes commitment = 1;
+    // required bytes commitment = 1;
 
     pub fn commitment(&self) -> &[u8] {
         match self.commitment.as_ref() {
@@ -1290,6 +1362,9 @@ impl ::protobuf::Message for ThpCodeEntryCommitment {
     const NAME: &'static str = "ThpCodeEntryCommitment";
 
     fn is_initialized(&self) -> bool {
+        if self.commitment.is_none() {
+            return false;
+        }
         true
     }
 
@@ -1392,7 +1467,7 @@ impl ThpCodeEntryChallenge {
         ::std::default::Default::default()
     }
 
-    // optional bytes challenge = 1;
+    // required bytes challenge = 1;
 
     pub fn challenge(&self) -> &[u8] {
         match self.challenge.as_ref() {
@@ -1448,6 +1523,9 @@ impl ::protobuf::Message for ThpCodeEntryChallenge {
     const NAME: &'static str = "ThpCodeEntryChallenge";
 
     fn is_initialized(&self) -> bool {
+        if self.challenge.is_none() {
+            return false;
+        }
         true
     }
 
@@ -1550,7 +1628,7 @@ impl ThpCodeEntryCpaceTrezor {
         ::std::default::Default::default()
     }
 
-    // optional bytes cpace_trezor_public_key = 1;
+    // required bytes cpace_trezor_public_key = 1;
 
     pub fn cpace_trezor_public_key(&self) -> &[u8] {
         match self.cpace_trezor_public_key.as_ref() {
@@ -1606,6 +1684,9 @@ impl ::protobuf::Message for ThpCodeEntryCpaceTrezor {
     const NAME: &'static str = "ThpCodeEntryCpaceTrezor";
 
     fn is_initialized(&self) -> bool {
+        if self.cpace_trezor_public_key.is_none() {
+            return false;
+        }
         true
     }
 
@@ -1710,7 +1791,7 @@ impl ThpCodeEntryCpaceHostTag {
         ::std::default::Default::default()
     }
 
-    // optional bytes cpace_host_public_key = 1;
+    // required bytes cpace_host_public_key = 1;
 
     pub fn cpace_host_public_key(&self) -> &[u8] {
         match self.cpace_host_public_key.as_ref() {
@@ -1746,7 +1827,7 @@ impl ThpCodeEntryCpaceHostTag {
         self.cpace_host_public_key.take().unwrap_or_else(|| ::std::vec::Vec::new())
     }
 
-    // optional bytes tag = 2;
+    // required bytes tag = 2;
 
     pub fn tag(&self) -> &[u8] {
         match self.tag.as_ref() {
@@ -1807,6 +1888,12 @@ impl ::protobuf::Message for ThpCodeEntryCpaceHostTag {
     const NAME: &'static str = "ThpCodeEntryCpaceHostTag";
 
     fn is_initialized(&self) -> bool {
+        if self.cpace_host_public_key.is_none() {
+            return false;
+        }
+        if self.tag.is_none() {
+            return false;
+        }
         true
     }
 
@@ -1920,7 +2007,7 @@ impl ThpCodeEntrySecret {
         ::std::default::Default::default()
     }
 
-    // optional bytes secret = 1;
+    // required bytes secret = 1;
 
     pub fn secret(&self) -> &[u8] {
         match self.secret.as_ref() {
@@ -1976,6 +2063,9 @@ impl ::protobuf::Message for ThpCodeEntrySecret {
     const NAME: &'static str = "ThpCodeEntrySecret";
 
     fn is_initialized(&self) -> bool {
+        if self.secret.is_none() {
+            return false;
+        }
         true
     }
 
@@ -2078,7 +2168,7 @@ impl ThpQrCodeTag {
         ::std::default::Default::default()
     }
 
-    // optional bytes tag = 1;
+    // required bytes tag = 1;
 
     pub fn tag(&self) -> &[u8] {
         match self.tag.as_ref() {
@@ -2134,6 +2224,9 @@ impl ::protobuf::Message for ThpQrCodeTag {
     const NAME: &'static str = "ThpQrCodeTag";
 
     fn is_initialized(&self) -> bool {
+        if self.tag.is_none() {
+            return false;
+        }
         true
     }
 
@@ -2236,7 +2329,7 @@ impl ThpQrCodeSecret {
         ::std::default::Default::default()
     }
 
-    // optional bytes secret = 1;
+    // required bytes secret = 1;
 
     pub fn secret(&self) -> &[u8] {
         match self.secret.as_ref() {
@@ -2292,6 +2385,9 @@ impl ::protobuf::Message for ThpQrCodeSecret {
     const NAME: &'static str = "ThpQrCodeSecret";
 
     fn is_initialized(&self) -> bool {
+        if self.secret.is_none() {
+            return false;
+        }
         true
     }
 
@@ -2394,7 +2490,7 @@ impl ThpNfcTagHost {
         ::std::default::Default::default()
     }
 
-    // optional bytes tag = 1;
+    // required bytes tag = 1;
 
     pub fn tag(&self) -> &[u8] {
         match self.tag.as_ref() {
@@ -2450,6 +2546,9 @@ impl ::protobuf::Message for ThpNfcTagHost {
     const NAME: &'static str = "ThpNfcTagHost";
 
     fn is_initialized(&self) -> bool {
+        if self.tag.is_none() {
+            return false;
+        }
         true
     }
 
@@ -2552,7 +2651,7 @@ impl ThpNfcTagTrezor {
         ::std::default::Default::default()
     }
 
-    // optional bytes tag = 1;
+    // required bytes tag = 1;
 
     pub fn tag(&self) -> &[u8] {
         match self.tag.as_ref() {
@@ -2608,6 +2707,9 @@ impl ::protobuf::Message for ThpNfcTagTrezor {
     const NAME: &'static str = "ThpNfcTagTrezor";
 
     fn is_initialized(&self) -> bool {
+        if self.tag.is_none() {
+            return false;
+        }
         true
     }
 
@@ -2692,8 +2794,8 @@ impl ::protobuf::reflect::ProtobufValue for ThpNfcTagTrezor {
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct ThpCredentialRequest {
     // message fields
-    // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpCredentialRequest.host_static_pubkey)
-    pub host_static_pubkey: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpCredentialRequest.host_static_public_key)
+    pub host_static_public_key: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpCredentialRequest.autoconnect)
     pub autoconnect: ::std::option::Option<bool>,
     // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpCredentialRequest.credential)
@@ -2714,40 +2816,40 @@ impl ThpCredentialRequest {
         ::std::default::Default::default()
     }
 
-    // optional bytes host_static_pubkey = 1;
+    // required bytes host_static_public_key = 1;
 
-    pub fn host_static_pubkey(&self) -> &[u8] {
-        match self.host_static_pubkey.as_ref() {
+    pub fn host_static_public_key(&self) -> &[u8] {
+        match self.host_static_public_key.as_ref() {
             Some(v) => v,
             None => &[],
         }
     }
 
-    pub fn clear_host_static_pubkey(&mut self) {
-        self.host_static_pubkey = ::std::option::Option::None;
+    pub fn clear_host_static_public_key(&mut self) {
+        self.host_static_public_key = ::std::option::Option::None;
     }
 
-    pub fn has_host_static_pubkey(&self) -> bool {
-        self.host_static_pubkey.is_some()
+    pub fn has_host_static_public_key(&self) -> bool {
+        self.host_static_public_key.is_some()
     }
 
     // Param is passed by value, moved
-    pub fn set_host_static_pubkey(&mut self, v: ::std::vec::Vec<u8>) {
-        self.host_static_pubkey = ::std::option::Option::Some(v);
+    pub fn set_host_static_public_key(&mut self, v: ::std::vec::Vec<u8>) {
+        self.host_static_public_key = ::std::option::Option::Some(v);
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_host_static_pubkey(&mut self) -> &mut ::std::vec::Vec<u8> {
-        if self.host_static_pubkey.is_none() {
-            self.host_static_pubkey = ::std::option::Option::Some(::std::vec::Vec::new());
+    pub fn mut_host_static_public_key(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.host_static_public_key.is_none() {
+            self.host_static_public_key = ::std::option::Option::Some(::std::vec::Vec::new());
         }
-        self.host_static_pubkey.as_mut().unwrap()
+        self.host_static_public_key.as_mut().unwrap()
     }
 
     // Take field
-    pub fn take_host_static_pubkey(&mut self) -> ::std::vec::Vec<u8> {
-        self.host_static_pubkey.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    pub fn take_host_static_public_key(&mut self) -> ::std::vec::Vec<u8> {
+        self.host_static_public_key.take().unwrap_or_else(|| ::std::vec::Vec::new())
     }
 
     // optional bool autoconnect = 2;
@@ -2809,9 +2911,9 @@ impl ThpCredentialRequest {
         let mut fields = ::std::vec::Vec::with_capacity(3);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-            "host_static_pubkey",
-            |m: &ThpCredentialRequest| { &m.host_static_pubkey },
-            |m: &mut ThpCredentialRequest| { &mut m.host_static_pubkey },
+            "host_static_public_key",
+            |m: &ThpCredentialRequest| { &m.host_static_public_key },
+            |m: &mut ThpCredentialRequest| { &mut m.host_static_public_key },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "autoconnect",
@@ -2835,6 +2937,9 @@ impl ::protobuf::Message for ThpCredentialRequest {
     const NAME: &'static str = "ThpCredentialRequest";
 
     fn is_initialized(&self) -> bool {
+        if self.host_static_public_key.is_none() {
+            return false;
+        }
         true
     }
 
@@ -2842,7 +2947,7 @@ impl ::protobuf::Message for ThpCredentialRequest {
         while let Some(tag) = is.read_raw_tag_or_eof()? {
             match tag {
                 10 => {
-                    self.host_static_pubkey = ::std::option::Option::Some(is.read_bytes()?);
+                    self.host_static_public_key = ::std::option::Option::Some(is.read_bytes()?);
                 },
                 16 => {
                     self.autoconnect = ::std::option::Option::Some(is.read_bool()?);
@@ -2862,7 +2967,7 @@ impl ::protobuf::Message for ThpCredentialRequest {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
-        if let Some(v) = self.host_static_pubkey.as_ref() {
+        if let Some(v) = self.host_static_public_key.as_ref() {
             my_size += ::protobuf::rt::bytes_size(1, &v);
         }
         if let Some(v) = self.autoconnect {
@@ -2877,7 +2982,7 @@ impl ::protobuf::Message for ThpCredentialRequest {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if let Some(v) = self.host_static_pubkey.as_ref() {
+        if let Some(v) = self.host_static_public_key.as_ref() {
             os.write_bytes(1, v)?;
         }
         if let Some(v) = self.autoconnect {
@@ -2903,7 +3008,7 @@ impl ::protobuf::Message for ThpCredentialRequest {
     }
 
     fn clear(&mut self) {
-        self.host_static_pubkey = ::std::option::Option::None;
+        self.host_static_public_key = ::std::option::Option::None;
         self.autoconnect = ::std::option::Option::None;
         self.credential = ::std::option::Option::None;
         self.special_fields.clear();
@@ -2911,7 +3016,7 @@ impl ::protobuf::Message for ThpCredentialRequest {
 
     fn default_instance() -> &'static ThpCredentialRequest {
         static instance: ThpCredentialRequest = ThpCredentialRequest {
-            host_static_pubkey: ::std::option::Option::None,
+            host_static_public_key: ::std::option::Option::None,
             autoconnect: ::std::option::Option::None,
             credential: ::std::option::Option::None,
             special_fields: ::protobuf::SpecialFields::new(),
@@ -2941,8 +3046,8 @@ impl ::protobuf::reflect::ProtobufValue for ThpCredentialRequest {
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct ThpCredentialResponse {
     // message fields
-    // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpCredentialResponse.trezor_static_pubkey)
-    pub trezor_static_pubkey: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpCredentialResponse.trezor_static_public_key)
+    pub trezor_static_public_key: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpCredentialResponse.credential)
     pub credential: ::std::option::Option<::std::vec::Vec<u8>>,
     // special fields
@@ -2961,43 +3066,43 @@ impl ThpCredentialResponse {
         ::std::default::Default::default()
     }
 
-    // optional bytes trezor_static_pubkey = 1;
+    // required bytes trezor_static_public_key = 1;
 
-    pub fn trezor_static_pubkey(&self) -> &[u8] {
-        match self.trezor_static_pubkey.as_ref() {
+    pub fn trezor_static_public_key(&self) -> &[u8] {
+        match self.trezor_static_public_key.as_ref() {
             Some(v) => v,
             None => &[],
         }
     }
 
-    pub fn clear_trezor_static_pubkey(&mut self) {
-        self.trezor_static_pubkey = ::std::option::Option::None;
+    pub fn clear_trezor_static_public_key(&mut self) {
+        self.trezor_static_public_key = ::std::option::Option::None;
     }
 
-    pub fn has_trezor_static_pubkey(&self) -> bool {
-        self.trezor_static_pubkey.is_some()
+    pub fn has_trezor_static_public_key(&self) -> bool {
+        self.trezor_static_public_key.is_some()
     }
 
     // Param is passed by value, moved
-    pub fn set_trezor_static_pubkey(&mut self, v: ::std::vec::Vec<u8>) {
-        self.trezor_static_pubkey = ::std::option::Option::Some(v);
+    pub fn set_trezor_static_public_key(&mut self, v: ::std::vec::Vec<u8>) {
+        self.trezor_static_public_key = ::std::option::Option::Some(v);
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_trezor_static_pubkey(&mut self) -> &mut ::std::vec::Vec<u8> {
-        if self.trezor_static_pubkey.is_none() {
-            self.trezor_static_pubkey = ::std::option::Option::Some(::std::vec::Vec::new());
+    pub fn mut_trezor_static_public_key(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.trezor_static_public_key.is_none() {
+            self.trezor_static_public_key = ::std::option::Option::Some(::std::vec::Vec::new());
         }
-        self.trezor_static_pubkey.as_mut().unwrap()
+        self.trezor_static_public_key.as_mut().unwrap()
     }
 
     // Take field
-    pub fn take_trezor_static_pubkey(&mut self) -> ::std::vec::Vec<u8> {
-        self.trezor_static_pubkey.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    pub fn take_trezor_static_public_key(&mut self) -> ::std::vec::Vec<u8> {
+        self.trezor_static_public_key.take().unwrap_or_else(|| ::std::vec::Vec::new())
     }
 
-    // optional bytes credential = 2;
+    // required bytes credential = 2;
 
     pub fn credential(&self) -> &[u8] {
         match self.credential.as_ref() {
@@ -3037,9 +3142,9 @@ impl ThpCredentialResponse {
         let mut fields = ::std::vec::Vec::with_capacity(2);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-            "trezor_static_pubkey",
-            |m: &ThpCredentialResponse| { &m.trezor_static_pubkey },
-            |m: &mut ThpCredentialResponse| { &mut m.trezor_static_pubkey },
+            "trezor_static_public_key",
+            |m: &ThpCredentialResponse| { &m.trezor_static_public_key },
+            |m: &mut ThpCredentialResponse| { &mut m.trezor_static_public_key },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "credential",
@@ -3058,6 +3163,12 @@ impl ::protobuf::Message for ThpCredentialResponse {
     const NAME: &'static str = "ThpCredentialResponse";
 
     fn is_initialized(&self) -> bool {
+        if self.trezor_static_public_key.is_none() {
+            return false;
+        }
+        if self.credential.is_none() {
+            return false;
+        }
         true
     }
 
@@ -3065,7 +3176,7 @@ impl ::protobuf::Message for ThpCredentialResponse {
         while let Some(tag) = is.read_raw_tag_or_eof()? {
             match tag {
                 10 => {
-                    self.trezor_static_pubkey = ::std::option::Option::Some(is.read_bytes()?);
+                    self.trezor_static_public_key = ::std::option::Option::Some(is.read_bytes()?);
                 },
                 18 => {
                     self.credential = ::std::option::Option::Some(is.read_bytes()?);
@@ -3082,7 +3193,7 @@ impl ::protobuf::Message for ThpCredentialResponse {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
-        if let Some(v) = self.trezor_static_pubkey.as_ref() {
+        if let Some(v) = self.trezor_static_public_key.as_ref() {
             my_size += ::protobuf::rt::bytes_size(1, &v);
         }
         if let Some(v) = self.credential.as_ref() {
@@ -3094,7 +3205,7 @@ impl ::protobuf::Message for ThpCredentialResponse {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if let Some(v) = self.trezor_static_pubkey.as_ref() {
+        if let Some(v) = self.trezor_static_public_key.as_ref() {
             os.write_bytes(1, v)?;
         }
         if let Some(v) = self.credential.as_ref() {
@@ -3117,14 +3228,14 @@ impl ::protobuf::Message for ThpCredentialResponse {
     }
 
     fn clear(&mut self) {
-        self.trezor_static_pubkey = ::std::option::Option::None;
+        self.trezor_static_public_key = ::std::option::Option::None;
         self.credential = ::std::option::Option::None;
         self.special_fields.clear();
     }
 
     fn default_instance() -> &'static ThpCredentialResponse {
         static instance: ThpCredentialResponse = ThpCredentialResponse {
-            trezor_static_pubkey: ::std::option::Option::None,
+            trezor_static_public_key: ::std::option::Option::None,
             credential: ::std::option::Option::None,
             special_fields: ::protobuf::SpecialFields::new(),
         };
@@ -3363,6 +3474,8 @@ pub struct ThpCredentialMetadata {
     pub host_name: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpCredentialMetadata.autoconnect)
     pub autoconnect: ::std::option::Option<bool>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpCredentialMetadata.app_name)
+    pub app_name: ::std::option::Option<::std::string::String>,
     // special fields
     // @@protoc_insertion_point(special_field:hw.trezor.messages.thp.ThpCredentialMetadata.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -3379,7 +3492,7 @@ impl ThpCredentialMetadata {
         ::std::default::Default::default()
     }
 
-    // optional string host_name = 1;
+    // required string host_name = 1;
 
     pub fn host_name(&self) -> &str {
         match self.host_name.as_ref() {
@@ -3434,8 +3547,44 @@ impl ThpCredentialMetadata {
         self.autoconnect = ::std::option::Option::Some(v);
     }
 
+    // required string app_name = 3;
+
+    pub fn app_name(&self) -> &str {
+        match self.app_name.as_ref() {
+            Some(v) => v,
+            None => "",
+        }
+    }
+
+    pub fn clear_app_name(&mut self) {
+        self.app_name = ::std::option::Option::None;
+    }
+
+    pub fn has_app_name(&self) -> bool {
+        self.app_name.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_app_name(&mut self, v: ::std::string::String) {
+        self.app_name = ::std::option::Option::Some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_app_name(&mut self) -> &mut ::std::string::String {
+        if self.app_name.is_none() {
+            self.app_name = ::std::option::Option::Some(::std::string::String::new());
+        }
+        self.app_name.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_app_name(&mut self) -> ::std::string::String {
+        self.app_name.take().unwrap_or_else(|| ::std::string::String::new())
+    }
+
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(2);
+        let mut fields = ::std::vec::Vec::with_capacity(3);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
             "host_name",
@@ -3446,6 +3595,11 @@ impl ThpCredentialMetadata {
             "autoconnect",
             |m: &ThpCredentialMetadata| { &m.autoconnect },
             |m: &mut ThpCredentialMetadata| { &mut m.autoconnect },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+            "app_name",
+            |m: &ThpCredentialMetadata| { &m.app_name },
+            |m: &mut ThpCredentialMetadata| { &mut m.app_name },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<ThpCredentialMetadata>(
             "ThpCredentialMetadata",
@@ -3459,6 +3613,12 @@ impl ::protobuf::Message for ThpCredentialMetadata {
     const NAME: &'static str = "ThpCredentialMetadata";
 
     fn is_initialized(&self) -> bool {
+        if self.host_name.is_none() {
+            return false;
+        }
+        if self.app_name.is_none() {
+            return false;
+        }
         true
     }
 
@@ -3470,6 +3630,9 @@ impl ::protobuf::Message for ThpCredentialMetadata {
                 },
                 16 => {
                     self.autoconnect = ::std::option::Option::Some(is.read_bool()?);
+                },
+                26 => {
+                    self.app_name = ::std::option::Option::Some(is.read_string()?);
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -3489,6 +3652,9 @@ impl ::protobuf::Message for ThpCredentialMetadata {
         if let Some(v) = self.autoconnect {
             my_size += 1 + 1;
         }
+        if let Some(v) = self.app_name.as_ref() {
+            my_size += ::protobuf::rt::string_size(3, &v);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -3500,6 +3666,9 @@ impl ::protobuf::Message for ThpCredentialMetadata {
         }
         if let Some(v) = self.autoconnect {
             os.write_bool(2, v)?;
+        }
+        if let Some(v) = self.app_name.as_ref() {
+            os.write_string(3, v)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -3520,6 +3689,7 @@ impl ::protobuf::Message for ThpCredentialMetadata {
     fn clear(&mut self) {
         self.host_name = ::std::option::Option::None;
         self.autoconnect = ::std::option::Option::None;
+        self.app_name = ::std::option::Option::None;
         self.special_fields.clear();
     }
 
@@ -3527,6 +3697,7 @@ impl ::protobuf::Message for ThpCredentialMetadata {
         static instance: ThpCredentialMetadata = ThpCredentialMetadata {
             host_name: ::std::option::Option::None,
             autoconnect: ::std::option::Option::None,
+            app_name: ::std::option::Option::None,
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -3574,7 +3745,7 @@ impl ThpPairingCredential {
         ::std::default::Default::default()
     }
 
-    // optional bytes mac = 2;
+    // required bytes mac = 2;
 
     pub fn mac(&self) -> &[u8] {
         match self.mac.as_ref() {
@@ -3635,6 +3806,17 @@ impl ::protobuf::Message for ThpPairingCredential {
     const NAME: &'static str = "ThpPairingCredential";
 
     fn is_initialized(&self) -> bool {
+        if self.cred_metadata.is_none() {
+            return false;
+        }
+        if self.mac.is_none() {
+            return false;
+        }
+        for v in &self.cred_metadata {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
         true
     }
 
@@ -3731,8 +3913,8 @@ impl ::protobuf::reflect::ProtobufValue for ThpPairingCredential {
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct ThpAuthenticatedCredentialData {
     // message fields
-    // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpAuthenticatedCredentialData.host_static_pubkey)
-    pub host_static_pubkey: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpAuthenticatedCredentialData.host_static_public_key)
+    pub host_static_public_key: ::std::option::Option<::std::vec::Vec<u8>>,
     // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpAuthenticatedCredentialData.cred_metadata)
     pub cred_metadata: ::protobuf::MessageField<ThpCredentialMetadata>,
     // special fields
@@ -3751,49 +3933,49 @@ impl ThpAuthenticatedCredentialData {
         ::std::default::Default::default()
     }
 
-    // optional bytes host_static_pubkey = 1;
+    // required bytes host_static_public_key = 1;
 
-    pub fn host_static_pubkey(&self) -> &[u8] {
-        match self.host_static_pubkey.as_ref() {
+    pub fn host_static_public_key(&self) -> &[u8] {
+        match self.host_static_public_key.as_ref() {
             Some(v) => v,
             None => &[],
         }
     }
 
-    pub fn clear_host_static_pubkey(&mut self) {
-        self.host_static_pubkey = ::std::option::Option::None;
+    pub fn clear_host_static_public_key(&mut self) {
+        self.host_static_public_key = ::std::option::Option::None;
     }
 
-    pub fn has_host_static_pubkey(&self) -> bool {
-        self.host_static_pubkey.is_some()
+    pub fn has_host_static_public_key(&self) -> bool {
+        self.host_static_public_key.is_some()
     }
 
     // Param is passed by value, moved
-    pub fn set_host_static_pubkey(&mut self, v: ::std::vec::Vec<u8>) {
-        self.host_static_pubkey = ::std::option::Option::Some(v);
+    pub fn set_host_static_public_key(&mut self, v: ::std::vec::Vec<u8>) {
+        self.host_static_public_key = ::std::option::Option::Some(v);
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_host_static_pubkey(&mut self) -> &mut ::std::vec::Vec<u8> {
-        if self.host_static_pubkey.is_none() {
-            self.host_static_pubkey = ::std::option::Option::Some(::std::vec::Vec::new());
+    pub fn mut_host_static_public_key(&mut self) -> &mut ::std::vec::Vec<u8> {
+        if self.host_static_public_key.is_none() {
+            self.host_static_public_key = ::std::option::Option::Some(::std::vec::Vec::new());
         }
-        self.host_static_pubkey.as_mut().unwrap()
+        self.host_static_public_key.as_mut().unwrap()
     }
 
     // Take field
-    pub fn take_host_static_pubkey(&mut self) -> ::std::vec::Vec<u8> {
-        self.host_static_pubkey.take().unwrap_or_else(|| ::std::vec::Vec::new())
+    pub fn take_host_static_public_key(&mut self) -> ::std::vec::Vec<u8> {
+        self.host_static_public_key.take().unwrap_or_else(|| ::std::vec::Vec::new())
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
         let mut fields = ::std::vec::Vec::with_capacity(2);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
-            "host_static_pubkey",
-            |m: &ThpAuthenticatedCredentialData| { &m.host_static_pubkey },
-            |m: &mut ThpAuthenticatedCredentialData| { &mut m.host_static_pubkey },
+            "host_static_public_key",
+            |m: &ThpAuthenticatedCredentialData| { &m.host_static_public_key },
+            |m: &mut ThpAuthenticatedCredentialData| { &mut m.host_static_public_key },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, ThpCredentialMetadata>(
             "cred_metadata",
@@ -3812,6 +3994,17 @@ impl ::protobuf::Message for ThpAuthenticatedCredentialData {
     const NAME: &'static str = "ThpAuthenticatedCredentialData";
 
     fn is_initialized(&self) -> bool {
+        if self.host_static_public_key.is_none() {
+            return false;
+        }
+        if self.cred_metadata.is_none() {
+            return false;
+        }
+        for v in &self.cred_metadata {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
         true
     }
 
@@ -3819,7 +4012,7 @@ impl ::protobuf::Message for ThpAuthenticatedCredentialData {
         while let Some(tag) = is.read_raw_tag_or_eof()? {
             match tag {
                 10 => {
-                    self.host_static_pubkey = ::std::option::Option::Some(is.read_bytes()?);
+                    self.host_static_public_key = ::std::option::Option::Some(is.read_bytes()?);
                 },
                 18 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.cred_metadata)?;
@@ -3836,7 +4029,7 @@ impl ::protobuf::Message for ThpAuthenticatedCredentialData {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
-        if let Some(v) = self.host_static_pubkey.as_ref() {
+        if let Some(v) = self.host_static_public_key.as_ref() {
             my_size += ::protobuf::rt::bytes_size(1, &v);
         }
         if let Some(v) = self.cred_metadata.as_ref() {
@@ -3849,7 +4042,7 @@ impl ::protobuf::Message for ThpAuthenticatedCredentialData {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if let Some(v) = self.host_static_pubkey.as_ref() {
+        if let Some(v) = self.host_static_public_key.as_ref() {
             os.write_bytes(1, v)?;
         }
         if let Some(v) = self.cred_metadata.as_ref() {
@@ -3872,14 +4065,14 @@ impl ::protobuf::Message for ThpAuthenticatedCredentialData {
     }
 
     fn clear(&mut self) {
-        self.host_static_pubkey = ::std::option::Option::None;
+        self.host_static_public_key = ::std::option::Option::None;
         self.cred_metadata.clear();
         self.special_fields.clear();
     }
 
     fn default_instance() -> &'static ThpAuthenticatedCredentialData {
         static instance: ThpAuthenticatedCredentialData = ThpAuthenticatedCredentialData {
-            host_static_pubkey: ::std::option::Option::None,
+            host_static_public_key: ::std::option::Option::None,
             cred_metadata: ::protobuf::MessageField::none(),
             special_fields: ::protobuf::SpecialFields::new(),
         };
@@ -3902,6 +4095,586 @@ impl ::std::fmt::Display for ThpAuthenticatedCredentialData {
 
 impl ::protobuf::reflect::ProtobufValue for ThpAuthenticatedCredentialData {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+// @@protoc_insertion_point(message:hw.trezor.messages.thp.ThpPairedCache)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct ThpPairedCache {
+    // message fields
+    // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpPairedCache.entries)
+    pub entries: ::std::vec::Vec<thp_paired_cache::ThpPairedCacheEntry>,
+    // special fields
+    // @@protoc_insertion_point(special_field:hw.trezor.messages.thp.ThpPairedCache.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a ThpPairedCache {
+    fn default() -> &'a ThpPairedCache {
+        <ThpPairedCache as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl ThpPairedCache {
+    pub fn new() -> ThpPairedCache {
+        ::std::default::Default::default()
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(1);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "entries",
+            |m: &ThpPairedCache| { &m.entries },
+            |m: &mut ThpPairedCache| { &mut m.entries },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<ThpPairedCache>(
+            "ThpPairedCache",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for ThpPairedCache {
+    const NAME: &'static str = "ThpPairedCache";
+
+    fn is_initialized(&self) -> bool {
+        for v in &self.entries {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.entries.push(is.read_message()?);
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        for value in &self.entries {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        for v in &self.entries {
+            ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+        };
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> ThpPairedCache {
+        ThpPairedCache::new()
+    }
+
+    fn clear(&mut self) {
+        self.entries.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static ThpPairedCache {
+        static instance: ThpPairedCache = ThpPairedCache {
+            entries: ::std::vec::Vec::new(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for ThpPairedCache {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("ThpPairedCache").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for ThpPairedCache {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for ThpPairedCache {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+/// Nested message and enums of message `ThpPairedCache`
+pub mod thp_paired_cache {
+    // @@protoc_insertion_point(message:hw.trezor.messages.thp.ThpPairedCache.ThpPairedCacheEntry)
+    #[derive(PartialEq,Clone,Default,Debug)]
+    pub struct ThpPairedCacheEntry {
+        // message fields
+        // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpPairedCache.ThpPairedCacheEntry.mac_addr)
+        pub mac_addr: ::std::option::Option<::std::vec::Vec<u8>>,
+        // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpPairedCache.ThpPairedCacheEntry.host_name)
+        pub host_name: ::std::option::Option<::std::string::String>,
+        // @@protoc_insertion_point(field:hw.trezor.messages.thp.ThpPairedCache.ThpPairedCacheEntry.app_name)
+        pub app_name: ::std::option::Option<::std::string::String>,
+        // special fields
+        // @@protoc_insertion_point(special_field:hw.trezor.messages.thp.ThpPairedCache.ThpPairedCacheEntry.special_fields)
+        pub special_fields: ::protobuf::SpecialFields,
+    }
+
+    impl<'a> ::std::default::Default for &'a ThpPairedCacheEntry {
+        fn default() -> &'a ThpPairedCacheEntry {
+            <ThpPairedCacheEntry as ::protobuf::Message>::default_instance()
+        }
+    }
+
+    impl ThpPairedCacheEntry {
+        pub fn new() -> ThpPairedCacheEntry {
+            ::std::default::Default::default()
+        }
+
+        // required bytes mac_addr = 1;
+
+        pub fn mac_addr(&self) -> &[u8] {
+            match self.mac_addr.as_ref() {
+                Some(v) => v,
+                None => &[],
+            }
+        }
+
+        pub fn clear_mac_addr(&mut self) {
+            self.mac_addr = ::std::option::Option::None;
+        }
+
+        pub fn has_mac_addr(&self) -> bool {
+            self.mac_addr.is_some()
+        }
+
+        // Param is passed by value, moved
+        pub fn set_mac_addr(&mut self, v: ::std::vec::Vec<u8>) {
+            self.mac_addr = ::std::option::Option::Some(v);
+        }
+
+        // Mutable pointer to the field.
+        // If field is not initialized, it is initialized with default value first.
+        pub fn mut_mac_addr(&mut self) -> &mut ::std::vec::Vec<u8> {
+            if self.mac_addr.is_none() {
+                self.mac_addr = ::std::option::Option::Some(::std::vec::Vec::new());
+            }
+            self.mac_addr.as_mut().unwrap()
+        }
+
+        // Take field
+        pub fn take_mac_addr(&mut self) -> ::std::vec::Vec<u8> {
+            self.mac_addr.take().unwrap_or_else(|| ::std::vec::Vec::new())
+        }
+
+        // required string host_name = 2;
+
+        pub fn host_name(&self) -> &str {
+            match self.host_name.as_ref() {
+                Some(v) => v,
+                None => "",
+            }
+        }
+
+        pub fn clear_host_name(&mut self) {
+            self.host_name = ::std::option::Option::None;
+        }
+
+        pub fn has_host_name(&self) -> bool {
+            self.host_name.is_some()
+        }
+
+        // Param is passed by value, moved
+        pub fn set_host_name(&mut self, v: ::std::string::String) {
+            self.host_name = ::std::option::Option::Some(v);
+        }
+
+        // Mutable pointer to the field.
+        // If field is not initialized, it is initialized with default value first.
+        pub fn mut_host_name(&mut self) -> &mut ::std::string::String {
+            if self.host_name.is_none() {
+                self.host_name = ::std::option::Option::Some(::std::string::String::new());
+            }
+            self.host_name.as_mut().unwrap()
+        }
+
+        // Take field
+        pub fn take_host_name(&mut self) -> ::std::string::String {
+            self.host_name.take().unwrap_or_else(|| ::std::string::String::new())
+        }
+
+        // required string app_name = 3;
+
+        pub fn app_name(&self) -> &str {
+            match self.app_name.as_ref() {
+                Some(v) => v,
+                None => "",
+            }
+        }
+
+        pub fn clear_app_name(&mut self) {
+            self.app_name = ::std::option::Option::None;
+        }
+
+        pub fn has_app_name(&self) -> bool {
+            self.app_name.is_some()
+        }
+
+        // Param is passed by value, moved
+        pub fn set_app_name(&mut self, v: ::std::string::String) {
+            self.app_name = ::std::option::Option::Some(v);
+        }
+
+        // Mutable pointer to the field.
+        // If field is not initialized, it is initialized with default value first.
+        pub fn mut_app_name(&mut self) -> &mut ::std::string::String {
+            if self.app_name.is_none() {
+                self.app_name = ::std::option::Option::Some(::std::string::String::new());
+            }
+            self.app_name.as_mut().unwrap()
+        }
+
+        // Take field
+        pub fn take_app_name(&mut self) -> ::std::string::String {
+            self.app_name.take().unwrap_or_else(|| ::std::string::String::new())
+        }
+
+        pub(in super) fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+            let mut fields = ::std::vec::Vec::with_capacity(3);
+            let mut oneofs = ::std::vec::Vec::with_capacity(0);
+            fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+                "mac_addr",
+                |m: &ThpPairedCacheEntry| { &m.mac_addr },
+                |m: &mut ThpPairedCacheEntry| { &mut m.mac_addr },
+            ));
+            fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+                "host_name",
+                |m: &ThpPairedCacheEntry| { &m.host_name },
+                |m: &mut ThpPairedCacheEntry| { &mut m.host_name },
+            ));
+            fields.push(::protobuf::reflect::rt::v2::make_option_accessor::<_, _>(
+                "app_name",
+                |m: &ThpPairedCacheEntry| { &m.app_name },
+                |m: &mut ThpPairedCacheEntry| { &mut m.app_name },
+            ));
+            ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<ThpPairedCacheEntry>(
+                "ThpPairedCache.ThpPairedCacheEntry",
+                fields,
+                oneofs,
+            )
+        }
+    }
+
+    impl ::protobuf::Message for ThpPairedCacheEntry {
+        const NAME: &'static str = "ThpPairedCacheEntry";
+
+        fn is_initialized(&self) -> bool {
+            if self.mac_addr.is_none() {
+                return false;
+            }
+            if self.host_name.is_none() {
+                return false;
+            }
+            if self.app_name.is_none() {
+                return false;
+            }
+            true
+        }
+
+        fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+            while let Some(tag) = is.read_raw_tag_or_eof()? {
+                match tag {
+                    10 => {
+                        self.mac_addr = ::std::option::Option::Some(is.read_bytes()?);
+                    },
+                    18 => {
+                        self.host_name = ::std::option::Option::Some(is.read_string()?);
+                    },
+                    26 => {
+                        self.app_name = ::std::option::Option::Some(is.read_string()?);
+                    },
+                    tag => {
+                        ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                    },
+                };
+            }
+            ::std::result::Result::Ok(())
+        }
+
+        // Compute sizes of nested messages
+        #[allow(unused_variables)]
+        fn compute_size(&self) -> u64 {
+            let mut my_size = 0;
+            if let Some(v) = self.mac_addr.as_ref() {
+                my_size += ::protobuf::rt::bytes_size(1, &v);
+            }
+            if let Some(v) = self.host_name.as_ref() {
+                my_size += ::protobuf::rt::string_size(2, &v);
+            }
+            if let Some(v) = self.app_name.as_ref() {
+                my_size += ::protobuf::rt::string_size(3, &v);
+            }
+            my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+            self.special_fields.cached_size().set(my_size as u32);
+            my_size
+        }
+
+        fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+            if let Some(v) = self.mac_addr.as_ref() {
+                os.write_bytes(1, v)?;
+            }
+            if let Some(v) = self.host_name.as_ref() {
+                os.write_string(2, v)?;
+            }
+            if let Some(v) = self.app_name.as_ref() {
+                os.write_string(3, v)?;
+            }
+            os.write_unknown_fields(self.special_fields.unknown_fields())?;
+            ::std::result::Result::Ok(())
+        }
+
+        fn special_fields(&self) -> &::protobuf::SpecialFields {
+            &self.special_fields
+        }
+
+        fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+            &mut self.special_fields
+        }
+
+        fn new() -> ThpPairedCacheEntry {
+            ThpPairedCacheEntry::new()
+        }
+
+        fn clear(&mut self) {
+            self.mac_addr = ::std::option::Option::None;
+            self.host_name = ::std::option::Option::None;
+            self.app_name = ::std::option::Option::None;
+            self.special_fields.clear();
+        }
+
+        fn default_instance() -> &'static ThpPairedCacheEntry {
+            static instance: ThpPairedCacheEntry = ThpPairedCacheEntry {
+                mac_addr: ::std::option::Option::None,
+                host_name: ::std::option::Option::None,
+                app_name: ::std::option::Option::None,
+                special_fields: ::protobuf::SpecialFields::new(),
+            };
+            &instance
+        }
+    }
+
+    impl ::protobuf::MessageFull for ThpPairedCacheEntry {
+        fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+            static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+            descriptor.get(|| super::file_descriptor().message_by_package_relative_name("ThpPairedCache.ThpPairedCacheEntry").unwrap()).clone()
+        }
+    }
+
+    impl ::std::fmt::Display for ThpPairedCacheEntry {
+        fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            ::protobuf::text_format::fmt(self, f)
+        }
+    }
+
+    impl ::protobuf::reflect::ProtobufValue for ThpPairedCacheEntry {
+        type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+    }
+}
+
+#[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
+// @@protoc_insertion_point(enum:hw.trezor.messages.thp.ThpMessageType)
+pub enum ThpMessageType {
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_Cancel)
+    ThpMessageType_Cancel = 20,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ButtonRequest)
+    ThpMessageType_ButtonRequest = 26,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ButtonAck)
+    ThpMessageType_ButtonAck = 27,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpPairingRequest)
+    ThpMessageType_ThpPairingRequest = 1008,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpPairingRequestApproved)
+    ThpMessageType_ThpPairingRequestApproved = 1009,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpSelectMethod)
+    ThpMessageType_ThpSelectMethod = 1010,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpPairingPreparationsFinished)
+    ThpMessageType_ThpPairingPreparationsFinished = 1011,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpCredentialRequest)
+    ThpMessageType_ThpCredentialRequest = 1016,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpCredentialResponse)
+    ThpMessageType_ThpCredentialResponse = 1017,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpEndRequest)
+    ThpMessageType_ThpEndRequest = 1018,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpEndResponse)
+    ThpMessageType_ThpEndResponse = 1019,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpCodeEntryCommitment)
+    ThpMessageType_ThpCodeEntryCommitment = 1024,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpCodeEntryChallenge)
+    ThpMessageType_ThpCodeEntryChallenge = 1025,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpCodeEntryCpaceTrezor)
+    ThpMessageType_ThpCodeEntryCpaceTrezor = 1026,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpCodeEntryCpaceHostTag)
+    ThpMessageType_ThpCodeEntryCpaceHostTag = 1027,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpCodeEntrySecret)
+    ThpMessageType_ThpCodeEntrySecret = 1028,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpQrCodeTag)
+    ThpMessageType_ThpQrCodeTag = 1032,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpQrCodeSecret)
+    ThpMessageType_ThpQrCodeSecret = 1033,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpNfcTagHost)
+    ThpMessageType_ThpNfcTagHost = 1040,
+    // @@protoc_insertion_point(enum_value:hw.trezor.messages.thp.ThpMessageType.ThpMessageType_ThpNfcTagTrezor)
+    ThpMessageType_ThpNfcTagTrezor = 1041,
+}
+
+impl ::protobuf::Enum for ThpMessageType {
+    const NAME: &'static str = "ThpMessageType";
+
+    fn value(&self) -> i32 {
+        *self as i32
+    }
+
+    fn from_i32(value: i32) -> ::std::option::Option<ThpMessageType> {
+        match value {
+            20 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_Cancel),
+            26 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ButtonRequest),
+            27 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ButtonAck),
+            1008 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpPairingRequest),
+            1009 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpPairingRequestApproved),
+            1010 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpSelectMethod),
+            1011 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpPairingPreparationsFinished),
+            1016 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpCredentialRequest),
+            1017 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpCredentialResponse),
+            1018 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpEndRequest),
+            1019 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpEndResponse),
+            1024 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpCodeEntryCommitment),
+            1025 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpCodeEntryChallenge),
+            1026 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpCodeEntryCpaceTrezor),
+            1027 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpCodeEntryCpaceHostTag),
+            1028 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpCodeEntrySecret),
+            1032 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpQrCodeTag),
+            1033 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpQrCodeSecret),
+            1040 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpNfcTagHost),
+            1041 => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpNfcTagTrezor),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    fn from_str(str: &str) -> ::std::option::Option<ThpMessageType> {
+        match str {
+            "ThpMessageType_Cancel" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_Cancel),
+            "ThpMessageType_ButtonRequest" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ButtonRequest),
+            "ThpMessageType_ButtonAck" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ButtonAck),
+            "ThpMessageType_ThpPairingRequest" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpPairingRequest),
+            "ThpMessageType_ThpPairingRequestApproved" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpPairingRequestApproved),
+            "ThpMessageType_ThpSelectMethod" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpSelectMethod),
+            "ThpMessageType_ThpPairingPreparationsFinished" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpPairingPreparationsFinished),
+            "ThpMessageType_ThpCredentialRequest" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpCredentialRequest),
+            "ThpMessageType_ThpCredentialResponse" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpCredentialResponse),
+            "ThpMessageType_ThpEndRequest" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpEndRequest),
+            "ThpMessageType_ThpEndResponse" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpEndResponse),
+            "ThpMessageType_ThpCodeEntryCommitment" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpCodeEntryCommitment),
+            "ThpMessageType_ThpCodeEntryChallenge" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpCodeEntryChallenge),
+            "ThpMessageType_ThpCodeEntryCpaceTrezor" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpCodeEntryCpaceTrezor),
+            "ThpMessageType_ThpCodeEntryCpaceHostTag" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpCodeEntryCpaceHostTag),
+            "ThpMessageType_ThpCodeEntrySecret" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpCodeEntrySecret),
+            "ThpMessageType_ThpQrCodeTag" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpQrCodeTag),
+            "ThpMessageType_ThpQrCodeSecret" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpQrCodeSecret),
+            "ThpMessageType_ThpNfcTagHost" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpNfcTagHost),
+            "ThpMessageType_ThpNfcTagTrezor" => ::std::option::Option::Some(ThpMessageType::ThpMessageType_ThpNfcTagTrezor),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    const VALUES: &'static [ThpMessageType] = &[
+        ThpMessageType::ThpMessageType_Cancel,
+        ThpMessageType::ThpMessageType_ButtonRequest,
+        ThpMessageType::ThpMessageType_ButtonAck,
+        ThpMessageType::ThpMessageType_ThpPairingRequest,
+        ThpMessageType::ThpMessageType_ThpPairingRequestApproved,
+        ThpMessageType::ThpMessageType_ThpSelectMethod,
+        ThpMessageType::ThpMessageType_ThpPairingPreparationsFinished,
+        ThpMessageType::ThpMessageType_ThpCredentialRequest,
+        ThpMessageType::ThpMessageType_ThpCredentialResponse,
+        ThpMessageType::ThpMessageType_ThpEndRequest,
+        ThpMessageType::ThpMessageType_ThpEndResponse,
+        ThpMessageType::ThpMessageType_ThpCodeEntryCommitment,
+        ThpMessageType::ThpMessageType_ThpCodeEntryChallenge,
+        ThpMessageType::ThpMessageType_ThpCodeEntryCpaceTrezor,
+        ThpMessageType::ThpMessageType_ThpCodeEntryCpaceHostTag,
+        ThpMessageType::ThpMessageType_ThpCodeEntrySecret,
+        ThpMessageType::ThpMessageType_ThpQrCodeTag,
+        ThpMessageType::ThpMessageType_ThpQrCodeSecret,
+        ThpMessageType::ThpMessageType_ThpNfcTagHost,
+        ThpMessageType::ThpMessageType_ThpNfcTagTrezor,
+    ];
+}
+
+impl ::protobuf::EnumFull for ThpMessageType {
+    fn enum_descriptor() -> ::protobuf::reflect::EnumDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().enum_by_package_relative_name("ThpMessageType").unwrap()).clone()
+    }
+
+    fn descriptor(&self) -> ::protobuf::reflect::EnumValueDescriptor {
+        let index = match self {
+            ThpMessageType::ThpMessageType_Cancel => 0,
+            ThpMessageType::ThpMessageType_ButtonRequest => 1,
+            ThpMessageType::ThpMessageType_ButtonAck => 2,
+            ThpMessageType::ThpMessageType_ThpPairingRequest => 3,
+            ThpMessageType::ThpMessageType_ThpPairingRequestApproved => 4,
+            ThpMessageType::ThpMessageType_ThpSelectMethod => 5,
+            ThpMessageType::ThpMessageType_ThpPairingPreparationsFinished => 6,
+            ThpMessageType::ThpMessageType_ThpCredentialRequest => 7,
+            ThpMessageType::ThpMessageType_ThpCredentialResponse => 8,
+            ThpMessageType::ThpMessageType_ThpEndRequest => 9,
+            ThpMessageType::ThpMessageType_ThpEndResponse => 10,
+            ThpMessageType::ThpMessageType_ThpCodeEntryCommitment => 11,
+            ThpMessageType::ThpMessageType_ThpCodeEntryChallenge => 12,
+            ThpMessageType::ThpMessageType_ThpCodeEntryCpaceTrezor => 13,
+            ThpMessageType::ThpMessageType_ThpCodeEntryCpaceHostTag => 14,
+            ThpMessageType::ThpMessageType_ThpCodeEntrySecret => 15,
+            ThpMessageType::ThpMessageType_ThpQrCodeTag => 16,
+            ThpMessageType::ThpMessageType_ThpQrCodeSecret => 17,
+            ThpMessageType::ThpMessageType_ThpNfcTagHost => 18,
+            ThpMessageType::ThpMessageType_ThpNfcTagTrezor => 19,
+        };
+        Self::enum_descriptor().value_by_index(index)
+    }
+}
+
+// Note, `Default` is implemented although default value is not 0
+impl ::std::default::Default for ThpMessageType {
+    fn default() -> Self {
+        ThpMessageType::ThpMessageType_Cancel
+    }
+}
+
+impl ThpMessageType {
+    fn generated_enum_descriptor_data() -> ::protobuf::reflect::GeneratedEnumDescriptorData {
+        ::protobuf::reflect::GeneratedEnumDescriptorData::new::<ThpMessageType>("ThpMessageType")
+    }
 }
 
 #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
@@ -3984,50 +4757,78 @@ impl ThpPairingMethod {
 
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n\x12messages-thp.proto\x12\x16hw.trezor.messages.thp\x1a\roptions.prot\
-    o\"\xa0\x02\n\x13ThpDeviceProperties\x12%\n\x0einternal_model\x18\x01\
-    \x20\x01(\tR\rinternalModel\x12#\n\rmodel_variant\x18\x02\x20\x01(\rR\
-    \x0cmodelVariant\x124\n\x16protocol_version_major\x18\x03\x20\x01(\rR\
-    \x14protocolVersionMajor\x124\n\x16protocol_version_minor\x18\x04\x20\
-    \x01(\rR\x14protocolVersionMinor\x12Q\n\x0fpairing_methods\x18\x05\x20\
+    o\"\xa3\x02\n\x13ThpDeviceProperties\x12%\n\x0einternal_model\x18\x01\
+    \x20\x02(\tR\rinternalModel\x12&\n\rmodel_variant\x18\x02\x20\x01(\r:\
+    \x010R\x0cmodelVariant\x124\n\x16protocol_version_major\x18\x03\x20\x02(\
+    \rR\x14protocolVersionMajor\x124\n\x16protocol_version_minor\x18\x04\x20\
+    \x02(\rR\x14protocolVersionMinor\x12Q\n\x0fpairing_methods\x18\x05\x20\
     \x03(\x0e2(.hw.trezor.messages.thp.ThpPairingMethodR\x0epairingMethods\"\
     _\n%ThpHandshakeCompletionReqNoisePayload\x126\n\x17host_pairing_credent\
-    ial\x18\x01\x20\x01(\x0cR\x15hostPairingCredential\"y\n\x13ThpCreateNewS\
-    ession\x12\x1e\n\npassphrase\x18\x01\x20\x01(\tR\npassphrase\x12\x1b\n\t\
-    on_device\x18\x02\x20\x01(\x08R\x08onDevice\x12%\n\x0ederive_cardano\x18\
-    \x03\x20\x01(\x08R\rderiveCardano\"0\n\x11ThpPairingRequest\x12\x1b\n\th\
-    ost_name\x18\x01\x20\x01(\tR\x08hostName\"\x1b\n\x19ThpPairingRequestApp\
-    roved\"s\n\x0fThpSelectMethod\x12`\n\x17selected_pairing_method\x18\x01\
-    \x20\x01(\x0e2(.hw.trezor.messages.thp.ThpPairingMethodR\x15selectedPair\
-    ingMethod\"\x20\n\x1eThpPairingPreparationsFinished\"8\n\x16ThpCodeEntry\
-    Commitment\x12\x1e\n\ncommitment\x18\x01\x20\x01(\x0cR\ncommitment\"5\n\
-    \x15ThpCodeEntryChallenge\x12\x1c\n\tchallenge\x18\x01\x20\x01(\x0cR\tch\
-    allenge\"P\n\x17ThpCodeEntryCpaceTrezor\x125\n\x17cpace_trezor_public_ke\
-    y\x18\x01\x20\x01(\x0cR\x14cpaceTrezorPublicKey\"_\n\x18ThpCodeEntryCpac\
-    eHostTag\x121\n\x15cpace_host_public_key\x18\x01\x20\x01(\x0cR\x12cpaceH\
-    ostPublicKey\x12\x10\n\x03tag\x18\x02\x20\x01(\x0cR\x03tag\",\n\x12ThpCo\
-    deEntrySecret\x12\x16\n\x06secret\x18\x01\x20\x01(\x0cR\x06secret\"\x20\
-    \n\x0cThpQrCodeTag\x12\x10\n\x03tag\x18\x01\x20\x01(\x0cR\x03tag\")\n\
-    \x0fThpQrCodeSecret\x12\x16\n\x06secret\x18\x01\x20\x01(\x0cR\x06secret\
-    \"!\n\rThpNfcTagHost\x12\x10\n\x03tag\x18\x01\x20\x01(\x0cR\x03tag\"#\n\
-    \x0fThpNfcTagTrezor\x12\x10\n\x03tag\x18\x01\x20\x01(\x0cR\x03tag\"\x86\
-    \x01\n\x14ThpCredentialRequest\x12,\n\x12host_static_pubkey\x18\x01\x20\
-    \x01(\x0cR\x10hostStaticPubkey\x12\x20\n\x0bautoconnect\x18\x02\x20\x01(\
-    \x08R\x0bautoconnect\x12\x1e\n\ncredential\x18\x03\x20\x01(\x0cR\ncreden\
-    tial\"i\n\x15ThpCredentialResponse\x120\n\x14trezor_static_pubkey\x18\
-    \x01\x20\x01(\x0cR\x12trezorStaticPubkey\x12\x1e\n\ncredential\x18\x02\
-    \x20\x01(\x0cR\ncredential\"\x0f\n\rThpEndRequest\"\x10\n\x0eThpEndRespo\
-    nse\"\\\n\x15ThpCredentialMetadata\x12\x1b\n\thost_name\x18\x01\x20\x01(\
-    \tR\x08hostName\x12\x20\n\x0bautoconnect\x18\x02\x20\x01(\x08R\x0bautoco\
-    nnect:\x04\x98\xb2\x19\x01\"\x82\x01\n\x14ThpPairingCredential\x12R\n\rc\
-    red_metadata\x18\x01\x20\x01(\x0b2-.hw.trezor.messages.thp.ThpCredential\
-    MetadataR\x0ccredMetadata\x12\x10\n\x03mac\x18\x02\x20\x01(\x0cR\x03mac:\
-    \x04\x98\xb2\x19\x01\"\xa8\x01\n\x1eThpAuthenticatedCredentialData\x12,\
-    \n\x12host_static_pubkey\x18\x01\x20\x01(\x0cR\x10hostStaticPubkey\x12R\
-    \n\rcred_metadata\x18\x02\x20\x01(\x0b2-.hw.trezor.messages.thp.ThpCrede\
-    ntialMetadataR\x0ccredMetadata:\x04\x98\xb2\x19\x01*G\n\x10ThpPairingMet\
-    hod\x12\x0f\n\x0bSkipPairing\x10\x01\x12\r\n\tCodeEntry\x10\x02\x12\n\n\
-    \x06QrCode\x10\x03\x12\x07\n\x03NFC\x10\x04B;\n#com.satoshilabs.trezor.l\
-    ib.protobufB\x10TrezorMessageThp\x80\xa6\x1d\x01\
+    ial\x18\x01\x20\x01(\x0cR\x15hostPairingCredential\"\x87\x01\n\x13ThpCre\
+    ateNewSession\x12\x1e\n\npassphrase\x18\x01\x20\x01(\tR\npassphrase\x12\
+    \"\n\ton_device\x18\x02\x20\x01(\x08:\x05falseR\x08onDevice\x12,\n\x0ede\
+    rive_cardano\x18\x03\x20\x01(\x08:\x05falseR\rderiveCardano\"K\n\x11ThpP\
+    airingRequest\x12\x1b\n\thost_name\x18\x01\x20\x02(\tR\x08hostName\x12\
+    \x19\n\x08app_name\x18\x02\x20\x02(\tR\x07appName\"\x1b\n\x19ThpPairingR\
+    equestApproved\"s\n\x0fThpSelectMethod\x12`\n\x17selected_pairing_method\
+    \x18\x01\x20\x02(\x0e2(.hw.trezor.messages.thp.ThpPairingMethodR\x15sele\
+    ctedPairingMethod\"\x20\n\x1eThpPairingPreparationsFinished\"8\n\x16ThpC\
+    odeEntryCommitment\x12\x1e\n\ncommitment\x18\x01\x20\x02(\x0cR\ncommitme\
+    nt\"5\n\x15ThpCodeEntryChallenge\x12\x1c\n\tchallenge\x18\x01\x20\x02(\
+    \x0cR\tchallenge\"P\n\x17ThpCodeEntryCpaceTrezor\x125\n\x17cpace_trezor_\
+    public_key\x18\x01\x20\x02(\x0cR\x14cpaceTrezorPublicKey\"_\n\x18ThpCode\
+    EntryCpaceHostTag\x121\n\x15cpace_host_public_key\x18\x01\x20\x02(\x0cR\
+    \x12cpaceHostPublicKey\x12\x10\n\x03tag\x18\x02\x20\x02(\x0cR\x03tag\",\
+    \n\x12ThpCodeEntrySecret\x12\x16\n\x06secret\x18\x01\x20\x02(\x0cR\x06se\
+    cret\"\x20\n\x0cThpQrCodeTag\x12\x10\n\x03tag\x18\x01\x20\x02(\x0cR\x03t\
+    ag\")\n\x0fThpQrCodeSecret\x12\x16\n\x06secret\x18\x01\x20\x02(\x0cR\x06\
+    secret\"!\n\rThpNfcTagHost\x12\x10\n\x03tag\x18\x01\x20\x02(\x0cR\x03tag\
+    \"#\n\x0fThpNfcTagTrezor\x12\x10\n\x03tag\x18\x01\x20\x02(\x0cR\x03tag\"\
+    \x94\x01\n\x14ThpCredentialRequest\x123\n\x16host_static_public_key\x18\
+    \x01\x20\x02(\x0cR\x13hostStaticPublicKey\x12'\n\x0bautoconnect\x18\x02\
+    \x20\x01(\x08:\x05falseR\x0bautoconnect\x12\x1e\n\ncredential\x18\x03\
+    \x20\x01(\x0cR\ncredential\"p\n\x15ThpCredentialResponse\x127\n\x18trezo\
+    r_static_public_key\x18\x01\x20\x02(\x0cR\x15trezorStaticPublicKey\x12\
+    \x1e\n\ncredential\x18\x02\x20\x02(\x0cR\ncredential\"\x0f\n\rThpEndRequ\
+    est\"\x10\n\x0eThpEndResponse\"w\n\x15ThpCredentialMetadata\x12\x1b\n\th\
+    ost_name\x18\x01\x20\x02(\tR\x08hostName\x12\x20\n\x0bautoconnect\x18\
+    \x02\x20\x01(\x08R\x0bautoconnect\x12\x19\n\x08app_name\x18\x03\x20\x02(\
+    \tR\x07appName:\x04\x98\xb2\x19\x01\"\x82\x01\n\x14ThpPairingCredential\
+    \x12R\n\rcred_metadata\x18\x01\x20\x02(\x0b2-.hw.trezor.messages.thp.Thp\
+    CredentialMetadataR\x0ccredMetadata\x12\x10\n\x03mac\x18\x02\x20\x02(\
+    \x0cR\x03mac:\x04\x98\xb2\x19\x01\"\xaf\x01\n\x1eThpAuthenticatedCredent\
+    ialData\x123\n\x16host_static_public_key\x18\x01\x20\x02(\x0cR\x13hostSt\
+    aticPublicKey\x12R\n\rcred_metadata\x18\x02\x20\x02(\x0b2-.hw.trezor.mes\
+    sages.thp.ThpCredentialMetadataR\x0ccredMetadata:\x04\x98\xb2\x19\x01\"\
+    \xdc\x01\n\x0eThpPairedCache\x12T\n\x07entries\x18\x01\x20\x03(\x0b2:.hw\
+    .trezor.messages.thp.ThpPairedCache.ThpPairedCacheEntryR\x07entries\x1an\
+    \n\x13ThpPairedCacheEntry\x12\x19\n\x08mac_addr\x18\x01\x20\x02(\x0cR\
+    \x07macAddr\x12\x1b\n\thost_name\x18\x02\x20\x02(\tR\x08hostName\x12\x19\
+    \n\x08app_name\x18\x03\x20\x02(\tR\x07appName:\x04\x98\xb2\x19\x01:\x04\
+    \x98\xb2\x19\x01*\xfb\x06\n\x0eThpMessageType\x12\x19\n\x15ThpMessageTyp\
+    e_Cancel\x10\x14\x12\x20\n\x1cThpMessageType_ButtonRequest\x10\x1a\x12\
+    \x1c\n\x18ThpMessageType_ButtonAck\x10\x1b\x12%\n\x20ThpMessageType_ThpP\
+    airingRequest\x10\xf0\x07\x12-\n(ThpMessageType_ThpPairingRequestApprove\
+    d\x10\xf1\x07\x12#\n\x1eThpMessageType_ThpSelectMethod\x10\xf2\x07\x122\
+    \n-ThpMessageType_ThpPairingPreparationsFinished\x10\xf3\x07\x12(\n#ThpM\
+    essageType_ThpCredentialRequest\x10\xf8\x07\x12)\n$ThpMessageType_ThpCre\
+    dentialResponse\x10\xf9\x07\x12!\n\x1cThpMessageType_ThpEndRequest\x10\
+    \xfa\x07\x12\"\n\x1dThpMessageType_ThpEndResponse\x10\xfb\x07\x12*\n%Thp\
+    MessageType_ThpCodeEntryCommitment\x10\x80\x08\x12)\n$ThpMessageType_Thp\
+    CodeEntryChallenge\x10\x81\x08\x12+\n&ThpMessageType_ThpCodeEntryCpaceTr\
+    ezor\x10\x82\x08\x12,\n'ThpMessageType_ThpCodeEntryCpaceHostTag\x10\x83\
+    \x08\x12&\n!ThpMessageType_ThpCodeEntrySecret\x10\x84\x08\x12\x20\n\x1bT\
+    hpMessageType_ThpQrCodeTag\x10\x88\x08\x12#\n\x1eThpMessageType_ThpQrCod\
+    eSecret\x10\x89\x08\x12!\n\x1cThpMessageType_ThpNfcTagHost\x10\x90\x08\
+    \x12#\n\x1eThpMessageType_ThpNfcTagTrezor\x10\x91\x08\x1a\x04\xd0\xf3\
+    \x18\x01\"\x04\x08\0\x10\x13\"\x04\x08\x15\x10\x19\"\x05\x08\x1c\x10\xe7\
+    \x07\"\x06\x08\xe8\x07\x10\xe8\x07\"\x06\x08\xe9\x07\x10\xef\x07\"\x06\
+    \x08\xf4\x07\x10\xf7\x07\"\x06\x08\xfc\x07\x10\xff\x07\"\x06\x08\x85\x08\
+    \x10\x87\x08\"\x06\x08\x8a\x08\x10\x8f\x08\"\x06\x08\x92\x08\x10\xcb\x08\
+    \"\t\x08\xcc\x08\x10\xff\xff\xff\xff\x07*G\n\x10ThpPairingMethod\x12\x0f\
+    \n\x0bSkipPairing\x10\x01\x12\r\n\tCodeEntry\x10\x02\x12\n\n\x06QrCode\
+    \x10\x03\x12\x07\n\x03NFC\x10\x04B;\n#com.satoshilabs.trezor.lib.protobu\
+    fB\x10TrezorMessageThp\x80\xa6\x1d\x01\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -4046,7 +4847,7 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
             let mut deps = ::std::vec::Vec::with_capacity(1);
             deps.push(super::options::file_descriptor().clone());
-            let mut messages = ::std::vec::Vec::with_capacity(23);
+            let mut messages = ::std::vec::Vec::with_capacity(25);
             messages.push(ThpDeviceProperties::generated_message_descriptor_data());
             messages.push(ThpHandshakeCompletionReqNoisePayload::generated_message_descriptor_data());
             messages.push(ThpCreateNewSession::generated_message_descriptor_data());
@@ -4070,7 +4871,10 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             messages.push(ThpCredentialMetadata::generated_message_descriptor_data());
             messages.push(ThpPairingCredential::generated_message_descriptor_data());
             messages.push(ThpAuthenticatedCredentialData::generated_message_descriptor_data());
-            let mut enums = ::std::vec::Vec::with_capacity(1);
+            messages.push(ThpPairedCache::generated_message_descriptor_data());
+            messages.push(thp_paired_cache::ThpPairedCacheEntry::generated_message_descriptor_data());
+            let mut enums = ::std::vec::Vec::with_capacity(2);
+            enums.push(ThpMessageType::generated_enum_descriptor_data());
             enums.push(ThpPairingMethod::generated_enum_descriptor_data());
             ::protobuf::reflect::GeneratedFileDescriptor::new_generated(
                 file_descriptor_proto(),

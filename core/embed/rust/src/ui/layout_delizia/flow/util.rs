@@ -1,7 +1,6 @@
 use crate::{
     error::Error,
     maybe_trace::MaybeTrace,
-    micropython::obj::Obj,
     strutil::TString,
     translations::TR,
     ui::{
@@ -13,7 +12,10 @@ use crate::{
             },
             Component,
         },
-        flow::{FlowMsg, Swipable, SwipeFlow, SwipePage},
+        flow::{
+            base::{Decision, DecisionBuilder},
+            FlowController, FlowMsg, Swipable, SwipeFlow, SwipePage,
+        },
         geometry::Direction,
         layout::util::{ConfirmValueParams, StrOrBytes},
     },
@@ -22,10 +24,10 @@ use heapless::Vec;
 
 use super::{
     super::{
-        component::{Frame, PromptMsg, SwipeContent, VerticalMenuChoiceMsg},
+        component::{Frame, PromptMsg, SwipeContent, VerticalMenu, VerticalMenuChoiceMsg},
         flow, theme,
     },
-    ConfirmActionExtra, ConfirmActionMenuStrings, ConfirmActionStrings,
+    ConfirmActionExtra, ConfirmActionMenuStrings, ConfirmActionOptions, ConfirmActionStrings,
 };
 
 pub struct ConfirmValue {
@@ -33,7 +35,7 @@ pub struct ConfirmValue {
     subtitle: Option<TString<'static>>,
     footer_instruction: Option<TString<'static>>,
     footer_description: Option<TString<'static>>,
-    value: Obj,
+    value: StrOrBytes,
     description: Option<TString<'static>>,
     description_font: &'static TextStyle,
     extra: Option<TString<'static>>,
@@ -44,21 +46,21 @@ pub struct ConfirmValue {
     cancel_button: bool,
     menu_button: bool,
     prompt: bool,
-    hold: bool,
     chunkify: bool,
     text_mono: bool,
-    page_counter: bool,
-    page_limit: Option<u16>,
     classic_ellipsis: bool,
-    swipe_up: bool,
-    swipe_down: bool,
-    swipe_right: bool,
-    frame_margin: usize,
     cancel: bool,
+    external_menu: bool,
+    flow_menu: bool,
+    options: ConfirmActionOptions,
 }
 
 impl ConfirmValue {
-    pub fn new(title: TString<'static>, value: Obj, description: Option<TString<'static>>) -> Self {
+    pub fn new(
+        title: TString<'static>,
+        value: StrOrBytes,
+        description: Option<TString<'static>>,
+    ) -> Self {
         Self {
             title,
             subtitle: None,
@@ -75,17 +77,13 @@ impl ConfirmValue {
             cancel_button: false,
             menu_button: false,
             prompt: false,
-            hold: false,
             chunkify: false,
             text_mono: true,
-            page_counter: false,
-            page_limit: None,
             classic_ellipsis: false,
-            swipe_up: false,
-            swipe_down: false,
-            swipe_right: false,
-            frame_margin: 0,
             cancel: false,
+            external_menu: false,
+            flow_menu: false,
+            options: ConfirmActionOptions::new(),
         }
     }
 
@@ -134,26 +132,6 @@ impl ConfirmValue {
         self
     }
 
-    pub const fn with_hold(mut self, hold: bool) -> Self {
-        self.hold = hold;
-        self
-    }
-
-    pub const fn with_swipe_up(mut self) -> Self {
-        self.swipe_up = true;
-        self
-    }
-
-    pub const fn with_swipe_down(mut self) -> Self {
-        self.swipe_down = true;
-        self
-    }
-
-    pub const fn with_frame_margin(mut self, frame_margin: usize) -> Self {
-        self.frame_margin = frame_margin;
-        self
-    }
-
     pub const fn with_footer_description(
         mut self,
         footer_description: Option<TString<'static>>,
@@ -167,22 +145,22 @@ impl ConfirmValue {
         self
     }
 
-    pub const fn with_footer(
-        mut self,
-        instruction: TString<'static>,
-        description: Option<TString<'static>>,
-    ) -> Self {
-        self.footer_instruction = Some(instruction);
-        self.footer_description = description;
+    pub const fn with_external_menu(mut self, external_menu: bool) -> Self {
+        self.external_menu = external_menu;
+        self.with_menu_button()
+    }
+
+    pub const fn with_flow_menu(mut self, flow_menu: bool) -> Self {
+        self.flow_menu = flow_menu;
         self
     }
 
-    pub const fn with_swipeup_footer(self, description: Option<TString<'static>>) -> Self {
-        self.with_footer(
-            TString::from_translation(TR::instructions__tap_to_continue),
-            description,
-        )
-        .with_swipe_up()
+    pub fn with_swipeup_footer(mut self, description: Option<TString<'static>>) -> Self {
+        self.footer_instruction =
+            Some(TString::from_translation(TR::instructions__tap_to_continue));
+        self.footer_description = description;
+        self.options = self.options.with_swipe_up(true);
+        self
     }
 
     pub const fn with_chunkify(mut self, chunkify: bool) -> Self {
@@ -192,16 +170,6 @@ impl ConfirmValue {
 
     pub const fn with_text_mono(mut self, text_mono: bool) -> Self {
         self.text_mono = text_mono;
-        self
-    }
-
-    pub fn with_page_counter(mut self, page_counter: bool) -> Self {
-        self.page_counter = page_counter;
-        self
-    }
-
-    pub const fn with_page_limit(mut self, page_limit: Option<u16>) -> Self {
-        self.page_limit = page_limit;
         self
     }
 
@@ -215,20 +183,20 @@ impl ConfirmValue {
         self
     }
 
+    pub fn with_options(mut self, options: ConfirmActionOptions) -> Self {
+        self.options = options;
+        self
+    }
+
     pub fn into_layout(
         self,
     ) -> Result<impl Component<Msg = FlowMsg> + Swipable + MaybeTrace, Error> {
         let paragraphs = ConfirmValueParams {
             description: self.description.unwrap_or("".into()),
             extra: self.extra.unwrap_or("".into()),
-            value: if self.value != Obj::const_none() {
-                self.value.try_into()?
-            } else {
-                StrOrBytes::Str("".into())
-            },
+            value: self.value,
             font: if self.chunkify {
-                let value: TString = self.value.try_into()?;
-                theme::get_chunkified_text_style(value.len())
+                &theme::TEXT_MONO_ADDRESS_CHUNKS
             } else if self.text_mono {
                 if self.classic_ellipsis {
                     &theme::TEXT_MONO_WITH_CLASSIC_ELLIPSIS
@@ -257,17 +225,16 @@ impl ConfirmValue {
         if let Some(instruction) = self.footer_instruction {
             frame = frame.with_footer(instruction, self.footer_description);
         }
-
-        if self.swipe_up {
-            frame = frame.with_swipe(Direction::Up, SwipeSettings::default());
+        if self.flow_menu {
+            frame = frame.with_flow_menu();
         }
 
-        if self.swipe_down {
-            frame = frame.with_swipe(Direction::Down, SwipeSettings::default());
+        if self.options.swipe_up {
+            frame = frame.with_swipe(Direction::Up, SwipeSettings::Default);
         }
 
-        if self.swipe_right {
-            frame = frame.with_swipe(Direction::Right, SwipeSettings::default());
+        if self.options.swipe_down {
+            frame = frame.with_swipe(Direction::Down, SwipeSettings::Default);
         }
 
         frame = frame.with_vertical_pages();
@@ -279,10 +246,9 @@ impl ConfirmValue {
         let paragraphs = ConfirmValueParams {
             description: self.description.unwrap_or("".into()),
             extra: self.extra.unwrap_or("".into()),
-            value: self.value.try_into()?,
+            value: self.value,
             font: if self.chunkify {
-                let value: TString = self.value.try_into()?;
-                theme::get_chunkified_text_style(value.len())
+                &theme::TEXT_MONO_ADDRESS_CHUNKS
             } else if self.text_mono {
                 if self.classic_ellipsis {
                     &theme::TEXT_MONO_WITH_CLASSIC_ELLIPSIS
@@ -297,7 +263,9 @@ impl ConfirmValue {
         }
         .into_paragraphs();
 
-        let confirm_extra = if self.cancel {
+        let confirm_extra = if self.external_menu {
+            ConfirmActionExtra::ExternalMenu
+        } else if self.cancel {
             ConfirmActionExtra::Cancel
         } else {
             ConfirmActionExtra::Menu(
@@ -317,10 +285,7 @@ impl ConfirmValue {
                 self.prompt.then_some(self.title),
             )
             .with_footer_description(self.footer_description),
-            self.hold,
-            self.page_limit,
-            self.frame_margin,
-            self.page_counter,
+            self.options,
         )
     }
 
@@ -336,10 +301,10 @@ pub struct ShowInfoParams {
     cancel_button: bool,
     footer_instruction: Option<TString<'static>>,
     footer_description: Option<TString<'static>>,
-    chunkify: bool,
     swipe_up: bool,
     swipe_down: bool,
     items: Vec<(TString<'static>, TString<'static>), 4>,
+    flow_menu: bool,
 }
 
 impl ShowInfoParams {
@@ -351,10 +316,10 @@ impl ShowInfoParams {
             cancel_button: false,
             footer_instruction: None,
             footer_description: None,
-            chunkify: false,
             swipe_up: false,
             swipe_down: false,
             items: Vec::new(),
+            flow_menu: false,
         }
     }
 
@@ -417,6 +382,11 @@ impl ShowInfoParams {
         self
     }
 
+    pub const fn with_flow_menu(mut self, flow_menu: bool) -> Self {
+        self.flow_menu = flow_menu;
+        self
+    }
+
     #[inline(never)]
     pub fn into_layout(
         self,
@@ -433,14 +403,7 @@ impl ShowInfoParams {
             }
             first = false;
             paragraphs.add(Paragraph::new(&theme::TEXT_SUB_GREY, item.0).no_break());
-            if self.chunkify {
-                paragraphs.add(Paragraph::new(
-                    theme::get_chunkified_text_style(item.1.len()),
-                    item.1,
-                ));
-            } else {
-                paragraphs.add(Paragraph::new(&theme::TEXT_MONO_GREY_LIGHT, item.1));
-            }
+            paragraphs.add(Paragraph::new(&theme::TEXT_MONO_GREY_LIGHT, item.1));
         }
 
         let mut frame = Frame::left_aligned(
@@ -453,20 +416,23 @@ impl ShowInfoParams {
         if self.cancel_button {
             frame = frame
                 .with_cancel_button()
-                .with_swipe(Direction::Right, SwipeSettings::immediate());
+                .with_swipe(Direction::Right, SwipeSettings::Immediate);
         } else if self.menu_button {
             frame = frame.with_menu_button()
         }
         if let Some(instruction) = self.footer_instruction {
             frame = frame.with_footer(instruction, self.footer_description);
         }
+        if self.flow_menu {
+            frame = frame.with_flow_menu();
+        }
 
         if self.swipe_up {
-            frame = frame.with_swipe(Direction::Up, SwipeSettings::default());
+            frame = frame.with_swipe(Direction::Up, SwipeSettings::Default);
         }
 
         if self.swipe_down {
-            frame = frame.with_swipe(Direction::Down, SwipeSettings::default());
+            frame = frame.with_swipe(Direction::Down, SwipeSettings::Default);
         }
 
         frame = frame.with_vertical_pages();
@@ -493,4 +459,36 @@ pub fn map_to_choice(msg: VerticalMenuChoiceMsg) -> Option<FlowMsg> {
     match msg {
         VerticalMenuChoiceMsg::Selected(i) => Some(FlowMsg::Choice(i)),
     }
+}
+
+enum SinglePage {
+    Show,
+}
+
+impl FlowController for SinglePage {
+    #[inline]
+    fn index(&'static self) -> usize {
+        0
+    }
+
+    fn handle_swipe(&'static self, _direction: Direction) -> Decision {
+        self.do_nothing()
+    }
+
+    fn handle_event(&'static self, msg: FlowMsg) -> Decision {
+        self.return_msg(msg)
+    }
+}
+
+pub fn single_page<T>(layout: T) -> Result<SwipeFlow, Error>
+where
+    T: Component<Msg = FlowMsg> + Swipable + MaybeTrace + 'static,
+{
+    let mut flow = SwipeFlow::new(&SinglePage::Show)?;
+    flow.add_page(&SinglePage::Show, layout)?;
+    Ok(flow)
+}
+
+pub fn dummy_page() -> impl Component<Msg = FlowMsg> + Swipable + MaybeTrace {
+    Frame::left_aligned(TString::empty(), VerticalMenu::empty()).map(|_| Some(FlowMsg::Cancelled))
 }

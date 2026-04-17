@@ -69,6 +69,7 @@
 #include "monero/monero.h"
 #include "nem.h"
 #include "nist256p1.h"
+#include "noise.h"
 #include "pbkdf2.h"
 #include "rand.h"
 #include "rc4.h"
@@ -2127,6 +2128,32 @@ START_TEST(test_bip32_cache_2) {
 }
 END_TEST
 
+START_TEST(test_bip32_cache_3) {
+  // Tests for a fixed memory corruption bug in the BIP32 cache.
+  HDNode node1 = {0};
+  HDNode node2 = {0};
+
+  const uint8_t *seed = fromhex(
+      "301133282ad079cbeb59bc446ad39d333928f74c46997d3609cd3e2801ca69d62788f9f1"
+      "74429946ff4e9be89f67c22fae28cb296a9b37734f75e73d1477af19");
+  hdnode_from_seed(seed, 64, SECP256K1_NAME, &node1);
+  hdnode_from_seed(seed, 64, SECP256K1_NAME, &node2);
+
+  uint32_t path[BIP32_CACHE_MAXDEPTH + 2] = {0};
+  size_t depth = sizeof(path) / sizeof(path[0]);
+  ck_assert_int_eq(hdnode_private_ckd_cached(&node1, path, depth, NULL), 1);
+
+  // In the presence of the memory corruption bug we cached the node under an
+  // incorrect path. Now we look up the corrupted path to make sure that the
+  // node we get is different.
+  path[BIP32_CACHE_MAXDEPTH] = BIP32_CACHE_MAXDEPTH + 1;
+  ck_assert_int_eq(hdnode_private_ckd_cached(&node2, path, depth, NULL), 1);
+
+  ck_assert_mem_ne(node1.private_key, node2.private_key,
+                   sizeof(node1.private_key));
+}
+END_TEST
+
 START_TEST(test_bip32_nist_seed) {
   HDNode node;
 
@@ -4168,6 +4195,69 @@ END_TEST
 
 START_TEST(test_zkp_ecdsa_sign_digest_deterministic) {
   test_ecdsa_sign_digest_deterministic_helper(zkp_ecdsa_sign_digest);
+}
+END_TEST
+
+START_TEST(test_ecdsa_masking) {
+  static struct {
+    const char *priv_key;
+    const char *masking_key;
+    const char *digest;
+  } tests[] = {
+      {"e3d70248ea2fc771fc8d5e62d76b9cfd5402c96990333549eaadce1ae9f737eb",
+       "5cfbdc7d1e0ec18cc9b57bbb18f0a57dc929ec3c4dfac9073c581705015f6a8a",
+       "312155017c70a204106e034520e0cdf17b3e54516e2ece38e38e38e38e38e38e"},
+      {"40666188895430715552a7e4c6b53851f37a93030fb94e043850921242db78e8",
+       "75aa2ac9fd7e5a19402973e60e64382cdc29a09ebf6cb37e92f23be5b9251aee",
+       "1edc8d307254296264aebfc3dc76cd8b668373a072fd64665b50000e9fcce522"},
+  };
+
+  const ecdsa_curve *curve = &nist256p1;
+  int res = 0;
+  uint8_t priv_key[ECDSA_PRIVATE_KEY_SIZE] = {0};
+  uint8_t masking_key[ECDSA_PRIVATE_KEY_SIZE] = {0};
+  uint8_t digest[SHA256_DIGEST_LENGTH] = {0};
+  uint8_t masked_digest[SHA256_DIGEST_LENGTH] = {0};
+  uint8_t masked_priv_key[ECDSA_PRIVATE_KEY_SIZE] = {0};
+  uint8_t pub_key[ECDSA_PUBLIC_KEY_SIZE] = {0};
+  uint8_t masked_pub_key[ECDSA_PUBLIC_KEY_SIZE] = {0};
+  uint8_t unmasked_pub_key[ECDSA_PUBLIC_KEY_SIZE] = {0};
+  uint8_t sig[ECDSA_RAW_SIGNATURE_SIZE] = {0};
+
+  for (size_t i = 0; i < sizeof(tests) / sizeof(*tests); i++) {
+    memcpy(priv_key, fromhex(tests[i].priv_key), sizeof(priv_key));
+    memcpy(masking_key, fromhex(tests[i].masking_key), sizeof(masking_key));
+    memcpy(digest, fromhex(tests[i].digest), sizeof(digest));
+
+    // Get public key.
+    res = ecdsa_get_public_key65(curve, priv_key, pub_key);
+    ck_assert_int_eq(res, 0);
+
+    // Get masked private key.
+    res = ecdsa_mask_scalar(curve, masking_key, priv_key, masked_priv_key);
+    ck_assert_int_eq(res, 0);
+
+    // Test unmasking the masked public key.
+    res = ecdsa_get_public_key65(curve, masked_priv_key, masked_pub_key);
+    ck_assert_int_eq(res, 0);
+    res = ecdsa_unmask_public_key(curve, masking_key, masked_pub_key,
+                                  unmasked_pub_key);
+    ck_assert_int_eq(res, 0);
+    ck_assert_mem_eq(pub_key, unmasked_pub_key, sizeof(pub_key));
+
+    // Sign using masked private key.
+    res = ecdsa_mask_scalar(curve, masking_key, digest, masked_digest);
+    ck_assert_int_eq(res, 0);
+    res = ecdsa_sign_digest(curve, masked_priv_key, masked_digest, sig, NULL,
+                            NULL);
+    ck_assert_int_eq(res, 0);
+    res = ecdsa_unmask_scalar(curve, masking_key, &sig[32], &sig[32]);
+    ck_assert_int_eq(res, 0);
+
+    // Verify signature using unmasked public key.
+    res = ecdsa_verify_digest(curve, pub_key, sig, digest);
+    ck_assert_int_eq(res, 0);
+  }
 }
 END_TEST
 
@@ -6811,12 +6901,24 @@ START_TEST(test_mnemonic_to_bits) {
 END_TEST
 
 START_TEST(test_mnemonic_find_word) {
-  ck_assert_int_eq(-1, mnemonic_find_word("aaaa"));
-  ck_assert_int_eq(-1, mnemonic_find_word("zzzz"));
+  char word1[BIP39_MAX_WORD_LEN + 1] = "aaaa";
+  found_word record = mnemonic_find_word(word1);
+  ck_assert_int_eq(-1, record.index);
+  ck_assert_int_eq(0, record.length);
+
+  char word2[BIP39_MAX_WORD_LEN + 1] = "zzzz";
+  record = mnemonic_find_word(word2);
+  ck_assert_int_eq(-1, record.index);
+  ck_assert_int_eq(0, record.length);
+
+  char word_buf[BIP39_MAX_WORD_LEN + 1] = {0};
   for (int i = 0; i < BIP39_WORD_COUNT; i++) {
     const char *word = mnemonic_get_word(i);
-    int index = mnemonic_find_word(word);
-    ck_assert_int_eq(i, index);
+    memset(word_buf, 0, sizeof(word_buf));
+    strncpy(word_buf, word, sizeof(word_buf) - 1);
+    record = mnemonic_find_word(word_buf);
+    ck_assert_int_eq(i, record.index);
+    ck_assert_int_eq(strlen(word), record.length);
   }
 }
 END_TEST
@@ -11400,6 +11502,141 @@ START_TEST(test_elligator2) {
 }
 END_TEST
 
+START_TEST(test_noise) {
+  // Inject the seed to the random number generator to make the test
+  // deterministic
+  random_reseed(2748932008);
+
+  curve25519_key initiator_private_key = {0};
+  curve25519_key responder_private_key = {0};
+  curve25519_key initiator_public_key = {0};
+  curve25519_key responder_public_key = {0};
+  random_buffer(initiator_private_key, sizeof(initiator_private_key));
+  random_buffer(responder_private_key, sizeof(responder_private_key));
+  curve25519_scalarmult_basepoint(initiator_public_key, initiator_private_key);
+  curve25519_scalarmult_basepoint(responder_public_key, responder_private_key);
+
+  noise_context_t initiator_context = {0};
+  noise_context_t responder_context = {0};
+
+  noise_request_t request = {0};
+  noise_response_t response = {0};
+
+  uint8_t message1[] = "message1";
+  uint8_t associated_data1[] = "associated_data1";
+  uint8_t message2[] = "message2";
+  uint8_t associated_data2[] = "associated_data2";
+  uint8_t message3[] = "message3";
+  uint8_t associated_data3[] = "associated_data3";
+  uint8_t message4[] = "message4";
+  uint8_t associated_data4[] = "associated_data4";
+
+  // These test vectors were generated using the python package `dissononce`
+  char expected_request_hex[] =
+      "4f1c3515b7d561226b4917ddbc79eae44542dab2ae54e294c83f39328f126562";
+  char expected_response_hex[] =
+      "cdfe8958fc5f10a893c8441e73207909778d8cc66241309ad4ee07fb9d06a40166296e60"
+      "2ece348d673e98aaba33f56a";
+  char expected_message1_hex[] =
+      "98dea02c9e9a6da170054a8b35d5667b22e56698f83bc07611";
+  char expected_message2_hex[] =
+      "8c543e8ddfc6324acccd013c9dcd174f56773c42aa7a29afcb";
+  char expected_message3_hex[] =
+      "ac00ab8c8146d1af08d6e0c3fed583c7979fcb1426f082d11e";
+  char expected_message4_hex[] =
+      "5e21772c915f1bbfeff75c87c7c2a1589dcb5fe791656c9332";
+
+  uint8_t plaintext1[sizeof(message1)] = {0};
+  uint8_t ciphertext1[sizeof(plaintext1) + NOISE_TAG_SIZE];
+  uint8_t plaintext2[sizeof(message2)] = {0};
+  uint8_t ciphertext2[sizeof(plaintext2) + NOISE_TAG_SIZE] = {0};
+  uint8_t plaintext3[sizeof(message3)] = {0};
+  uint8_t ciphertext3[sizeof(plaintext3) + NOISE_TAG_SIZE] = {0};
+  uint8_t plaintext4[sizeof(message4)] = {0};
+  uint8_t ciphertext4[sizeof(plaintext4) + NOISE_TAG_SIZE] = {0};
+
+  bool ret = false;
+
+  // Initiator sends request
+  ret = noise_create_handshake_request(&initiator_context, &request);
+  ck_assert_int_eq(ret, true);
+  ck_assert_mem_eq(&request, fromhex(expected_request_hex), sizeof(request));
+
+  // Responder receives request and sends response
+  ret = noise_handle_handshake_request(&responder_context, initiator_public_key,
+                                       responder_private_key, &request,
+                                       &response);
+  ck_assert_int_eq(ret, true);
+  ck_assert_mem_eq(&response, fromhex(expected_response_hex), sizeof(response));
+
+  // Initiator receives response
+  ret =
+      noise_handle_handshake_response(&initiator_context, initiator_private_key,
+                                      responder_public_key, &response);
+  ck_assert_int_eq(ret, true);
+
+  // Initiator sends message1
+  ret = noise_send_message(&initiator_context, associated_data1,
+                           sizeof(associated_data1), message1, sizeof(message1),
+                           ciphertext1);
+  ck_assert_int_eq(ret, true);
+  ck_assert_mem_eq(ciphertext1, fromhex(expected_message1_hex),
+                   sizeof(ciphertext1));
+
+  // Initiator sends message2
+  ret = noise_send_message(&initiator_context, associated_data2,
+                           sizeof(associated_data2), message2, sizeof(message2),
+                           ciphertext2);
+  ck_assert_int_eq(ret, true);
+  ck_assert_mem_eq(ciphertext2, fromhex(expected_message2_hex),
+                   sizeof(ciphertext2));
+
+  // Responder sends message3
+  ret = noise_send_message(&responder_context, associated_data3,
+                           sizeof(associated_data3), message3, sizeof(message3),
+                           ciphertext3);
+  ck_assert_int_eq(ret, true);
+  ck_assert_mem_eq(ciphertext3, fromhex(expected_message3_hex),
+                   sizeof(ciphertext3));
+
+  // Responder sends message4
+  ret = noise_send_message(&responder_context, associated_data4,
+                           sizeof(associated_data4), message4, sizeof(message4),
+                           ciphertext4);
+  ck_assert_int_eq(ret, true);
+  ck_assert_mem_eq(ciphertext4, fromhex(expected_message4_hex),
+                   sizeof(ciphertext4));
+
+  // Responder receives message1
+  ret = noise_receive_message(&responder_context, associated_data1,
+                              sizeof(associated_data1), ciphertext1,
+                              sizeof(ciphertext1), plaintext1);
+  ck_assert_int_eq(ret, true);
+  ck_assert_mem_eq(plaintext1, message1, sizeof(message1));
+
+  // Responder receives message2
+  ret = noise_receive_message(&responder_context, associated_data2,
+                              sizeof(associated_data2), ciphertext2,
+                              sizeof(ciphertext2), plaintext2);
+  ck_assert_int_eq(ret, true);
+  ck_assert_mem_eq(plaintext2, message2, sizeof(message2));
+
+  // Initiator receives message3
+  ret = noise_receive_message(&initiator_context, associated_data3,
+                              sizeof(associated_data3), ciphertext3,
+                              sizeof(ciphertext3), plaintext3);
+  ck_assert_int_eq(ret, true);
+  ck_assert_mem_eq(plaintext3, message3, sizeof(message3));
+
+  // Initiator receives message4
+  ret = noise_receive_message(&initiator_context, associated_data4,
+                              sizeof(associated_data4), ciphertext4,
+                              sizeof(ciphertext4), plaintext4);
+  ck_assert_int_eq(ret, true);
+  ck_assert_mem_eq(plaintext4, message4, sizeof(message4));
+}
+END_TEST
+
 static int my_strncasecmp(const char *s1, const char *s2, size_t n) {
   size_t i = 0;
   while (i < n) {
@@ -11475,6 +11712,7 @@ Suite *test_suite(void) {
   tcase_add_test(tc, test_bip32_compare);
   tcase_add_test(tc, test_bip32_cache_1);
   tcase_add_test(tc, test_bip32_cache_2);
+  tcase_add_test(tc, test_bip32_cache_3);
   suite_add_tcase(s, tc);
 
   tc = tcase_create("bip32-nist");
@@ -11523,6 +11761,7 @@ Suite *test_suite(void) {
   tcase_add_test(tc, test_tc_ecdsa_sign_digest_deterministic);
   tcase_add_test(tc, test_zkp_ecdsa_sign_digest_deterministic);
 #endif
+  tcase_add_test(tc, test_ecdsa_masking);
   suite_add_tcase(s, tc);
 
   tc = tcase_create("rfc6979");
@@ -11753,6 +11992,10 @@ Suite *test_suite(void) {
 
   tc = tcase_create("elligator2");
   tcase_add_test(tc, test_elligator2);
+  suite_add_tcase(s, tc);
+
+  tc = tcase_create("noise");
+  tcase_add_test(tc, test_noise);
   suite_add_tcase(s, tc);
 
 #if USE_CARDANO

@@ -7,10 +7,12 @@ if TYPE_CHECKING:
 
     from trezor.messages import CardanoSignTxFinished, CardanoSignTxInit
 
+    from apps.common.keychain import Keychain as Slip21Keychain
+
 
 @seed.with_keychain
 async def sign_tx(
-    msg: CardanoSignTxInit, keychain: seed.Keychain
+    msg: CardanoSignTxInit, keychain: seed.Keychain, slip21_keychain: Slip21Keychain
 ) -> CardanoSignTxFinished:
     from trezor import TR, log, wire
     from trezor.enums import CardanoTxSigningMode
@@ -41,7 +43,7 @@ async def sign_tx(
     else:
         raise RuntimeError  # should be unreachable
 
-    signer = signer_type(msg, keychain)
+    signer = signer_type(msg, keychain, slip21_keychain)
 
     try:
         await signer.sign()

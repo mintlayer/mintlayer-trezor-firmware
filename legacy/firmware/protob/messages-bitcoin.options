@@ -3,7 +3,7 @@ GetPublicKey.ecdsa_curve_name                               max_size:32
 GetPublicKey.coin_name                                      max_size:21
 
 PublicKey.xpub                                              max_size:113
-PublicKey.descriptor                                        type:FT_IGNORE
+PublicKey.descriptor                                        max_size:246
 
 GetAddress.address_n                                        max_count:8
 GetAddress.coin_name                                        max_size:21
@@ -100,5 +100,5 @@ CoinJoinRequest.mask_public_key                             max_size:33
 CoinJoinRequest.signature                                   max_size:64
 
 # Unused messages.
-TxAckPaymentRequest                                         skip_message:true
+PaymentRequest                                              skip_message:true
 PaymentRequestMemo                                          skip_message:true

@@ -17,6 +17,7 @@ from .helpers import (
 )
 
 if TYPE_CHECKING:
+    from buffer_types import AnyBytes
     from typing import Awaitable, Iterable
 
     from trezor.messages import (
@@ -24,32 +25,37 @@ if TYPE_CHECKING:
         EthereumNetworkInfo,
         EthereumStructMember,
         EthereumTokenInfo,
+        PaymentRequest,
     )
+    from trezor.ui.layouts import StrPropertyType
 
 
 async def require_confirm_approve(
-    to_bytes: bytes,
+    to_bytes: AnyBytes,
     value: int | None,
     address_n: list[int],
     maximum_fee: str,
-    fee_info_items: Iterable[tuple[str, str]],
+    fee_info_items: Iterable[StrPropertyType],
     chain_id: int,
     network: EthereumNetworkInfo,
     token: EthereumTokenInfo,
-    token_address: bytes,
+    token_address: AnyBytes,
     chunkify: bool,
 ) -> None:
     from trezor.ui.layouts import confirm_ethereum_approve
 
     from apps.ethereum.sc_constants import APPROVE_KNOWN_ADDRESSES as KNOWN_ADDRESSES
+    from apps.ethereum.sc_constants import (
+        SC_FUNC_APPROVE_REVOKE_AMOUNT as REVOKE_AMOUNT,
+    )
 
     from . import networks, tokens
 
     if to_bytes in KNOWN_ADDRESSES:
-        to_str = KNOWN_ADDRESSES[to_bytes]
-        chunkify = False
+        recipient_str = KNOWN_ADDRESSES[to_bytes]
     else:
-        to_str = address_from_bytes(to_bytes, network)
+        recipient_str = None
+    recipient_addr = address_from_bytes(to_bytes, network)
     chain_id_str = f"{chain_id} ({hex(chain_id)})"
     token_address_str = address_from_bytes(token_address, network)
     total_amount = (
@@ -58,14 +64,15 @@ async def require_confirm_approve(
     account, account_path = get_account_and_path(address_n)
 
     await confirm_ethereum_approve(
-        to_str,
+        recipient_addr,
+        recipient_str,
         token is tokens.UNKNOWN_TOKEN,
         token_address_str,
         token.symbol,
         network is networks.UNKNOWN_NETWORK,
         chain_id_str,
         network.name,
-        value == 0,
+        value == REVOKE_AMOUNT,
         total_amount,
         account,
         account_path,
@@ -76,31 +83,106 @@ async def require_confirm_approve(
 
 
 async def require_confirm_tx(
-    to_bytes: bytes,
+    recipient: str | None,
     value: int,
     address_n: list[int],
     maximum_fee: str,
-    fee_info_items: Iterable[tuple[str, str]],
+    fee_info_items: Iterable[StrPropertyType],
     network: EthereumNetworkInfo,
     token: EthereumTokenInfo | None,
-    is_contract_interaction: bool,
+    is_send: bool,
     chunkify: bool,
 ) -> None:
     from trezor.ui.layouts import confirm_ethereum_tx
 
-    to_str = address_from_bytes(to_bytes, network) if to_bytes else None
     total_amount = format_ethereum_amount(value, token, network)
     account, account_path = get_account_and_path(address_n)
 
     await confirm_ethereum_tx(
-        to_str,
+        recipient,
         total_amount,
         account,
         account_path,
         maximum_fee,
         fee_info_items,
-        is_contract_interaction,
+        is_send,
         chunkify=chunkify,
+    )
+
+
+async def require_confirm_payment_request(
+    provider_address: str,
+    verified_payment_req: PaymentRequest,
+    address_n: list[int],
+    maximum_fee: str,
+    fee_info_items: Iterable[StrPropertyType],
+    chain_id: int,
+    network: EthereumNetworkInfo,
+    token: EthereumTokenInfo | None,
+    token_address: str,
+) -> None:
+    from trezor import wire
+    from trezor.ui.layouts import confirm_payment_request
+    from trezor.ui.layouts.slip24 import Refund, Trade
+
+    from apps.common.payment_request import parse_amount
+
+    total_amount = format_ethereum_amount(
+        parse_amount(verified_payment_req), token, network
+    )
+
+    texts = []
+    refunds = []
+    trades = []
+    for memo in verified_payment_req.memos:
+        if memo.text_memo is not None:
+            texts.append((None, memo.text_memo.text))
+        elif memo.text_details_memo is not None:
+            texts.append((memo.text_details_memo.title, memo.text_details_memo.text))
+        elif memo.refund_memo:
+            refund_account, refund_account_path = get_account_and_path(
+                memo.refund_memo.address_n
+            )
+            refunds.append(
+                Refund(memo.refund_memo.address, refund_account, refund_account_path)
+            )
+        elif memo.coin_purchase_memo:
+            coin_purchase_account, coin_purchase_account_path = get_account_and_path(
+                memo.coin_purchase_memo.address_n
+            )
+            trades.append(
+                Trade(
+                    f"- {total_amount}",
+                    f"+ {memo.coin_purchase_memo.amount}",
+                    memo.coin_purchase_memo.address,
+                    coin_purchase_account,
+                    coin_purchase_account_path,
+                )
+            )
+        else:
+            raise wire.DataError("Unrecognized memo type in payment request memo.")
+
+    account, account_path = get_account_and_path(address_n)
+    account_items: list[StrPropertyType] = []
+    if account:
+        account_items.append((TR.words__account, account, True))
+    if account_path:
+        account_items.append((TR.address_details__derivation_path, account_path, True))
+    if chain_id:
+        account_items.append(
+            (TR.ethereum__approve_chain_id, f"{network.name} ({chain_id})", True)
+        )
+
+    await confirm_payment_request(
+        verified_payment_req.recipient_name,
+        provider_address,
+        texts,
+        refunds,
+        trades,
+        account_items,
+        maximum_fee,
+        fee_info_items,
+        [(TR.ethereum__token_contract, token_address)],
     )
 
 
@@ -109,7 +191,7 @@ async def require_confirm_stake(
     value: int,
     address_n: list[int],
     maximum_fee: str,
-    fee_info_items: Iterable[tuple[str, str]],
+    fee_info_items: Iterable[StrPropertyType],
     network: EthereumNetworkInfo,
     chunkify: bool,
 ) -> None:
@@ -138,7 +220,7 @@ async def require_confirm_unstake(
     value: int,
     address_n: list[int],
     maximum_fee: str,
-    fee_info_items: Iterable[tuple[str, str]],
+    fee_info_items: Iterable[StrPropertyType],
     network: EthereumNetworkInfo,
     chunkify: bool,
 ) -> None:
@@ -166,7 +248,7 @@ async def require_confirm_claim(
     addr_bytes: bytes,
     address_n: list[int],
     maximum_fee: str,
-    fee_info_items: Iterable[tuple[str, str]],
+    fee_info_items: Iterable[StrPropertyType],
     network: EthereumNetworkInfo,
     chunkify: bool,
 ) -> None:
@@ -189,10 +271,10 @@ async def require_confirm_claim(
     )
 
 
-async def require_confirm_unknown_token() -> None:
+async def require_confirm_unknown_token(title: str | None) -> None:
     from trezor.ui.layouts import confirm_ethereum_unknown_contract_warning
 
-    await confirm_ethereum_unknown_contract_warning()
+    await confirm_ethereum_unknown_contract_warning(title)
 
 
 def require_confirm_address(
@@ -201,6 +283,7 @@ def require_confirm_address(
     subtitle: str | None = None,
     verb: str | None = None,
     br_name: str | None = None,
+    warning_footer: str | None = None,
 ) -> Awaitable[None]:
     from ubinascii import hexlify
 
@@ -212,22 +295,27 @@ def require_confirm_address(
         address_hex,
         subtitle=subtitle,
         verb=verb,
+        warning_footer=warning_footer,
         br_name=br_name,
         br_code=ButtonRequestType.SignTx,
     )
 
 
-def require_confirm_other_data(data: bytes, data_total: int) -> Awaitable[None]:
-    return confirm_blob(
-        "confirm_data",
-        TR.ethereum__title_input_data,
-        data,
-        description=TR.ethereum__data_size_template.format(data_total),
-        subtitle=TR.ethereum__title_all_input_data_template.format(data_total),
+async def confirm_message_hash(message_hash: bytes) -> None:
+    from ubinascii import hexlify
+
+    from trezor.ui.layouts import confirm_value
+
+    message_hash_hex = "0x" + hexlify(message_hash).decode()
+
+    await confirm_value(
+        TR.ethereum__title_confirm_message_hash,
+        message_hash_hex,
+        "",
+        "confirm_message_hash",
         verb=TR.buttons__confirm,
-        verb_cancel=TR.send__cancel_sign,
         br_code=ButtonRequestType.SignTx,
-        ask_pagination=True,
+        cancel=True,
     )
 
 
@@ -252,7 +340,7 @@ def confirm_empty_typed_message() -> Awaitable[None]:
     )
 
 
-async def should_show_domain(name: bytes, version: bytes) -> bool:
+async def should_show_domain(name: AnyBytes, version: AnyBytes) -> bool:
     domain_name = decode_typed_data(name, "string")
     domain_version = decode_typed_data(version, "string")
 
@@ -319,7 +407,7 @@ async def should_show_array(
 
 async def confirm_typed_value(
     name: str,
-    value: bytes,
+    value: AnyBytes,
     parent_objects: list[str],
     field: EthereumFieldType,
     array_index: int | None = None,

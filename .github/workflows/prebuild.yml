@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - 'release/**'
+      - 'secfix/**'
 
 # cancel any previous runs on the same PR
 concurrency:
@@ -41,9 +42,9 @@ jobs:
           git submodule update --init --recursive vendor/ts-tvl
       - uses: ./.github/actions/environment
       - name: "Run style check"
-        run: nix-shell --run "poetry run make style_check"
+        run: nix-shell --run "uv run make style_check"
       - name: "Run .editorconfig check"
-        run: nix-shell --run "poetry run make editor_check"
+        run: nix-shell --run "uv run make editor_check"
 
   # Check validity of coin definitions and protobuf files.
   defs_check:
@@ -55,7 +56,7 @@ jobs:
           submodules: "recursive"
       - uses: ./.github/actions/environment
       - name: "Run defs check"
-        run: nix-shell --run "poetry run make defs_check"
+        run: nix-shell --run "uv run make defs_check"
 
   # Check validity of auto-generated files.
   gen_check:
@@ -67,14 +68,14 @@ jobs:
           submodules: "recursive"
       - uses: ./.github/actions/environment
       - name: "Run gen check"
-        run: nix-shell --run "poetry run make gen_check"
+        run: nix-shell --run "uv run make gen_check"
 
   # Verifying that all commits changing some functionality have a changelog entry
   # or contain `[no changelog]` in the commit message.
   changelog_check:
     name: Changelog check
     # if: ${{ github.ref != 'main' && github.event_name == 'pull_request' }}
-    if: false # Disabled for Mintlayer repository
+    if: false  # Disabled for Mintlayer repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -87,7 +88,7 @@ jobs:
   # Checking the format of release commit messages.
   release_commit_msg_check:
     name: Release commit message check
-    if: ${{ startsWith(github.ref, 'refs/heads/release/') && github.repository == 'trezor/trezor-firmware' }}
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -99,7 +100,7 @@ jobs:
   cargolock_check:
     name: Cargo.lock check
     # if: ${{ github.ref != 'main' && github.event_name == 'pull_request' }}
-    if: false # Disabled for Mintlayer repository
+    if: false  # Disabled for Mintlayer repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

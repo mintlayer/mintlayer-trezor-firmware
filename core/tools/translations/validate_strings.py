@@ -1,8 +1,9 @@
+# pyright: reportMissingImports=false
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 import sys
+from dataclasses import dataclass
 
 from helpers import HERE, TRANSLATIONS_DIR
 
@@ -30,6 +31,7 @@ ALTCOINS = [
     "solana",
     "ripple",
     "tezos",
+    "tron",
 ]
 
 SCREEN_TEXT_WIDTHS = {"TT": 240 - 12, "TS3": 128}

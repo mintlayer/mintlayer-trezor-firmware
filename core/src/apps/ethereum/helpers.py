@@ -6,9 +6,11 @@ from trezor import TR
 from . import networks
 
 if TYPE_CHECKING:
+    from buffer_types import AnyBytes
     from typing import Iterable
 
     from trezor.messages import EthereumFieldType, EthereumTokenInfo
+    from trezor.ui.layouts import StrPropertyType
 
     from .networks import EthereumNetworkInfo
 
@@ -16,7 +18,7 @@ RSKIP60_NETWORKS = (30, 31)
 
 
 def address_from_bytes(
-    address_bytes: bytes, network: EthereumNetworkInfo = networks.UNKNOWN_NETWORK
+    address_bytes: AnyBytes, network: EthereumNetworkInfo = networks.UNKNOWN_NETWORK
 ) -> str:
     """
     Converts address in bytes to a checksummed string as defined
@@ -110,12 +112,12 @@ def get_type_name(field: EthereumFieldType) -> str:
         return TYPE_TRANSLATION_DICT[data_type]
 
 
-def decode_typed_data(data: bytes, type_name: str) -> str:
+def decode_typed_data(data: AnyBytes, type_name: str) -> str:
     """Used by sign_typed_data module to show data to user."""
     if type_name.startswith("bytes"):
         return hexlify(data).decode()
     elif type_name == "string":
-        return data.decode()
+        return bytes(data).decode()
     elif type_name == "address":
         return address_from_bytes(data)
     elif type_name == "bool":
@@ -131,7 +133,7 @@ def decode_typed_data(data: bytes, type_name: str) -> str:
 
 def get_fee_items_regular(
     gas_price: int, gas_limit: int, network: EthereumNetworkInfo
-) -> Iterable[tuple[str, str]]:
+) -> Iterable[StrPropertyType]:
     # regular
     gas_limit_str = TR.ethereum__units_template.format(gas_limit)
     gas_price_str = format_ethereum_amount(
@@ -139,8 +141,8 @@ def get_fee_items_regular(
     )
 
     return (
-        (TR.ethereum__gas_limit, gas_limit_str),
-        (TR.ethereum__gas_price, gas_price_str),
+        (TR.ethereum__gas_limit, gas_limit_str, False),
+        (TR.ethereum__gas_price, gas_price_str, False),
     )
 
 
@@ -149,7 +151,7 @@ def get_fee_items_eip1559(
     max_priority_fee: int,
     gas_limit: int,
     network: EthereumNetworkInfo,
-) -> Iterable[tuple[str, str]]:
+) -> Iterable[StrPropertyType]:
     # EIP-1559
     gas_limit_str = TR.ethereum__units_template.format(gas_limit)
     max_gas_fee_str = format_ethereum_amount(
@@ -160,9 +162,9 @@ def get_fee_items_eip1559(
     )
 
     return (
-        (TR.ethereum__gas_limit, gas_limit_str),
-        (TR.ethereum__max_gas_price, max_gas_fee_str),
-        (TR.ethereum__priority_fee, max_priority_fee_str),
+        (TR.ethereum__gas_limit, gas_limit_str, False),
+        (TR.ethereum__max_gas_price, max_gas_fee_str, False),
+        (TR.ethereum__priority_fee, max_priority_fee_str, False),
     )
 
 
@@ -211,7 +213,7 @@ def get_account_and_path(address_n: list[int]) -> tuple[str | None, str | None]:
     return (account, account_path)
 
 
-def _from_bytes_bigendian_signed(b: bytes) -> int:
+def _from_bytes_bigendian_signed(b: AnyBytes) -> int:
     negative = b[0] & 0x80
     if negative:
         neg_b = bytearray(b)

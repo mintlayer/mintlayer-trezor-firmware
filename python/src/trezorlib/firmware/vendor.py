@@ -1,6 +1,6 @@
 # This file is part of the Trezor project.
 #
-# Copyright (C) 2012-2022 SatoshiLabs and contributors
+# Copyright (C) SatoshiLabs and contributors
 #
 # This library is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License version 3
@@ -49,6 +49,8 @@ def _transform_vendor_trust(data: bytes) -> bytes:
 
 
 class VendorTrust(Struct):
+    limit_runtime: bool
+    deny_provisioning_access: bool
     _dont_provide_secret: bool
     allow_run_with_secret: bool
     show_vendor_string: bool
@@ -60,7 +62,9 @@ class VendorTrust(Struct):
 
     SUBCON = c.Transformed(
         c.BitStruct(
-            "_reserved" / c.Default(c.BitsInteger(7), 0b1111111),
+            "_reserved" / c.Default(c.BitsInteger(5), 0b11111),
+            "limit_runtime" / c.Default(c.Flag, 1),
+            "deny_provisioning_access" / c.Default(c.Flag, 1),
             "_dont_provide_secret"
             / c.Default(c.Flag, lambda this: not this.allow_run_with_secret),
             "allow_run_with_secret" / c.Flag,
@@ -91,6 +95,7 @@ class VendorHeader(Struct):
     sig_m: int
     # sig_n: int
     hw_model: Model | bytes
+    fw_type: int
     pubkeys: list[bytes]
     text: str
     image: dict[str, t.Any]
@@ -110,7 +115,8 @@ class VendorHeader(Struct):
         "sig_n" / c.Rebuild(c.Int8ul, c.len_(c.this.pubkeys)),
         "trust" / VendorTrust.SUBCON,
         "hw_model" / EnumAdapter(c.Bytes(4), Model),
-        "_reserved" / c.Padding(10),
+        "fw_type" / c.Int8ul,
+        "_reserved" / c.Padding(9),
         "pubkeys" / c.Bytes(32)[c.this.sig_n],
         "text" / c.Aligned(4, c.PascalString(c.Int8ul, "utf-8")),
         "image" / ToifStruct,

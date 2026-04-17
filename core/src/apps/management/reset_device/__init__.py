@@ -16,6 +16,8 @@ if __debug__:
     import storage.debug
 
 if TYPE_CHECKING:
+    from buffer_types import AnyBytes
+
     from trezor.messages import ResetDevice, Success
 
 
@@ -38,7 +40,7 @@ async def reset_device(msg: ResetDevice) -> Success:
         prompt_backup,
         show_wallet_created_success,
     )
-    from trezor.wire.context import call
+    from trezor.wire.context import call, try_get_ctx_ids
 
     from apps.common.request_pin import request_pin_confirm
 
@@ -60,8 +62,8 @@ async def reset_device(msg: ResetDevice) -> Success:
     # Rendering empty loader so users do not feel a freezing screen
     render_empty_loader(config.StorageMessage.PROCESSING_MSG)
 
-    # wipe storage to make sure the device is in a clear state
-    storage.reset()
+    # wipe storage to make sure the device is in a clear state (except protocol cache)
+    storage.reset(excluded=try_get_ctx_ids())
 
     # Check backup type, perform type-specific handling
     if backup_types.is_slip39_backup_type(backup_type):
@@ -76,7 +78,7 @@ async def reset_device(msg: ResetDevice) -> Success:
     # request and set new PIN
     if msg.pin_protection:
         newpin = await request_pin_confirm()
-        if not config.change_pin("", newpin, None, None):
+        if not config.change_pin(newpin, None):
             raise ProcessError("Failed to set PIN")
 
     prev_int_entropy = None
@@ -130,7 +132,7 @@ async def reset_device(msg: ResetDevice) -> Success:
         storage_device.set_label(msg.label)
     storage_device.set_passphrase_enabled(bool(msg.passphrase_protection))
     storage_device.store_mnemonic_secret(
-        secret,  # for SLIP-39, this is the EMS
+        secret=secret,  # for SLIP-39, this is the EMS
         needs_backup=not perform_backup,
         no_backup=bool(msg.no_backup),
     )
@@ -139,7 +141,7 @@ async def reset_device(msg: ResetDevice) -> Success:
     if perform_backup:
         await layout.show_backup_success()
 
-    return Success(message="Initialized")
+    return Success(message="Initialized")  # TODO: Why "Initialized?"
 
 
 async def _entropy_check(secret: bytes) -> bool:
@@ -321,7 +323,7 @@ def _validate_reset_device(msg: ResetDevice) -> None:
 
 
 def _compute_secret_from_entropy(
-    int_entropy: bytes, ext_entropy: bytes, strength_bits: int
+    int_entropy: AnyBytes, ext_entropy: AnyBytes, strength_bits: int
 ) -> bytes:
     from trezor.crypto import hashlib
 

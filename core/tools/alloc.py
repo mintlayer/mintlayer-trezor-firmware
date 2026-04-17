@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
+# pyright: reportAssignmentType=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false
+
 from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Dict, Protocol, TextIO
-
-# for python37 support, is not present in typing there
-from typing_extensions import TypedDict
+from typing import TYPE_CHECKING, Dict, Protocol, TextIO, TypedDict
 
 import click
 from dominate import document
-from dominate.tags import *
+from dominate.tags import a, h3, meta, style, table, tbody, td, th, thead, tr
 from dominate.util import raw
 
 HERE = Path(__file__).resolve().parent
@@ -55,8 +54,8 @@ def parse_alloc_data(
 @click.pass_context
 @click.option("-a", "--alloc-data", type=click.File(), default="src/alloc_data.txt")
 @click.option("-t", "--type", type=click.Choice(("total", "avg")), default="avg")
-def cli(ctx: click.Context, alloc_data: TextIO, type: str):
-    shared_obj: SharedObject = SimpleNamespace()  # type: ignore
+def cli(ctx: click.Context, alloc_data: TextIO, type: str) -> None:
+    shared_obj: SharedObject = SimpleNamespace()
     shared_obj.data = parse_alloc_data(alloc_data)
     shared_obj.type = type
     ctx.obj = shared_obj
@@ -71,7 +70,7 @@ def _normalize_filename(filename: str) -> str:
 @cli.command()
 @click.pass_obj
 @click.argument("filename")
-def annotate(obj: SharedObject, filename: str):
+def annotate(obj: SharedObject, filename: str) -> None:
     filename = _normalize_filename(filename)
 
     if obj.type == "total":
@@ -116,7 +115,7 @@ def _list(
 @cli.command(name="list")
 @click.pass_obj
 @click.option("-r", "--reverse", is_flag=True)
-def list_function(obj: SharedObject, reverse: bool):
+def list_function(obj: SharedObject, reverse: bool) -> None:
     if obj.type == "total":
         field = "total_allocs"
 
@@ -164,7 +163,7 @@ def get_biggest_n_lines_for_each_file(
 @cli.command()
 @click.pass_obj
 @click.argument("htmldir")
-def html(obj: SharedObject, htmldir: str):
+def html(obj: SharedObject, htmldir: str) -> None:
     file_sums = _list(obj, "total_allocs", reverse=True)
     style_grey = "color: grey"
     style_red = "color: red;"

@@ -1,6 +1,7 @@
 use crate::ui::{
     component::{text::TextStyle, LineBreaking::BreakWordsNoHyphen},
     display::Color,
+    util::include_icon,
 };
 
 use super::{
@@ -8,14 +9,43 @@ use super::{
         component::{ButtonStyle, ButtonStyleSheet},
         fonts,
     },
-    BLACK, BLUE, GREY, GREY_DARK, GREY_EXTRA_LIGHT, GREY_LIGHT, GREY_SUPER_DARK, ORANGE, RED,
-    WHITE,
+    BLACK, BLUE, GREY, GREY_DARK, GREY_EXTRA_DARK, GREY_EXTRA_LIGHT, GREY_LIGHT, GREY_SUPER_DARK,
+    ORANGE, RED, WHITE,
 };
 
 pub const BLD_BG: Color = BLACK;
 pub const BLD_FG: Color = WHITE;
 
 pub const WELCOME_COLOR: Color = BLACK;
+
+// UI icons specific to bootloader (white color)
+include_icon!(
+    ICON_QR_TREZOR_IO_SETUP,
+    "layout_eckhart/res/bootloader/QRCode_170.toif"
+);
+
+pub const fn button_default() -> ButtonStyleSheet {
+    ButtonStyleSheet {
+        normal: &ButtonStyle {
+            font: fonts::FONT_SATOSHI_MEDIUM_26,
+            text_color: GREY_EXTRA_LIGHT,
+            button_color: GREY_SUPER_DARK,
+            icon_color: GREY_EXTRA_LIGHT,
+        },
+        active: &ButtonStyle {
+            font: fonts::FONT_SATOSHI_MEDIUM_26,
+            text_color: GREY_LIGHT,
+            button_color: GREY_EXTRA_DARK,
+            icon_color: GREY_LIGHT,
+        },
+        disabled: &ButtonStyle {
+            font: fonts::FONT_SATOSHI_MEDIUM_26,
+            text_color: GREY,
+            button_color: BLD_BG,
+            icon_color: GREY,
+        },
+    }
+}
 
 pub fn button_confirm() -> ButtonStyleSheet {
     ButtonStyleSheet {
@@ -24,21 +54,18 @@ pub fn button_confirm() -> ButtonStyleSheet {
             text_color: GREY_EXTRA_LIGHT,
             button_color: BLUE,
             icon_color: GREY_EXTRA_LIGHT,
-            background_color: BLD_BG,
         },
         active: &ButtonStyle {
             font: fonts::FONT_SATOSHI_MEDIUM_26,
             text_color: GREY_EXTRA_LIGHT,
             button_color: GREY_SUPER_DARK,
             icon_color: GREY_EXTRA_LIGHT,
-            background_color: BLD_BG,
         },
         disabled: &ButtonStyle {
             font: fonts::FONT_SATOSHI_MEDIUM_26,
             text_color: BLD_FG,
             button_color: GREY_DARK,
             icon_color: BLD_BG,
-            background_color: BLD_FG,
         },
     }
 }
@@ -50,21 +77,18 @@ pub fn button_cancel() -> ButtonStyleSheet {
             text_color: GREY_EXTRA_LIGHT,
             button_color: GREY_SUPER_DARK,
             icon_color: GREY_EXTRA_LIGHT,
-            background_color: BLD_BG,
         },
         active: &ButtonStyle {
             font: fonts::FONT_SATOSHI_MEDIUM_26,
             text_color: GREY_LIGHT,
             button_color: GREY_DARK,
             icon_color: GREY_LIGHT,
-            background_color: BLD_BG,
         },
         disabled: &ButtonStyle {
             font: fonts::FONT_SATOSHI_MEDIUM_26,
             text_color: BLD_FG,
             button_color: GREY_DARK,
             icon_color: BLD_BG,
-            background_color: BLD_FG,
         },
     }
 }
@@ -76,21 +100,18 @@ pub const fn button_header() -> ButtonStyleSheet {
             text_color: GREY_LIGHT,
             button_color: BLD_BG,
             icon_color: GREY_LIGHT,
-            background_color: BLD_BG,
         },
         active: &ButtonStyle {
             font: fonts::FONT_SATOSHI_MEDIUM_26,
             text_color: GREY_LIGHT,
             button_color: GREY_SUPER_DARK,
             icon_color: GREY_LIGHT,
-            background_color: BLD_BG,
         },
         disabled: &ButtonStyle {
             font: fonts::FONT_SATOSHI_MEDIUM_26,
             text_color: GREY_LIGHT,
             button_color: BLD_BG,
             icon_color: GREY_LIGHT,
-            background_color: BLD_BG,
         },
     }
 }
@@ -102,21 +123,18 @@ pub fn button_wipe_confirm() -> ButtonStyleSheet {
             text_color: GREY_EXTRA_LIGHT,
             button_color: RED,
             icon_color: GREY_EXTRA_LIGHT,
-            background_color: RED,
         },
         active: &ButtonStyle {
             font: fonts::FONT_SATOSHI_MEDIUM_26,
             text_color: RED,
             button_color: GREY_EXTRA_LIGHT,
             icon_color: RED,
-            background_color: GREY_EXTRA_LIGHT,
         },
         disabled: &ButtonStyle {
             font: fonts::FONT_SATOSHI_MEDIUM_26,
             text_color: BLD_FG,
             button_color: GREY_DARK,
             icon_color: BLD_FG,
-            background_color: BLD_FG,
         },
     }
 }
@@ -128,21 +146,18 @@ pub fn button_bld_menu() -> ButtonStyleSheet {
             text_color: GREY_EXTRA_LIGHT,
             button_color: BLD_BG,
             icon_color: GREY_EXTRA_LIGHT,
-            background_color: BLD_BG,
         },
         active: &ButtonStyle {
             font: fonts::FONT_SATOSHI_REGULAR_38,
             text_color: GREY_DARK,
             button_color: GREY_SUPER_DARK,
             icon_color: GREY_DARK,
-            background_color: GREY_SUPER_DARK,
         },
         disabled: &ButtonStyle {
             font: fonts::FONT_SATOSHI_REGULAR_38,
             text_color: GREY_DARK,
             button_color: BLD_BG,
             icon_color: GREY_DARK,
-            background_color: BLD_BG,
         },
     }
 }
@@ -154,27 +169,54 @@ pub fn button_bld_menu_danger() -> ButtonStyleSheet {
             text_color: ORANGE,
             button_color: BLD_BG,
             icon_color: ORANGE,
-            background_color: BLD_BG,
         },
         active: &ButtonStyle {
             font: fonts::FONT_SATOSHI_REGULAR_38,
             text_color: GREY_DARK,
             button_color: GREY_SUPER_DARK,
             icon_color: GREY_DARK,
-            background_color: GREY_SUPER_DARK,
         },
         disabled: &ButtonStyle {
             font: fonts::FONT_SATOSHI_REGULAR_38,
             text_color: GREY_DARK,
             button_color: BLD_BG,
             icon_color: GREY_DARK,
-            background_color: BLD_BG,
         },
     }
 }
 
-pub const fn text_title(bg: Color) -> TextStyle {
-    TextStyle::new(fonts::FONT_SATOSHI_MEDIUM_26, GREY, bg, GREY, GREY)
+/// Button style for the welcome screen
+pub fn button_bld_initial_setup() -> ButtonStyleSheet {
+    ButtonStyleSheet {
+        normal: &ButtonStyle {
+            font: fonts::FONT_SATOSHI_MEDIUM_26,
+            text_color: GREY_LIGHT,
+            button_color: BLD_BG,
+            icon_color: GREY_LIGHT,
+        },
+        active: &ButtonStyle {
+            font: fonts::FONT_SATOSHI_MEDIUM_26,
+            text_color: GREY_EXTRA_LIGHT,
+            button_color: GREY_SUPER_DARK,
+            icon_color: GREY_EXTRA_LIGHT,
+        },
+        disabled: &ButtonStyle {
+            font: fonts::FONT_SATOSHI_MEDIUM_26,
+            text_color: GREY,
+            button_color: BLD_BG,
+            icon_color: GREY,
+        },
+    }
+}
+
+pub const fn text_title(text_color: Color) -> TextStyle {
+    TextStyle::new(
+        fonts::FONT_SATOSHI_MEDIUM_26,
+        text_color,
+        BLD_BG,
+        text_color,
+        text_color,
+    )
 }
 
 pub const TEXT_FW_FINGERPRINT: TextStyle = TextStyle::new(

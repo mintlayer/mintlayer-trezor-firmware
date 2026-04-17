@@ -7,7 +7,7 @@ use crate::{
         component::{
             base::{AttachType, Component},
             paginated::SinglePage,
-            Event, EventCtx, PaginateFull,
+            Event, EventCtx, Paginate,
         },
         constant::screen,
         display::{Color, Icon},
@@ -208,7 +208,12 @@ impl VerticalMenu {
         self
     }
 
-    pub fn danger(mut self, icon: Icon, text: TString<'static>) -> Self {
+    pub fn cancel_item(mut self, text: TString<'static>) -> Self {
+        unwrap!(self.buttons.push(VerticalMenuItem::Cancel(text).button()));
+        self
+    }
+
+    pub fn danger_item(mut self, icon: Icon, text: TString<'static>) -> Self {
         unwrap!(self.buttons.push(
             Button::with_icon_and_text(IconText::new(text, icon))
                 .styled(theme::button_warning_high())
@@ -228,15 +233,14 @@ impl Component for VerticalMenu {
         self.n_items = n_items as usize;
 
         let mut remaining = bounds;
-        let n_seps = self.buttons.len() - 1;
         for (i, button) in self.buttons.iter_mut().take(self.n_items).enumerate() {
-            let (area_button, new_remaining) = remaining.split_top(MENU_BUTTON_HEIGHT);
-            button.place(area_button);
-            remaining = new_remaining;
-            if i < n_seps {
+            if i > 0 {
                 let (_area_sep, new_remaining) = remaining.split_top(MENU_SEP_HEIGHT);
                 remaining = new_remaining;
             }
+            let (area_button, new_remaining) = remaining.split_top(MENU_BUTTON_HEIGHT);
+            button.place(area_button);
+            remaining = new_remaining;
         }
         bounds
     }
@@ -318,6 +322,184 @@ impl crate::trace::Trace for VerticalMenu {
     }
 }
 
+pub type VerticalMenuItems = Vec<VerticalMenuItem, 6>;
+
+pub enum VerticalMenuItem {
+    Item(TString<'static>),
+    Cancel(TString<'static>),
+}
+
+impl VerticalMenuItem {
+    fn button(&self) -> Button {
+        match self {
+            VerticalMenuItem::Item(text) => {
+                let content = IconText::new(*text, theme::ICON_CHEVRON_RIGHT);
+                Button::with_icon_and_text(content).styled(theme::button_default())
+            }
+            VerticalMenuItem::Cancel(text) => {
+                let content = IconText::new(*text, theme::ICON_CANCEL);
+                Button::with_icon_and_text(content)
+                    .styled(theme::button_warning_high())
+                    .set_is_cancel()
+            }
+        }
+    }
+}
+
+#[cfg(feature = "ui_debug")]
+impl crate::trace::Trace for VerticalMenuItem {
+    fn trace(&self, t: &mut dyn crate::trace::Tracer) {
+        match self {
+            VerticalMenuItem::Item(text) => {
+                t.string("item", *text);
+            }
+            VerticalMenuItem::Cancel(text) => {
+                t.string("cancel", *text);
+            }
+        }
+    }
+}
+
+pub struct ScrolledVerticalMenu {
+    active: VerticalMenu,
+    items: VerticalMenuItems,
+    pager: Pager,
+    menu_capacity: usize,
+
+    up: Option<Button>,
+    down: Option<Button>,
+}
+
+impl ScrolledVerticalMenu {
+    pub fn new(items: VerticalMenuItems, mut item_index: usize) -> Self {
+        let menu_capacity = match items.len() {
+            0..=MENU_MAX_ITEMS => MENU_MAX_ITEMS,
+            _ => MENU_MAX_ITEMS - 1,
+        };
+        let pages_count = items.chunks(menu_capacity).len() as u16;
+        let mut pager = Pager::new(pages_count);
+        while item_index >= menu_capacity {
+            item_index -= menu_capacity;
+            pager.goto_next();
+        }
+        Self {
+            active: VerticalMenu::empty(),
+            items,
+            pager,
+            menu_capacity,
+            up: None,
+            down: None,
+        }
+    }
+
+    fn update_active_buttons(&mut self) {
+        let chunks_to_skip = self.pager.current().into();
+        let mut chunks = self.items.chunks(self.menu_capacity).skip(chunks_to_skip);
+        let current_chunk = unwrap!(chunks.next());
+        self.active.buttons.clear();
+        for item in current_chunk {
+            unwrap!(self.active.buttons.push(item.button()));
+        }
+    }
+}
+
+impl SinglePage for ScrolledVerticalMenu {}
+
+impl Component for ScrolledVerticalMenu {
+    type Msg = VerticalMenuChoiceMsg;
+
+    fn place(&mut self, bounds: Rect) -> Rect {
+        self.up = if self.pager.is_first() {
+            None
+        } else {
+            Some(Button::with_icon(theme::ICON_CHEVRON_UP))
+        };
+        self.down = if self.pager.is_last() {
+            None
+        } else {
+            Some(Button::with_icon(theme::ICON_CHEVRON_DOWN))
+        };
+
+        let bottom_height = match (self.up.as_ref(), self.down.as_ref()) {
+            (None, None) => 0,
+            _ => MENU_BUTTON_HEIGHT + MENU_SEP_HEIGHT,
+        };
+        let (top, bottom) = bounds.split_bottom(bottom_height);
+        self.update_active_buttons();
+        self.active.place(top);
+        match (self.up.as_mut(), self.down.as_mut()) {
+            (Some(up), Some(down)) => {
+                let (left, _, right) = bottom.split_center(0);
+                up.place(left);
+                down.place(right);
+            }
+            (Some(up), None) => {
+                up.place(bottom);
+            }
+            (None, Some(down)) => {
+                down.place(bottom);
+            }
+            (None, None) => {}
+        };
+        bounds
+    }
+
+    fn event(&mut self, ctx: &mut EventCtx, event: Event) -> Option<Self::Msg> {
+        let prev_pager = self.pager;
+        if let Some(up) = self.up.as_mut() {
+            if let Some(ButtonMsg::Clicked) = up.event(ctx, event) {
+                self.pager.goto_prev();
+            }
+        }
+        if let Some(down) = self.down.as_mut() {
+            if let Some(ButtonMsg::Clicked) = down.event(ctx, event) {
+                self.pager.goto_next();
+            }
+        };
+        if prev_pager != self.pager {
+            ctx.request_place();
+            ctx.request_paint();
+        }
+        self.active.event(ctx, event).map(|msg| match msg {
+            VerticalMenuChoiceMsg::Selected(i) => {
+                let offset = usize::from(self.pager.current()) * self.menu_capacity;
+                VerticalMenuChoiceMsg::Selected(offset + i)
+            }
+        })
+    }
+
+    fn render<'s>(&'s self, target: &mut impl Renderer<'s>) {
+        self.active.render(target);
+        if let Some(up) = self.up.as_ref() {
+            up.render(target);
+        }
+        if let Some(down) = self.down.as_ref() {
+            down.render(target);
+        }
+    }
+}
+
+#[cfg(feature = "ui_debug")]
+impl crate::trace::Trace for ScrolledVerticalMenu {
+    fn trace(&self, t: &mut dyn crate::trace::Tracer) {
+        self.active.trace(t);
+
+        let chunks_to_skip = self.pager.current().into();
+        let mut chunks = self.items.chunks(self.menu_capacity).skip(chunks_to_skip);
+        let current_chunk = unwrap!(chunks.next());
+        t.component("ScrolledVerticalMenu");
+        t.in_child("menu_items", &|t| {
+            t.in_list("current", &|t| {
+                for item in current_chunk {
+                    t.in_child(&|t| item.trace(t));
+                }
+            });
+            t.bool("has_next", self.pager.has_next());
+            t.bool("has_prev", self.pager.has_prev());
+        });
+    }
+}
+
 // Polymorphic struct, avoid adding code as it gets duplicated, prefer
 // extending VerticalMenu instead.
 pub struct PagedVerticalMenu<F: Fn(u16) -> TString<'static>> {
@@ -340,7 +522,7 @@ impl<F: Fn(u16) -> TString<'static>> PagedVerticalMenu<F> {
     }
 }
 
-impl<F: Fn(u16) -> TString<'static>> PaginateFull for PagedVerticalMenu<F> {
+impl<F: Fn(u16) -> TString<'static>> Paginate for PagedVerticalMenu<F> {
     fn pager(&self) -> Pager {
         let num_pages =
             (self.item_count / self.inner.n_items) + (self.item_count % self.inner.n_items).min(1);
@@ -391,6 +573,9 @@ impl<F: Fn(u16) -> TString<'static>> Component for PagedVerticalMenu<F> {
 #[cfg(feature = "ui_debug")]
 impl<F: Fn(u16) -> TString<'static>> crate::trace::Trace for PagedVerticalMenu<F> {
     fn trace(&self, t: &mut dyn crate::trace::Tracer) {
-        self.inner.trace(t)
+        t.component("PagedVerticalMenu");
+        t.child("inner", &self.inner);
+        t.int("page", self.page as _);
+        t.int("item_count", self.item_count as _);
     }
 }

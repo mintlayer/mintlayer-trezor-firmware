@@ -1,15 +1,16 @@
 # Running Upgrade Tests
 
-1. As always, use poetry environment:
+1. As always, use uv environment:
 
 ```sh
-poetry shell
+uv sync
+source .venv/bin/activate
 ```
 
-2. Download the emulators, if you have not already:
+2. Download the emulators for the models you want to test, if you have not already:
 
 ```sh
-tests/download_emulators.sh
+tests/download_emulators.sh {model}
 ```
 
 3. And run the tests using pytest:

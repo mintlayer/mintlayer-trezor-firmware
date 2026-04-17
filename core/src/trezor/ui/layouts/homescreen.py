@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING
 import storage.cache as storage_cache
 import trezorui_api
 from storage.cache_common import APP_COMMON_BUSY_DEADLINE_MS
-from trezor import TR, ui
+from trezor import TR, ui, utils
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Iterator, ParamSpec, TypeVar
+    from typing import Any, Callable, Iterator, ParamSpec, Tuple, TypeVar
 
     from trezor import loop
 
@@ -49,8 +49,7 @@ class HomescreenBase(ui.Layout):
         return storage_cache.homescreen_shown is self.RENDER_INDICATOR
 
     def _paint(self) -> None:
-        if self.layout.paint():
-            ui.refresh()
+        self.layout.paint()
 
     def _first_paint(self) -> None:
         if not self.should_resume:
@@ -66,16 +65,14 @@ class Homescreen(HomescreenBase):
     def __init__(
         self,
         label: str | None,
-        notification: str | None,
-        notification_level: int,
+        notification: Tuple[str, int] | None,
         lockable: bool,
     ) -> None:
         super().__init__(
             layout=_retry_with_gc(
                 trezorui_api.show_homescreen,
-                label=label,
+                label=label or utils.MODEL_FULL_NAME,
                 notification=notification,
-                notification_level=notification_level,
                 lockable=lockable,
                 skip_first_paint=self._should_resume(),
             )
@@ -125,6 +122,7 @@ class Lockscreen(HomescreenBase):
     async def get_result(self) -> Any:
         result = await super().get_result()
         if self.bootscreen:
+            # todo: should this be repaint()?
             self.request_complete_repaint()
         return result
 
@@ -146,7 +144,7 @@ class Busyscreen(HomescreenBase):
     async def get_result(self) -> Any:
         from trezor.wire import context
 
-        from apps.base import set_homescreen
+        from apps.common.lock_manager import set_homescreen
 
         # Handle timeout.
         result = await super().get_result()
