@@ -417,7 +417,7 @@ checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 [[package]]
 name = "mintlayer-core-primitives"
 version = "1.0.0"
-source = "git+https://github.com/mintlayer/mintlayer-core-primitives?rev=4e21bf85e7fdca1577a49df7599b2b39ec913287#4e21bf85e7fdca1577a49df7599b2b39ec913287"
+source = "git+https://github.com/mintlayer/mintlayer-core-primitives?rev=8644bfe06d932d687075939d2d175183ba1c369d#8644bfe06d932d687075939d2d175183ba1c369d"
 dependencies = [
  "derive_more",
  "fixed-hash",
@@ -450,8 +450,7 @@ checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
 [[package]]
 name = "parity-scale-codec"
 version = "3.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "799781ae679d79a948e13d4824a40970bfa500058d245760dd857301059810fa"
+source = "git+https://github.com/paritytech/parity-scale-codec.git?rev=5021525697edc0661591ebc71392c48d950a10b0#5021525697edc0661591ebc71392c48d950a10b0"
 dependencies = [
  "arrayvec",
  "byte-slice-cast",
@@ -464,8 +463,7 @@ dependencies = [
 [[package]]
 name = "parity-scale-codec-derive"
 version = "3.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34b4653168b563151153c9e4c08ebed57fb8262bebfa79711552fa983c623e7a"
+source = "git+https://github.com/paritytech/parity-scale-codec.git?rev=5021525697edc0661591ebc71392c48d950a10b0#5021525697edc0661591ebc71392c48d950a10b0"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",

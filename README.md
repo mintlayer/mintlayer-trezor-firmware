@@ -5,6 +5,7 @@ Note: the fork maintains a parallel versioning scheme. The mapping between our v
 | Mintlayer firmware version | Original firmware version | Upstream repository revision or tag  |
 | ---                        | ---                       | ---                                  |
 | 1.0.0                      | 2.9.0                     | core/v2.9.0                          |
+| Unreleased                 | 2.11.0                    | core/v2.11.0                         |
 
 The current Mintlayer firmware version can be obtained via `trezorctl mintlayer get-firmware-info`.
 

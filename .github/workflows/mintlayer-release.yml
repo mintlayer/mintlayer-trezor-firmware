@@ -17,6 +17,10 @@ jobs:
           - {id: T2B1, name: "Safe 3 rev. A", filename: safe3_rev_a}
           - {id: T3B1, name: "Safe 3 rev. B", filename: safe3_rev_b}
           - {id: T3T1, name: "Safe 5", filename: safe5}
+          # Note: we can't release Safe 7 firmware at the moment, because our Core wallets
+          # won't be able to communicate with it (it uses a new protocol called THP which
+          # we don't support yet).
+          # - {id: T3W1, name: "Safe 7", filename: safe7}
     name: Build for ${{ matrix.model.name }}
     runs-on: ubuntu-latest
     env:

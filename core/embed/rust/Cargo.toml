@@ -120,17 +120,23 @@ zeroize = { version = "1.8.2", default-features = false, optional = true }
 
 # Mintlayer
 
-parity-scale-codec = { version = "3.7", default-features = false, features = [
-    "derive",
-    "chain-error",
-], optional = true }
-
 mintlayer-firmware-deps = { path = "src/mintlayer/deps", optional = true }
 
 # Note: "default-features = false" disables the "std" feature, which is on by default;
 # this is needed for the no_std support.
 prost = { version = "0.14", default-features = false, optional = true }
 prost-types = { version = "0.14", default-features = false, optional = true }
+
+# Use a specific commit because we need a fix (github.com/paritytech/parity-scale-codec/pull/751)
+# that has not been released yet (should be part of the release coming after v3.7.5).
+# Note that the fix is needed for the Ledger app, but we have to use the same version of parity-scale-codec
+# across Trezor, Ledger, mintlayer-core and mintlayer-core-primitives repos.
+[dependencies.parity-scale-codec]
+git = "https://github.com/paritytech/parity-scale-codec.git"
+rev = "5021525697edc0661591ebc71392c48d950a10b0"
+default-features = false
+features = ["derive", "chain-error"]
+optional = true
 
 # Runtime dependencies
 

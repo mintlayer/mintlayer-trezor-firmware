@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING, TextIO
 import click
 
 from .. import messages, mintlayer, protobuf, tools
-from . import with_client
+from . import with_session
 
 if TYPE_CHECKING:
-    from ..client import TrezorClient
+    from ..client import Session
 
 
 @click.group(name="mintlayer")
@@ -17,11 +17,11 @@ def cli() -> None:
 
 
 @cli.command()
-@with_client
-def get_firmware_info(client: "TrezorClient") -> messages.MintlayerFirmwareInfo:
+@with_session
+def get_firmware_info(session: "Session") -> messages.MintlayerFirmwareInfo:
     """Get firmware info."""
 
-    return mintlayer.get_firmware_info(client)
+    return mintlayer.get_firmware_info(session)
 
 
 @cli.command()
@@ -35,9 +35,9 @@ def get_firmware_info(client: "TrezorClient") -> messages.MintlayerFirmwareInfo:
 @click.option("-n", "--address", required=True, help="BIP-32 path")
 @click.option("-d", "--show-display", is_flag=True)
 @click.option("-C", "--chunkify", is_flag=True)
-@with_client
+@with_session
 def get_address(
-    client: "TrezorClient",
+    session: "Session",
     chain_type: int,
     address: str,
     show_display: bool,
@@ -51,7 +51,7 @@ def get_address(
     address_n = tools.parse_path(address)
 
     return mintlayer.get_address(
-        client,
+        session,
         address_n,
         chain_type,
         show_display,
@@ -69,9 +69,9 @@ def get_address(
 )
 @click.option("-n", "--address", required=True, help="BIP-32 path, e.g. m/44h/0h/0h")
 @click.option("-d", "--show-display", is_flag=True)
-@with_client
+@with_session
 def get_public_key(
-    client: "TrezorClient",
+    session: "Session",
     chain_type: int,
     address: str,
     show_display: bool,
@@ -83,7 +83,7 @@ def get_public_key(
     """
     address_n = tools.parse_path(address)
     result = mintlayer.get_public_key(
-        client,
+        session,
         address_n,
         chain_type,
         show_display=show_display,
@@ -113,9 +113,9 @@ def get_public_key(
     help="Address type: PUBLIC_KEY or PUBLIC_KEY_HASH",
 )
 @click.argument("message")
-@with_client
+@with_session
 def sign_message(
-    client: "TrezorClient",
+    session: "Session",
     chain_type: int,
     address_n: str,
     address_type: str,
@@ -127,7 +127,7 @@ def sign_message(
     $ trezorctl mintlayer sign-message -c 1 -a PUBLIC_KEY_HASH -n m/44h/19788h/0h/0/0 "hello"
     """
     result = mintlayer.sign_message(
-        client,
+        session,
         chain_type=chain_type,
         address_n=tools.parse_path(address_n),
         address_type=address_type,
@@ -153,9 +153,9 @@ def sign_message(
 )
 @click.option("-C", "--chunkify", is_flag=True)
 @click.argument("json_file", type=click.File())
-@with_client
+@with_session
 def sign_tx(
-    client: "TrezorClient", chain_type: int, json_file: TextIO, chunkify: bool
+    session: "Session", chain_type: int, json_file: TextIO, chunkify: bool
 ) -> None:
     """Sign transaction.
 
@@ -181,7 +181,7 @@ def sign_tx(
     }
 
     results = mintlayer.sign_tx(
-        client,
+        session,
         chain_type,
         inputs,
         outputs,

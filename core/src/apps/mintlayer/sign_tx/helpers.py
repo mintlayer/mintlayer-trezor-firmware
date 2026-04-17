@@ -10,6 +10,7 @@ from trezor.wire import DataError
 from . import layout
 
 if TYPE_CHECKING:
+    from buffer_types import AnyBytes
     from typing import Any, Awaitable
 
     from trezor.messages import (
@@ -100,7 +101,7 @@ def request_tx_input(tx_req: MintlayerTxRequest, i: int) -> Awaitable[MintlayerT
 
 
 def request_tx_output(
-    tx_req: MintlayerTxRequest, i: int, tx_hash: bytes | None = None
+    tx_req: MintlayerTxRequest, i: int, tx_hash: AnyBytes | None = None
 ) -> Awaitable[MintlayerTxOutput]:  # type: ignore [awaitable-return-type]
     from trezor.messages import MintlayerTxAck, MintlayerTxOutputRequest
 
