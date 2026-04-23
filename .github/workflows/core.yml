@@ -41,7 +41,9 @@ jobs:
       - id: set_vars
         name: Set variables
         run: |
-          echo test_lang=${{ (github.event_name == 'schedule' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'translations'))) && '[\"en\", \"cs\", \"fr\", \"de\", \"es\", \"pt\"]' || '[\"en\"]' }} >> $GITHUB_OUTPUT
+          # Mintlayer: run tests for all languages on all any pull request.
+          echo test_lang=${{ (github.event_name == 'schedule' || github.event_name == 'pull_request') && '[\"en\", \"cs\", \"fr\", \"de\", \"es\", \"pt\"]' || '[\"en\"]' }} >> $GITHUB_OUTPUT
+          # echo test_lang=${{ (github.event_name == 'schedule' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'translations'))) && '[\"en\", \"cs\", \"fr\", \"de\", \"es\", \"pt\"]' || '[\"en\"]' }} >> $GITHUB_OUTPUT
           # TODO: fix ASAN tests on nightly CI runs (#5143)
           echo asan=${{ '[\"noasan\"]' }} >> $GITHUB_OUTPUT
           cat $GITHUB_OUTPUT
@@ -291,8 +293,12 @@ jobs:
       PYTEST_TIMEOUT: ${{ matrix.asan == 'asan' && 600 || 400 }}
       ACTIONS_DO_UI_TEST: ${{ matrix.coins == 'universal' && matrix.asan == 'noasan' }}
       TEST_LANG: ${{ matrix.lang }}
-      TESTOPTS: "--durations 10 --session-timeout ${{ matrix.model == 'T3W1' && '2400' || '1800' }}"  # pytest global timeout
-    timeout-minutes: 50  # CI job timeout
+      # Mintlayer: T3W1 UI tests are flaky and may fail randomly when the machine is under load, so we set the number
+      # of parallel workers to 1. The usual number of workers created on CI is 4, so we also quadruple the timeouts
+      # to compensate for the possible slowdown. TODO: try reverting this after the next merge with upstream.
+      MULTICORE: ${{ matrix.model == 'T3W1' && '1' || 'auto' }}
+      TESTOPTS: "--durations 10 --session-timeout ${{ matrix.model == 'T3W1' && '9600' || '1800' }}"  # pytest global timeout
+    timeout-minutes: 200  # CI job timeout
     steps:
       - uses: actions/checkout@v4
         with:
